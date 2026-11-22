@@ -79,6 +79,24 @@ func TestLogFileHidesTokens(t *testing.T) {
 	}
 }
 
+// The credentials the app holds, shaped like no key, reach neither the file nor stderr once the log file is given them.
+func TestLogFileHidesTheSecretsItIsGiven(t *testing.T) {
+	var echo strings.Builder
+	path := filepath.Join(t.TempDir(), LogName)
+	w, err := OpenLogFile(path, LogLimit, &echo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(w.Close)
+	w.SetSecrets([]string{"storage-secret-value", "https://llm.private.example/v1"})
+	w.Write([]byte(`Post "https://llm.private.example/v1/chat/completions": storage-secret-value rejected` + "\n"))
+	for _, got := range []string{readLog(t, path), echo.String()} {
+		if strings.Contains(got, "storage-secret") || strings.Contains(got, "llm.private") || !strings.Contains(got, `Post "***/chat/completions": *** rejected`) {
+			t.Fatalf("logged %q", got)
+		}
+	}
+}
+
 // TestLogFilesMoveToTheNewFolder moves the log and the two full ones kept beside it from the old folder, which goes once it is empty, and leaves what else is there.
 func TestLogFilesMoveToTheNewFolder(t *testing.T) {
 	root := t.TempDir()

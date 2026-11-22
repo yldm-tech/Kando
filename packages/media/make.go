@@ -95,6 +95,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	if watch == nil {
 		watch = From(job.ResumeAt)
 	}
+	ctx = withLogJob(ctx, job.ID)
 	if device == "" && job.Redo != core.RedoVideo {
 		job.Err, job.Stage = failedAt(StageCheck, track.ErrDevice), core.StageFailed
 		report(job)
@@ -607,7 +608,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				// A run that failed before it heard anything, as one whose model cannot load, fails every run: the job fails, as the transcription failing does.
 				return m.fail(StageTranscribe, d.err)
 			case d.err != nil:
-				m.append(track.Unit{Work: track.WorkHear, Gen: gen, Cell: m.firstUnheard(gen, plan.Hearing, hearCells), Key: plan.Hearing}.Failed(d.err.Error()))
+				unit := track.Unit{Work: track.WorkHear, Gen: gen, Cell: m.firstUnheard(gen, plan.Hearing, hearCells), Key: plan.Hearing}
+				logf(m.ctx, "hear: the run hearing %s failed at %s: %v", cellsText(hearCells), unitsText([]track.Unit{unit}), d.err)
+				m.append(unit.Failed(d.err.Error()))
 			case hearing == "":
 				// The first run heard the language: the cells it heard are kept as heard in it, and every cell after is heard in it.
 				hearing = cmpOr(d.language, "auto")
@@ -643,6 +646,13 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				refusing = false
 				m.served.Store(true)
 			}
+			work := "draft"
+			if d.in.final {
+				work = "final proofread"
+			}
+			if d.err != nil && m.ctx.Err() == nil {
+				logf(m.ctx, "%s of %s failed: %v", work, unitsText(d.in.units), d.err)
+			}
 			switch {
 			case d.err == nil && d.in.final:
 				m.commitFinal(d)
@@ -653,6 +663,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			case m.ctx.Err() != nil:
 			case d.in.final && (errors.Is(d.err, ErrOffline) || given):
 				// The service is gone, or fails block after block: the film stays a draft where it is not proofread yet, as one done with blocks the final proofread did not get to.
+				logf(m.ctx, "final proofread: given up for the blocks left")
 				finals = false
 				relanguage()
 			case (errors.Is(d.err, ErrOffline) || given) && m.redo:
@@ -660,10 +671,12 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				return m.fail(StageTranslate, d.err)
 			case (errors.Is(d.err, ErrOffline) || given) && !d.in.final && d.language == "":
 				// The service is not there, or fails cell after cell: the film, in its own language, is made with the lines of the cells left as heard. It is not translated, so it has no translation that failed (TranslationErr).
+				logf(m.ctx, "draft: proofreading given up for the cells left, their lines stay as heard")
 				proofreadOff = true
 				relanguage()
 			case errors.Is(d.err, ErrOffline) || given:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
+				logf(m.ctx, "draft: translation given up for the cells left, %d to draft and %d to hear, which stay untranslated", len(p.Draft), len(p.Hear))
 				notTranslated = d.err.Error()
 				notTranslatedBy, _ = EngineOf(d.err)
 				relanguage()
@@ -685,6 +698,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// A making stopped as its last work ended, as the fetch of the site's captions, is stopped, not done.
 	if err := m.ctx.Err(); err != nil {
 		return m.fail(StageTranscribe, err)
+	}
+	for _, u := range last.GivenUp {
+		logf(m.ctx, "%s of %s given up after %d attempts", u.Work, unitsText([]track.Unit{u}), track.Attempts)
 	}
 	// A redo that gave up hearing or drafting a part of the film would replace the film with one that lacks it: it fails, leaving the film as it was.
 	if m.redo {
@@ -756,6 +772,13 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				untranslated++
 			}
 		}
+	}
+	if untranslated > 0 {
+		givenUp := ""
+		if notTranslated != "" {
+			givenUp = ", the translation given up: " + notTranslated
+		}
+		logf(m.ctx, "made with %d of %d lines untranslated%s: %s", untranslated, len(lines), givenUp, gapsText(track.Originals(lines), func(i int) bool { return lines[i].Translation.Text == "" }))
 	}
 	// The chapters' titles are translated as the lines are; a film not translated has their earlier translations cleared (translateChapters).
 	if notTranslated == "" {
@@ -1206,6 +1229,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			if ctx.Err() != nil || errors.Is(err, ErrOffline) || !skippableBatch(err) || failedRun+1 >= maxFailedBatches {
 				return failed(StageTranslate, err)
 			}
+			logf(withLogSpan(ctx, segments), "fill missing: batch left untranslated: %v", err)
 			failedRun, lastErr = failedRun+1, err
 			continue
 		}
@@ -1233,6 +1257,10 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 		progress.Started = started
 		job.Progress = progress
 		report(*job)
+	}
+	if left > 0 {
+		now := doc.Lines(gen)
+		logf(ctx, "fill missing: %d of %d untranslated lines are still untranslated%s: %s", left, len(missing), because(lastErr), gapsText(track.Originals(now), func(i int) bool { return strings.TrimSpace(now[i].Translation.Text) == "" }))
 	}
 	// Lines left only by batches that failed, every one of them, are a translation that failed.
 	if lastErr != nil && left == len(missing) {
@@ -1567,6 +1595,9 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 		case err == nil, errors.As(err, &partly) && len(fixed) == len(heard):
 			heard = fixed
 		}
+		if err != nil {
+			logf(withLogSpan(ctx, in.lines), "draft: proofreading failed, its translation goes on with the lines it left as heard: %v", err)
+		}
 		fixes = ObservedFixes(heardOnlyOf(in.lines, at), heard)
 	}
 	for k, i := range at {
@@ -1585,11 +1616,20 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 	if errors.As(err, &partial) && len(translated) == len(lines) {
 		m.translateLeft(ctx, in, lines, translated, language)
 		err = nil
+	} else if err == nil && len(translated) == len(lines) {
+		if gaps := gapsText(lines, func(i int) bool { return untranslatedLine(lines[i], translated[i]) }); gaps != "" {
+			logf(withLogSpan(ctx, in.lines), "draft: the translation left lines empty without an error (%s)", gaps)
+		}
 	}
 	if err == nil && len(translated) != len(lines) {
 		err = fmt.Errorf("%d translated lines for %d lines", len(translated), len(lines))
 	}
 	out <- drafted{in: in, language: language, original: lines, translated: translated, fixes: fixes, err: err}
+}
+
+// untranslatedLine reports whether translation, of line, is empty where line is not.
+func untranslatedLine(line, translation core.Segment) bool {
+	return strings.TrimSpace(translation.Text) == "" && strings.TrimSpace(line.Text) != ""
 }
 
 // translateLeft translates again, once, the lines of a draft its translation left untranslated, translated (a batch of them failed after its retries, UntranslatedError), with the lines of the draft before the first of them and their translations as context, as one batch failing alone is more often the reply than the service; what it translates goes into translated. Lines it leaves untranslated again stay so: the draft is made with them, as the user can translate the lines left (core.RedoMissing).
@@ -1611,15 +1651,21 @@ func (m *making) translateLeft(ctx context.Context, in draftInput, lines, transl
 	for k, i := range left {
 		segments[k] = lines[i]
 	}
+	logCtx := withLogSpan(ctx, in.lines)
+	logf(logCtx, "draft: %d lines left untranslated (%s), translating them again", len(left), gapsText(lines, func(i int) bool { return strings.TrimSpace(translated[i].Text) == "" }))
 	again, err := m.p.Translate(WithTitle(WithEarlier(ctx, earlier), in.title), segments, language)
 	var partial *UntranslatedError
 	if (err != nil && !errors.As(err, &partial)) || len(again) != len(segments) {
+		logf(logCtx, "draft: translating the %d lines left again failed, they stay untranslated: %v", len(left), err)
 		return
 	}
 	for k, i := range left {
 		if text := strings.TrimSpace(again[k].Text); text != "" {
 			translated[i].Text = text
 		}
+	}
+	if still := gapsText(lines, func(i int) bool { return strings.TrimSpace(translated[i].Text) == "" }); still != "" {
+		logf(logCtx, "draft: lines stay untranslated after they were translated again (%s)%s", still, because(err))
 	}
 }
 
@@ -1635,6 +1681,7 @@ func (m *making) patiently(ctx context.Context, ask func() error) error {
 	err := ask()
 	start, wait := time.Now(), patienceFirst
 	for transient(err) && m.served.Load() && time.Since(start)+wait <= patience {
+		logf(ctx, "AI service failing for %v, trying again in %v: %v", time.Since(start).Round(time.Second), wait, err)
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -1644,6 +1691,9 @@ func (m *making) patiently(ctx context.Context, ask func() error) error {
 		}
 		wait = min(wait*2, patienceMost)
 		err = ask()
+	}
+	if transient(err) && m.served.Load() {
+		logf(ctx, "AI service still failing after %v, given up waiting: %v", time.Since(start).Round(time.Second), err)
 	}
 	return err
 }

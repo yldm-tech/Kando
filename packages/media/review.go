@@ -110,6 +110,7 @@ func (t ChatTranslator) Review(ctx context.Context, original, translated []core.
 			if !skippableBatch(err) {
 				return nil, err
 			}
+			logf(withLogRange(ctx, original[batch[0]].Start, original[batch[len(batch)-1]].End, len(batch)), "final proofread: batch %d of %d not proofread: %v", start/reviewBatch+1, batches, err)
 			continue
 		}
 		for _, p := range changes {

@@ -35,7 +35,7 @@
 - 可選擇從播放器把影片檔與雙語字幕檔上傳到你自己的物件儲存空間（Cloudflare R2、Amazon S3、阿里雲 OSS、騰訊雲 COS，或任何 S3 相容的儲存服務）。請參閱[組態設定](#configuration)。
 - 播放、字幕、學習與視窗都有鍵盤快速鍵，列在速查表（⌘/，Windows 和 Linux 上是 Ctrl+/）和「設定 › 快速鍵」中。
 - 視窗會跟隨系統的淺色或深色外觀；播放器、指令面板和速查表一律是深色的。
-- 回報問題時可以附上記錄檔：「輔助說明 › 顯示記錄檔」（或指令面板）會在 Finder 中顯示它。記錄檔 `kando.log` 在 macOS 上位於 `~/Library/Logs/ai.yldm.kando`，Windows 上位於 `%LOCALAPPDATA%\ai.yldm.kando\Logs`，Linux 上位於 `~/.local/state/ai.yldm.kando`。記錄檔記下每個失敗任務的原因（不含看懂儲存的金鑰和 AI 服務的位址）和出錯工具輸出的最後 64 KB，看起來像金鑰的內容都寫成 `***`。檔案超過 5 MB 時另起一份，保留之前的兩份。
+- 回報問題時可以附上記錄檔：「輔助說明 › 顯示記錄檔」（或指令面板）會在 Finder 中顯示它。記錄檔 `kando.log` 在 macOS 上位於 `~/Library/Logs/ai.yldm.kando`，Windows 上位於 `%LOCALAPPDATA%\ai.yldm.kando\Logs`，Linux 上位於 `~/.local/state/ai.yldm.kando`。記錄檔記下每個失敗任務的原因（不含看懂儲存的金鑰和 AI 服務的位址）、影片裡哪幾段沒譯出及其原因（只記時間和句數，不記台詞），以及出錯工具輸出的最後 64 KB，看起來像金鑰的內容都寫成 `***`。檔案超過 5 MB 時另起一份，保留之前的兩份。
 
 ![顯示雙語字幕的播放器，以及側邊面板中的台詞清單](docs/assets/zh-TW/player.png)
 

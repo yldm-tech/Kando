@@ -75,6 +75,7 @@ func (t ChatTranslator) Proofread(ctx context.Context, segments []core.Segment, 
 			if !skippableBatch(err) {
 				return nil, err
 			}
+			logf(withLogSpan(ctx, batch), "proofread: batch %d of %d left as heard: %v", start/proofreadBatch+1, batches, err)
 			if skipped == nil {
 				skipped = &UnproofreadError{Total: len(segments)}
 			}

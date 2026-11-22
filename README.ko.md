@@ -35,7 +35,7 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 - 선택 사항으로, 플레이어에서 영상 파일과 이중 언어 자막을 자신의 오브젝트 스토리지(Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS 또는 S3 호환 스토리지)에 업로드할 수 있습니다. [구성](#configuration)을 참고하세요.
 - 재생, 자막, 학습, 창을 다루는 키보드 단축키가 있으며, 단축키 목록(⌘/, Windows와 Linux에서는 Ctrl+/)과 설정 › 단축키에서 확인할 수 있습니다.
 - 창은 시스템의 라이트 또는 다크 모드를 따릅니다. 플레이어, 명령 팔레트, 단축키 목록은 항상 다크입니다.
-- 버그를 제보할 때 첨부할 수 있는 로그 파일이 있습니다. 도움말 › 로그 파일 보기(또는 명령 팔레트)로 파일을 보여 줍니다. `kando.log`는 macOS에서는 `~/Library/Logs/ai.yldm.kando`, Windows에서는 `%LOCALAPPDATA%\ai.yldm.kando\Logs`, Linux에서는 `~/.local/state/ai.yldm.kando`에 있습니다. 실패한 작업마다 실패한 이유(Kando가 보관하는 키와 AI 서비스 주소는 빼고)와 실패한 도구가 출력한 내용의 마지막 64 KB를 기록합니다. 키처럼 보이는 내용은 모두 `***`로 적습니다. 5 MB를 넘으면 새 파일을 시작하고 그 전의 두 파일을 남깁니다.
+- 버그를 제보할 때 첨부할 수 있는 로그 파일이 있습니다. 도움말 › 로그 파일 보기(또는 명령 팔레트)로 파일을 보여 줍니다. `kando.log`는 macOS에서는 `~/Library/Logs/ai.yldm.kando`, Windows에서는 `%LOCALAPPDATA%\ai.yldm.kando\Logs`, Linux에서는 `~/.local/state/ai.yldm.kando`에 있습니다. 실패한 작업마다 실패한 이유(Kando가 보관하는 키와 AI 서비스 주소는 빼고), 영화의 어느 부분이 번역되지 않고 남았는지와 그 이유(시각과 줄 수만 적고 대사는 적지 않습니다), 실패한 도구가 출력한 내용의 마지막 64 KB를 기록합니다. 키처럼 보이는 내용은 모두 `***`로 적습니다. 5 MB를 넘으면 새 파일을 시작하고 그 전의 두 파일을 남깁니다.
 
 ![이중 언어 자막과 사이드 패널의 대사 목록이 표시된 플레이어](docs/assets/ko/player.png)
 
