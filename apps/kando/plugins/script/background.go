@@ -12,6 +12,8 @@ import (
 
 // The background watchdog (Runner.Watch's BgBeat, Drain, Burst, TotalDrain, TotalBurst) stops a plugin whose JS keeps the engine's goroutine, the window's, busy outside the calls the call watchdog watches: from timers and promise continuations its entry module or a call that returned set going, from its panels' views, and during a call the app paused for it (Pause, PauseFor). The runner keeps a registry of the plugins it holds (Hold adds one, Close removes it), each with the JS time of its runtime for its functions (tsx.Plugin.JSTime) and of its panels' views (panelWatchdog.jsTime), and what of it ran while a call of it ran unpaused, which the call watchdog watches; the rest is the plugin's unwatched JS. One goroutine, running while the registry holds a plugin and BgBeat is set, reads every BgBeat what each plugin's unwatched JS grew by, and pours it into the plugin's bucket, which leaks Drain of the time gone by: a bucket past Burst stops its plugin as slow, the way the call watchdog does (Interrupt, then Close on the engine's goroutine). With DefaultWatch a plugin that keeps the engine busy all the time is stopped in about 5 s, one busy 40% of the time in about 20 s, one busy 20% or less never, and a burst of 3 s, as a plugin indexing a film as it opens, is spared. A second bucket takes what all plugins' unwatched JS grew by and leaks TotalDrain: past TotalBurst it stops the plugin that took the most of it since that bucket was last empty, if that is at least totalShare of the time, and takes that plugin's share out of the bucket, so plugins that each stay under Drain cannot keep the engine busy together while one that does next to nothing is never the one stopped. The time between two readings is the wall clock's, the JS a reading adds is at most that time, and a reading more than twice BgBeat after the last one, as after the computer slept, is dropped.
 //
+// The registry also tells the call watchdog and the panels' what other plugins' JS took of the engine while they measure (othersJS), so that a heartbeat waiting on another plugin's JS does not count against the call running, nor the engine busy with it against a panel.
+//
 // TODO(nsgo#1838): JSTime leaves out the Go functions a plugin calls, so a plugin that keeps the engine busy in them from a timer is not seen here, its host calls held to 60 a minute alone; count that time in the buckets too once tsx reports the engine time a runtime takes. https://github.com/nsgo-dev/nsgo/issues/1838
 
 // totalShare is the least share of the time since the all-plugins bucket was last empty that the plugin with the most of it must have taken for the bucket to stop it: a plugin that works now and then, as one that refreshes a panel every second, takes under 5%.
@@ -284,4 +286,17 @@ func (r *Runner) bgPanel(p *Plugin, w *panelWatchdog, on bool) {
 		h.panelsGone += ran
 		delete(h.panels, w)
 	}
+}
+
+// othersJS is how long the JS of every plugin held but p ran in all, from any goroutine: what of the engine's time a heartbeat of p's call, or a panel of p, waited for that is not p's.
+func (r *Runner) othersJS(p *Plugin) time.Duration {
+	r.bg.mu.Lock()
+	defer r.bg.mu.Unlock()
+	var d time.Duration
+	for q, h := range r.bg.plugins {
+		if q != p {
+			d += h.js()
+		}
+	}
+	return d
 }

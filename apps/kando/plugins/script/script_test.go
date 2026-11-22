@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -945,6 +946,25 @@ func TestScriptBackgroundStopsAHogAfterItsCall(t *testing.T) {
 	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
 }
 
+// TestScriptBackgroundSparesACallBehindAnotherPlugin checks that a call whose heartbeats wait behind another plugin's JS in the background is not stopped for it: the wait other plugins' JS took is not the call's. The call succeeds, and the only plugin stopped is the one that kept the engine busy. The call watchdog is at TestScriptWatchdogStopsASlicedLoop's scale, where three heartbeats behind the hog's pieces of 400 ms would stop the call in about 1.2 s, and the hog's bucket holds 2 s, so it is stopped well after.
+func TestScriptBackgroundSparesACallBehindAnotherPlugin(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	hog := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "hog()"}), plugins.Grant{})
+	work := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.work", code: `export async function work() { for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 50)); return 1 }`}), plugins.Grant{})
+	w := testBgWatch()
+	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
+	w.Burst = 2 * time.Second
+	r, stopped := bgRunner(e, w, hog, work)
+	if got := wait(t, e.call(r, work, "work"), slow(20*time.Second)); got.err != nil {
+		t.Fatalf("the call behind the hog ended with %v", got.err)
+	}
+	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
+	wantNoStop(t, stopped, 300*time.Millisecond)
+}
+
 // TestScriptBackgroundCountsAPausedCall checks that while the app waits on a call's behalf (PauseFor), the plugin's own timers that keep the engine busy are the background watchdog's: the call watchdog, which counts no heartbeat while paused (and none here at all), does not stop it, the background watchdog does.
 func TestScriptBackgroundCountsAPausedCall(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
@@ -1017,6 +1037,66 @@ func TestScriptBackgroundSparesLightWork(t *testing.T) {
 			t.Error(err)
 		}
 	}
+}
+
+// bgPanelFixture is a plugin with a panel whose timer keeps the engine busy in pieces of 300 ms, longer than a heartbeat may wait at TestScriptWatchdogStopsASlicedLoop's scale, and one that does nothing.
+var bgPanelFixture = fixture{id: "acme.board", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}]}`,
+	code: `import { View } from "nsgo"
+export function Busy() { setInterval(() => { const t = Date.now(); while (Date.now() - t < 300) {} }, 10); return <View /> }
+export function Quiet() { return <View /> }
+`}
+
+// bgShowPanel loads the plugin f on e and shows its panel i under r, counting the builds of its view in builds.
+func bgShowPanel(t *testing.T, e *engine, r *Runner, s signer, f fixture, i int, builds *atomic.Int32) *Plugin {
+	t.Helper()
+	roots := s.roots()
+	p := s.pack(t, f)
+	v, err := Verify(trustOf(t, roots), roots, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pl *Plugin
+	e.do(func() {
+		pl, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		if err != nil {
+			return
+		}
+		e.tree.Mount(func(cx *core.Scope) core.Node {
+			return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[i], func() *core.Host {
+				if builds != nil {
+					builds.Add(1)
+				}
+				return core.NewHost()
+			}, func(cx *core.Scope, err error, _ func()) core.Node {
+				t.Errorf("the panel failed: %v", err)
+				return core.View{}
+			})
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pl
+}
+
+// TestScriptBackgroundSparesACallBehindAPanel checks that a call whose heartbeats wait behind another plugin's panel is not stopped for it, the panel's JS being its plugin's (Runner.othersJS), and that the plugin of the busy panel, which no call of its own watches, is stopped by the background watchdog, its view's runtime interrupted so the engine answers again. Its panel's own watchdog is kept from stopping it first.
+func TestScriptBackgroundSparesACallBehindAPanel(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	work := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.work", code: `export async function work() { for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 50)); return 1 }`}), plugins.Grant{})
+	w := testBgWatch()
+	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
+	w.Burst = 2 * time.Second
+	r, stopped := bgRunner(e, w, work)
+	r.PanelWatch = testPanelWatch
+	r.PanelWatch.Windows = 1000
+	bgShowPanel(t, e, r, s, bgPanelFixture, 0, nil)
+	if got := wait(t, e.call(r, work, "work"), slow(20*time.Second)); got.err != nil {
+		t.Fatalf("the call behind the panel ended with %v", got.err)
+	}
+	wantStopped(t, stopped, slow(5*time.Second), "acme.board")
+	wantResponsive(t, e)
 }
 
 // TestScriptBackgroundStopsTheLargestOfMany checks the bucket of all plugins: three plugins that each work 16 ms of every 100, under Drain, together over TotalDrain, have one of them stopped, after which the other two, together back under TotalDrain, are left alone; and with a plugin that works 3 ms of every 100 and two of 16, over a TotalDrain of 0.3, the one stopped is one of the two, never the light one, which is under totalShare.

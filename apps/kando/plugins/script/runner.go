@@ -14,9 +14,9 @@ import (
 	"github.com/nsgo-dev/nsgo/tsx"
 )
 
-// Runner calls the plugins' functions one call at a time, all plugins together, so a window slow to answer, or memory that grows, is the call's that is running (docs/plugin-system.md 6.6). tsx cuts each piece of synchronous JS at Limits' half second, but not a call that awaits between pieces, which can keep the window busy and its memory growing for ever; nor does a cut stop the plugin, whose module keeps what it holds. While a call runs, a watchdog posts a heartbeat to the engine's goroutine every Beat and reads the Go heap: when Stalls heartbeats in a row waited more than Stall, the call ran past Deadline, or the heap grew past Heap during the call, the watchdog interrupts the plugin from its own goroutine (tsx.Plugin.Interrupt), which cuts the piece of JS running at once and drops its timers, then the runner closes it on the engine's goroutine, ends the call with ErrStopped and reports it (Stopped). The heap is the whole app's, so growth is only taken as the plugin's once a collection confirms it is live (runtime.GC, run only then): during a call, growth past Heap since the call started; across calls, a plugin whose own calls grew the heap by more than Heap in all, while the heap after a collection is still more than Heap over what it was as the plugin loaded, which a module that keeps what each short call makes reaches and a plugin that runs while the app itself grows does not. That check runs as a call ends, never before one, so a plugin is not stopped for what others did before it ran. While the app waits for the user on a plugin's behalf, or does work of its own for the plugins, as loading one, it pauses the watchdog of the call running (Pause): the deadline does not run, and the window's pauses are not the call's. It also stops a plugin whose calls failed too often: breakerFails of the last breakerCalls, a failure being an error that is not a core.Error with a code, which a plugin throws or rejects with on purpose, as for a service that does not answer; and a plugin whose runtime tsx itself stopped, as at its node or memory quota, as soon as tsx says so (halt). Outside its calls, and while a call of it is paused, a plugin's JS is the background watchdog's (background.go), which stops a plugin whose timers, promise continuations or panels' views keep the window busy too long, alone or with other plugins. Each call is marked in flight in the plugins folder (plugins.MarkInFlight) until it ends, so a call that hung or crashed Kando turns its plugin off as Kando starts again.
+// Runner calls the plugins' functions one call at a time, all plugins together, so a window slow to answer, or memory that grows, is the call's that is running (docs/plugin-system.md 6.6). tsx cuts each piece of synchronous JS at Limits' half second, but not a call that awaits between pieces, which can keep the window busy and its memory growing for ever; nor does a cut stop the plugin, whose module keeps what it holds. While a call runs, a watchdog posts a heartbeat to the engine's goroutine every Beat and reads the Go heap: when Stalls heartbeats in a row waited more than Stall, but for what other plugins' JS ran while each waited (tsx.Plugin.JSTime, which the registry of the plugins held reads, background.go), so another plugin's load neither counts against the call nor starts its count again, the call ran past Deadline, or the heap grew past Heap during the call, the watchdog interrupts the plugin from its own goroutine (tsx.Plugin.Interrupt), which cuts the piece of JS running at once and drops its timers, then the runner closes it on the engine's goroutine, ends the call with ErrStopped and reports it (Stopped). The heap is the whole app's, so growth is only taken as the plugin's once a collection confirms it is live (runtime.GC, run only then): during a call, growth past Heap since the call started; across calls, a plugin whose own calls grew the heap by more than Heap in all, while the heap after a collection is still more than Heap over what it was as the plugin loaded, which a module that keeps what each short call makes reaches and a plugin that runs while the app itself grows does not. That check runs as a call ends, never before one, so a plugin is not stopped for what others did before it ran. While the app waits for the user on a plugin's behalf, or does work of its own for the plugins, as loading one, it pauses the watchdog of the call running (Pause): the deadline does not run, and the window's pauses are not the call's. It also stops a plugin whose calls failed too often: breakerFails of the last breakerCalls, a failure being an error that is not a core.Error with a code, which a plugin throws or rejects with on purpose, as for a service that does not answer; and a plugin whose runtime tsx itself stopped, as at its node or memory quota, as soon as tsx says so (halt). Outside its calls, and while a call of it is paused, a plugin's JS is the background watchdog's (background.go), which stops a plugin whose timers, promise continuations or panels' views keep the window busy too long, alone or with other plugins. Each call is marked in flight in the plugins folder (plugins.MarkInFlight) until it ends, so a call that hung or crashed Kando turns its plugin off as Kando starts again.
 //
-// The runner does not set tsx's Limits.CallTotal, nor call through Plugin.CallWithBudget: CallTotal holds what the entry module sets going to Limits.Load, a second, and what a call sets going, its timers included, to the call's deadline even after the call returned, which plugins may rely on running on; and a call's budget can only be extended, ahead of its deadline and between two pieces of JS, never paused, while Deadline is paused (Pause, PauseFor) for as long as the app serves the plugin, as for a sound read or an LLM answer of up to two minutes. Nor does it measure a call by its own tsx.Plugin.JSTime: that is the time inside the plugin's JS entries, which leaves out what a call keeps the window from outside them, as the getters of its exports object, which tsx runs as it looks an export up (Plugin.Call, Plugin.Exports), and the Go functions it calls; a heartbeat that waits is the window not answering, whatever holds it. The background watchdog measures by JSTime alone, as no call holds the window there to post heartbeats for.
+// The runner does not set tsx's Limits.CallTotal, nor call through Plugin.CallWithBudget: CallTotal holds what the entry module sets going to Limits.Load, a second, and what a call sets going, its timers included, to the call's deadline even after the call returned, which plugins may rely on running on; and a call's budget can only be extended, ahead of its deadline and between two pieces of JS, never paused, while Deadline is paused (Pause, PauseFor) for as long as the app serves the plugin, as for a sound read or an LLM answer of up to two minutes. Nor does it measure a call by its own tsx.Plugin.JSTime: that is the time inside the plugin's JS entries, which leaves out what a call keeps the window from outside them, as the getters of its exports object, which tsx runs as it looks an export up (Plugin.Call, Plugin.Exports), and the Go functions it calls; a heartbeat that waits is the window not answering, whatever holds it. Other plugins' JSTime it does read, to take out of a heartbeat's wait what was theirs: what it leaves out of them stays the call's, which only errs towards stopping the call, as before. The background watchdog measures by JSTime alone, as no call holds the window there to post heartbeats for.
 //
 // TODO(nsgo#1060): Limits keeps tsx.DefaultLimits' Memory (64 MiB, nsgo#760), but tsx counts only what the built-ins that allocate by a size hold (tsx/memory_goja.go:20, tsx/sandbox.go:49), not the objects, closures and arrays a bundle builds, nor what concat, flat, slice, spreads, replace and string concatenation copy, so a bundle written to exhaust memory still can and the watchdog's heap threshold stays the bound for that; drop it once tsx bounds a runtime's whole heap https://github.com/nsgo-dev/nsgo/issues/1060
 type Runner struct {
@@ -351,6 +351,8 @@ func (r *Runner) watch(c *call, start time.Time) {
 	tick := time.NewTicker(w.Beat)
 	defer tick.Stop()
 	var posted time.Time
+	// postedOthers is what other plugins' JS ran in all (othersJS) as the heartbeat waiting was posted: a heartbeat counts only for what it waited past that, so another plugin's JS does not count against the call, and does not start its count again either, which would let another plugin hide this one's stalls.
+	var postedOthers time.Duration
 	waiting, counted, stalls, postedEpoch := false, false, 0, 0
 	// trip interrupts the plugin unless the call ended meanwhile, which cuts the JS running at once rather than between two pieces, its timers dropped and its call failed with ErrStopped, then closes and reports it on the engine's goroutine.
 	trip := func(reason string) {
@@ -393,22 +395,25 @@ func (r *Runner) watch(c *call, start time.Time) {
 				trip(plugins.ReasonSlow)
 				return
 			}
+			others := r.othersJS(c.p)
 			c.mu.Lock()
 			switch {
-			case waiting && !counted && now.Sub(posted) > w.Stall:
-				// A heartbeat still waiting past Stall counts once, as soon as it is past, so an engine that never gets to it stops the plugin too.
+			case waiting && !counted && now.Sub(posted)-(others-postedOthers) > w.Stall:
+				// A heartbeat still waiting past Stall, but for what other plugins' JS took meanwhile, counts once, as soon as it is past, so an engine that never gets to it stops the plugin too.
 				counted = true
 				stalls++
 			case !waiting:
-				waiting, counted, posted, postedEpoch = true, false, now, epoch
+				waiting, counted, posted, postedEpoch, postedOthers = true, false, now, epoch, others
 				r.Post(func() {
+					others := r.othersJS(c.p)
 					c.mu.Lock()
 					defer c.mu.Unlock()
 					if !counted && c.epoch == postedEpoch && c.paused == 0 {
-						if time.Since(posted) > w.Stall {
-							stalls++
-						} else {
+						switch waited := time.Since(posted); {
+						case waited <= w.Stall:
 							stalls = 0
+						case waited-(others-postedOthers) > w.Stall:
+							stalls++
 						}
 					}
 					waiting = false
