@@ -266,3 +266,53 @@ func TestOpeningTheSettingsBringsTheMainWindowBack(t *testing.T) {
 		}
 	}
 }
+
+// TestSettingsInTheirOwnWindow tests the settings in the window of their own they open in, as users meet them, rather than over the main window, where newTestApp has the other settings tests show them (settingsUI.overMain): the window's size and limits, its sidebar and a switch that is saved, its search, ⌘, bringing the same window back to another section, and its close button, which forgets it, so the next ⌘, opens a new one.
+func TestSettingsInTheirOwnWindow(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.prefs.overMain = false
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.OpenSettings(settings.SectionGeneral)
+	refresh(tt, a)
+	title := "title:" + testlocale.Messages().SettingsWindowTitle()
+	win := tt.Surface(title)
+	if c := win.Config(); c.Width != 880 || c.Height != 640 || c.Constraints.MinWidth != 720 || c.Constraints.MinHeight != 480 || !c.Constraints.NoMaximize {
+		t.Fatalf("settings window opened %+v", c)
+	}
+	inWindow := func(text string) bool { return len(win.Query(whole(text))) > 0 }
+	if tt.Exists("settings-in-window") || !inWindow("通用") || !inWindow("账号与上传") {
+		t.Fatalf("the settings are not in their window alone: over the main window %v, sidebar shows %v", tt.Exists("settings-in-window"), inWindow("通用"))
+	}
+
+	win.Press("id:settings-section-" + settings.SectionTranslate)
+	wantSettings(t, a, settings.SectionTranslate)
+	before := a.prefs.translateContext
+	win.Press("智能翻译")
+	if saved := loadSavedSettings(a.settingsPath); a.prefs.translateContext == before || saved.TranslateContext == nil || *saved.TranslateContext != a.prefs.translateContext {
+		t.Fatalf("the switch in the settings window turned %v, saved %#v", a.prefs.translateContext != before, saved.TranslateContext)
+	}
+	win.Type("搜索设置", "bucket")
+	if a.prefs.query != "bucket" || !inWindow("账号与上传") || inWindow("字幕外观") {
+		t.Fatalf("search %q: 账号与上传 %v, 字幕外观 %v", a.prefs.query, inWindow("账号与上传"), inWindow("字幕外观"))
+	}
+
+	a.OpenSettings(settings.SectionSpeech)
+	refresh(tt, a)
+	if n := len(tt.Surfaces()); n != 2 || tt.Surface(title) != win {
+		t.Fatalf("⌘, with the settings open left %d windows, want the main window and the same settings window", n)
+	}
+	wantSettings(t, a, settings.SectionSpeech)
+
+	if !win.Close() {
+		t.Fatal("the settings window's close button did not close it")
+	}
+	refresh(tt, a)
+	if a.prefs.open || a.prefs.win != nil || len(tt.Surfaces()) != 1 {
+		t.Fatalf("after closing: open %v, window %v, %d windows", a.prefs.open, a.prefs.win, len(tt.Surfaces()))
+	}
+	a.OpenSettings(settings.SectionGeneral)
+	refresh(tt, a)
+	if again := tt.Surface(title); again == win || a.prefs.win == nil {
+		t.Fatal("⌘, after the settings window closed did not open a new one")
+	}
+}

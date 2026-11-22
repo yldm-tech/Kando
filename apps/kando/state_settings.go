@@ -87,8 +87,8 @@ type settingsUI struct {
 	win      *core.Window
 	opening  bool
 	inWindow bool
-	// overMain shows the settings over the main window even where the platform opens windows. The tests set it: nsgotest's host opens the app's windows on a desktop, but its steps act on the main window alone.
-	// TODO(nsgo#1085): let nsgotest's steps (Press, Type, Find, Key, Screenshot) act on a window the app opened other than the main one, then test the settings in their own window and drop overMain; nsgotest has Opened and SetWindowEnvironment for the other windows but no handle to act in them https://github.com/nsgo-dev/nsgo/issues/1085
+	// overMain shows the settings over the main window even where the platform opens windows. newTestApp sets it for the settings tests, whose steps nsgotest's Surface, the handle that acts in the settings window (TestSettingsInTheirOwnWindow), does not all have.
+	// TODO(nsgo): give nsgotest's Surface the steps the settings tests take besides Press, Type, Key, Find, Query, Screenshot and Close, such as Exists, Texts, Enabled, Clear, Focus, Hover, RightClick, DropFiles and Resize, or the *nsgotest.App its steps run on, then have settingsOpenAt return the settings window's and drop overMain
 	overMain bool
 	// frame is where the settings window was last, as desktop.Frame reports it, which settings.json keeps so the window opens there again (savedInterface).
 	frame core.WindowFrame
