@@ -76,10 +76,9 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 			footer(cx, cat, found, query, s.OnClose),
 		},
 	}
-	// TODO(nsgo#145): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the sheet's accessible name follows the interface language as it changes while it is open; it is read as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
 		TestID:                 "sites",
-		Label:                  locales.SitesTitle(cx),
+		LabelFunc:              func() string { return locales.SitesTitle(cx) },
 		Open:                   func() bool { return true },
 		NoCloseOnBackdropPress: true,
 		Bare:                   true,
@@ -138,11 +137,10 @@ func (s search) Render(cx *core.Scope) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
 		return nil
 	}}
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		TestID:          "sites-search",
 		Role:            core.RoleSearchField,
-		Label:           locales.SitesSearchLabel(cx),
+		LabelFunc:       func() string { return locales.SitesSearchLabel(cx) },
 		AutoFocus:       true,
 		Value:           s.query,
 		PlaceholderFunc: func() string { return locales.SitesSearchPlaceholder(cx) },

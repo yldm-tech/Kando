@@ -157,6 +157,22 @@ func TestSheetStaysWhileTheAppChanges(t *testing.T) {
 	}
 }
 
+// Another interface language renames the sheet and its search field in place: the search keeps the keyboard and what is typed in it.
+func TestSheetFollowsTheLanguage(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	app.Type("id:sites-search", "nico")
+	field := app.Find("id:sites-search").ID
+	app.SetEnvironment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true, Locale: "en"})
+	en := locales.In("en")
+	if got := app.Find("id:sites").Props.Label; got != en.SitesTitle() {
+		t.Fatalf("in English the sheet is named %q, want %q", got, en.SitesTitle())
+	}
+	if v := app.Find("id:sites-search"); v.ID != field || !v.Focused || v.Text != "nico" || v.Props.Label != en.SitesSearchLabel() {
+		t.Fatalf("in English the search is view %d (was %d), focused %v, holds %q, named %q", v.ID, field, v.Focused, v.Text, v.Props.Label)
+	}
+}
+
 // A tile is a button that opens its site in the browser, the site the tile shows as the search narrows the grid.
 func TestTileOpensItsSite(t *testing.T) {
 	a := &fakeApp{}
