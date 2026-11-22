@@ -1331,6 +1331,7 @@ const (
 	textSettingsRemind
 	textSettingsShortcuts
 	textSettingsShortcutsNote
+	textSettingsShortcutsNoteHold
 	textSettingsShortcutsValue
 	textSettingsSource
 	textSettingsSubtitleStyle
@@ -1349,9 +1350,12 @@ const (
 	textSettingsWidgetsLockScreen
 	textShortcutsAdd
 	textShortcutsExplain
+	textShortcutsGroupGo
+	textShortcutsGroupPlayback
 	textShortcutsJoin
 	textShortcutsLines
 	textShortcutsLoop
+	textShortcutsNextMode
 	textShortcutsPlayPause
 	textShortcutsReplay
 	textShortcutsSave
@@ -1875,6 +1879,7 @@ var keyOfText = [numTexts]string{
 	"settingsRemind",
 	"settingsShortcuts",
 	"settingsShortcutsNote",
+	"settingsShortcutsNoteHold",
 	"settingsShortcutsValue",
 	"settingsSource",
 	"settingsSubtitleStyle",
@@ -1893,9 +1898,12 @@ var keyOfText = [numTexts]string{
 	"settingsWidgetsLockScreen",
 	"shortcutsAdd",
 	"shortcutsExplain",
+	"shortcutsGroupGo",
+	"shortcutsGroupPlayback",
 	"shortcutsJoin",
 	"shortcutsLines",
 	"shortcutsLoop",
+	"shortcutsNextMode",
 	"shortcutsPlayPause",
 	"shortcutsReplay",
 	"shortcutsSave",
@@ -2417,6 +2425,7 @@ var textsEn = i18n.NewTexts(""+
 	"Review Reminder"+
 	"Keyboard Shortcuts"+
 	"These work while a hardware keyboard is connected."+
+	"These work while a hardware keyboard is connected. Hold ⌘ to see them on screen."+
 	"Hardware Keyboard"+
 	"Source Code"+
 	"Subtitle Style"+
@@ -2435,9 +2444,12 @@ var textsEn = i18n.NewTexts(""+
 	"Lock Screen"+
 	"Add a Video"+
 	"Explain This Line"+
+	"Go"+
+	"Playback"+
 	", "+
 	"Previous / Next Line"+
 	"Loop This Line"+
+	"Next Subtitle Mode"+
 	"Play / Pause"+
 	"Replay This Line"+
 	"Save This Line"+
@@ -2956,6 +2968,7 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		18,
 		50,
+		82,
 		17,
 		11,
 		14,
@@ -2975,8 +2988,11 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		17,
 		2,
+		8,
+		2,
 		20,
 		14,
+		18,
 		12,
 		16,
 		14,
@@ -3498,6 +3514,7 @@ var textsJa = i18n.NewTexts(""+
 	"復習リマインダー"+
 	"キーボードショートカット"+
 	"外付けキーボードを接続しているときに使えます。"+
+	"外付けキーボードを接続しているときに使えます。⌘ を押し続けると画面に一覧が表示されます。"+
 	"外付けキーボード"+
 	"ソースコード"+
 	"字幕のスタイル"+
@@ -3516,9 +3533,12 @@ var textsJa = i18n.NewTexts(""+
 	"ロック画面"+
 	"動画を追加"+
 	"AI でこの文を解説"+
+	"移動"+
+	"再生"+
 	"、"+
 	"前の文 / 次の文"+
 	"この文をくり返す"+
+	"次の字幕モード"+
 	"再生 / 一時停止"+
 	"この文をもう一度"+
 	"この文を保存"+
@@ -4037,6 +4057,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		36,
 		69,
+		133,
 		24,
 		18,
 		21,
@@ -4055,9 +4076,12 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		15,
 		24,
+		6,
+		6,
 		3,
 		21,
 		24,
+		21,
 		21,
 		24,
 		18,
@@ -4579,6 +4603,7 @@ var textsKo = i18n.NewTexts(""+
 	"복습 알림"+
 	"키보드 단축키"+
 	"외장 키보드를 연결하면 사용할 수 있어요."+
+	"외장 키보드를 연결하면 사용할 수 있어요. ⌘를 길게 누르면 화면에서 볼 수 있어요."+
 	"외장 키보드"+
 	"소스 코드"+
 	"자막 스타일"+
@@ -4597,9 +4622,12 @@ var textsKo = i18n.NewTexts(""+
 	"잠금 화면"+
 	"동영상 추가"+
 	"AI로 이 문장 설명"+
+	"이동"+
+	"재생"+
 	", "+
 	"이전 문장 / 다음 문장"+
 	"이 문장 반복"+
+	"다음 자막 모드"+
 	"재생 / 일시정지"+
 	"이 문장 다시 듣기"+
 	"이 문장 저장"+
@@ -5118,6 +5146,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		19,
 		57,
+		113,
 		16,
 		13,
 		16,
@@ -5136,9 +5165,12 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		16,
 		23,
+		6,
+		6,
 		2,
 		29,
 		17,
+		20,
 		21,
 		24,
 		17,
@@ -5660,6 +5692,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"复习提醒"+
 	"键盘快捷键"+
 	"接上外接键盘时可用。"+
+	"接上外接键盘时可用。按住 ⌘ 可在屏幕上查看。"+
 	"外接键盘"+
 	"源代码"+
 	"字幕样式"+
@@ -5678,9 +5711,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"锁屏小组件"+
 	"添加视频"+
 	"AI 解释这一句"+
+	"前往"+
+	"播放"+
 	"、"+
 	"上一句 / 下一句"+
 	"单句循环"+
+	"下一种字幕模式"+
 	"播放 / 暂停"+
 	"重听这一句"+
 	"收藏这一句"+
@@ -6199,6 +6235,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		15,
 		30,
+		65,
 		12,
 		9,
 		12,
@@ -6217,9 +6254,12 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		18,
+		6,
+		6,
 		3,
 		21,
 		12,
+		21,
 		15,
 		15,
 		15,
@@ -6741,6 +6781,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"複習提醒"+
 	"鍵盤快速鍵"+
 	"接上外接鍵盤時可用。"+
+	"接上外接鍵盤時可用。按住 ⌘ 可在螢幕上查看。"+
 	"外接鍵盤"+
 	"原始碼"+
 	"字幕樣式"+
@@ -6759,9 +6800,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"鎖定畫面小工具"+
 	"新增影片"+
 	"AI 解釋這一句"+
+	"前往"+
+	"播放"+
 	"、"+
 	"上一句 / 下一句"+
 	"單句循環"+
+	"下一種字幕模式"+
 	"播放 / 暫停"+
 	"重聽這一句"+
 	"收藏這一句"+
@@ -7280,6 +7324,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		15,
 		30,
+		65,
 		12,
 		9,
 		12,
@@ -7298,9 +7343,12 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		12,
 		18,
+		6,
+		6,
 		3,
 		21,
 		12,
+		21,
 		15,
 		15,
 		15,
@@ -16432,7 +16480,7 @@ func (msgs Messages) PlayerModeTranslation() string { return msgs.text(textPlaye
 // PlayerNextLine says "Next Line"
 // in the language the app shows under cx.
 //
-// Spoken name of the player's button that plays from the next line.
+// Spoken name of the player's button that plays from the next line, and on an iPad the name of its keyboard shortcut in the list shown while ⌘ is held.
 func PlayerNextLine(cx *core.Scope) string { return For(cx).PlayerNextLine() }
 
 // PlayerNextLine is the package's PlayerNextLine in the language of msgs.
@@ -16670,7 +16718,7 @@ func (msgs Messages) PlayerPosition() string { return msgs.text(textPlayerPositi
 // PlayerPrevLine says "Previous Line"
 // in the language the app shows under cx.
 //
-// Spoken name of the player's button that plays from the line before.
+// Spoken name of the player's button that plays from the line before, and on an iPad the name of its keyboard shortcut in the list shown while ⌘ is held.
 func PlayerPrevLine(cx *core.Scope) string { return For(cx).PlayerPrevLine() }
 
 // PlayerPrevLine is the package's PlayerPrevLine in the language of msgs.
@@ -18895,6 +18943,17 @@ func SettingsShortcutsNote(cx *core.Scope) string { return For(cx).SettingsShort
 // SettingsShortcutsNote is the package's SettingsShortcutsNote in the language of msgs.
 func (msgs Messages) SettingsShortcutsNote() string { return msgs.text(textSettingsShortcutsNote) }
 
+// SettingsShortcutsNoteHold says "These work while a hardware keyboard is connected. Hold ⌘ to see them on screen."
+// in the language the app shows under cx.
+//
+// Over the list of keyboard shortcuts on an iPad, which lists those that work where you are while ⌘ is held.
+func SettingsShortcutsNoteHold(cx *core.Scope) string { return For(cx).SettingsShortcutsNoteHold() }
+
+// SettingsShortcutsNoteHold is the package's SettingsShortcutsNoteHold in the language of msgs.
+func (msgs Messages) SettingsShortcutsNoteHold() string {
+	return msgs.text(textSettingsShortcutsNoteHold)
+}
+
 // SettingsShortcutsValue says "Hardware Keyboard"
 // in the language the app shows under cx.
 //
@@ -19089,6 +19148,24 @@ func ShortcutsExplain(cx *core.Scope) string { return For(cx).ShortcutsExplain()
 // ShortcutsExplain is the package's ShortcutsExplain in the language of msgs.
 func (msgs Messages) ShortcutsExplain() string { return msgs.text(textShortcutsExplain) }
 
+// ShortcutsGroupGo says "Go"
+// in the language the app shows under cx.
+//
+// iPadOS: the menu of the shortcuts that go to a section, the search and the Add sheet, in the menu bar and the list shown while ⌘ is held.
+func ShortcutsGroupGo(cx *core.Scope) string { return For(cx).ShortcutsGroupGo() }
+
+// ShortcutsGroupGo is the package's ShortcutsGroupGo in the language of msgs.
+func (msgs Messages) ShortcutsGroupGo() string { return msgs.text(textShortcutsGroupGo) }
+
+// ShortcutsGroupPlayback says "Playback"
+// in the language the app shows under cx.
+//
+// iPadOS: the menu of the player's shortcuts, in the menu bar and the list shown while ⌘ is held.
+func ShortcutsGroupPlayback(cx *core.Scope) string { return For(cx).ShortcutsGroupPlayback() }
+
+// ShortcutsGroupPlayback is the package's ShortcutsGroupPlayback in the language of msgs.
+func (msgs Messages) ShortcutsGroupPlayback() string { return msgs.text(textShortcutsGroupPlayback) }
+
 // ShortcutsJoin says ", "
 // in the language the app shows under cx.
 //
@@ -19115,6 +19192,15 @@ func ShortcutsLoop(cx *core.Scope) string { return For(cx).ShortcutsLoop() }
 
 // ShortcutsLoop is the package's ShortcutsLoop in the language of msgs.
 func (msgs Messages) ShortcutsLoop() string { return msgs.text(textShortcutsLoop) }
+
+// ShortcutsNextMode says "Next Subtitle Mode"
+// in the language the app shows under cx.
+//
+// iPadOS: a keyboard shortcut in the list shown while ⌘ is held: show the subtitles in the next mode (bilingual, original, translation, hidden).
+func ShortcutsNextMode(cx *core.Scope) string { return For(cx).ShortcutsNextMode() }
+
+// ShortcutsNextMode is the package's ShortcutsNextMode in the language of msgs.
+func (msgs Messages) ShortcutsNextMode() string { return msgs.text(textShortcutsNextMode) }
 
 // ShortcutsPlayPause says "Play / Pause"
 // in the language the app shows under cx.

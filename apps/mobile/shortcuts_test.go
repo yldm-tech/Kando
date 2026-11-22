@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -142,6 +144,10 @@ func TestATabletTakesTheShellsKeysAndListsThem(t *testing.T) {
 			t.Errorf("the keys of %s read %q, want %q", id, got, want)
 		}
 	}
+	// iPadOS lists the keys that work where the user is while ⌘ is held (TestIPadOSListsTheKeysThatWork), and the note says so.
+	if got := p.app.Find("id:settings-shortcuts-note").Text; got != msgs.SettingsShortcutsNoteHold() {
+		t.Errorf("the note over the shortcuts reads %q", got)
+	}
 	names := strings.Join([]string{msgs.FilmsTitle(), msgs.JobsTitle(), msgs.LearnTitle(), msgs.SettingsTitle()}, msgs.ShortcutsJoin())
 	if got := p.texts("id:settings-shortcut-sections"); !strings.HasPrefix(got, names) {
 		t.Errorf("the row of ⌘1 – ⌘4 reads %q, want the sections %q", got, names)
@@ -161,5 +167,60 @@ func TestAPhoneListsNoShortcutsAndAndroidNoWidgets(t *testing.T) {
 	p.app.WaitFor("id:settings-goal", wait)
 	if p.app.Exists("id:settings-shortcuts") || p.app.Exists("id:settings-widgets") {
 		t.Fatal("an Android phone lists keyboard shortcuts or widgets")
+	}
+}
+
+// iPadOS lists the shortcuts that work where the user is, by their names in the app's language, while ⌘ is held and in its menu bar: the shell's under Go over the sections, and the player's under Playback while it shows over the app, when the shell's rest.
+func TestIPadOSListsTheKeysThatWork(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	p := startPhone(t, dir, nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet, OS: core.OSIOS}))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	shell := []nsgotest.KeyCommand{}
+	for i, name := range []string{msgs.FilmsTitle(), msgs.JobsTitle(), msgs.LearnTitle(), msgs.SettingsTitle()} {
+		shell = append(shell, nsgotest.KeyCommand{Key: "mod+" + strconv.Itoa(i+1), Title: name, Group: msgs.ShortcutsGroupGo()})
+	}
+	shell = append(shell, nsgotest.KeyCommand{Key: "mod+k", Title: msgs.ShortcutsSearch(), Group: msgs.ShortcutsGroupGo()},
+		nsgotest.KeyCommand{Key: "mod+n", Title: msgs.ShortcutsAdd(), Group: msgs.ShortcutsGroupGo()})
+	if got := p.app.KeyCommands(); !slices.Equal(got, shell) {
+		t.Fatalf("over the Library iPadOS lists %v, want %v", got, shell)
+	}
+
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-video", wait)
+	var player []nsgotest.KeyCommand
+	for _, c := range [][2]string{{"space", msgs.ShortcutsPlayPause()}, {"left", msgs.PlayerPrevLine()}, {"right", msgs.PlayerNextLine()}, {"r", msgs.ShortcutsReplay()},
+		{"l", msgs.ShortcutsLoop()}, {"s", msgs.ShortcutsSave()}, {"e", msgs.ShortcutsExplain()}, {"m", msgs.ShortcutsNextMode()}} {
+		player = append(player, nsgotest.KeyCommand{Key: c[0], Title: c[1], Group: msgs.ShortcutsGroupPlayback()})
+	}
+	if got := p.app.KeyCommands(); !slices.Equal(got, player) {
+		t.Fatalf("over the player iPadOS lists %v, want %v", got, player)
+	}
+
+	p.app.Back()
+	p.app.WaitFor("id:player-mini", wait)
+	if got := p.app.KeyCommands(); !slices.Equal(got, shell) {
+		t.Fatalf("with the player minimized iPadOS lists %v, want the shell's %v", got, shell)
+	}
+}
+
+// An Android tablet has no list of an app's shortcuts for a key held, so its note says nothing of one.
+func TestAnAndroidTabletsNoteHoldsNoKey(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the platform is the target's")
+	}
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir, nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet, OS: core.OSAndroid}))
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.app.Key("ctrl+4")
+	p.app.WaitFor("id:settings-shortcuts", wait)
+	p.app.Press("id:settings-shortcuts")
+	p.app.WaitFor("id:settings-shortcuts-page", wait)
+	if got := p.app.Find("id:settings-shortcuts-note").Text; got != msgs.SettingsShortcutsNote() {
+		t.Errorf("the note over the shortcuts reads %q", got)
 	}
 }

@@ -1826,7 +1826,7 @@ playerModeTranslation:
   description: "Subtitle mode: the translation alone, the original where a line is not translated."
 playerNextLine:
   message: "Next Line"
-  description: "Spoken name of the player's button that plays from the next line."
+  description: "Spoken name of the player's button that plays from the next line, and on an iPad the name of its keyboard shortcut in the list shown while ⌘ is held."
 playerNoLines:
   message: "This film has no subtitles."
   description: "In place of the line list for a film without subtitles."
@@ -1893,7 +1893,7 @@ playerPosition:
   description: "Spoken name of the player's slider of where the film is."
 playerPrevLine:
   message: "Previous Line"
-  description: "Spoken name of the player's button that plays from the line before."
+  description: "Spoken name of the player's button that plays from the line before, and on an iPad the name of its keyboard shortcut in the list shown while ⌘ is held."
 playerRecapBusy:
   message: "Summing up what you watched on {computer}…"
   description: "In the recap sheet while the computer's AI service sums up the part of the film watched."
@@ -2341,6 +2341,9 @@ settingsShortcuts:
 settingsShortcutsNote:
   message: "These work while a hardware keyboard is connected."
   description: "Over the list of keyboard shortcuts."
+settingsShortcutsNoteHold:
+  message: "These work while a hardware keyboard is connected. Hold ⌘ to see them on screen."
+  description: "Over the list of keyboard shortcuts on an iPad, which lists those that work where you are while ⌘ is held."
 settingsShortcutsValue:
   message: "Hardware Keyboard"
   description: "At the end of the Keyboard Shortcuts row: what they are for."
@@ -2400,6 +2403,12 @@ shortcutsAdd:
 shortcutsExplain:
   message: "Explain This Line"
   description: "A keyboard shortcut: have the computer's AI explain the line."
+shortcutsGroupGo:
+  message: "Go"
+  description: "iPadOS: the menu of the shortcuts that go to a section, the search and the Add sheet, in the menu bar and the list shown while ⌘ is held."
+shortcutsGroupPlayback:
+  message: "Playback"
+  description: "iPadOS: the menu of the player's shortcuts, in the menu bar and the list shown while ⌘ is held."
 shortcutsJoin:
   message: ", "
   description: "Between the names of the sections in the row of the shortcuts that go to them, as Library, Learn, Jobs, Settings."
@@ -2409,6 +2418,9 @@ shortcutsLines:
 shortcutsLoop:
   message: "Loop This Line"
   description: "A keyboard shortcut: loop the line, or stop looping."
+shortcutsNextMode:
+  message: "Next Subtitle Mode"
+  description: "iPadOS: a keyboard shortcut in the list shown while ⌘ is held: show the subtitles in the next mode (bilingual, original, translation, hidden)."
 shortcutsPlayPause:
   message: "Play / Pause"
   description: "A keyboard shortcut: start or hold the film."

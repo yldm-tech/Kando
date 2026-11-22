@@ -304,7 +304,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				Badge: due.Get},
 			settingsTab: {Text: func() string { return locales.SettingsTitle(cx) }, Icon: lucide.Sun, SystemIcon: "gearshape", TestID: "tab-settings", Content: tabStack(navs[settingsTab])},
 		}
-		shellKeys(cx, len(list), layer.Full, change, openAdd, func() {
+		shellKeys(cx, sectionNames(cx), layer.Full, change, openAdd, func() {
 			selected.Set(filmsTab)
 			navs[filmsTab].PopToRoot()
 			searches.Update(func(n int) int { return n + 1 })

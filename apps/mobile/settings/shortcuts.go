@@ -28,7 +28,13 @@ func ShortcutsPage(cx *core.Scope, sections []func() string, back func()) base.N
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: look.Column(cx), Children: []core.Node{
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { return locales.SettingsShortcutsNote(cx) }, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
+					core.Text{TestID: "settings-shortcuts-note", ContentFunc: func() string {
+						// iPadOS lists the shortcuts that work where the user is while ⌘ is held, by the names the app's keys give them (player.keys, shellKeys), as the design's note says; Android has no such list of an app's.
+						if cx.Env().OS() == core.OSIOS {
+							return locales.SettingsShortcutsNoteHold(cx)
+						}
+						return locales.SettingsShortcutsNote(cx)
+					}, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Right: 16, Left: 16}}), StyleFunc: ui.Colored(colors.Muted)},
 					look.Group{TestID: "settings-shortcuts-list", Children: rows},
 				}},
 			}},

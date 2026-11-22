@@ -3,30 +3,37 @@ package player
 import (
 	"slices"
 
+	"kando/apps/mobile/locales"
 	"kando/apps/mobile/shortcuts"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// keys binds the player's shortcuts on a hardware keyboard (shortcuts): play or hold, the line before and after, and the card's actions on the line it shows. They rest while a sheet covers the player, and the letters while a note is typed.
-// TODO(nsgo#1077): iPadOS lists an app's shortcuts while ⌘ is held only from the UIKeyCommands of its responders, and NSGo's iOS keymap matches presses in pressesBegan:withEvent: (internal/platform/ios/ios.go:1695-1697) without giving UIKit any, so the overlay lists none of them; Settings › Keyboard Shortcuts lists them meanwhile, and its note leaves out the design's "hold ⌘ to see them on screen" until the keymap gives UIKit key commands with discoverability titles https://github.com/nsgo-dev/nsgo/issues/1077
+// keys binds the player's shortcuts on a hardware keyboard (shortcuts): play or hold, the line before and after, and the card's actions on the line it shows. They rest while a sheet covers the player, and the letters while a note is typed. Each has its name in the app's language under Playback, which iPadOS lists while ⌘ is held and in its menu bar, while the player shows over the app.
 func keys(cx *core.Scope, p *play, w *words, shown func() bool) {
-	// Minimized, the player's view stays on screen in the mini player, so its bindings would fire; they act only while it shows over the app.
-	on := func(fn func()) func() {
-		return func() {
+	group := func() string { return locales.ShortcutsGroupPlayback(cx) }
+	bind := func(key string, repeat bool, title func(*core.Scope) string, fn func()) {
+		cx.OnKeyWith(key, core.KeyOptions{Repeat: repeat, Group: group,
+			// Minimized, the player's view stays on screen in the mini player, so its bindings would fire; they act, and iPadOS lists them, only while it shows over the app.
+			Title: func() string {
+				if !shown() {
+					return ""
+				}
+				return title(cx)
+			}}, func() {
 			if shown() {
 				fn()
 			}
-		}
+		})
 	}
-	cx.OnKey(shortcuts.PlayPause, on(p.toggle))
-	cx.OnKeyWith(shortcuts.PrevLine, core.KeyOptions{Repeat: true}, on(p.prev))
-	cx.OnKeyWith(shortcuts.NextLine, core.KeyOptions{Repeat: true}, on(p.next))
-	cx.OnKey(shortcuts.Replay, on(p.replay))
-	cx.OnKey(shortcuts.Loop, on(p.toggleLoop))
-	cx.OnKey(shortcuts.Save, on(p.toggleSave))
-	cx.OnKey(shortcuts.Explain, on(func() { w.explainLine(p.shown.GetUntracked()) }))
-	cx.OnKey(shortcuts.Subtitles, on(p.nextMode))
+	bind(shortcuts.PlayPause, false, locales.ShortcutsPlayPause, p.toggle)
+	bind(shortcuts.PrevLine, true, locales.PlayerPrevLine, p.prev)
+	bind(shortcuts.NextLine, true, locales.PlayerNextLine, p.next)
+	bind(shortcuts.Replay, false, locales.ShortcutsReplay, p.replay)
+	bind(shortcuts.Loop, false, locales.ShortcutsLoop, p.toggleLoop)
+	bind(shortcuts.Save, false, locales.ShortcutsSave, p.toggleSave)
+	bind(shortcuts.Explain, false, locales.ShortcutsExplain, func() { w.explainLine(p.shown.GetUntracked()) })
+	bind(shortcuts.Subtitles, false, locales.ShortcutsNextMode, p.nextMode)
 }
 
 // nextMode shows the lines in the subtitle mode after the one chosen, in the order of the player's menu (Modes), and says which.
