@@ -86,3 +86,26 @@ func TestConfirmStaysWhileTheAppChanges(t *testing.T) {
 		t.Fatalf("the message does not follow the film: %q", app.Texts())
 	}
 }
+
+// The dialog's words follow the interface's language as it changes while the dialog is open, and the dialog is not built again for it.
+func TestConfirmFollowsTheLanguage(t *testing.T) {
+	env := core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop}
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		return Confirm{Open: func() bool { return true }, Film: func() string { return "Talk" }, OnQuit: func() {}, OnCancel: func() {}}
+	}, nsgotest.Size(800, 600), nsgotest.Environment(testlocale.Environment(env)))
+	before := app.Find("id:quit-confirm").ID
+	testlocale.Use(t, "en")
+	app.SetEnvironment(testlocale.Environment(env))
+	en := testlocale.Messages()
+	for _, want := range []string{en.QueueQuitWhileRunningTitle(), en.QueueQuitWhileRunningMessage("Talk"), en.QueueQuitWhileRunningCancel(), en.QueueQuitWhileRunningQuit()} {
+		if !app.Exists(`text:"` + want + `"`) {
+			t.Errorf("no %q in English: %q", want, app.Texts())
+		}
+	}
+	if got := app.Find("id:quit-confirm").Props.Label; got != en.QueueQuitWhileRunningTitle() {
+		t.Errorf("the dialog is named %q in English", got)
+	}
+	if after := app.Find("id:quit-confirm").ID; after != before {
+		t.Fatalf("the dialog was built again for the language (view %d, was %d)", after, before)
+	}
+}
