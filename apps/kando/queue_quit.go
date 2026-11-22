@@ -20,9 +20,9 @@ var errQuitting = errors.New("kando is quitting")
 // queueQuitWait is how long a quit waits for the running job to return once asked to stop, so its programs are not left running behind the app. main waits for it once nsgo.Run has returned (areasQuitting), so it holds up no thread the system watches.
 const queueQuitWait = 2 * time.Second
 
-// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm). Choosing 退出 there quits again, and that quit goes ahead. A quit the app cannot hold back comes here with e.SessionEnding set (quitHeard): the Dock's Quit, a logout, restart or shutdown, or the updater's relaunch. It goes ahead without asking, as a signal's quit does, and the running job is stopped as the app quits (queueQuit).
+// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm), the Dock's Quit and the updater's relaunch too (quitRequested). Choosing 退出 there quits again, and that quit goes ahead. A quit the app cannot hold back comes here with e.Forced set: a logout, restart or shutdown, or a quit that asked no one (quitHeard). It goes ahead without asking, as a signal's quit does, and the running job is stopped as the app quits (queueQuit).
 func (a *app) queueBeforeQuit(e *quitEvent) {
-	if e.SessionEnding {
+	if e.Forced {
 		a.queue.quitConfirmed = true
 		return
 	}

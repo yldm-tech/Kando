@@ -193,7 +193,7 @@ func (a *app) run(app *core.Scope) {
 			a.libraryOpenFile(path)
 		}
 	}))
-	app.OnQuit(a.quitHeard)
+	a.watchQuit(app)
 	a.watchLifecycle(app)
 	nsgo.SetMainView(app, a.view)
 	a.installMenu(app)

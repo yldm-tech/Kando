@@ -171,7 +171,7 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 			// 服务 is the system's Services menu, which AppKit fills; the other platforms leave it out.
 			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuServices(cx), Role: nsdesktop.MenuServices})
 			sub = then(sub, role(locales.MenuHide(cx), nsdesktop.MenuHide), role(locales.MenuHideOthers(cx), nsdesktop.MenuHideOthers), role(locales.MenuShowAll(cx), nsdesktop.MenuShowAll))
-			// Quit is the app's own item, not MenuQuit's, so a running job can ask first (requestQuit).
+			// Quit is the app's own item, which asks the areas itself (requestQuit), as the status icon's and the title bar's do; a quit from elsewhere, as the Dock's, asks them through NSGo's quit request (quitRequested).
 			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuQuit(cx), Shortcut: "mod+q", OnSelect: live.Do(a, a.requestQuit)})
 		case groupFile:
 			reveal := nsdesktop.MenuItem{Label: locales.MenuRevealLibrary(cx, desktop.Platform(cx)), Disabled: a.holds(false) || a.snap().LibraryDir == "", OnSelect: a.menuSelect(false, func() { a.reveal(a.snap().LibraryDir) })}

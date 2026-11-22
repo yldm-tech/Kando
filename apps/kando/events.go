@@ -43,7 +43,7 @@ type areaHooks struct {
 	positionsChanged func()
 	// videosMoved runs after the shelf pointed its jobs at videos that moved on disk: the library folder was renamed in Finder, or the library refresh gathered a video into a folder of its own, paired a renamed one or found a missing one elsewhere. move gives a video's new path for its old one, and reports false for one that did not move; an area that keeps something by video path keys it by the new path. The shelf moves what library.json keeps itself (shelf.Library.MoveVideos) and saves it.
 	videosMoved func(move func(path string) (string, bool))
-	// beforeQuit runs when a quit starts (requestQuit), before the windows close: ⌘Q and the menu's Quit, a signal, and on Linux and Windows the main window's close button once NSGo reports it. An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals). A quit the app cannot hold back, the Dock's Quit, a logout, restart or shutdown or the updater's relaunch, comes with e.SessionEnding set (quitHeard), as the app is ending already; a dialog then would never be answered.
+	// beforeQuit runs when a quit starts, before the windows close: ⌘Q, the menu's and the status icon's Quit and the main window's close button where it quits (requestQuit), a signal, and a quit NSGo asks about, as the Dock's Quit or the updater's relaunch (quitRequested). An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals). A quit the app cannot hold back, a logout, restart or shutdown, or a quit that asked no one (quitHeard), comes with e.Forced set, as the app is ending already; a dialog then would never be answered.
 	beforeQuit func(e *quitEvent)
 	// quitStarting runs once no area's beforeQuit prevented the quit, right before the windows close, so an area that keeps a window from closing (state_window.go) lets it close.
 	quitStarting func()
@@ -304,14 +304,14 @@ func (a *app) areasQuitting() {
 
 // quitEvent is a quit starting, which beforeQuit may hold back.
 type quitEvent struct {
-	// SessionEnding is a quit the app cannot hold back and must not ask about (quitHeard).
-	SessionEnding bool
-	prevented     bool
+	// Forced is a quit the app cannot hold back and must not ask about: the system ending the session at a logout, restart or shutdown (quitRequested), or a quit that asked no one (quitHeard).
+	Forced    bool
+	prevented bool
 }
 
 // PreventDefault holds the quit back; the area that did quits again itself once it may.
 func (e *quitEvent) PreventDefault() {
-	if !e.SessionEnding {
+	if !e.Forced {
 		e.prevented = true
 	}
 }
@@ -329,11 +329,26 @@ func (a *app) requestQuit() {
 	a.cx.Quit()
 }
 
-// quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit let through has told the areas already; any other, as the Dock's Quit, the system's at a logout or the updater's relaunch, tells them now with SessionEnding set, as the app is ending and cannot ask.
+// watchQuit listens, under the app's scope app, to the quits that are not the app's own items' (requestQuit): NSGo's quit requests (quitRequested) and the app ending however it does (quitHeard). run calls it; a test that quits through nsgotest's RequestQuit calls it on its app.
+func (a *app) watchQuit(app *core.Scope) {
+	nsdesktop.OnQuitRequest(app, live.On(a, a.quitRequested))
+	app.OnQuit(a.quitHeard)
+}
+
+// quitRequested answers a quit NSGo asks the app about (desktop.OnQuitRequest): the Dock's Quit, the updater's relaunch on macOS and Windows, and a logout, restart or shutdown. The main window's close button asks through requestQuit instead where it quits (windowClosing). The areas hear it as they hear ⌘Q (beforeQuit), and when one held it back to ask first, the request is canceled: that area quits again itself once the user agrees (requestQuit). One the system forces as the session ends cannot be held back, and the areas hear it with Forced set, as no dialog would be answered then.
+func (a *app) quitRequested(q *nsdesktop.QuitRequest) {
+	e := &quitEvent{Forced: q.Forced()}
+	a.areasBeforeQuit(e)
+	if e.DefaultPrevented() {
+		q.Cancel()
+	}
+}
+
+// quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit or quitRequested let through has told the areas already; any other, which asked no one, tells them now with Forced set, as the app is ending and cannot ask.
 func (a *app) quitHeard(context.Context) {
-	// TODO(nsgo#1081): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do. NSGo's OnQuitRequest (core/quit.go) runs on macOS alone, and neither says whether a quit is forced by a logout, restart or shutdown, which must not ask, nor answers one without the userCanceledErr that may cancel the logout (internal/platform/macos/macos.go applicationShouldTerminate:); Windows and Linux have no quit request (nsgo#1082). Until both are there, only ⌘Q and the app menu's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/1081
+	// TODO(nsgo): have the updater's relaunch ask the quit request handlers (desktop.OnQuitRequest) and wait for their answer before it quits, so a running job can ask first: on Linux it installs and then calls core.Scope.Restart, which quits at once and reaches the areas only here, and on Windows NSGo answers WinSparkle's can-shutdown check yes without asking (canShutdown in internal/platform/windows/updates.go), so WinSparkle goes on with the installer even when the request its shutdown sends is canceled
 	if a.window.quitting {
 		return
 	}
-	a.areasBeforeQuit(&quitEvent{SessionEnding: true})
+	a.areasBeforeQuit(&quitEvent{Forced: true})
 }

@@ -2151,7 +2151,7 @@ func TestQuitOnASignalDoesNotAsk(t *testing.T) {
 	}
 }
 
-// TestSessionEndDoesNotAsk checks that a logout, restart or shutdown on macOS and Windows (quitEvent.SessionEnding, quitHeard) goes ahead while a job runs without showing the main window or opening the confirmation, lets the window close without the close button's own handling, and stops the job as the app quits; also when a ⌘Q had already opened the confirmation.
+// TestSessionEndDoesNotAsk checks that a logout, restart or shutdown (quitEvent.Forced, quitRequested) goes ahead while a job runs without showing the main window or opening the confirmation, lets the window close without the close button's own handling, and stops the job as the app quits; also when a ⌘Q had already opened the confirmation.
 func TestSessionEndDoesNotAsk(t *testing.T) {
 	for _, hides := range []bool{true, false} {
 		for _, asked := range []bool{false, true} {
@@ -2173,7 +2173,7 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 			a.window.hidden = !asked
 			modal := a.overlay.modal
 
-			e := &quitEvent{SessionEnding: true}
+			e := &quitEvent{Forced: true}
 			a.areasBeforeQuit(e)
 			refresh(tt, a)
 			if e.DefaultPrevented() || !a.window.quitting {
@@ -2199,6 +2199,68 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 			default:
 				t.Fatalf("hides %v, asked %v: the session's end left the job running", hides, asked)
 			}
+		}
+	}
+}
+
+// TestAQuitRequestAsksWhileAJobRuns checks that a quit NSGo asks about, as the Dock's Quit, goes ahead at once while no job runs, and while one runs is canceled and asks first, in the main window brought back, and that 退出 there quits.
+func TestAQuitRequestAsksWhileAJobRuns(t *testing.T) {
+	idle, idleTT, _ := newTestApp(t, &fakePipeline{})
+	idle.watchQuit(idle.cx)
+	idleTT.RequestQuit(false)
+	if idleTT.Quits != 1 || idle.queue.quitAsk || !idle.window.quitting {
+		t.Fatalf("idle quit request: quits %d, asked %v, going ahead %v", idleTT.Quits, idle.queue.quitAsk, idle.window.quitting)
+	}
+
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	t.Cleanup(a.stop)
+	a.watchQuit(a.cx)
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	a.window.hidden = true
+	refresh(tt, a)
+	tt.RequestQuit(false)
+	title := testlocale.Messages().QueueQuitWhileRunningTitle()
+	if tt.Quits != 0 || a.window.quitting || !shows(tt, title) || !a.modalOpen() || a.window.hidden {
+		t.Fatalf("quit request during a job: quits %d, going ahead %v, confirmation %v, modal %v, window hidden %v", tt.Quits, a.window.quitting, shows(tt, title), a.modalOpen(), a.window.hidden)
+	}
+	tt.Press(testlocale.Messages().QueueQuitWhileRunningQuit())
+	refresh(tt, a)
+	if tt.Quits != 1 || !a.window.quitting {
+		t.Fatalf("after 退出: quits %d, going ahead %v", tt.Quits, a.window.quitting)
+	}
+}
+
+// TestAForcedQuitRequestDoesNotAsk checks that a quit request the system forces at a logout, restart or shutdown goes ahead while a job runs without opening the confirmation, also when a quit request before it had opened it, and that the job is stopped as the app quits.
+func TestAForcedQuitRequestDoesNotAsk(t *testing.T) {
+	for _, asked := range []bool{false, true} {
+		g := newGatePipeline()
+		a, tt, updates := newTestApp(t, g)
+		t.Cleanup(a.stop)
+		a.watchQuit(a.cx)
+		if err := a.Enqueue("https://example.com/a"); err != nil {
+			t.Fatal(err)
+		}
+		nextStarted(t, g, updates)
+		if asked {
+			tt.RequestQuit(false)
+			if !a.queue.quitAsk || tt.Quits != 0 {
+				t.Fatalf("the quit request during a job did not ask: asked %v, quits %d", a.queue.quitAsk, tt.Quits)
+			}
+		}
+		tt.RequestQuit(true)
+		if tt.Quits != 1 || !a.window.quitting || !a.queue.quitConfirmed || a.queue.quitAsk != asked {
+			t.Fatalf("asked %v: forced quit request: quits %d, going ahead %v, confirmed %v, asking %v", asked, tt.Quits, a.window.quitting, a.queue.quitConfirmed, a.queue.quitAsk)
+		}
+		done := a.queue.done
+		a.areasQuitting()
+		select {
+		case <-done:
+		default:
+			t.Fatalf("asked %v: the forced quit left the job running", asked)
 		}
 	}
 }
