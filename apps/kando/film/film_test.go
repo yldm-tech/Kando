@@ -1049,7 +1049,7 @@ func TestClipPlaysFromItsLineWithTheDelay(t *testing.T) {
 	}
 }
 
-// TestSpeedMenuSetsTheRate opens the transport's speed menu and picks 1.5×; the button keeps its width at every speed, so the scrubber beside it does not move.
+// TestSpeedMenuSetsTheRate opens the transport's speed menu, which lists the speeds fastest at the top, and picks 1.5×; the button keeps its width at every speed, so the scrubber beside it does not move.
 func TestSpeedMenuSetsTheRate(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
@@ -1057,6 +1057,12 @@ func TestSpeedMenuSetsTheRate(t *testing.T) {
 	app.Press("id:film-speed")
 	if !a.speedMenu {
 		t.Fatal("the speed menu did not open")
+	}
+	rowY := func(r float64) ns.Points { return pageY(app.Find(fmt.Sprintf("id:film-speed-%g", r))) }
+	for i := 1; i < len(Rates); i++ {
+		if faster, slower := Rates[i], Rates[i-1]; rowY(faster) >= rowY(slower) {
+			t.Fatalf("%v× is at %v, not above %v× at %v", faster, rowY(faster), slower, rowY(slower))
+		}
 	}
 	app.Press("id:film-speed-1.5")
 	if a.rate != 1.5 || a.speedMenu {
