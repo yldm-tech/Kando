@@ -346,7 +346,7 @@ func (a *app) quitRequested(q *nsdesktop.QuitRequest) {
 
 // quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit or quitRequested let through has told the areas already; any other, which asked no one, tells them now with Forced set, as the app is ending and cannot ask.
 func (a *app) quitHeard(context.Context) {
-	// TODO(nsgo): have the updater's relaunch ask the quit request handlers (desktop.OnQuitRequest) and wait for their answer before it quits, so a running job can ask first: on Linux it installs and then calls core.Scope.Restart, which quits at once and reaches the areas only here, and on Windows NSGo answers WinSparkle's can-shutdown check yes without asking (canShutdown in internal/platform/windows/updates.go), so WinSparkle goes on with the installer even when the request its shutdown sends is canceled
+	// TODO(nsgo#1836): have the updater's relaunch ask the quit request handlers (desktop.OnQuitRequest) and wait for their answer before it quits, so a running job can ask first: on Linux it installs and then calls core.Scope.Restart, which quits at once and reaches the areas only here, and on Windows NSGo answers WinSparkle's can-shutdown check yes without asking (canShutdown in internal/platform/windows/updates.go), so WinSparkle goes on with the installer even when the request its shutdown sends is canceled https://github.com/nsgo-dev/nsgo/issues/1836
 	if a.window.quitting {
 		return
 	}

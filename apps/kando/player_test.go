@@ -72,7 +72,7 @@ func playerLoadFilm(tt *nsgotest.App, a *app, length time.Duration) {
 
 // playerReportLoad has the system's player report that it opened the open video, as info says, and refreshes.
 func playerReportLoad(tt *nsgotest.App, a *app, info ns.VideoInfo) {
-	// TODO(nsgo): nsgotest's App.Play reports a video's Duration and Size but drops VideoInfo.RateChangeable, so a film it loads always says its speed is fixed; once Play passes it on, report through tt.Play as for a film whose speed is fixed (TestSpeedStaysAtOneWhereTheFilmCannotChangeIt)
+	// TODO(nsgo#1837): nsgotest's App.Play reports a video's Duration and Size but drops VideoInfo.RateChangeable, so a film it loads always says its speed is fixed; once Play passes it on, report through tt.Play as for a film whose speed is fixed (TestSpeedStaysAtOneWhereTheFilmCannotChangeIt) https://github.com/nsgo-dev/nsgo/issues/1837
 	onEngine(a, func() { a.VideoLoaded(info) })
 	refresh(tt, a)
 }

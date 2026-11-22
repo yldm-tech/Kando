@@ -88,7 +88,7 @@ type settingsUI struct {
 	opening  bool
 	inWindow bool
 	// overMain shows the settings over the main window even where the platform opens windows. newTestApp sets it for the settings tests, whose steps nsgotest's Surface, the handle that acts in the settings window (TestSettingsInTheirOwnWindow), does not all have.
-	// TODO(nsgo): give nsgotest's Surface the steps the settings tests take besides Press, Type, Key, Find, Query, Screenshot and Close, such as Exists, Texts, Enabled, Clear, Focus, Hover, RightClick, DropFiles and Resize, or the *nsgotest.App its steps run on, then have settingsOpenAt return the settings window's and drop overMain
+	// TODO(nsgo#1839): give nsgotest's Surface the steps the settings tests take besides Press, Type, Key, Find, Query, Screenshot and Close, such as Exists, Texts, Enabled, Clear, Focus, Hover, RightClick, DropFiles and Resize, or the *nsgotest.App its steps run on, then have settingsOpenAt return the settings window's and drop overMain https://github.com/nsgo-dev/nsgo/issues/1839
 	overMain bool
 	// frame is where the settings window was last, as desktop.Frame reports it, which settings.json keeps so the window opens there again (savedInterface).
 	frame core.WindowFrame
@@ -340,7 +340,7 @@ func (a *app) openSettingsWindow() {
 		a.prefs.inWindow = true
 		return
 	}
-	// TODO(nsgo): on Windows and Linux keep the settings window above the main window and hide and show it with it, as WindowOptions.Parent does on macOS; there NSGo only closes it with the main window, and its roadmap names owned Win32 windows and gtk_window_set_transient_for for the rest
+	// TODO(nsgo#1840): on Windows and Linux keep the settings window above the main window and hide and show it with it, as WindowOptions.Parent does on macOS; there NSGo only closes it with the main window, and its roadmap names owned Win32 windows and gtk_window_set_transient_for for the rest https://github.com/nsgo-dev/nsgo/issues/1840
 	w := nsdesktop.OpenWindow(a.cx, nsdesktop.WindowOptions{
 		Title:       locales.SettingsWindowTitle(a.cx),
 		Width:       880,
