@@ -175,7 +175,10 @@ func TestFilmsStayInsideTheOpenLibrary(t *testing.T) {
 
 // TestAVideoWithoutAJobShowsItsBilingualSubtitles checks that a video copied into the library with the bilingual .srt the pipeline exported for it, but no job record, plays with those subtitles and its card does not say it has none, as the CLI already reads them.
 func TestAVideoWithoutAJobShowsItsBilingualSubtitles(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "videos"+media.LibraryExt)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, data := range map[string]string{
 		"interview.mp4":           "video",
 		"interview.bilingual.srt": "1\n00:00:00,500 --> 00:00:01,000\n早上好\nGood morning\n\n",

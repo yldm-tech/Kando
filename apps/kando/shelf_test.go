@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
@@ -429,26 +430,49 @@ func TestDropMissingKeepsEverythingWhileTheLibraryIsGone(t *testing.T) {
 	}
 }
 
-// TestDropMissingKeepsALocalVideoWhoseFolderIsGone checks a video picked where it was and kept outside the library: it is dropped once the file is deleted from its folder, but kept while the folder itself is not there, as on a disk that is not mounted.
-func TestDropMissingKeepsALocalVideoWhoseFolderIsGone(t *testing.T) {
+// TestDropMissingKeepsTheFilmsOfVideosKeptOutside checks a video picked where it was and kept outside the library: its film is never dropped, whether its file was deleted, renamed or moved from a folder that is still there or its whole folder is gone, as on a drive that is not connected. Its title stays with it, and the shelf marks it as missing (session.Gone, films.Film.Missing). A video of the library's own folder that is gone is still dropped.
+func TestDropMissingKeepsTheFilmsOfVideosKeptOutside(t *testing.T) {
 	here := filepath.Join(t.TempDir(), "我的影片.kando")
-	disk := filepath.Join(t.TempDir(), "外接盘")
-	deleted := filepath.Join(t.TempDir(), "deleted.mp4")
-	unmounted := filepath.Join(disk, "clip.mp4")
+	folder := t.TempDir()
+	renamed := filepath.Join(folder, "第01话.mkv")
+	unmounted := filepath.Join(t.TempDir(), "外接盘", "clip.mp4")
+	there := filepath.Join(folder, "第02话.mkv")
+	inside := filepath.Join(here, "talk", "video.mp4")
 	if err := os.MkdirAll(here, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(there, []byte("video"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.edit(func(s *session) { s.LibraryDir = here })
 	a.library.Jobs = []core.Job{
-		{ID: "deleted", Source: core.FileURL(deleted), Stage: core.StageComplete, VideoPath: deleted, LibraryDir: here},
+		{ID: "renamed", Source: core.FileURL(renamed), Stage: core.StageComplete, VideoPath: renamed, LibraryDir: here},
 		{ID: "unmounted", Source: core.FileURL(unmounted), Stage: core.StageComplete, VideoPath: unmounted, LibraryDir: here},
+		{ID: "there", Source: core.FileURL(there), Stage: core.StageComplete, VideoPath: there, LibraryDir: here},
+		{ID: "inside", Source: "https://youtu.be/talk", Stage: core.StageComplete, VideoPath: inside, LibraryDir: here},
 	}
+	a.library.Names = map[string]string{renamed: "第一话"}
 	if !a.dropMissing() {
-		t.Fatal("the deleted video's job was not dropped")
+		t.Fatal("the library's own gone video was not dropped")
 	}
-	if got := shelfJobIDs(a.library.Jobs); len(got) != 1 || got[0] != "unmounted" {
+	if got := shelfJobIDs(a.library.Jobs); !slices.Equal(got, []string{"renamed", "unmounted", "there"}) {
 		t.Fatalf("jobs = %v", got)
+	}
+	if a.library.Names[renamed] != "第一话" {
+		t.Fatalf("names = %v", a.library.Names)
+	}
+	gone := a.goneOutside(here)
+	if !gone[renamed] || !gone[unmounted] || gone[there] || len(gone) != 2 {
+		t.Fatalf("gone = %v", gone)
+	}
+	a.edit(func(s *session) { s.Gone = gone })
+	marked := map[string]bool{}
+	for _, item := range a.films() {
+		marked[item.JobID] = item.Missing
+	}
+	if !marked["renamed"] || !marked["unmounted"] || marked["there"] {
+		t.Fatalf("missing marks = %v", marked)
 	}
 }
 
@@ -585,5 +609,129 @@ func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	a.reveal(video)
 	if want := testlocale.Messages().LibraryRevealNotOpened(); a.saveErr != want {
 		t.Fatalf("a reveal no app answered says %q, want %q", a.saveErr, want)
+	}
+}
+
+// TestAMissingVideoKeptOutsideIsMarkedAndSaysSo has the video of a film kept outside the library, where it was picked, go from disk, as when it is renamed in Finder or its drive is not connected: the film stays on the shelf, its poster marked with a warning that says the video cannot be found, and opening it says so in place of the picture rather than show nothing. Once the video is back the mark goes.
+func TestAMissingVideoKeptOutsideIsMarkedAndSaysSo(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	m := testlocale.Messages()
+	video := filepath.Join(t.TempDir(), "番剧", "第01话.mp4")
+	writeFakeClip(t, video, 6, "202020", "101010")
+	srt := filepath.Join(filepath.Dir(video), "第01话.bilingual.srt")
+	if err := os.WriteFile(srt, []byte(talkSubtitles), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.library.Jobs = []core.Job{{ID: "ep", Title: "第01话", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt, LibraryDir: testVideos}}
+	apply(tt, a, a.refreshLibrary)
+	if tt.Exists("id:film-ep >> id:film-stored") {
+		t.Fatal("a film whose video is there is marked")
+	}
+
+	away := video + ".moved"
+	if err := os.Rename(video, away); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.refreshLibrary)
+	item, ok := films.Find(a.films(), "ep")
+	if !ok || !item.Missing {
+		t.Fatalf("the film whose video is gone is %+v (on the shelf %v)", item, ok)
+	}
+	wantStoredMark(t, tt, "id:film-ep", m.FilmsVideoMissing())
+
+	apply(tt, a, func() { a.Open(item) })
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	if a.player.playErr != playerErrVideoMissing || a.player.play != nil {
+		t.Fatalf("opening it: error %q, playing %v", a.player.playErr, a.player.play != nil)
+	}
+	wantText(t, tt, m.PlayerVideoMissing())
+	if tt.Exists("id:film-stage-reveal") {
+		t.Fatal("the page offers to show a file that is not there")
+	}
+
+	apply(tt, a, a.closeFilm)
+	if err := os.Rename(away, video); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.refreshLibrary)
+	if item, _ := films.Find(a.films(), "ep"); item.Missing || tt.Exists("id:film-ep >> id:film-stored") {
+		t.Fatal("the film is still marked once its video is back")
+	}
+}
+
+// TestAFolderOpenedAsALibraryKeepsItsFiles opens a folder of the user's, not a .kando bundle, as a library, as 打开已有资料库… lets one: its videos show as they are, a loose one and one alone in its folder, and none is moved into a folder of its own or renamed video.<ext>, as Kando does in its own bundles.
+func TestAFolderOpenedAsALibraryKeepsItsFiles(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	folder := filepath.Join(t.TempDir(), "动漫")
+	loose := filepath.Join(folder, "电影.mp4")
+	alone := filepath.Join(folder, "作品", "第01话.mkv")
+	sub := filepath.Join(folder, "作品", "第01话.srt")
+	for _, path := range []string{loose, alone, sub} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	apply(tt, a, func() { a.switchLibrary(folder) })
+	for _, path := range []string{loose, alone, sub} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("%s was moved: %v", path, err)
+		}
+	}
+	var paths []string
+	for _, v := range a.snap().Videos {
+		paths = append(paths, v.Path)
+	}
+	slices.Sort(paths)
+	if want := []string{alone, loose}; !slices.Equal(paths, want) {
+		t.Fatalf("videos = %v, want %v", paths, want)
+	}
+
+	// Kando's own bundle still gathers a video dropped loose into it into a folder of its own.
+	dropped := filepath.Join(testVideos, "clip.mp4")
+	if err := os.WriteFile(dropped, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.switchLibrary(testVideos) })
+	if _, err := os.Stat(filepath.Join(testVideos, "clip", "video.mp4")); err != nil {
+		t.Fatalf("the bundle's loose video was not gathered: %v", err)
+	}
+}
+
+// TestALibraryThatIsGoneIsNotMadeAgain has the open library's folder go, as when its drive is not connected or it was moved away in Finder: opening it again makes no empty folder in its place, the page says it cannot be found, and the library shows again once its folder is back.
+func TestALibraryThatIsGoneIsNotMadeAgain(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	lib := filepath.Join(t.TempDir(), "移动硬盘", "我的影片.kando")
+	if err := os.MkdirAll(lib, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.switchLibrary(lib) })
+	if a.snap().LibraryGone {
+		t.Fatal("a library that is there is gone")
+	}
+	away := filepath.Join(filepath.Dir(filepath.Dir(lib)), "别处")
+	if err := os.Rename(filepath.Dir(lib), away); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, func() { a.applyLibrary(lib) })
+	if _, err := os.Stat(lib); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the gone library was made again: %v", err)
+	}
+	if !a.snap().LibraryGone || a.snap().LibraryDir != lib {
+		t.Fatalf("shelf = %+v", a.snap())
+	}
+	wantText(t, tt, testlocale.Messages().FilmsLibraryGoneTitle())
+	if !tt.Exists("id:missing-open") {
+		t.Fatal("the page does not offer to open the library where it went")
+	}
+
+	if err := os.Rename(away, filepath.Dir(lib)); err != nil {
+		t.Fatal(err)
+	}
+	apply(tt, a, a.refreshLibrary)
+	if a.snap().LibraryGone || tt.Exists("id:missing-open") {
+		t.Fatal("the library is still gone once its folder is back")
 	}
 }

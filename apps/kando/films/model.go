@@ -70,6 +70,8 @@ type Film struct {
 	PausedBy string
 	// Stored is the ID of the storage location the film's video was moved to (shelf.Library.Stored), empty for a video in the library's folder. Its subtitles and the other files beside the video stay in the folder.
 	Stored string
+	// Missing is true for a done film whose video, kept outside the library's folder where it was picked, is not on disk now: moved or renamed in Finder, deleted, or on a drive that is not connected. The film stays on the shelf with its place, its title and its lines, marked, and plays again once its video is back.
+	Missing bool
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.

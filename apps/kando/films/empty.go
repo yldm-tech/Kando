@@ -25,6 +25,20 @@ func (n noLibrary) Render(cx *core.Scope) core.Node {
 	)
 }
 
+// missingLibrary is the page of a library whose folder is not on disk now: its drive is not connected, or the folder was moved, renamed or deleted. It says where the library was and that it comes back by itself once its folder is there, and offers 打开已有资料库…, to pick it where it went, and 新建资料库…. Nothing is made in its place.
+type missingLibrary struct{ a App }
+
+// Render implements core.Node.
+func (n missingLibrary) Render(cx *core.Scope) core.Node {
+	a := n.a
+	dir := live.Func(a, a.LibraryDir)
+	return statusPage(cx, core.SVGView{SVG: libraryArt, Style: core.Style{FlexShrink: 0}}, locales.FilmsLibraryGoneTitle,
+		func(cx *core.Scope) string { return locales.FilmsLibraryGoneDescription(cx, dir()) },
+		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{TestID: "missing-open", OnPress: live.Do(a, a.PickLibrary)}),
+		textButton(locales.FilmsNewLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "missing-new", OnPress: live.Do(a, a.BeginNew)}),
+	)
+}
+
 // emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 浏览网站, which opens the built-in browser to find a video in, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
 type emptyLibrary struct{ a App }
 

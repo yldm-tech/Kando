@@ -291,7 +291,9 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 // unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file. A video moved to a storage location is not on this computer: the page offers the settings, where the location is, when the location is gone, cannot be reached or lost the video, and nothing when not even the copy made of it from there plays, as moving it back, still in the film's menu, would play the same file.
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
-	return core.Show{When: func() bool { return note().err != "" && note().err != ErrStoredUnplayable && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
+	return core.Show{When: func() bool {
+		return note().err != "" && note().err != ErrStoredUnplayable && note().err != ErrVideoMissing && a.PlayPath() != ""
+	}, Then: func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			switch note().err {
