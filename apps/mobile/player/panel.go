@@ -37,42 +37,30 @@ const partCount = 4
 // panel is the tabs under the card, or beside it on a tablet on its side: the film's lines, its words looked up or in the vocabulary, the notes on the lines saved, the film in equal parts, and what the film is. Each tab is built when first shown and kept while others show, so the lines keep where they were scrolled to.
 func panel(cx *core.Scope, p *play, w *words) core.Node {
 	selected := core.NewSignal(cx, linesTab)
-	// The tab bar is drawn on base.Tabs: ui.Tabs' underline is the accent's and as wide as its tab (ui/tabs.go:97-102), where the design's is white and as wide as the tab's text, and its tabs take no count beside their name.
-	// TODO(nsgo#1037): ui.Tabs takes no colour or width for its underline (ui/tabs.go:120-124); draw the panel's tabs with ui.Tabs, their counts in each option's Trailing, once it does. https://github.com/nsgo-dev/nsgo/issues/1037
-	item := func(t tab, id string, text func() string, count func() int) core.Node {
-		on := func() bool { return selected.Get() == t }
-		// The tab is the bar's 38 tall whatever its count: its name 14 high from 10 down, and its underline 3 tall at its foot (the design draws it at 36, over the hairline, which the scroll clips), as the design's.
-		return base.Tab{TestID: id, Selected: on, OnPress: func(core.PressEvent) { selected.Set(t) },
-			Style: core.Style{Direction: core.Column, Height: core.Pt(38), MinHeight: core.Pt(38), MaxHeight: core.Pt(38), Padding: core.Edges{Top: 10}},
-			Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 3, Height: core.Pt(25)}, Children: []core.Node{
-					core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 17}, StyleFunc: func() core.Style {
-						if on() {
-							return core.Style{FontWeight: core.FontWeightBold, Color: theme.PlayerInk}
-						}
-						return core.Style{FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.55)}
-					}},
-					core.Show{When: func() bool { return count() > 0 }, Then: func(cx *core.Scope) core.Node {
-						return core.Text{ContentFunc: func() string { return strconv.Itoa(count()) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.5)}}
-					}},
+	// The bar is 38 tall: a tab's name 14 high from 10 down, bold in white while selected and medium in faded white otherwise, its count beside it, and the underline white, 3 tall at the tab's foot and as wide as its name and count (the design draws it at 36, over the hairline, which the scroll clips).
+	option := func(t tab, id string, text func() string, count func() int) ui.Option[tab] {
+		return ui.Option[tab]{Value: t, LabelFunc: text, TestID: id,
+			Content: core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignBaseline, Gap: 3, Height: core.Pt(25)}, Children: []core.Node{
+				core.Text{ContentFunc: text, MaxLines: 1},
+				core.Show{When: func() bool { return count() > 0 }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{ContentFunc: func() string { return strconv.Itoa(count()) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.5)}}
 				}},
-				core.View{Style: core.Style{Height: core.Pt(3), MinHeight: core.Pt(3), AlignSelf: core.AlignStretch, CornerRadius: 2}, StyleFunc: func() core.Style {
-					if on() {
-						return core.Style{Background: theme.PlayerInk}
-					}
-					return core.Style{}
-				}},
-			}}
+			}}}
 	}
 	none := func() int { return 0 }
-	// TODO(nsgo#145): base.Tabs' Label is a string only, so the tab list's spoken name keeps the language it was built in; pass a LabelFunc once Tabs has one https://github.com/nsgo-dev/nsgo/issues/145
-	bar := base.Tabs{TestID: "player-tabs", Label: locales.PlayerPanel(cx), Style: core.Style{Direction: core.Row, Gap: 20, Height: core.Pt(38)}, Children: []core.Node{
-		item(linesTab, "player-tab-lines", func() string { return locales.PlayerTabLines(cx) }, none),
-		item(wordsTab, "player-tab-words", func() string { return locales.PlayerTabWords(cx) }, func() int { return len(p.filmWords()) }),
-		item(notesTab, "player-tab-notes", func() string { return locales.PlayerTabNotes(cx) }, func() int { return len(p.s.Saved(p.key)) }),
-		item(partsTab, "player-tab-parts", func() string { return locales.PlayerTabParts(cx) }, none),
-		item(infoTab, "player-tab-info", func() string { return locales.PlayerTabInfo(cx) }, none),
-	}}
+	bar := ui.Tabs[tab]{TestID: "player-tabs", LabelFunc: func() string { return locales.PlayerPanel(cx) }, Variant: ui.TabsUnderline, Value: selected.Get, OnChange: selected.Set,
+		IndicatorColor: ui.Fixed(theme.PlayerInk), IndicatorFit: ui.TabsIndicatorContent, IndicatorStyle: core.Style{Height: core.Pt(3), CornerRadius: 2},
+		Style: core.Style{Gap: 20, Height: core.Pt(38)},
+		TabStyle: core.Style{Height: core.Pt(38), MinHeight: core.Pt(38), MaxHeight: core.Pt(38), Padding: core.Edges{Top: 10}, AlignItems: core.AlignStart,
+			FontSize: 14, LineHeight: 17, FontWeight: core.FontWeightMedium, Color: theme.PlayerInk.Faded(0.55),
+			Selected: &core.Style{FontWeight: core.FontWeightBold, Color: theme.PlayerInk}},
+		Options: []ui.Option[tab]{
+			option(linesTab, "player-tab-lines", func() string { return locales.PlayerTabLines(cx) }, none),
+			option(wordsTab, "player-tab-words", func() string { return locales.PlayerTabWords(cx) }, func() int { return len(p.filmWords()) }),
+			option(notesTab, "player-tab-notes", func() string { return locales.PlayerTabNotes(cx) }, func() int { return len(p.s.Saved(p.key)) }),
+			option(partsTab, "player-tab-parts", func() string { return locales.PlayerTabParts(cx) }, none),
+			option(infoTab, "player-tab-info", func() string { return locales.PlayerTabInfo(cx) }, none),
+		}}
 	page := func(t tab, build func(cx *core.Scope) core.Node) core.Node {
 		seen := false
 		return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)},
