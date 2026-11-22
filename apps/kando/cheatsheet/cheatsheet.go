@@ -69,7 +69,6 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 			s.OnClose()
 		}
 	}
-	// TODO(nsgo#145): give base.Dialog a LabelFunc so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet is built https://github.com/nsgo-dev/nsgo/issues/145
 	return base.Dialog{
 		Open: s.Open,
 		OnOpenChange: func(open bool, _ base.Reason) {
@@ -77,7 +76,7 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 				closeSheet()
 			}
 		},
-		Label:         locales.CheatsheetTitle(cx),
+		LabelFunc:     func() string { return locales.CheatsheetTitle(cx) },
 		TestID:        "cheatsheet",
 		BackdropStyle: core.Style{Background: theme.Scrim},
 		LayerStyle:    core.Style{JustifyContent: core.JustifyStart, Padding: core.Edges{Top: sheetTop}},

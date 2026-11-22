@@ -118,3 +118,18 @@ func TestSheetStaysWhileTheAppChanges(t *testing.T) {
 		t.Fatalf("the sheet does not follow its groups: %q", app.Texts())
 	}
 }
+
+// The sheet's accessible name follows the interface's language as it changes while it is open, and the sheet is not built again for it.
+func TestSheetFollowsTheLanguage(t *testing.T) {
+	app := start(t, newSheet(), core.OSMacOS, 1100, 720)
+	before := app.Find("id:cheatsheet").ID
+	testlocale.Use(t, "en")
+	app.SetEnvironment(testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true}))
+	sheet := app.Find("id:cheatsheet")
+	if want := testlocale.Messages().CheatsheetTitle(); sheet.Props.Label != want {
+		t.Errorf("the sheet is named %q in English, want %q", sheet.Props.Label, want)
+	}
+	if sheet.ID != before {
+		t.Fatal("the sheet was built again for the language")
+	}
+}
