@@ -44,7 +44,7 @@ func TabRootWith(cx *core.Scope, p base.NavPage, h Head) base.NavPage {
 		}
 		return p
 	}
-	// TODO(nsgo#485): Android's system header is a toolbar with no large title (Header.java), and a desktop's is ui.NavHeader's 44pt bar (navheader.go:50-64), so a tab's root page draws its title in its content; give it the platform's top app bar once NSGo has one https://github.com/nsgo-dev/nsgo/issues/485
+	// TODO(nsgo): Android's system header is now Material 3's top app bar, whose HeaderLargeTitle is a 152pt bar that collapses as the page scrolls (nsgo#485), but its large title is a TextView whose size alone is set (Header.java:85-86), in the platform's regular weight where the design's is 28pt medium (DisplayAndroid), with the buttons only in the bar's row over it, where Jobs has its plus level with its title (TabRootTitleRow) and a tablet's header is one row (Head.Inline); and a desktop's is ui.NavHeader's 44pt bar (navheader.go:50-64); so a tab's root page draws its title in its content; give an Android root page the system's large title once its type can be set
 	p.HeaderHidden = true
 	head := core.Text{ContentFunc: h.Title, Role: core.RoleHeader, MaxLines: 1, Style: PageTitle(cx).Merge(core.Style{Padding: core.Edges{Top: 2, Right: 16, Bottom: 4, Left: 16}}),
 		StyleFunc: ui.Colored(colors.Text)}
@@ -122,7 +122,7 @@ func Column(cx *core.Scope) func() core.Style {
 func Tablet(cx *core.Scope) bool { return cx.Env().Idiom() == core.IdiomTablet }
 
 // NavPage is ui.NavPage, a page a tab's page opens, under header: on Android the system's toolbar with its back arrow, titled in Material's title large (SubPageTitle) left of the bar on the bar's frosted fill, as the design's top app bar, with header's Leading and Trailing at its ends (its Symbols are iOS's only); elsewhere ui.NavPage's own.
-// TODO(nsgo#485): Android's toolbar takes only a title, its color, the arrow's tint and the bar's background (Header.java:55-99), and titles in the platform's toolbar style, so the app gives it its title as the header's view (base.NavPage.Header, which ui.NavPage makes the title view) in the design's 22pt regular; set the title's style once NSGo has Material's top app bar https://github.com/nsgo-dev/nsgo/issues/485
+// TODO(nsgo): Android's toolbar is now Material 3's top app bar, 64 tall with a 22sp title (nsgo#485), but the title's size alone is set (Header.java:237-239), so it keeps the platform toolbar's title appearance; the app gives the toolbar its title as the header's view (base.NavPage.Header, which ui.NavPage makes the title view) in the design's 22pt regular; give the toolbar the title itself once the header takes the title's type
 func NavPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
 	if cx.Env().OS() != core.OSAndroid || !mobile.IsAvailable(cx) {
 		return ui.NavPage(cx, p, header)
