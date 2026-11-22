@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/category"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -114,6 +115,12 @@ type App interface {
 	// WatchFilter is how far the done films the page shows were watched, sidebar.WatchAll or another of the sidebar's Watch values (WatchState), among those of SourceFilter and SpokenFilter; SetWatchFilter shows the films in state from now on, as the sidebar's list does.
 	WatchFilter() string
 	SetWatchFilter(state string)
+	// CategoryShown is the row of the sidebar's 分类 section the page shows the done films of, category.All, category.None or a category's ID, among those of the other filters; CategoryName is a category's name, InCategories those of items in it, and SetCategoryFilter shows the films of id from now on, as the sidebar's section does. CategoryMenu is the 分类 ▸ items of the menu of items, one film's or several selected (category.Menu).
+	CategoryShown() string
+	CategoryName(id string) string
+	InCategories(items []Film) []Film
+	SetCategoryFilter(id string)
+	CategoryMenu(cx *core.Scope, items ...Film) []nsdesktop.MenuItem
 	// MarkWatched marks each film of items watched to its end, as playing it to its end would, without saying when it played: the check shows over its poster, and it no longer opens where it stopped. MarkUnwatched forgets that each was ever played, where it stopped, how far it played and when, so it shows as one never played. Both keep it with the library at once. How far a film was played also bounds the lines the command palette finds and sends of it, so marking it watched lets the palette find every line of it, and unwatched none.
 	MarkWatched(items ...Film)
 	MarkUnwatched(items ...Film)
@@ -280,16 +287,17 @@ type shelfModel struct {
 	done      []Film
 	// list is whether the done films show as a list (ViewList), which leaves the hero out.
 	list bool
-	// empty is the page of a library that holds no film yet; emptySource that of a source no film comes from; emptySpoken the language, whisper's code, that none of the source's done films was heard in, "" when one was or no language is chosen; emptyWatch the watch state none of the films of the source and the language is in, "" when one is or none is chosen; query the search no done film matched, "" when it matched one or there is none.
+	// empty is the page of a library that holds no film yet; emptySource that of a source no film comes from; emptySpoken the language, whisper's code, that none of the source's done films was heard in, "" when one was or no language is chosen; emptyWatch the watch state none of the films of the source and the language is in, "" when one is or none is chosen; emptyCategory the row of the sidebar's 分类 section, category.None or a category's ID, that holds none of the source's done films, "" when one does or 全部 is chosen; query the search no done film matched, "" when it matched one or there is none.
 	empty, emptySource bool
 	emptySpoken        string
 	emptyWatch         string
+	emptyCategory      string
 	noMatch            string
 }
 
 func (m shelfModel) equal(o shelfModel) bool {
 	return slices.Equal(m.queue, o.queue) && m.hero == o.hero && m.heroShown == o.heroShown && slices.Equal(m.done, o.done) && m.list == o.list &&
-		m.empty == o.empty && m.emptySource == o.emptySource && m.emptySpoken == o.emptySpoken && m.emptyWatch == o.emptyWatch && m.noMatch == o.noMatch
+		m.empty == o.empty && m.emptySource == o.emptySource && m.emptySpoken == o.emptySpoken && m.emptyWatch == o.emptyWatch && m.emptyCategory == o.emptyCategory && m.noMatch == o.noMatch
 }
 
 // newShelfModel is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, the grid only those heard in the language the sidebar chose (SpokenFilter) and watched as far as it chose (WatchFilter), or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out, as it is while a language or a watch state is chosen; 处理中 shows every job still, so none seems to vanish while a search is on. tag is the interface's language, which orders the grid by title.
@@ -306,6 +314,14 @@ func newShelfModel(a App, source, tag string) shelfModel {
 		m.emptySource = true
 		return m
 	}
+	group := a.CategoryShown()
+	if group != category.All {
+		done = a.InCategories(done)
+		if len(m.queue) == 0 && len(done) == 0 {
+			m.emptyCategory = group
+			return m
+		}
+	}
 	spoken := a.SpokenFilter()
 	heard := BySpoken(done, spoken)
 	if len(m.queue) == 0 && len(heard) == 0 {
@@ -321,7 +337,7 @@ func newShelfModel(a App, source, tag string) shelfModel {
 	query := strings.TrimSpace(*a.Query())
 	m.list = a.LibraryView() == ViewList
 	// The list is a table to scan and to sort, as Finder's is, and its own columns say what was watched last; the hero is the posters' opening.
-	if query == "" && source == sidebar.SourceAll && spoken == sidebar.SpokenAll && watch == sidebar.WatchAll && !m.list {
+	if query == "" && source == sidebar.SourceAll && group == category.All && spoken == sidebar.SpokenAll && watch == sidebar.WatchAll && !m.list {
 		m.hero, m.heroShown = HeroFilm(a, done)
 	}
 	done = ByTitle(seen, query)
@@ -371,6 +387,9 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 		}},
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
+		core.Show{When: func() bool { return model().emptyCategory != "" }, Then: func(*core.Scope) core.Node {
+			return emptyCategory{a: a, id: func() string { return model().emptyCategory }}
+		}},
 		core.Show{When: func() bool { return model().emptySpoken != "" }, Then: func(*core.Scope) core.Node {
 			return emptySpoken{code: func() string { return model().emptySpoken }}
 		}},

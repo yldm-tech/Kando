@@ -1,6 +1,7 @@
 package films
 
 import (
+	"kando/apps/kando/category"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
@@ -82,6 +83,28 @@ func (e emptyWatch) Render(cx *core.Scope) core.Node {
 	return core.View{TestID: "films-watch-empty", Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
 		core.Text{ContentFunc: say, Style: ui.TypeBody.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
 		textButton(locales.FilmsWatchShowAll, ui.Button{Variant: ui.ButtonSecondary, TestID: "films-watch-all", OnPress: live.Do(a, func() { a.SetWatchFilter(sidebar.WatchAll) })}),
+	}}
+}
+
+// emptyCategory is what the grid shows when the row of the sidebar's 分类 section chosen, id, holds none of the films of the source: how to put a film in the category, or that every film is in one for 未分类, with 显示全部, which chooses 全部.
+type emptyCategory struct {
+	a  App
+	id func() string
+}
+
+// Render implements core.Node.
+func (e emptyCategory) Render(cx *core.Scope) core.Node {
+	a := e.a
+	colors := ui.ColorsOf(cx)
+	say := live.Func(a, func() string {
+		if id := e.id(); id != category.None {
+			return locales.CategoryEmptyPage(cx, a.CategoryName(id))
+		}
+		return locales.CategoryNoneEmptyPage(cx)
+	})
+	return core.View{TestID: "films-category-empty", Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
+		core.Text{ContentFunc: say, Style: ui.TypeBody.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+		textButton(locales.CategoryShowAll, ui.Button{Variant: ui.ButtonSecondary, TestID: "films-category-all", OnPress: live.Do(a, func() { a.SetCategoryFilter(category.All) })}),
 	}}
 }
 

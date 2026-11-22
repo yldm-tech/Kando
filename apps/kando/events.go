@@ -97,6 +97,7 @@ func (a *app) areas() []areaHooks {
 		a.trayHooks(),
 		a.privacyHooks(),
 		a.subscribeHooks(),
+		a.categoryHooks(),
 		a.vocabHooks(),
 		a.subexportHooks(),
 		a.explainHooks(),
