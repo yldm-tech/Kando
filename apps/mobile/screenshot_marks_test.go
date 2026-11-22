@@ -19,7 +19,7 @@ var japaneseMarks = sync.FilmMarks{Lines: []sync.LineMarks{{Line: 0, Hash: sync.
 	{Start: 18, End: 21, Ruby: "い"},
 }}}}
 
-// TestScreenshotsPlayerMarks renders the card of a line of Japanese with the word marks its computer computed (player-marks): readings over its words, a level's faint box in its tone under two of them and a word of the vocabulary black on yellow. Without reporting the video's progress, which a target cannot, the card shows the first line.
+// TestScreenshotsPlayerMarks renders the card of a line of Japanese with the word marks its computer computed (player-marks): readings over its words, a level's faint band in its tone under two of them and a word of the vocabulary over a yellow band. Without reporting the video's progress, which a target cannot, the card shows the first line.
 func TestScreenshotsPlayerMarks(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := openJapaneseMarked(t, &japaneseMarks)
@@ -29,8 +29,8 @@ func TestScreenshotsPlayerMarks(t *testing.T) {
 	if sp := p.app.Span("id:player-card >> text:に"); sp.Background.Color != 0 || sp.Style.Decoration != 0 {
 		t.Fatalf("に, unmarked, has a mark: %+v", sp)
 	}
-	// A word of the vocabulary is black on the subtitles' yellow.
-	if sp := p.app.Span("id:player-card >> text:った"); sp.Background.Color != theme.SubtitleYellow || sp.Style.Color != core.RGB(0x000000) {
+	// A word of the vocabulary is over a band of the subtitles' yellow, in the line's own ink.
+	if sp := p.app.Span("id:player-card >> text:った"); sp.Background.Color != theme.SubtitleYellow || sp.Background.Top != core.Pct(62) || sp.Style.Color == core.RGB(0x000000) {
 		t.Fatalf("った, of a word of the vocabulary: %+v", sp)
 	}
 	shot(p, "player-marks")

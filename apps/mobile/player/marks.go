@@ -43,7 +43,7 @@ func toneOf(colors ui.Colors) func(tone string) (core.Color, bool) {
 	}
 }
 
-// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a mark is drawn; picked is the word looked up in the line, "" for none, which is marked as a word of the vocabulary is; band draws a run the computer marked as a highlighter would, a faint box in its tone's color (the subtitles' yellow without one), as the card does, rather than a line under it.
+// markInk is how markSpans draws a line: style is the line's text style, which a reading's view repeats, as an attachment does not take its text's; look looks up a word tapped; tone is the color of a mark's tone; word is how a word without a mark is drawn; picked is the word looked up in the line, "" for none, which is marked as a word of the vocabulary is; band draws a run the computer marked as a highlighter would, a faint band in its tone's color (the subtitles' yellow without one), as the card does, rather than a line under it.
 type markInk struct {
 	style  core.Style
 	look   func(word string)
@@ -53,15 +53,16 @@ type markInk struct {
 	band   bool
 }
 
-// markBand is the faint box of a run marked in band, in color.
-// TODO(nsgo#966): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow .38 62%)) is a faint full box here; draw the band once a span can. https://github.com/nsgo-dev/nsgo/issues/966
+// markBand is the highlighter's band of a run marked in band, in color at .38, over the lower 38% of each of its lines, as the design's linear-gradient(transparent 62%, color .38 62%).
 func markBand(color core.Color) core.Style {
-	return core.Style{Background: color.Faded(0.25), CornerRadius: 3}
+	return core.Style{Background: color.Faded(0.38), BackgroundInsetTop: bandTop}
 }
 
-// pickedWord is how a word of the vocabulary, and the word looked up, is marked: black on the subtitles' yellow, as a highlighter would.
-// TODO(nsgo#966): a span's Background fills its whole line box (core/element.go:357-358, Span.Style) and takes no gradient, so the design's highlighter band over the lower third of a word (linear-gradient(transparent 62%, yellow 62%)) is a full yellow box here; draw the band once a span can. https://github.com/nsgo-dev/nsgo/issues/966
-var pickedWord = core.Style{Background: theme.SubtitleYellow, Color: theme.PlayerOnLight, CornerRadius: 3}
+// pickedWord is how a word of the vocabulary, and the word looked up, is marked: the subtitles' yellow over the lower 38% of each of its lines, under the line's own ink, as a highlighter would (the design's linear-gradient(transparent 62%, yellow 62%)).
+var pickedWord = core.Style{Background: theme.SubtitleYellow, BackgroundInsetTop: bandTop}
+
+// bandTop is where a highlighter's band starts down a line's box.
+var bandTop = core.Pct(62)
 
 // rubyScale is the size of a reading over a word, a share of the word's.
 const rubyScale = 0.5
@@ -72,7 +73,7 @@ var (
 	markOffset    = core.Pct(14)
 )
 
-// markSpans is text cut into spans at each of tokens, its words and what lies between them, a tap on a word looking it up, and at the ends of each of marks: a mark with a reading is a view of its reading over its characters, the others draw a line under their runs in a tone's color, and a word in the vocabulary, and the word looked up, is black on yellow (pickedWord). A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
+// markSpans is text cut into spans at each of tokens, its words and what lies between them, a tap on a word looking it up, and at the ends of each of marks: a mark with a reading is a view of its reading over its characters, the others draw a line under their runs in a tone's color, and a word in the vocabulary, and the word looked up, is over a yellow band (pickedWord). A mark outside text, off a character's start, or overlapping a reading before it is left out; tokens of another text are too, as while a line changes.
 func markSpans(text string, tokens []kcore.WordToken, marks []sync.Mark, ink markInk) []core.Span {
 	inText := func(m sync.Mark) bool {
 		return m.Start >= 0 && m.Start < m.End && m.End <= len(text) && utf8.RuneStart(text[m.Start]) && (m.End == len(text) || utf8.RuneStart(text[m.End]))
@@ -168,11 +169,12 @@ func (ink markInk) span(content, ruby, word string, st core.Style) core.Span {
 	if ruby == "" {
 		return core.Span{Content: content, Style: st, OnPress: press}
 	}
-	base := core.Style{FontSize: ink.style.FontSize, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(st)
+	base := core.Style{FontSize: ink.style.FontSize, FontWeight: ink.style.FontWeight, Color: ink.style.Color}
 	small := core.Style{FontSize: ink.style.FontSize * rubyScale, Color: ink.style.Color}
 	// The line puts a baseline-aligned view's first text on its baseline, so the run comes first, and the column is reversed to draw the reading over it: the run sits level with the characters around it, though it falls back to a font whose descent is larger than the line's.
 	return core.Span{Content: content, Attachment: core.View{TestID: "player-ruby", Style: core.Style{Direction: core.ColumnReverse, AlignItems: core.AlignCenter, VerticalAlign: core.VerticalAlignBaseline}, OnPress: press, Children: []core.Node{
-		core.Text{Content: content, MaxLines: 1, Style: base},
+		// The run is a span of its text, so a band of st lies under its characters rather than filling the text's box.
+		core.Text{Spans: []core.Span{{Content: content, Style: st}}, MaxLines: 1, Style: base},
 		// The screen reader reads the run, not its reading.
 		core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone},
 	}}}

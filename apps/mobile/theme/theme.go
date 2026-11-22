@@ -157,7 +157,7 @@ var (
 	PlayerSheet = core.RGB(0x1C1C1E)
 	// PlayerGlass is the fill of the frosted controls over the picture of a phone on its side, faded so the picture shows through.
 	PlayerGlass = core.RGB(0x1E1E20)
-	// PlayerOnLight is the player's ink on its light fills: on PlayerInk, as the play button's glyph, and on SubtitleYellow, as a word marked.
+	// PlayerOnLight is the player's ink on its light fills: on PlayerInk, as the play button's glyph, and on SubtitleYellow, as a saved word's check.
 	PlayerOnLight = core.RGB(0x000000)
 	// FixedInk is the text of the chip that says the learner fixed a line's translation, on StatusOK's tint.
 	FixedInk = core.RGB(0x6EE7A0)

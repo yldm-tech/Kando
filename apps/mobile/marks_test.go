@@ -33,8 +33,8 @@ func TestMarksFromTheComputerShowOnTheCard(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool {
 		return p.app.Exists("id:player-card >> text:Good") && p.app.Span("id:player-card >> text:Good").Background.Color != 0
 	})
-	// On the card a level's word is a highlighter's faint box in its tone, rather than a line under it.
-	if good := p.app.Span("id:player-card >> text:Good"); good.Style.Decoration != 0 || good.Background.Color == theme.SubtitleYellow {
+	// On the card a level's word is a highlighter's faint band in its tone over the lower third of its line, rather than a line under it.
+	if good := p.app.Span("id:player-card >> text:Good"); good.Style.Decoration != 0 || good.Background.Color == theme.SubtitleYellow || good.Background.Top != core.Pct(62) {
 		t.Fatalf("the level's mark on Good: %+v", good)
 	}
 	// An unmarked word is plain, a tap on it still looking it up.
@@ -44,8 +44,8 @@ func TestMarksFromTheComputerShowOnTheCard(t *testing.T) {
 
 	p.at(3200 * time.Millisecond)
 	p.app.WaitFor("id:player-card >> id:player-ruby >> text:はう", wait)
-	// A word of the vocabulary is black on the subtitles' yellow.
-	if you := p.app.Span("id:player-card >> text:you"); you.Background.Color != theme.SubtitleYellow || you.Style.Color != core.RGB(0x000000) {
+	// A word of the vocabulary is over a band of the subtitles' yellow, the lower 38% of its line, in the line's own ink.
+	if you := p.app.Span("id:player-card >> text:you"); you.Background.Color != theme.SubtitleYellow || you.Background.Top != core.Pct(62) || you.Style.Color == core.RGB(0x000000) {
 		t.Fatalf("the word of the vocabulary: %+v", you)
 	}
 
