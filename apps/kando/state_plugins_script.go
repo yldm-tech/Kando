@@ -354,6 +354,7 @@ func (a *app) pluginsLoadNext() {
 		a.pluginsTurnOff(id, p.Hash, plugins.ReasonInit)
 		return
 	}
+	a.pluginsRunner().Hold(plugin)
 	a.plugins.panels.runs++
 	s.loaded[id] = &pluginsScript{pack: p, v: v, plugin: plugin, host: host, grant: grant, run: a.plugins.panels.runs}
 	a.pluginsHost(id, host)

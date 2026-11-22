@@ -21,9 +21,10 @@ const (
 	ExportParam = "export"
 )
 
-// PanelWatch is when the watchdog of a panel's view suspects it. A view stays open for as long as the user keeps it, its JS running in pieces on the engine's goroutine between the window's own work, and tsx says neither when a piece of it runs nor how long, so the watchdog reads what the engine as a whole does: heartbeats posted through each window and whether each waited, which says how busy the engine was (share), and the Go heap. It suspects the view when the engine was busy more than Share of each of Windows windows of Window in a row, or the live heap grew by more than Runner.Watch.Heap since the view was built; it then takes the view down for Probe, which stops its timers and lets what it holds go, and stops the plugin only when that took the load away: the engine busy less than Idle of the probe, or the live heap back under the threshold. Otherwise the load was the app's, or another plugin's, and the view is built again with the counts started afresh; a view suspected Retries times in a row in vain is left alone until it is built again, so an app busy for long does not take it down over and over.
+// PanelWatch is when the watchdog of a panel's view stops it. A view stays open for as long as the user keeps it, its JS running in pieces on the engine's goroutine between the window's own work. The watchdog reads, in each window of Window, how long the view's own JS ran (tsx.ViewRuntime.JSTime), and what the engine as a whole does: heartbeats posted through the window and whether each waited, which says how busy the engine was (share), and the Go heap. When the view's own JS took more than Share of each of Windows windows in a row, the load is the view's, and the watchdog interrupts it at once (tsx.ViewRuntime.Interrupt), which cuts the piece running and drops its timers, and stops the plugin as slow. The engine's load and the heap are not the view's alone, so they only make it suspect the view: when the engine was busy more than Share of each of Windows windows in a row while the view's JS was not, or the live heap grew by more than Runner.Watch.Heap since the view was built, it takes the view down for Probe, which stops its timers and lets what it holds go, and stops the plugin only when that took the load away: the engine busy less than Idle of the probe, or the live heap back under the threshold. Otherwise the load was the app's, or another plugin's, and the view is built again with the counts started afresh; a view suspected Retries times in a row in vain is left alone, but for its own JS, until it is built again, so an app busy for long does not take it down over and over.
 //
-// TODO(nsgo#925): tsx says no time a sandboxed runtime's JS ran, nor gives the app that places a tsx.View a way to interrupt it: Limits.CallTotal and Plugin.Interrupt hold only what tsx.Load runs (tsx/view.go:83), and a view's timers run through Scope.AfterFunc and runtime.call with no callback (tsx/timers.go:54-72), its calls into JS timed only to cut each one (tsx/sandbox.go:458-504), so the watchdog suspects a view from the whole engine's load and confirms it by taking the view down; measure the view's own time, and interrupt it, once tsx can https://github.com/nsgo-dev/nsgo/issues/925
+// TODO(nsgo): JSTime leaves out the engine's time a view's runtime takes outside its JS entries, in the Go functions it calls (tsx/view.go ViewRuntime.JSTime, tsx/classes.go callGo) and in committing and laying out what it renders, so a view that keeps the engine busy there is only suspected from the whole engine's load and confirmed by taking it down; measure it by the runtime once tsx reports the engine time it takes.
+// TODO(nsgo#1060): tsx's Limits.Memory counts only what the built-ins that allocate by a size hold, so the live heap, the whole app's, stays the bound of a view's memory, confirmed by taking the view down; stop it at its quota alone once tsx bounds a runtime's whole heap https://github.com/nsgo-dev/nsgo/issues/1060
 type PanelWatch struct {
 	Window  time.Duration
 	Share   float64
@@ -33,11 +34,12 @@ type PanelWatch struct {
 	Retries int
 }
 
-// DefaultPanelWatch is a panel's watchdog: busy more than 60% of three windows of 5 s in a row, confirmed by a probe of 2 s busy less than 30%, three suspicions in vain at most.
+// DefaultPanelWatch is a panel's watchdog: its JS, or the engine as a whole, busy more than 60% of three windows of 5 s in a row, the engine's load confirmed by a probe of 2 s busy less than 30%, three suspicions in vain at most.
 var DefaultPanelWatch = PanelWatch{Window: 5 * time.Second, Share: 0.6, Windows: 3, Probe: 2 * time.Second, Idle: 0.3, Retries: 3}
 
 // Panel is the view of the panel of the plugin p, whose package v loaded it with grant: its package run anew in a runtime of its own, in the same sandbox its functions run in (Sandbox: Limits, the grant made from nothing, the partition of its id and signer), with a host host makes for each build, whose parameters it sets to name the panel (PanelParam, ExportParam), showing the export the panel names (tsx.View.Export). Each build has a new host, a retry's too, as a core.Host serves one app at a time and keeps the events sent to a view gone for the next; the host p was loaded with is never one, as p would stop hearing its events. The view is under a core.Catch: what the module throws as it loads, as it renders or as it handles an event later, a piece of it cut at Limits' budget, or a quota it runs past, shows fallback in its place, retry building the view again, and counts for p's breaker as a failed call does (Failed), a quota stopping p at once, a view taken down without failing as a call that succeeded, so a panel that keeps failing turns its plugin off (Stopped); it never reaches what holds the view. While it shows, its watchdog (PanelWatch) stops the plugin for a view that keeps the window busy (plugins.ReasonSlow) or holds memory (plugins.ReasonMemory). Each build is marked in flight (plugins.MarkInFlight) unless a call of p's is under way, which is marked already, written off the engine's goroutine, so a panel that crashed Kando as it loaded turns its plugin off at the next start. Build it on the engine's goroutine.
 func (r *Runner) Panel(p *Plugin, v Verified, grant plugins.Grant, panel plugins.Panel, host func() *core.Host, fallback func(cx *core.Scope, err error, retry func()) core.Node) core.Node {
+	r.Hold(p)
 	return panelView{r: r, p: p, v: v, grant: grant, panel: panel, host: host, fallback: fallback}
 }
 
@@ -60,11 +62,11 @@ func (pv panelView) Render(cx *core.Scope) core.Node {
 	cx.Cleanup(w.end)
 	// The watchdog starts once the view is built: no goroutine starts in a build.
 	r.Post(w.start)
-	return core.Show{When: func() bool { return !down.Get() }, Then: pv.catch, Else: func(*core.Scope) core.Node { return core.View{} }}
+	return core.Show{When: func() bool { return !down.Get() }, Then: func(*core.Scope) core.Node { return pv.catch(w) }, Else: func(*core.Scope) core.Node { return core.View{} }}
 }
 
-// catch is the view under its core.Catch.
-func (pv panelView) catch(*core.Scope) core.Node {
+// catch is the view under its core.Catch, each build of which tells w its runtime.
+func (pv panelView) catch(w *panelWatchdog) core.Node {
 	r, p := pv.r, pv.p
 	// build is the latest build of this Catch, which its fallback marks as failed.
 	var build *panelBuild
@@ -85,7 +87,13 @@ func (pv panelView) catch(*core.Scope) core.Node {
 					}
 				})
 			})
-			node := tsx.View{Package: pv.v.Package, Export: pv.panel.Export, Sandbox: Sandbox(pv.v.ID, pv.v.Signer, pv.grant, host)}.Render(cx)
+			// The watchdog lets go of the build's runtime as the build goes, or it would keep what the view held from the collector.
+			cx.Cleanup(func() { w.gone(b.view) })
+			started := func(v *tsx.ViewRuntime) {
+				b.view = v
+				w.started(v)
+			}
+			node := tsx.View{Package: pv.v.Package, Export: pv.panel.Export, Sandbox: Sandbox(pv.v.ID, pv.v.Signer, pv.grant, host, started, nil)}.Render(cx)
 			if b.marked {
 				b.marked = false
 				r.mark(p, false)
@@ -107,18 +115,19 @@ func (pv panelView) catch(*core.Scope) core.Node {
 	}
 }
 
-// panelBuild is one build of a panel's view: whether its in-flight mark is still to clear, and whether it failed.
+// panelBuild is one build of a panel's view: whether its in-flight mark is still to clear, whether it failed, and its runtime.
 type panelBuild struct {
 	marked bool
 	failed bool
+	view   *tsx.ViewRuntime
 }
 
-// Failed counts err, a failure of the plugin p outside its calls, as its panel's view failing, for its breaker as a failed call is counted (a core.Error with a code is not a failure), and stops it when the breaker trips, or at once, as a call is ended, when tsx stopped the view's runtime at a quota (halted): its memory quota as plugins.ReasonMemory. Call it on the engine's goroutine.
+// Failed counts err, a failure of the plugin p outside its calls, as its panel's view failing, for its breaker as a failed call is counted (a core.Error with a code is not a failure), and stops it when the breaker trips, or at once, as a call is ended, when tsx stopped the view's runtime at a quota (quotaReason): its memory quota as plugins.ReasonMemory. Call it on the engine's goroutine.
 func (r *Runner) Failed(p *Plugin, err error) {
 	if p.closed {
 		return
 	}
-	if reason := halted(err); reason != "" {
+	if reason := quotaReason(err); reason != "" {
 		r.stop(p, reason)
 		return
 	}
@@ -193,8 +202,53 @@ type panelWatchdog struct {
 	stop  chan struct{}
 	heap  uint64
 
+	// mu guards ended, and view, the runtime of the build showing, nil between two, with ran, what the JS of the builds gone ran, and timed, whether tsx measured it (tsx.ViewRuntime.JSTime), which the engine's goroutine sets as a build starts and goes (started, gone) and the watchdog's reads.
 	mu    sync.Mutex
 	ended bool
+	view  *tsx.ViewRuntime
+	ran   time.Duration
+	timed bool
+}
+
+// started hears the runtime of a new build of the view, on the engine's goroutine.
+func (w *panelWatchdog) started(v *tsx.ViewRuntime) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.view = v
+}
+
+// gone hears that the build of the runtime v went, on the engine's goroutine: what its JS ran is kept, the runtime is not.
+func (w *panelWatchdog) gone(v *tsx.ViewRuntime) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if v == nil || w.view != v {
+		return
+	}
+	d, ok := v.JSTime()
+	w.ran += d
+	w.timed = w.timed || ok
+	w.view = nil
+}
+
+// jsTime is how long the JS of the view's builds ran in all, false where tsx cannot say, as on the web, or before the first build.
+func (w *panelWatchdog) jsTime() (time.Duration, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	d, ok := w.ran, w.timed
+	if w.view != nil {
+		ran, timed := w.view.JSTime()
+		d += ran
+		ok = ok || timed
+	}
+	return d, ok
+}
+
+// interrupt stops the runtime of the build showing at once, from any goroutine: the JS running is cut, none runs after and its timers are dropped, while what it shows stays.
+func (w *panelWatchdog) interrupt() {
+	w.mu.Lock()
+	v := w.view
+	w.mu.Unlock()
+	v.Interrupt(ErrStopped)
 }
 
 // end ends the watchdog, as the view goes.
@@ -266,10 +320,23 @@ func (w *panelWatchdog) freed() bool {
 
 // run is the watchdog until the view goes or the plugin is stopped.
 func (w *panelWatchdog) run() {
-	busyWindows, vain := 0, 0
+	busyWindows, ownWindows, vain := 0, 0, 0
 	for {
+		start := time.Now()
+		ran, measured := w.jsTime()
 		share, ok := w.share(w.watch.Window)
 		if !ok {
+			return
+		}
+		if now, ok := w.jsTime(); measured && ok && float64(now-ran) > w.watch.Share*float64(time.Since(start)) {
+			ownWindows++
+		} else {
+			ownWindows = 0
+		}
+		if ownWindows >= w.watch.Windows {
+			// The view's own JS kept the engine busy: no probe needed. Interrupted here, its piece is cut even while the engine is in it.
+			w.interrupt()
+			w.post(func() { w.r.stop(w.p, plugins.ReasonSlow) })
 			return
 		}
 		if share > w.watch.Share {

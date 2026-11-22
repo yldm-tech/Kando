@@ -236,7 +236,7 @@ func TestScriptSignedManifest(t *testing.T) {
 
 // TestScriptLimitsAreBounded checks that every Limits Kando runs a plugin under is hardened and bounds the stack, nodes, timers, requests, bodies and storage: a zero field would be no limit at all.
 func TestScriptLimitsAreBounded(t *testing.T) {
-	for name, l := range map[string]any{"run": *Limits(), "probe": *probeLimits(), "sandbox": *Sandbox("a.b", "k", plugins.Grant{}, nil).Limits, "probe sandbox": *probeSandbox("p").Limits} {
+	for name, l := range map[string]any{"run": *Limits(), "probe": *probeLimits(), "sandbox": *Sandbox("a.b", "k", plugins.Grant{}, nil, nil, nil).Limits, "probe sandbox": *probeSandbox("p").Limits} {
 		v := reflect.ValueOf(l)
 		if !v.FieldByName("Harden").Bool() {
 			t.Errorf("%s: not hardened", name)
@@ -252,7 +252,7 @@ func TestScriptLimitsAreBounded(t *testing.T) {
 // TestScriptGrantIsMadeFromNothing checks that the sandbox's grant holds nothing but the permissions and HTTP rules granted, whatever pkg.Capabilities may hold, is never nil, and that each sandbox is in a partition of its id and signer.
 func TestScriptGrantIsMadeFromNothing(t *testing.T) {
 	grant := plugins.Grant{Perms: []plugins.Perm{plugins.PermToast}, Network: []pkg.HTTPRule{{Host: "127.0.0.1", Methods: []string{"POST"}, Paths: []string{"/"}}}}
-	for name, s := range map[string]any{"granted": Sandbox("acme.tool", "k1", grant, nil), "nothing": Sandbox("acme.tool", "k1", plugins.Grant{}, nil), "probe": probeSandbox("p")} {
+	for name, s := range map[string]any{"granted": Sandbox("acme.tool", "k1", grant, nil, nil, nil), "nothing": Sandbox("acme.tool", "k1", plugins.Grant{}, nil, nil, nil), "probe": probeSandbox("p")} {
 		sb := reflect.ValueOf(s)
 		if sb.FieldByName("Capabilities").IsNil() == false {
 			t.Errorf("%s: Capabilities set", name)
@@ -269,7 +269,7 @@ func TestScriptGrantIsMadeFromNothing(t *testing.T) {
 			}
 		}
 	}
-	if s := Sandbox("acme.tool", "k1", grant, nil); s.Storage != "plugin.acme.tool.k1" || len(s.Grant.Host) != 1 || len(s.Grant.Network.HTTP) != 1 {
+	if s := Sandbox("acme.tool", "k1", grant, nil, nil, nil); s.Storage != "plugin.acme.tool.k1" || len(s.Grant.Host) != 1 || len(s.Grant.Network.HTTP) != 1 {
 		t.Errorf("sandbox %+v", s)
 	}
 }
@@ -563,6 +563,36 @@ export function ping() { return 1 }`}), plugins.Grant{})
 	}
 	if got := wait(t, e.call(r, pl, "ping"), time.Second); !errors.Is(got.err, ErrStopped) {
 		t.Errorf("a call after it was stopped: %v", got.err)
+	}
+}
+
+// TestScriptRunnerStopsAPluginTsxStoppedBetweenCalls checks that a plugin tsx stopped between its calls, at its memory quota in a timer a call set going, is stopped and reported for its memory as tsx stops it (tsx.Sandbox.OnStop), not only once a later call fails.
+func TestScriptRunnerStopsAPluginTsxStoppedBetweenCalls(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.later", code: `const kept = []
+export function later() { setTimeout(() => { kept.push("x".repeat(128 << 20)) }, 20); return 1 }`}), plugins.Grant{})
+	stopped := make(chan string, 1)
+	watch := DefaultWatch
+	// The quota is what this test is about: the watchdog must not stop it first.
+	watch.Stall, watch.Heap = time.Hour, 0
+	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, hash, reason string) { stopped <- reason }}
+	if got := wait(t, e.call(r, pl, "later"), 5*time.Second); got.err != nil {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonMemory {
+			t.Errorf("reported %q", reason)
+		}
+	case <-time.After(slow(5 * time.Second)):
+		t.Fatal("the plugin tsx stopped in its timer was not stopped")
+	}
+	var closed, busy bool
+	e.do(func() { closed, busy = pl.Closed(), r.Busy() })
+	if !closed || busy {
+		t.Errorf("closed %t, a call under way %t", closed, busy)
 	}
 }
 

@@ -222,9 +222,12 @@ func showPanelFailing(t *testing.T, i int, heap uint64, watch PanelWatch, failed
 	return e, stopped
 }
 
-// TestScriptPanelWatchdogStopsABusyPanel checks that a panel whose timers keep the engine busy is stopped as slow, once taking it down for the probe took the load away.
+// TestScriptPanelWatchdogStopsABusyPanel checks that a panel whose timers keep the engine busy is stopped as slow by its own JS time (tsx.ViewRuntime.JSTime), without taking it down for a probe, and its runtime interrupted (tsx.ViewRuntime.Interrupt), so none of its JS runs after: the engine goes idle at once, though the view still shows.
 func TestScriptPanelWatchdogStopsABusyPanel(t *testing.T) {
-	_, stopped := showPanel(t, 0, DefaultWatch.Heap, testPanelWatch)
+	// No probe ends in the test's time: the panel's own JS time is what stops it, with the view still up.
+	watch := testPanelWatch
+	watch.Probe = time.Hour
+	e, stopped := showPanel(t, 0, DefaultWatch.Heap, watch)
 	select {
 	case reason := <-stopped:
 		if reason != plugins.ReasonSlow {
@@ -233,6 +236,56 @@ func TestScriptPanelWatchdogStopsABusyPanel(t *testing.T) {
 	case <-time.After(slow(5 * time.Second)):
 		t.Fatal("a busy panel was not stopped")
 	}
+	// The view still shows, as no probe took it down and nothing here removes it: what would keep the engine busy is its timer, which the interrupt dropped. A heartbeat would otherwise wait for most of the 80 ms a piece of it takes.
+	for range 10 {
+		posted := time.Now()
+		e.do(func() {})
+		if waited := time.Since(posted); waited > 50*time.Millisecond {
+			t.Fatalf("a heartbeat waited %v after the panel was stopped: its timer still runs", waited)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// TestScriptPanelWatchdogStopsABusyPanelInABusyApp checks that a busy panel is stopped as slow while the app keeps the engine busy too, which taking the view down for a probe would not tell from the panel's load and so spare it: its own JS time says the load is its.
+func TestScriptPanelWatchdogStopsABusyPanelInABusyApp(t *testing.T) {
+	e, stopped := showPanel(t, 0, DefaultWatch.Heap, testPanelWatch)
+	// The app's own work holds the engine 20 ms of every 40, over the probe's Idle with the view down, and leaves the view's 80 ms pieces well over Share of the engine.
+	busyApp(t, e, 20*time.Millisecond, 20*time.Millisecond)
+	select {
+	case reason := <-stopped:
+		if reason != plugins.ReasonSlow {
+			t.Errorf("stopped as %q", reason)
+		}
+	case <-time.After(slow(5 * time.Second)):
+		t.Fatal("a busy panel was not stopped while the app was busy")
+	}
+}
+
+// busyApp keeps the engine e busy with work of the app's own, busy at a time and then idle for rest, until the test ends.
+func busyApp(t *testing.T, e *engine, busy, rest time.Duration) {
+	done := make(chan struct{})
+	ended := make(chan struct{})
+	t.Cleanup(func() {
+		close(done)
+		<-ended
+	})
+	go func() {
+		defer close(ended)
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			e.do(func() {
+				t0 := time.Now()
+				for time.Since(t0) < busy {
+				}
+			})
+			time.Sleep(rest)
+		}
+	}()
 }
 
 // TestScriptPanelWatchdogStopsAGrowingPanel checks that a panel that keeps what it makes is stopped for its memory once its live heap passed the threshold and taking it down for the probe let it go.
@@ -276,23 +329,7 @@ func TestScriptPanelStopsAtItsMemoryQuota(t *testing.T) {
 // TestScriptPanelWatchdogSparesAQuietPanel checks that a quiet panel is not stopped while the engine is busy with work of the app's own: taking it down for the probe leaves the load where it was, so it is built again and left alone.
 func TestScriptPanelWatchdogSparesAQuietPanel(t *testing.T) {
 	e, stopped := showPanel(t, 2, DefaultWatch.Heap, testPanelWatch)
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			default:
-			}
-			e.do(func() {
-				t0 := time.Now()
-				for time.Since(t0) < 80*time.Millisecond {
-				}
-			})
-			time.Sleep(10 * time.Millisecond)
-		}
-	}()
+	busyApp(t, e, 80*time.Millisecond, 10*time.Millisecond)
 	select {
 	case reason := <-stopped:
 		t.Fatalf("a quiet panel was stopped as %q while the app was busy", reason)

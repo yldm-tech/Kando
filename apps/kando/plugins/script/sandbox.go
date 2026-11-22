@@ -47,8 +47,8 @@ func Partition(id, signer string) string { return "plugin." + id + "." + signer 
 // HostPartition is the partition of the app's secrets where Kando keeps the plugin id's secrets for it, which the plugin's own code cannot reach: its secrets reach Partition's alone, and it is never granted them.
 func HostPartition(id, signer string) string { return "pluginhost." + id + "." + signer }
 
-// Sandbox is the one sandbox a plugin runs in: Limits, its own host, the partition of its id and signer, and a grant made from nothing, its permissions and its HTTP rules alone, never a copy of what the package declares with parts taken out, so no capability the package signed (secrets, openUrl, a web view) is ever granted (docs/plugin-system.md 3.3). The grant is never nil: tsx reads a nil grant as everything the package declares.
-func Sandbox(id, signer string, grant plugins.Grant, host *core.Host) tsx.Sandbox {
+// Sandbox is the one sandbox a plugin runs in: Limits, its own host, the partition of its id and signer, and a grant made from nothing, its permissions and its HTTP rules alone, never a copy of what the package declares with parts taken out, so no capability the package signed (secrets, openUrl, a web view) is ever granted (docs/plugin-system.md 3.3). The grant is never nil: tsx reads a nil grant as everything the package declares. onView hears the runtime of a view as it starts (tsx.Sandbox.OnViewRuntime), and onStop why the runtime stopped (OnStop), both on the engine's goroutine; nil hears nothing.
+func Sandbox(id, signer string, grant plugins.Grant, host *core.Host, onView func(*tsx.ViewRuntime), onStop func(error)) tsx.Sandbox {
 	g := &pkg.Capabilities{}
 	for _, p := range grant.Perms {
 		g.Host = append(g.Host, string(p))
@@ -56,7 +56,7 @@ func Sandbox(id, signer string, grant plugins.Grant, host *core.Host) tsx.Sandbo
 	if len(grant.Network) > 0 {
 		g.Network = &pkg.Network{HTTP: slices.Clone(grant.Network)}
 	}
-	return tsx.Sandbox{Limits: Limits(), Grant: g, Host: host, Storage: Partition(id, signer)}
+	return tsx.Sandbox{Limits: Limits(), Grant: g, Host: host, Storage: Partition(id, signer), OnViewRuntime: onView, OnStop: onStop}
 }
 
 // probeSandbox is the sandbox Probe reads a plugin in: probeLimits, no host, an empty grant and a partition of its own, random, which Probe clears as it is done, as tsx would otherwise give the plugin its app ID's partition, which nothing clears.
@@ -64,10 +64,15 @@ func probeSandbox(partition string) tsx.Sandbox {
 	return tsx.Sandbox{Limits: probeLimits(), Grant: &pkg.Capabilities{}, Storage: partition}
 }
 
-// Load runs the plugin v under cx with what grant allows, through its own host, which must be no other plugin's (Sandbox), for a Runner to call, and checks that it exports every function its contributions call (Manifest.ExportsNeeded), which Probe did not for a package that signed its manifest: plugins.ErrTampered otherwise. It notes what the Go heap held before, which the watchdog measures the plugin's growth from. Call it on the engine's goroutine; it runs the plugin's entry module, a second at most.
+// Load runs the plugin v under cx with what grant allows, through its own host, which must be no other plugin's (Sandbox), for a Runner to call, and checks that it exports every function its contributions call (Manifest.ExportsNeeded), which Probe did not for a package that signed its manifest: plugins.ErrTampered otherwise. It notes what the Go heap held before, which the watchdog measures the plugin's growth from. The Runner that holds the plugin (Runner.Hold) hears when tsx stops its runtime. Call it on the engine's goroutine; it runs the plugin's entry module, a second at most.
 func Load(cx *core.Scope, v Verified, grant plugins.Grant, host *core.Host) (*Plugin, error) {
 	heap := HeapBytes()
-	p, err := tsx.Load(cx, v.Package, Sandbox(v.ID, v.Signer, grant, host))
+	pl := &Plugin{ID: v.ID, Hash: v.Hash, heap: heap}
+	p, err := tsx.Load(cx, v.Package, Sandbox(v.ID, v.Signer, grant, host, nil, func(error) {
+		if r := pl.runner; r != nil {
+			r.halt(pl)
+		}
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +80,8 @@ func Load(cx *core.Scope, v Verified, grant plugins.Grant, host *core.Host) (*Pl
 		p.Close()
 		return nil, err
 	}
-	return &Plugin{ID: v.ID, Hash: v.Hash, p: p, heap: heap}, nil
+	pl.p = p
+	return pl, nil
 }
 
 // manifestExport is the function a plugin's code says what it is with, when its package did not sign its manifest (signature.SignedManifest).
