@@ -671,3 +671,22 @@ func TestMediaSourcesRowShowsTheirPage(t *testing.T) {
 		t.Fatal("the row is not chosen while its page shows")
 	}
 }
+
+// The search field's name follows the interface's language as it changes, and the field is not built again for it: it keeps the keyboard focus and what it holds.
+func TestSearchFollowsTheLanguage(t *testing.T) {
+	a := newFakeApp()
+	a.films = 4
+	a.focus = true
+	app := start(t, a)
+	app.Type("id:sidebar-search", "talk")
+	field := app.Find("id:sidebar-search")
+	testlocale.Use(t, "en")
+	app.SetEnvironment(testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true}))
+	again := app.Find("id:sidebar-search")
+	if want := testlocale.Messages().SidebarSearchLabel(); again.Props.Label != want {
+		t.Errorf("the field is named %q in English, want %q", again.Props.Label, want)
+	}
+	if again.ID != field.ID || !again.Focused || again.Text != "talk" {
+		t.Fatalf("the field after the switch: built again %v, focused %v, holding %q", again.ID != field.ID, again.Focused, again.Text)
+	}
+}

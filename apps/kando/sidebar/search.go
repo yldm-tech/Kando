@@ -47,10 +47,9 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
 		return nil
 	}}
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		Ref: field, TestID: "sidebar-search", Role: core.RoleSearchField,
-		Label:           locales.SidebarSearchLabel(cx),
+		LabelFunc:       func() string { return locales.SidebarSearchLabel(cx) },
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.SidebarSearchPlaceholder(cx) + "  " + cx.KeyLabel("mod+f") },
 		OnChange:        live.On(a, a.SetQuery),
