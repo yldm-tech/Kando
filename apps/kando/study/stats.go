@@ -75,20 +75,16 @@ func (d StatsDialog) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	tab := live.Func(a, a.StatsTab)
 	title := func() string { return locales.VocabStatsTitle(cx) }
-	tabs := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Option and ui.Tabs a LabelFunc twin so the tabs' names follow the interface language without building them again, which takes the keyboard focus off them; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		m := locales.For(cx)
-		return ui.Tabs[string]{
-			Options: []ui.Option[string]{
-				{Value: TabStats, Label: m.VocabTabStats(), TestID: "stats-tab-stats"},
-				{Value: TabExport, Label: m.VocabTabExport(), TestID: "stats-tab-export"},
-			},
-			Value:    tab,
-			OnChange: live.On(a, a.SetStatsTab),
-			Label:    m.VocabStatsTitle(),
-			TestID:   "stats-tabs",
-		}
-	})
+	tabs := ui.Tabs[string]{
+		Options: []ui.Option[string]{
+			{Value: TabStats, LabelFunc: func() string { return locales.VocabTabStats(cx) }, TestID: "stats-tab-stats"},
+			{Value: TabExport, LabelFunc: func() string { return locales.VocabTabExport(cx) }, TestID: "stats-tab-export"},
+		},
+		Value:     tab,
+		OnChange:  live.On(a, a.SetStatsTab),
+		LabelFunc: title,
+		TestID:    "stats-tabs",
+	}
 	head := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, FlexShrink: 0}, Children: []core.Node{
 		core.View{Role: core.RoleHeader, AccessibilityLevel: func() int { return 1 }, LabelFunc: title, Style: core.Style{FlexGrow: 1}, Children: []core.Node{
 			core.Text{ContentFunc: title, Style: ui.TypeTitle, StyleFunc: ui.Colored(colors.Text)},
@@ -121,21 +117,20 @@ func (d StatsDialog) Render(cx *core.Scope) core.Node {
 			}},
 		}},
 		core.Show{When: func() bool { return tab() == TabExport && exported().File != "" }, Then: func(cx *core.Scope) core.Node {
-			return textButton(func(cx *core.Scope) string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, ui.Button{Variant: ui.ButtonSecondary, TestID: "stats-export-reveal", OnPress: live.Do(a, a.RevealVocabExport)})
+			return ui.Button{TextFunc: func() string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, Variant: ui.ButtonSecondary, TestID: "stats-export-reveal", OnPress: live.Do(a, a.RevealVocabExport)}
 		}},
 		core.Show{When: func() bool { return tab() == TabExport }, Then: func(cx *core.Scope) core.Node {
-			return textButton(locales.VocabExport, ui.Button{Variant: ui.ButtonSecondary, TestID: "stats-export", OnPress: live.Do(a, a.ExportVocab),
-				Disabled: func() bool { s := summary(); return s.Words+s.Lines == 0 || exported().Busy }})
+			return ui.Button{TextFunc: func() string { return locales.VocabExport(cx) }, Variant: ui.ButtonSecondary, TestID: "stats-export", OnPress: live.Do(a, a.ExportVocab),
+				Disabled: func() bool { s := summary(); return s.Words+s.Lines == 0 || exported().Busy }}
 		}},
-		textButton(locales.VocabDone, ui.Button{TestID: "stats-done", OnPress: live.Do(a, a.CloseStats)}),
+		ui.Button{TextFunc: func() string { return locales.VocabDone(cx) }, TestID: "stats-done", OnPress: live.Do(a, a.CloseStats)},
 	}}
-	// TODO(nsgo#145): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the dialog's accessible name follows the interface language as it changes while it is open; it is read as the dialog opens https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
-		TestID: "stats",
-		Label:  locales.VocabStatsTitle(cx),
-		Open:   func() bool { return true },
-		Bare:   true,
-		Style:  core.Style{Width: core.Pt(statsWidth), Height: core.Pt(statsHeight)},
+		TestID:    "stats",
+		LabelFunc: title,
+		Open:      func() bool { return true },
+		Bare:      true,
+		Style:     core.Style{Width: core.Pt(statsWidth), Height: core.Pt(statsHeight)},
 		OnOpenChange: func(open bool, _ base.Reason) {
 			if !open {
 				a.CloseStats()
@@ -309,36 +304,29 @@ func mastery(cx *core.Scope, stats func() saved.Stats) core.Node {
 func exportTab(cx *core.Scope, a StatsApp) core.Node {
 	colors := ui.ColorsOf(cx)
 	options := live.Func(a, a.VocabOptions)
-	format := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Option and ui.Tabs a LabelFunc twin so the formats' names follow the interface language without building them again, which takes the keyboard focus off them; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		m := locales.For(cx)
-		return ui.Tabs[string]{
-			Options: []ui.Option[string]{
-				{Value: saved.VocabAnki, Label: m.VocabFormatAnki(), TestID: "stats-format-anki"},
-				{Value: saved.VocabCSV, Label: m.VocabFormatCSV(), TestID: "stats-format-csv"},
-				{Value: saved.VocabTSV, Label: m.VocabFormatTSV(), TestID: "stats-format-tsv"},
-			},
-			Value: func() string { return options().Format },
-			OnChange: live.On(a, func(f string) {
-				o := a.VocabOptions()
-				o.Format = f
-				a.SetVocabOptions(o)
-			}),
-			Label:  m.VocabFormat(),
-			TestID: "stats-format",
-		}
-	})
+	format := ui.Tabs[string]{
+		Options: []ui.Option[string]{
+			{Value: saved.VocabAnki, LabelFunc: func() string { return locales.VocabFormatAnki(cx) }, TestID: "stats-format-anki"},
+			{Value: saved.VocabCSV, LabelFunc: func() string { return locales.VocabFormatCSV(cx) }, TestID: "stats-format-csv"},
+			{Value: saved.VocabTSV, LabelFunc: func() string { return locales.VocabFormatTSV(cx) }, TestID: "stats-format-tsv"},
+		},
+		Value: func() string { return options().Format },
+		OnChange: live.On(a, func(f string) {
+			o := a.VocabOptions()
+			o.Format = f
+			a.SetVocabOptions(o)
+		}),
+		LabelFunc: func() string { return locales.VocabFormat(cx) },
+		TestID:    "stats-format",
+	}
 	check := func(id string, label func(*core.Scope) string, on func(saved.VocabOptions) bool, change func(o *saved.VocabOptions, on bool)) core.Node {
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Checkbox a TextFunc twin so its text follows the interface language without building it again; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Checkbox{TestID: id, Text: label(cx),
-				Checked: func() bool { return on(options()) },
-				OnChange: live.On(a, func(v bool) {
-					o := a.VocabOptions()
-					change(&o, v)
-					a.SetVocabOptions(o)
-				})}
-		})
+		return ui.Checkbox{TestID: id, TextFunc: func() string { return label(cx) },
+			Checked: func() bool { return on(options()) },
+			OnChange: live.On(a, func(v bool) {
+				o := a.VocabOptions()
+				change(&o, v)
+				a.SetVocabOptions(o)
+			})}
 	}
 	preview := live.Func(a, a.VocabPreview)
 	return core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Gap: 14}, Children: []core.Node{

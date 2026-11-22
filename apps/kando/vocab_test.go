@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/lookup"
 	"kando/apps/kando/saved"
@@ -248,6 +249,20 @@ func TestStatsDialogShowsTheStudy(t *testing.T) {
 	}
 	if e := a.vocab.stats.exported; e.File != filepath.Join(out, "Kando Vocabulary.csv") || e.Err != "" {
 		t.Fatalf("exported %+v", e)
+	}
+	// Another interface language renames the tabs and the formats in place.
+	csv := tt.Find("id:stats-format-csv").ID
+	a.cx.SetLocale("en")
+	refresh(tt, a)
+	en := locales.In("en")
+	if got := tt.Find("id:stats-format-csv"); got.ID != csv || got.Props.Label != en.VocabFormatCSV() {
+		t.Fatalf("in English the CSV format is view %d (was %d) named %q", got.ID, csv, got.Props.Label)
+	}
+	if got := tt.Find("id:stats-tab-export").Props.Label; got != en.VocabTabExport() {
+		t.Fatalf("in English the export tab is named %q", got)
+	}
+	if got := tt.Find("id:stats").Props.Label; got != en.VocabStatsTitle() {
+		t.Fatalf("in English the dialog is named %q", got)
 	}
 	tt.Press("id:stats-done")
 	if a.vocab.stats.open || a.modalOpen() {

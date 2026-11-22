@@ -99,24 +99,23 @@ func (r Review) Render(cx *core.Scope) core.Node {
 	footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8, JustifyContent: core.JustifyEnd, FlexShrink: 0}, Children: []core.Node{
 		core.Show{When: func() bool { return !done() && revealed() }, Then: func(cx *core.Scope) core.Node {
 			return core.Group([]core.Node{
-				textButton(locales.SavedReviewAgain, ui.Button{Variant: ui.ButtonSecondary, TestID: "review-again", OnPress: grade(false)}),
-				textButton(locales.SavedReviewGood, ui.Button{TestID: "review-good", OnPress: grade(true)}),
+				ui.Button{TextFunc: func() string { return locales.SavedReviewAgain(cx) }, Variant: ui.ButtonSecondary, TestID: "review-again", OnPress: grade(false)},
+				ui.Button{TextFunc: func() string { return locales.SavedReviewGood(cx) }, TestID: "review-good", OnPress: grade(true)},
 			})
 		}},
 		core.Show{When: func() bool { return !done() && !revealed() }, Then: func(cx *core.Scope) core.Node {
-			return textButton(locales.SavedReviewShow, ui.Button{TestID: "review-show", OnPress: live.Do(a, a.ReviewReveal)})
+			return ui.Button{TextFunc: func() string { return locales.SavedReviewShow(cx) }, TestID: "review-show", OnPress: live.Do(a, a.ReviewReveal)}
 		}},
 		core.Show{When: done, Then: func(cx *core.Scope) core.Node {
-			return textButton(locales.SavedDone, ui.Button{TestID: "review-close", OnPress: live.Do(a, a.CloseReview)})
+			return ui.Button{TextFunc: func() string { return locales.SavedDone(cx) }, TestID: "review-close", OnPress: live.Do(a, a.CloseReview)}
 		}},
 	}}
-	// TODO(nsgo#145): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the review's accessible name follows the interface language as it changes while it is open; it is read as the review opens https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
-		TestID: "review",
-		Label:  locales.SavedReviewTitle(cx),
-		Open:   func() bool { return true },
-		Bare:   true,
-		Style:  core.Style{Width: core.Pt(520), Height: core.Pt(400)},
+		TestID:    "review",
+		LabelFunc: func() string { return locales.SavedReviewTitle(cx) },
+		Open:      func() bool { return true },
+		Bare:      true,
+		Style:     core.Style{Width: core.Pt(520), Height: core.Pt(400)},
 		OnOpenChange: func(open bool, _ base.Reason) {
 			if !open {
 				a.CloseReview()
@@ -143,8 +142,8 @@ func lineCard(cx *core.Scope, a ReviewApp, card func() Card, revealed func() boo
 			core.Show{When: func() bool { return card().NoAudio }, Then: func(cx *core.Scope) core.Node {
 				return core.Text{TestID: "review-no-audio", ContentFunc: func() string { return locales.SavedReviewNoAudio(cx) }, MaxLines: 1, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)}
 			}, Else: func(cx *core.Scope) core.Node {
-				return textButton(func(*core.Scope) string { return replay() }, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "review-replay", OnPress: live.Do(a, a.ReviewReplay),
-					Disabled: func() bool { return card().Clip == "" }})
+				return ui.Button{TextFunc: replay, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "review-replay", OnPress: live.Do(a, a.ReviewReplay),
+					Disabled: func() bool { return card().Clip == "" }}
 			}},
 		}},
 		core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, AlignItems: core.AlignBaseline, Gap: 10}, Children: []core.Node{

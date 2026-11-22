@@ -143,44 +143,39 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 		exportStatus(cx, export),
 		exportPicker(cx, a),
 		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" && !e.Stopped && e.Plugin == "" }, Then: func(cx *core.Scope) core.Node {
-			return textButton(func(cx *core.Scope) string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-reveal", OnPress: live.Do(a, a.RevealExport)})
+			return ui.Button{TextFunc: func() string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, Variant: ui.ButtonSecondary, TestID: "saved-export-reveal", OnPress: live.Do(a, a.RevealExport)}
 		}},
 		core.Show{When: func() bool {
 			e := export()
 			return e.Finished && e.NoFFmpeg && e.WithSound && e.Err == "" && !e.Stopped
 		}, Then: func(cx *core.Scope) core.Node {
-			return textButton(locales.SavedExportOpenSettings, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-settings", OnPress: live.Do(a, a.ExportSettings)})
+			return ui.Button{TextFunc: func() string { return locales.SavedExportOpenSettings(cx) }, Variant: ui.ButtonSecondary, TestID: "saved-export-settings", OnPress: live.Do(a, a.ExportSettings)}
 		}},
 		core.Show{When: func() bool { return export().Busy },
 			Then: func(cx *core.Scope) core.Node {
-				return textButton(locales.SavedExportCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-cancel", OnPress: live.Do(a, a.StopExport)})
+				return ui.Button{TextFunc: func() string { return locales.SavedExportCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "saved-export-cancel", OnPress: live.Do(a, a.StopExport)}
 			},
 			Else: func(cx *core.Scope) core.Node {
-				// The button is built again when the way chosen changes, as its text says which.
+				// The button's text says which way is chosen.
 				target := live.Func(a, a.ExportTarget)
-				label := func(cx *core.Scope) string {
+				label := func() string {
 					if target() != "" {
 						return locales.SavedExportTemplate(cx)
 					}
 					return locales.SavedExport(cx)
 				}
-				return textButton(label, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
-					Disabled: func() bool { return len(entries()) == 0 }})
+				return ui.Button{TextFunc: label, Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
+					Disabled: func() bool { return len(entries()) == 0 }}
 			}},
-		core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the count without building the button again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			n := due()
-			return ui.Button{Text: locales.SavedReviewDue(cx, n), Variant: ui.ButtonSecondary, TestID: "saved-review", OnPress: live.Do(a, a.StartReview), Disabled: func() bool { return n == 0 }}
-		}),
-		textButton(locales.SavedDone, ui.Button{TestID: "saved-done", OnPress: live.Do(a, a.CloseSaved)}),
+		ui.Button{TextFunc: func() string { return locales.SavedReviewDue(cx, due()) }, Variant: ui.ButtonSecondary, TestID: "saved-review", OnPress: live.Do(a, a.StartReview), Disabled: func() bool { return due() == 0 }},
+		ui.Button{TextFunc: func() string { return locales.SavedDone(cx) }, TestID: "saved-done", OnPress: live.Do(a, a.CloseSaved)},
 	}}
-	// TODO(nsgo#145): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the sheet's accessible name follows the interface language as it changes while it is open; it is read as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
-		TestID: "saved",
-		Label:  locales.SavedTitle(cx),
-		Open:   func() bool { return true },
-		Bare:   true,
-		Style:  core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight)},
+		TestID:    "saved",
+		LabelFunc: func() string { return locales.SavedTitle(cx) },
+		Open:      func() bool { return true },
+		Bare:      true,
+		Style:     core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight)},
 		OnOpenChange: func(open bool, _ base.Reason) {
 			if !open {
 				a.CloseSaved()
@@ -253,12 +248,9 @@ func exportPicker(cx *core.Scope, a App) core.Node {
 		return options
 	}
 	return core.Show{When: func() bool { return strings.Contains(targets.Get(), "\x01") }, Then: func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			return ui.Select[string]{OptionsFunc: options, Label: locales.SavedExportTarget(cx), TestID: "saved-export-target",
-				Value: live.Func(a, a.ExportTarget), OnChange: live.On(a, a.SetExportTarget), Disabled: live.Func(a, func() bool { return a.ExportState().Busy }),
-				Style: core.Style{Width: core.Pt(150)}}
-		})
+		return ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SavedExportTarget(cx) }, TestID: "saved-export-target",
+			Value: live.Func(a, a.ExportTarget), OnChange: live.On(a, a.SetExportTarget), Disabled: live.Func(a, func() bool { return a.ExportState().Busy }),
+			Style: core.Style{Width: core.Pt(150)}}
 	}}
 }
 
@@ -322,17 +314,8 @@ func noteEditor(cx *core.Scope, a App, id string) core.Node {
 		OnChange:        live.On(a, a.SetNoteDraft),
 		Style:           core.Style{MinHeight: core.Pt(56)}}
 	buttons := core.View{Style: core.Style{Direction: core.Row, Gap: 8, JustifyContent: core.JustifyEnd}, Children: []core.Node{
-		textButton(locales.SavedNoteCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-note-cancel", OnPress: live.Do(a, a.CancelNote)}),
-		textButton(locales.SavedNoteSave, ui.Button{TestID: "saved-note-save", OnPress: live.Do(a, a.SaveNote)}),
+		ui.Button{TextFunc: func() string { return locales.SavedNoteCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "saved-note-cancel", OnPress: live.Do(a, a.CancelNote)},
+		ui.Button{TextFunc: func() string { return locales.SavedNoteSave(cx) }, TestID: "saved-note-save", OnPress: live.Do(a, a.SaveNote)},
 	}}
 	return core.View{Style: core.Style{Gap: 8, Padding: core.Edges{Top: 2, Right: 10, Bottom: 10, Left: 10}}, Children: []core.Node{field, buttons}}
-}
-
-// textButton is a ui.Button whose text follows the interface language.
-func textButton(text func(cx *core.Scope) string, b ui.Button) core.Node {
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		b.Text = text(cx)
-		return b
-	})
 }

@@ -272,12 +272,36 @@ func TestSheetStartsTheReview(t *testing.T) {
 	if b := app.Find("id:saved-review"); !b.Props.Disabled || b.Props.Label != msgs.SavedReviewDue(0) {
 		t.Fatalf("with none due Review is %q, disabled %v", b.Props.Label, b.Props.Disabled)
 	}
+	review := app.Find("id:saved-review").ID
 	a.due = 3
 	a.Changed()
 	app.Settle()
+	if got := app.Find("id:saved-review").ID; got != review {
+		t.Fatalf("Review was built again for the count: view %d, was %d", got, review)
+	}
 	app.Press("role:button " + msgs.SavedReviewDue(3))
 	if !slices.Equal(a.calls, []string{"review"}) {
 		t.Fatalf("calls %q", a.calls)
+	}
+}
+
+// TestSheetFollowsTheLanguage checks that the sheet says another interface language in place: its name and its buttons change, and the buttons are not built again.
+func TestSheetFollowsTheLanguage(t *testing.T) {
+	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "Hello."}}, due: 2}
+	var root *core.Scope
+	app := start(t, a, func(cx *core.Scope) core.Node { root = cx; return Sheet{App: a} })
+	review, done := app.Find("id:saved-review").ID, app.Find("id:saved-done").ID
+	root.SetLocale("en")
+	app.Settle()
+	en := locales.In("en")
+	if got := app.Find("id:saved").Props.Label; got != en.SavedTitle() {
+		t.Fatalf("in English the sheet is named %q, want %q", got, en.SavedTitle())
+	}
+	if got := app.Find("id:saved-review"); got.ID != review || got.Props.Label != en.SavedReviewDue(2) {
+		t.Fatalf("in English Review is view %d (was %d) named %q", got.ID, review, got.Props.Label)
+	}
+	if got := app.Find("id:saved-done"); got.ID != done || got.Props.Label != en.SavedDone() {
+		t.Fatalf("in English Done is view %d (was %d) named %q", got.ID, done, got.Props.Label)
 	}
 }
 
