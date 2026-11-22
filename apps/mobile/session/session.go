@@ -108,6 +108,7 @@ type Session struct {
 	films     *core.Signal[[]store.Film]
 	transfers *core.Signal[map[string]Transfer]
 	used      *core.Signal[int64]
+	space     *space
 	prefs     *core.Signal[store.Prefs]
 	// shelves are what the paired computers last listed, by ID, and listings the reads of them under way, each told from a later one by listGen (Shelf).
 	shelves  *core.Signal[map[string]Shelf]
@@ -212,6 +213,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		films:        core.NewSignalFunc[[]store.Film](cx, nil, nil),
 		transfers:    core.NewSignalFunc(cx, map[string]Transfer{}, nil),
 		used:         core.NewSignal(cx, int64(0)),
+		space:        newSpace(cx),
 		prefs:        core.NewSignalFunc(cx, store.Prefs{}, nil),
 		shelves:      core.NewSignalFunc(cx, map[string]Shelf{}, nil),
 		listings:     map[string]listing{},
@@ -233,6 +235,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.learn = newLearn(s)
 	s.settle = newSettle(cx)
+	s.followSpace()
 	cx.Cleanup(func() {
 		close(s.closed)
 		s.cancel()

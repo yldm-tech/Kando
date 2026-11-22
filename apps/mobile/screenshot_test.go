@@ -137,11 +137,13 @@ func TestScreenshotsOfflineFilms(t *testing.T) {
 	shot := screenshots(t)
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
-	p := startPhone(t, dir)
+	// A phone of 128 GB with about 38 GB free, as the design's.
+	p := startPhone(t, dir, nsgotest.DiskSpace(core.DiskSpace{Total: 128 << 30, Available: 38 << 30, Opportunistic: 38 << 30}, nil))
 	p.app.WaitFor("id:tab-bar", wait)
 	p.openTab(settingsTab, msgs.SettingsTitle())
 	p.app.Press("id:settings-offline")
 	p.app.WaitFor("id:offline-film-"+f.Key(), wait)
+	p.app.WaitFor("id:offline-space-free", wait)
 	shot(p, "settings-offline")
 }
 

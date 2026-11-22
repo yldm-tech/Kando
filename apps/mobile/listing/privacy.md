@@ -20,6 +20,8 @@ Data Not Collected. Apple counts data as collected when it is sent off the devic
 
 Permissions the app asks for, in apps/mobile/nsgo.yaml: Local Network (NSLocalNetworkUsageDescription), to reach the paired computer; notifications, only when the user turns on the review reminder in Settings, which is scheduled on the device.
 
+Required-reason APIs, which nsgo build declares in the app's privacy manifest (PrivacyInfo.xcprivacy): NSGo's own, user defaults (CA92.1), file timestamps (C617.1) and the system's uptime (35F9.1), and disk space (85F4.1, apple.privacy in nsgo.yaml), which Settings › Offline Films reads to show the user the films' share of the device and the room left. The reading stays on the device, so App Privacy's answer does not change.
+
 ## Google Play: Data safety
 
 - Does your app collect or share any of the required user data types? No. Data goes only from the phone to the user's own paired computer, over a connection encrypted end to end between the two (HTTPS pinned to the computer's certificate, or, through the storage relay, messages sealed with a key only the two hold, in the user's own bucket), which Google Play does not count as collection; nothing reaches the developer or a third party.

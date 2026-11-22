@@ -21,6 +21,9 @@ apple:
     NSCameraUsageDescription: Kando uses the camera to read the QR code your computer shows, to pair with it.
     # App Store Connect asks every upload whether the app uses encryption that export rules restrict; until it is answered, TestFlight testers cannot install the build. The app encrypts only with standard HTTPS/TLS (Go's crypto/tls, to the computers it pairs with), which is exempt, so the answer is no, given here once for every build.
     ITSAppUsesNonExemptEncryption: false
+  # Settings › Offline Films shows the films' share of the device and about how much of it is free (session/space.go, NSGo's Scope.DiskSpace), which Apple lets an app read only with a reason in its privacy manifest: 85F4.1, to show the user the space. The reading stays on the device.
+  privacy:
+    accessed_apis: { NSPrivacyAccessedAPICategoryDiskSpace: [85F4.1] }
 # Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception. CAMERA lets the pairing page read the computer's QR code from the camera's live picture (Scope.ScanCode, which NSGo offers on Android only to an app whose manifest lists it); Android asks the user for it the first time the page scans. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. target_sdk is the API level Google Play requires of new apps and updates, above the runtime's 34.
 android:
   permissions: [CAMERA, POST_NOTIFICATIONS]

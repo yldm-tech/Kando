@@ -6,6 +6,9 @@ import (
 
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // Settings › Language shows the interface in the language picked there at once, keeps it, and follows the system's again with Automatic.
@@ -37,7 +40,7 @@ func TestTheInterfaceLanguageIsTheOneChosenInSettings(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.Language == "" })
 }
 
-// Settings › Offline Films lists the films saved on the device, and Delete, once confirmed, deletes one from it.
+// Settings › Offline Films lists the films saved on the device, and Delete, once confirmed, deletes one from it. Where the system does not say the room on the device, the page shows what the films take alone.
 func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
@@ -52,6 +55,9 @@ func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	if got := p.texts("id:offline-film-" + f.Key()); !strings.Contains(got, msgs.SettingsOfflineFilmSaved()) {
 		t.Fatalf("the saved film's row reads %q, without %q", got, msgs.SettingsOfflineFilmSaved())
 	}
+	if p.app.Exists("id:offline-space-bar") || p.app.Exists("id:offline-space-free") {
+		t.Fatal("the page shows the room on a device that does not say it")
+	}
 	// Delete is named for what it does, not by the question it asks.
 	if got, want := p.app.Find("id:offline-delete-"+f.Key()).Props.Label, msgs.SettingsOfflineDelete(f.Film.Title); got != want {
 		t.Fatalf("Delete is read as %q, want %q", got, want)
@@ -65,6 +71,37 @@ func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	p.app.Answer(1)
 	p.app.WaitFor("id:offline-empty", wait)
 	p.app.WaitUntil(wait, func() bool { films, _ := store.Open(dir).Films(); return len(films) == 0 })
+}
+
+// Settings › Offline Films shows the films' share of the device on a bar, beside what the rest of the device holds, and about how much of it is free, as the system says.
+func TestOfflineFilmsShowTheirShareOfTheDevice(t *testing.T) {
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	p := startPhone(t, dir, nsgotest.DiskSpace(core.DiskSpace{Total: 128 << 30, Available: 38<<30 + 300<<20, Opportunistic: 30 << 30}, nil))
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-space-free", wait)
+	if got, want := p.texts("id:offline-space-free"), msgs.SettingsOfflineFree("38 GB"); got != want {
+		t.Errorf("the page says %q, want %q", got, want)
+	}
+	for _, part := range []string{"id:offline-space-films", "id:offline-space-others"} {
+		if !p.app.Exists(part) {
+			t.Errorf("the bar has no %s", part)
+		}
+	}
+	if !p.app.Find("id:offline-space-bar").Props.ElementsHidden {
+		t.Error("assistive technology reads the bar, which the texts say")
+	}
+
+	// With the film deleted, the films take no room, and their share leaves the bar.
+	p.app.Press("id:offline-delete-" + f.Key())
+	p.app.Answer(1)
+	p.app.WaitFor("id:offline-empty", wait)
+	p.app.WaitForGone("id:offline-space-films", wait)
+	if !p.app.Exists("id:offline-space-others") {
+		t.Error("the rest of the device left the bar")
+	}
 }
 
 // The subtitle size control shows the sizes' short names and says their full names to assistive technology.

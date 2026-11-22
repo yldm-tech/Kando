@@ -241,7 +241,10 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 						Shortcuts:    func() { n.Push(route{page: shortcutsPage}) },
 						Widgets:      func() { n.Push(route{page: widgetsPage}) },
 						Language:     func() { n.Push(route{page: languagePage}) },
-						Offline:      func() { n.Push(route{page: offlinePage}) },
+						Offline: func() {
+							n.Push(route{page: offlinePage})
+							s.ReadSpace()
+						},
 						Computer: func(id string) {
 							n.Push(route{page: computerPage, desktop: id})
 							s.SyncLearning()

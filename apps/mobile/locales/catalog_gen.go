@@ -651,6 +651,7 @@ var Parameters = map[string][]string{
 	"SettingsGoalValue":              {"count"},
 	"SettingsOfflineCount":           {"count"},
 	"SettingsOfflineDelete":          {"title"},
+	"SettingsOfflineFree":            {"size"},
 	"SettingsProfileDetail":          {"name", "target"},
 	"SettingsProfileUnpaired":        {"target"},
 	"SettingsRemindDetail":           {"hour"},
@@ -865,6 +866,7 @@ type Translation struct {
 	SettingsGoalValue              func(count int) string
 	SettingsOfflineCount           func(count int) string
 	SettingsOfflineDelete          func(title string) string
+	SettingsOfflineFree            func(size string) string
 	SettingsProfileDetail          func(name string, target string) string
 	SettingsProfileUnpaired        func(target string) string
 	SettingsRemindDetail           func(hour int) string
@@ -8053,6 +8055,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsOfflineDelete != nil {
 		s.SettingsOfflineDelete = t.SettingsOfflineDelete
+	}
+	if t.SettingsOfflineFree != nil {
+		s.SettingsOfflineFree = t.SettingsOfflineFree
 	}
 	if t.SettingsProfileDetail != nil {
 		s.SettingsProfileDetail = t.SettingsProfileDetail
@@ -18774,6 +18779,38 @@ func SettingsOfflineEmpty(cx *core.Scope) string { return For(cx).SettingsOfflin
 
 // SettingsOfflineEmpty is the package's SettingsOfflineEmpty in the language of msgs.
 func (msgs Messages) SettingsOfflineEmpty() string { return msgs.text(textSettingsOfflineEmpty) }
+
+// SettingsOfflineFree says "About {size} free on this device"
+// in the language the app shows under cx.
+//
+// On the Offline Films page, under the bar of the films' share of the device: about how much room is left, rounded to whole gigabytes or megabytes.
+func SettingsOfflineFree(cx *core.Scope, size string) string {
+	return For(cx).SettingsOfflineFree(size)
+}
+
+// SettingsOfflineFree is the package's SettingsOfflineFree in the language of msgs.
+func (msgs Messages) SettingsOfflineFree(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsOfflineFree(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsOfflineFree; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "About " + msgs.arg(size) + " free on this device"
+		case "ja":
+			return "このデバイスの空き容量：約 " + size
+		case "ko":
+			return "이 기기의 남은 공간: 약 " + size
+		case "zh-Hans":
+			return "此设备约剩 " + size + " 可用"
+		case "zh-Hant":
+			return "此裝置約剩 " + size + " 可用"
+		}
+	}
+}
 
 // SettingsOfflineFilmSaved says "Saved"
 // in the language the app shows under cx.
