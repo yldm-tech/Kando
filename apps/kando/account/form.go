@@ -48,11 +48,10 @@ func separator() core.Node {
 
 // row is a row of a card: the title over the subtitle (none when it says "") on the left, trailing at the right end. It is 40 points high with one line and 46 with a subtitle. Assistive technology sees a group named by the title and described by the subtitle.
 func row(title, subtitle func() string, trailing core.Node) core.Node {
-	// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built https://github.com/nsgo-dev/nsgo/issues/145
 	return core.View{
-		Role:                     core.RoleGroup,
-		LabelFunc:                title,
-		AccessibilityDescription: subtitle(),
+		Role:                         core.RoleGroup,
+		LabelFunc:                    title,
+		AccessibilityDescriptionFunc: subtitle,
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(40), Padding: core.Symmetric(6, 14), Gap: 10,
 			AlignItems: core.AlignCenter},
 		Children: []core.Node{

@@ -196,14 +196,33 @@ func TestPageStaysWhileTheAppChanges(t *testing.T) {
 	}
 }
 
-// The page follows the interface's language as it changes.
+// The page follows the interface's language as it changes, its controls renamed in place rather than built again, and the rows' descriptions with them.
 func TestPageFollowsTheLanguage(t *testing.T) {
 	a := &fakeApp{storage: "compat", configured: true}
 	app := show(t, a)
+	views := map[string]*nsgotest.View{}
+	for _, id := range []string{"google-sign-in", "storage-kind", "compat-path"} {
+		views[id] = app.FindMounted("id:" + id)
+	}
 	app.SetEnvironment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true, Locale: "en"})
 	for _, want := range []string{"Account", "Not Signed In", "Object Storage", "S3 Compatible", "Path Style", "The full https address."} {
 		if !app.Exists(whole(want)) {
 			t.Errorf("no %q in %q", want, app.Texts())
 		}
+	}
+	for id, was := range views {
+		if got := app.FindMounted("id:" + id).ID; got != was.ID {
+			t.Errorf("%s was built again for another language: view %d, was %d", id, got, was.ID)
+		}
+	}
+	en := locales.In("en")
+	if got := app.Find("id:storage-kind").Props.Label; got != en.AccountStorageKind() {
+		t.Errorf("in English the storage drop-down is named %q", got)
+	}
+	if got := app.FindMounted("id:compat-path").Props.Label; got != en.AccountPathStyle() {
+		t.Errorf("in English the path style switch is named %q", got)
+	}
+	if got := app.Find("id:google-row").Props.Description; got != en.AccountSignedOutHint() {
+		t.Errorf("in English the account row is described as %q", got)
 	}
 }

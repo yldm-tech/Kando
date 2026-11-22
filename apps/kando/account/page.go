@@ -112,21 +112,17 @@ func (r storageRow) Render(cx *core.Scope) core.Node {
 	a := r.a
 	title := func() string { return locales.AccountStorageKind(cx) }
 	kind := live.Func(a, a.StorageKind)
-	// The drop-down's names are set as it is built, so it is built again for another language.
-	choose := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		options := make([]ui.Option[string], len(storageKinds))
-		for i, id := range storageKinds {
-			options[i] = ui.Option[string]{Value: id, Label: storageLabel(cx, id)}
-		}
-		return ui.Select[string]{
-			TestID: "storage-kind", Label: locales.AccountStorageKind(cx), Options: options, Value: kind,
-			OnChange: live.On(a, func(id string) {
-				*a.Storage() = id
-				_ = a.Save()
-			}),
-		}
-	})
+	options := make([]ui.Option[string], len(storageKinds))
+	for i, id := range storageKinds {
+		options[i] = ui.Option[string]{Value: id, LabelFunc: func() string { return storageLabel(cx, id) }}
+	}
+	choose := ui.Select[string]{
+		TestID: "storage-kind", LabelFunc: title, Options: options, Value: kind,
+		OnChange: live.On(a, func(id string) {
+			*a.Storage() = id
+			_ = a.Save()
+		}),
+	}
 	return row(title, none, choose)
 }
 
@@ -229,11 +225,7 @@ func (r pathStyleRow) Render(cx *core.Scope) core.Node {
 				OnPress:  func(core.PressEvent) { set(!on()) },
 				Children: []core.Node{titles(title, subtitle)},
 			},
-			// The switch's name is set as it is built, so it is built again for another language.
-			core.Dynamic(func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): give ui.Switch a LabelFunc twin so its name follows the interface language without building the switch again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-				return ui.Switch{TestID: "compat-path", Label: locales.AccountPathStyle(cx), Variant: ui.SwitchSystem, Checked: on, OnChange: set}
-			}),
+			ui.Switch{TestID: "compat-path", LabelFunc: func() string { return locales.AccountPathStyle(cx) }, Variant: ui.SwitchSystem, Checked: on, OnChange: set},
 		},
 	}
 }
@@ -259,30 +251,25 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 	})
 	busy := live.Memo(cx, a, a.GoogleBusy)
 	configured := live.Func(a, a.GoogleConfigured)
-	// The buttons' words are set as they are built, so they are built again for another language, and 登录 for 正在登录.
-	signOut := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.Button{Text: locales.AccountSignOut(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "google-sign-out", OnPress: live.Do(a, a.SignOutGoogle)}
-	})
-	signIn := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the sign-in and the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		text := locales.AccountSignIn(cx)
-		if busy() {
-			text = locales.AccountSigningIn(cx)
-		}
-		return ui.Button{Text: text, TestID: "google-sign-in",
-			Disabled: func() bool { return busy() || !configured() }, OnPress: live.Do(a, a.SignInGoogle)}
-	})
-	// The row is built again as the account signs in or out, which its description, read as it is built, follows; the button is the only part of it that takes the keyboard, and goes with the account anyway.
+	signOut := ui.Button{TextFunc: func() string { return locales.AccountSignOut(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "google-sign-out", OnPress: live.Do(a, a.SignOutGoogle)}
+	signIn := ui.Button{
+		TextFunc: func() string {
+			if busy() {
+				return locales.AccountSigningIn(cx)
+			}
+			return locales.AccountSignIn(cx)
+		},
+		TestID: "google-sign-in", Disabled: func() bool { return busy() || !configured() }, OnPress: live.Do(a, a.SignInGoogle),
+	}
+	// The row is built again as the account signs in or out, for the button that goes with the account.
 	build := func(button core.Node) func(*core.Scope) core.Node {
 		return func(cx *core.Scope) core.Node {
 			colors := ui.ColorsOf(cx)
-			// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built https://github.com/nsgo-dev/nsgo/issues/145
 			return core.View{
-				TestID:                   "google-row",
-				Role:                     core.RoleGroup,
-				LabelFunc:                title,
-				AccessibilityDescription: core.Untracked(cx, subtitle),
+				TestID:                       "google-row",
+				Role:                         core.RoleGroup,
+				LabelFunc:                    title,
+				AccessibilityDescriptionFunc: subtitle,
 				Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(62), Padding: core.Symmetric(10, 14), Gap: 12,
 					AlignItems: core.AlignCenter},
 				Children: []core.Node{

@@ -140,14 +140,10 @@ func (d locationDialog) Render(cx *core.Scope) core.Node {
 		fields := core.Dynamic(func(cx *core.Scope) core.Node { return draftFields(cx, a, storage.Kind(kind())) })
 		test := form.Button{TestID: "location-dialog-test", Disabled: func() bool { return status.Get().Busy },
 			TextFunc: func() string { return locales.AccountLocationTest(cx) }, OnPress: live.Do(a, func() { a.TestLocation("") })}
-		// The buttons' words are set as they are built, so they are built again for another language.
-		footer := core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
-				ui.Button{Text: locales.AccountLocationCancel(cx), Variant: ui.ButtonSecondary, TestID: "location-dialog-cancel", OnPress: closeDialog},
-				ui.Button{Text: locales.AccountLocationSave(cx), TestID: "location-dialog-save", OnPress: live.Do(a, a.SaveLocation)},
-			}}
-		})
+		footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
+			ui.Button{TextFunc: func() string { return locales.AccountLocationCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "location-dialog-cancel", OnPress: closeDialog},
+			ui.Button{TextFunc: func() string { return locales.AccountLocationSave(cx) }, TestID: "location-dialog-save", OnPress: live.Do(a, a.SaveLocation)},
+		}}
 		return ui.Dialog{
 			TestID: "location-dialog",
 			Open:   func() bool { return true },
@@ -264,16 +260,12 @@ func draftRow(a App, test string, title, hint func() string, value func() *strin
 // kindSelect chooses the draft's protocol.
 func kindSelect(cx *core.Scope, a App) core.Node {
 	kind := live.Func(a, func() string { return a.LocationDraft().Kind })
-	// The drop-down's name is set as it is built, so it is built again for another language.
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name so it follows the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		options := make([]ui.Option[string], len(Kinds))
-		for i, k := range Kinds {
-			options[i] = ui.Option[string]{Value: string(k), Label: KindName(k)}
-		}
-		return ui.Select[string]{TestID: "location-kind", Label: locales.AccountLocationKind(cx), Options: options, Value: kind,
-			OnChange: live.On(a, func(k string) { a.LocationDraft().Kind = k })}
-	})
+	options := make([]ui.Option[string], len(Kinds))
+	for i, k := range Kinds {
+		options[i] = ui.Option[string]{Value: string(k), Label: KindName(k)}
+	}
+	return ui.Select[string]{TestID: "location-kind", LabelFunc: func() string { return locales.AccountLocationKind(cx) }, Options: options, Value: kind,
+		OnChange: live.On(a, func(k string) { a.LocationDraft().Kind = k })}
 }
 
 // hostKeyRow is the fingerprint of the SFTP server's key the draft trusts, or that the first Test asks about it. The key changes only through the questions Test asks (LocationAlert).
@@ -304,18 +296,17 @@ type locationAlert struct{ a App }
 func (d locationAlert) Render(cx *core.Scope) core.Node {
 	a := d.a
 	alert := core.NewMemo(cx, live.Func(a, a.LocationAlert))
+	kind := core.NewMemo(cx, func() AlertKind { return alert.Get().Kind })
 	yes := live.Do(a, func() { a.AnswerLocationAlert(true) })
 	no := live.Do(a, func() { a.AnswerLocationAlert(false) })
-	return core.Show{When: func() bool { return alert.Get().Kind != AlertNone }, Then: func(cx *core.Scope) core.Node {
-		// The actions' words are set as they are built, so the alert is built again for another language, and for another question.
+	return core.Show{When: func() bool { return kind.Get() != AlertNone }, Then: func(cx *core.Scope) core.Node {
+		// Each question has its own actions, so the alert is built again for another question; the words follow the language and the location asked about through their bindings.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.AlertAction a TextFunc twin so the actions follow the interface language without building the alert again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			colors := ui.ColorsOf(cx)
-			al := alert.Get()
-			cancel := ui.AlertAction{Text: locales.AccountLocationCancel(cx), Variant: ui.ButtonSecondary, Role: core.AlertCancel, Default: true, OnPress: no, TestID: "location-alert-cancel"}
+			cancel := ui.AlertAction{TextFunc: func() string { return locales.AccountLocationCancel(cx) }, Variant: ui.ButtonSecondary, Role: core.AlertCancel, Default: true, OnPress: no, TestID: "location-alert-cancel"}
 			// Escape runs Cancel, the action of role core.AlertCancel.
 			dialog := ui.AlertDialog{Open: func() bool { return true }}
-			switch al.Kind {
+			switch kind.Get() {
 			case AlertRemove:
 				dialog.TestID = "location-remove-confirm"
 				dialog.TitleFunc = func() string { return locales.AccountLocationRemoveTitle(cx, alert.Get().Name) }
@@ -326,19 +317,19 @@ func (d locationAlert) Render(cx *core.Scope) core.Node {
 					}
 					return locales.AccountLocationRemoveMessage(cx)
 				}
-				dialog.Actions = []ui.AlertAction{cancel, {Text: locales.AccountLocationRemoveButton(cx), Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-remove"}}
+				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationRemoveButton(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-remove"}}
 			case AlertTrust:
 				dialog.TestID = "location-trust"
 				dialog.TitleFunc = func() string { return locales.AccountLocationTrustTitle(cx, alert.Get().Host) }
 				dialog.DescriptionFunc = func() string { return locales.AccountLocationTrustMessage(cx, alert.Get().Fingerprint) }
-				dialog.Actions = []ui.AlertAction{cancel, {Text: locales.AccountLocationTrust(cx), OnPress: yes, TestID: "location-alert-trust"}}
+				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationTrust(cx) }, OnPress: yes, TestID: "location-alert-trust"}}
 			default:
 				dialog.TestID = "location-key-changed"
 				dialog.TitleFunc = func() string { return locales.AccountLocationKeyChangedTitle(cx, alert.Get().Host) }
 				dialog.DescriptionFunc = func() string {
 					return locales.AccountLocationKeyChangedMessage(cx, alert.Get().Trusted, alert.Get().Fingerprint)
 				}
-				dialog.Actions = []ui.AlertAction{cancel, {Text: locales.AccountLocationReplaceKey(cx), Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-replace"}}
+				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationReplaceKey(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-replace"}}
 			}
 			return dialog
 		})
