@@ -171,8 +171,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 		},
 		NoCloseOnBackdropPress: true,
 		Bare:                   true,
-		// TODO(nsgo#145): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it https://github.com/nsgo-dev/nsgo/issues/145
-		Label: locales.OnboardingWelcome(cx),
+		LabelFunc:              func() string { return locales.OnboardingWelcome(cx) },
 		// The dialog's own face and rim are left clear and the sheet inside draws them (sheet), so the rim lies over the art on every platform and the face clips to the rim's corners, which are tighter than the dialog's clip (sheetRadius).
 		// Its corners are the platform's dialogs' in the design (sheetRadius), and the sheet's face and rim inside are one point tighter.
 		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: sheetRadius(cx), Background: transparent,
