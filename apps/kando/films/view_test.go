@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/category"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -245,6 +246,11 @@ func (f *fakeApp) Renaming() (*bool, *string, string) {
 func (f *fakeApp) CloseRename()                                         { f.call("close-rename"); f.renameOpen = false }
 func (f *fakeApp) RenameFilm()                                          { f.call("rename", f.renameName); f.renameOpen = false }
 func (f *fakeApp) MoveFilmMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
+func (f *fakeApp) CategoryShown() string                                { return category.All }
+func (f *fakeApp) CategoryName(string) string                           { return "" }
+func (f *fakeApp) InCategories(items []Film) []Film                     { return items }
+func (f *fakeApp) SetCategoryFilter(string)                             {}
+func (f *fakeApp) CategoryMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 
 func (f *fakeApp) StoredMenu(*ns.Scope, ...Film) []nsdesktop.MenuItem { return nil }
 

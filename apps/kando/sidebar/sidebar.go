@@ -131,10 +131,11 @@ const glassWash = 0.7
 // floats reports whether the sidebar floats over the page's ground as macOS 26 draws its sidebars: on macOS, where the window shows no material.
 func floats(cx *ns.Scope) bool { return cx.Env().OS() == ns.OSMacOS && !nsdesktop.ShowsMaterial(cx) }
 
-// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the spoken languages, the watch states and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
+// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the spoken languages, the watch states, the categories, the subscriptions and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 type View struct {
 	App App
-	// Subscriptions is the list of the subscriptions (package subscribe), under the watch states.
+	// Categories is the list of the library's categories (package category), under the watch states, and Subscriptions the list of the subscriptions (package subscribe), under them.
+	Categories    ns.Node
 	Subscriptions ns.Node
 }
 
@@ -178,8 +179,10 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 			},
 			switcher{a},
 			search{a},
-			// The languages follow the sources and the watch states the languages, each list as tall as its rows, and the room left stays under them.
-			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{sources{a}, languages{a}, watched{a}, v.subscriptions()}},
+			// The languages follow the sources, the watch states the languages, then the categories and the subscriptions, each list as tall as its rows, and the room left stays under them. When they are taller than the card, they scroll as one column, as Finder's sidebar does, rather than each list being cut short by the next.
+			ns.Scroll{TestID: "sidebar-lists", Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
+				ns.View{Style: ns.Style{FlexShrink: 0}, Children: []ns.Node{sources{a}, languages{a}, watched{a}, v.Categories, v.subscriptions()}},
+			}},
 			ns.Show{
 				When: live.Func(a, func() bool { return a.SaveErr() != "" }),
 				Then: func(cx *ns.Scope) ns.Node {

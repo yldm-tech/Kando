@@ -676,6 +676,106 @@ browseSignInRefreshed:
 browseStop:
   message: "Stop Loading"
   description: "Browse page toolbar button, in place of Reload while a web page loads, that stops loading it."
+categoryAll:
+  message: "All"
+  description: "First row of the sidebar's Categories section: shows the library's films whatever their categories."
+categoryCancel:
+  message: "Cancel"
+  description: "Button that closes the dialog naming or deleting a category without changing anything."
+categoryCreate:
+  message: "Create"
+  description: "Button of the New Category dialog that makes the category."
+categoryDelete:
+  message: "Delete Category…"
+  description: "Item of a category's menu in the sidebar: asks first, then deletes the category. Its films stay in the library."
+categoryDeleteButton:
+  message: "Delete"
+  description: "Button of the confirmation that deletes a category. Its films stay in the library."
+categoryDeleteConfirm:
+  message: "Delete the category “{name}”?"
+  description: "Title of the confirmation before a category is deleted. {name} is the category's name."
+  placeholders:
+    name: { type: "String", example: "Anime" }
+categoryDeleteMessage:
+  message: "No film is deleted. Its films stay in the library and in their other categories."
+  description: "Message of the confirmation before a category is deleted."
+categoryEmpty:
+  message: "Sort films into categories, such as Films and Anime. Right-click a film to put it in one."
+  description: "Line under the sidebar's Categories title while the library has no category yet."
+categoryEmptyPage:
+  message: "No films in “{name}” here yet. Right-click a film and choose Category to put it in."
+  description: "The library page when the category chosen in the sidebar holds none of the films the other filters leave. {name} is the category's name."
+  placeholders:
+    name: { type: "String", example: "Anime" }
+categoryMenu:
+  message: "Category"
+  description: "Submenu of a film's menu and of several films selected: each category, checked when the films are in it, then New Category…."
+categoryMoveTo:
+  message: "Move To"
+  description: "Submenu of a film's menu while the library shows a category's films: the other categories, which take the film out of this one and put it in the one chosen."
+categoryNameEmpty:
+  message: "Enter a name."
+  description: "Line under the field of the dialog naming a category when the name is empty."
+categoryNameField:
+  message: "Name"
+  description: "Accessible name of the field of the dialog naming a category."
+categoryNamePlaceholder:
+  message: "For example: Anime"
+  description: "Placeholder of the field of the dialog naming a category."
+categoryNameTaken:
+  message: "There is already a category named “{name}”."
+  description: "Line under the field of the dialog naming a category when another category has the name. {name} is the name typed."
+  placeholders:
+    name: { type: "String", example: "Anime" }
+categoryNew:
+  message: "New Category"
+  description: "Accessible name and tooltip of the + button of the sidebar's Categories section."
+categoryNewEllipsis:
+  message: "New Category…"
+  description: "Last item of a film's Category submenu: names a new category and puts the film in it."
+categoryNewTitle:
+  message: "New Category"
+  description: "Title of the dialog naming a new category."
+categoryNone:
+  message: "Uncategorized"
+  description: "Last row of the sidebar's Categories section: shows the films in no category."
+categoryNoneEmptyPage:
+  message: "Every film here is in a category."
+  description: "The library page when Uncategorized is chosen in the sidebar and every film the other filters leave is in a category."
+categoryReadFailed:
+  message: "Couldn't read this library's categories, so they are not changed."
+  description: "Message bar when the library's categories.json is there but cannot be read; Kando does not write over it."
+categoryRename:
+  message: "Rename…"
+  description: "Item of a category's menu in the sidebar: opens the dialog renaming it."
+categoryRenameSave:
+  message: "Rename"
+  description: "Button of the dialog renaming a category."
+categoryRenameTitle:
+  message: "Rename Category"
+  description: "Title of the dialog renaming a category."
+categoryRowCount:
+  message: "{name}, {count, plural, one {# film} other {# films}}"
+  description: "Accessible name of a category's row in the sidebar, which draws the count as a number. {name} is the category's name."
+  placeholders:
+    name: { type: "String", example: "Anime" }
+    count: { type: "int", example: "12" }
+categorySaveFailed:
+  message: "Couldn't save the categories: {error}"
+  description: "Message bar when the library's categories could not be written. {error} is the system's reason."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+categorySection:
+  message: "Categories"
+  description: "Title of the sidebar's section of the library's categories, groups the user sorts films into, such as Films and Anime."
+categoryShowAll:
+  message: "Show All"
+  description: "Button on the library page when the category chosen holds no film here: chooses All in the sidebar's Categories section."
+categoryTakeOut:
+  message: "Remove from “{name}”"
+  description: "Item of a film's menu while the library shows a category's films: takes the film out of it. The film stays in the library. {name} is the category's name."
+  placeholders:
+    name: { type: "String", example: "Anime" }
 cheatsheetClose:
   message: "Close"
   description: "Accessible name of the cheat sheet's close button."

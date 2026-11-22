@@ -505,6 +505,12 @@ var Parameters = map[string][]string{
 	"BrowseSignInFailed":                       {"error_"},
 	"BrowseSignInOn":                           {"browser"},
 	"BrowseSignInRefreshed":                    {"browser"},
+	"CategoryDeleteConfirm":                    {"name"},
+	"CategoryEmptyPage":                        {"name"},
+	"CategoryNameTaken":                        {"name"},
+	"CategoryRowCount":                         {"name", "count"},
+	"CategorySaveFailed":                       {"error_"},
+	"CategoryTakeOut":                          {"name"},
 	"CorrectEndAt":                             {"time_"},
 	"CorrectRedo":                              {"step"},
 	"CorrectRedone":                            {"step"},
@@ -1242,6 +1248,12 @@ type Translation struct {
 	BrowseSignInFailed                       func(error_ string) string
 	BrowseSignInOn                           func(browser string) string
 	BrowseSignInRefreshed                    func(browser string) string
+	CategoryDeleteConfirm                    func(name string) string
+	CategoryEmptyPage                        func(name string) string
+	CategoryNameTaken                        func(name string) string
+	CategoryRowCount                         func(name string, count int) string
+	CategorySaveFailed                       func(error_ string) string
+	CategoryTakeOut                          func(name string) string
 	CorrectEndAt                             func(time_ string) string
 	CorrectRedo                              func(step string) string
 	CorrectRedone                            func(step string) string
@@ -2093,6 +2105,29 @@ const (
 	textBrowseSignInOff
 	textBrowseSignInRefresh
 	textBrowseStop
+	textCategoryAll
+	textCategoryCancel
+	textCategoryCreate
+	textCategoryDelete
+	textCategoryDeleteButton
+	textCategoryDeleteMessage
+	textCategoryEmpty
+	textCategoryMenu
+	textCategoryMoveTo
+	textCategoryNameEmpty
+	textCategoryNameField
+	textCategoryNamePlaceholder
+	textCategoryNew
+	textCategoryNewEllipsis
+	textCategoryNewTitle
+	textCategoryNone
+	textCategoryNoneEmptyPage
+	textCategoryReadFailed
+	textCategoryRename
+	textCategoryRenameSave
+	textCategoryRenameTitle
+	textCategorySection
+	textCategoryShowAll
 	textCheatsheetClose
 	textCheatsheetHint
 	textCheatsheetMenuItem
@@ -3939,6 +3974,29 @@ var keyOfText = [numTexts]string{
 	"browseSignInOff",
 	"browseSignInRefresh",
 	"browseStop",
+	"categoryAll",
+	"categoryCancel",
+	"categoryCreate",
+	"categoryDelete",
+	"categoryDeleteButton",
+	"categoryDeleteMessage",
+	"categoryEmpty",
+	"categoryMenu",
+	"categoryMoveTo",
+	"categoryNameEmpty",
+	"categoryNameField",
+	"categoryNamePlaceholder",
+	"categoryNew",
+	"categoryNewEllipsis",
+	"categoryNewTitle",
+	"categoryNone",
+	"categoryNoneEmptyPage",
+	"categoryReadFailed",
+	"categoryRename",
+	"categoryRenameSave",
+	"categoryRenameTitle",
+	"categorySection",
+	"categoryShowAll",
 	"cheatsheetClose",
 	"cheatsheetHint",
 	"cheatsheetMenuItem",
@@ -5783,6 +5841,29 @@ var textsEn = i18n.NewTexts(""+
 	"Downloads aren't signed in."+
 	"Refresh Sign-In"+
 	"Stop Loading"+
+	"All"+
+	"Cancel"+
+	"Create"+
+	"Delete Category…"+
+	"Delete"+
+	"No film is deleted. Its films stay in the library and in their other categories."+
+	"Sort films into categories, such as Films and Anime. Right-click a film to put it in one."+
+	"Category"+
+	"Move To"+
+	"Enter a name."+
+	"Name"+
+	"For example: Anime"+
+	"New Category"+
+	"New Category…"+
+	"New Category"+
+	"Uncategorized"+
+	"Every film here is in a category."+
+	"Couldn't read this library's categories, so they are not changed."+
+	"Rename…"+
+	"Rename"+
+	"Rename Category"+
+	"Categories"+
+	"Show All"+
 	"Close"+
 	"Single keys work only while no text field has focus"+
 	"Shortcut Cheat Sheet"+
@@ -7624,6 +7705,29 @@ var textsEn = i18n.NewTexts(""+
 		27,
 		15,
 		12,
+		3,
+		6,
+		6,
+		18,
+		6,
+		80,
+		89,
+		8,
+		7,
+		13,
+		4,
+		18,
+		12,
+		15,
+		12,
+		13,
+		33,
+		65,
+		9,
+		6,
+		15,
+		10,
+		8,
 		5,
 		51,
 		20,
@@ -9468,6 +9572,29 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードはログインなしで行われます。"+
 	"ログインを更新"+
 	"読み込みを中止"+
+	"すべて"+
+	"キャンセル"+
+	"作成"+
+	"カテゴリを削除…"+
+	"削除"+
+	"作品は削除されません。ライブラリとほかのカテゴリにそのまま残ります。"+
+	"作品を「映画」「アニメ」などのカテゴリに分けられます。作品を右クリックして入れます。"+
+	"カテゴリ"+
+	"移動先"+
+	"名前を入力してください。"+
+	"名前"+
+	"例：アニメ"+
+	"新規カテゴリ"+
+	"新規カテゴリ…"+
+	"新規カテゴリ"+
+	"未分類"+
+	"ここの作品はすべてカテゴリに分けられています。"+
+	"このライブラリのカテゴリを読み込めないため、変更しません。"+
+	"名前を変更…"+
+	"名前を変更"+
+	"カテゴリ名を変更"+
+	"カテゴリ"+
+	"すべて表示"+
 	"閉じる"+
 	"単独のキーは入力欄にフォーカスがないときだけ使えます"+
 	"ショートカット一覧"+
@@ -11309,6 +11436,29 @@ var textsJa = i18n.NewTexts(""+
 		60,
 		21,
 		21,
+		9,
+		15,
+		6,
+		24,
+		6,
+		102,
+		126,
+		12,
+		9,
+		36,
+		6,
+		15,
+		18,
+		21,
+		18,
+		9,
+		69,
+		87,
+		18,
+		15,
+		24,
+		12,
+		15,
 		9,
 		78,
 		27,
@@ -13153,6 +13303,29 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드는 로그인 없이 진행됩니다."+
 	"로그인 새로 고침"+
 	"로드 중지"+
+	"전체"+
+	"취소"+
+	"만들기"+
+	"카테고리 삭제…"+
+	"삭제"+
+	"영화는 삭제되지 않으며 라이브러리와 다른 카테고리에 그대로 남습니다."+
+	"영화를 ‘영화’, ‘애니’ 같은 카테고리로 나눌 수 있습니다. 영화를 오른쪽 클릭해 넣으세요."+
+	"카테고리"+
+	"이동"+
+	"이름을 입력하세요."+
+	"이름"+
+	"예: 애니"+
+	"새 카테고리"+
+	"새 카테고리…"+
+	"새 카테고리"+
+	"미분류"+
+	"여기 있는 영화는 모두 카테고리에 들어 있습니다."+
+	"이 라이브러리의 카테고리를 읽을 수 없어 변경하지 않습니다."+
+	"이름 변경…"+
+	"이름 변경"+
+	"카테고리 이름 변경"+
+	"카테고리"+
+	"모두 보기"+
 	"닫기"+
 	"단일 키는 입력란에 포커스가 없을 때만 작동합니다"+
 	"단축키 목록"+
@@ -14993,6 +15166,29 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		49,
 		23,
+		13,
+		6,
+		6,
+		9,
+		22,
+		6,
+		98,
+		128,
+		12,
+		6,
+		26,
+		6,
+		11,
+		16,
+		19,
+		16,
+		9,
+		67,
+		83,
+		16,
+		13,
+		26,
+		12,
 		13,
 		6,
 		69,
@@ -16838,6 +17034,29 @@ var textsZhHans = i18n.NewTexts(""+
 	"下载不带登录。"+
 	"刷新登录"+
 	"停止载入"+
+	"全部"+
+	"取消"+
+	"新建"+
+	"删除分类…"+
+	"删除"+
+	"影片不会被删除，仍在资料库和它们的其他分类里。"+
+	"把影片归进分类，例如「电影」「动漫」。右键影片即可加入。"+
+	"分类"+
+	"移到"+
+	"请输入名称。"+
+	"名称"+
+	"例如：动漫"+
+	"新建分类"+
+	"新建分类…"+
+	"新建分类"+
+	"未分类"+
+	"这里的影片都已分好类。"+
+	"无法读取这个资料库的分类，所以不会改动它们。"+
+	"重命名…"+
+	"重命名"+
+	"重命名分类"+
+	"分类"+
+	"显示全部"+
 	"关闭"+
 	"单键只在没有输入框获焦时生效"+
 	"快捷键速查"+
@@ -18678,6 +18897,29 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		21,
 		12,
+		12,
+		6,
+		6,
+		6,
+		15,
+		6,
+		69,
+		84,
+		6,
+		6,
+		18,
+		6,
+		15,
+		12,
+		15,
+		12,
+		9,
+		33,
+		66,
+		12,
+		9,
+		15,
+		6,
 		12,
 		6,
 		42,
@@ -20523,6 +20765,29 @@ var textsZhHant = i18n.NewTexts(""+
 	"下載不帶登入。"+
 	"重新整理登入"+
 	"停止載入"+
+	"全部"+
+	"取消"+
+	"新增"+
+	"刪除分類…"+
+	"刪除"+
+	"影片不會被刪除，仍在資料庫和它們的其他分類裡。"+
+	"把影片歸進分類，例如「電影」「動畫」。右鍵點按影片即可加入。"+
+	"分類"+
+	"移到"+
+	"請輸入名稱。"+
+	"名稱"+
+	"例如：動畫"+
+	"新增分類"+
+	"新增分類…"+
+	"新增分類"+
+	"未分類"+
+	"這裡的影片都已分好類。"+
+	"無法讀取這個資料庫的分類，所以不會更動它們。"+
+	"重新命名…"+
+	"重新命名"+
+	"重新命名分類"+
+	"分類"+
+	"顯示全部"+
 	"關閉"+
 	"單鍵只在沒有輸入框取得焦點時生效"+
 	"快速鍵速查表"+
@@ -22363,6 +22628,29 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		21,
 		18,
+		12,
+		6,
+		6,
+		6,
+		15,
+		6,
+		69,
+		90,
+		6,
+		6,
+		18,
+		6,
+		15,
+		12,
+		15,
+		12,
+		9,
+		33,
+		66,
+		15,
+		12,
+		18,
+		6,
 		12,
 		6,
 		48,
@@ -24231,6 +24519,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.BrowseSignInRefreshed != nil {
 		s.BrowseSignInRefreshed = t.BrowseSignInRefreshed
+	}
+	if t.CategoryDeleteConfirm != nil {
+		s.CategoryDeleteConfirm = t.CategoryDeleteConfirm
+	}
+	if t.CategoryEmptyPage != nil {
+		s.CategoryEmptyPage = t.CategoryEmptyPage
+	}
+	if t.CategoryNameTaken != nil {
+		s.CategoryNameTaken = t.CategoryNameTaken
+	}
+	if t.CategoryRowCount != nil {
+		s.CategoryRowCount = t.CategoryRowCount
+	}
+	if t.CategorySaveFailed != nil {
+		s.CategorySaveFailed = t.CategorySaveFailed
+	}
+	if t.CategoryTakeOut != nil {
+		s.CategoryTakeOut = t.CategoryTakeOut
 	}
 	if t.CorrectEndAt != nil {
 		s.CorrectEndAt = t.CorrectEndAt
@@ -29106,6 +29412,410 @@ func BrowseStop(cx *core.Scope) string { return For(cx).BrowseStop() }
 
 // BrowseStop is the package's BrowseStop in the language of msgs.
 func (msgs Messages) BrowseStop() string { return msgs.text(textBrowseStop) }
+
+// CategoryAll says "All"
+// in the language the app shows under cx.
+//
+// First row of the sidebar's Categories section: shows the library's films whatever their categories.
+func CategoryAll(cx *core.Scope) string { return For(cx).CategoryAll() }
+
+// CategoryAll is the package's CategoryAll in the language of msgs.
+func (msgs Messages) CategoryAll() string { return msgs.text(textCategoryAll) }
+
+// CategoryCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button that closes the dialog naming or deleting a category without changing anything.
+func CategoryCancel(cx *core.Scope) string { return For(cx).CategoryCancel() }
+
+// CategoryCancel is the package's CategoryCancel in the language of msgs.
+func (msgs Messages) CategoryCancel() string { return msgs.text(textCategoryCancel) }
+
+// CategoryCreate says "Create"
+// in the language the app shows under cx.
+//
+// Button of the New Category dialog that makes the category.
+func CategoryCreate(cx *core.Scope) string { return For(cx).CategoryCreate() }
+
+// CategoryCreate is the package's CategoryCreate in the language of msgs.
+func (msgs Messages) CategoryCreate() string { return msgs.text(textCategoryCreate) }
+
+// CategoryDelete says "Delete Category…"
+// in the language the app shows under cx.
+//
+// Item of a category's menu in the sidebar: asks first, then deletes the category. Its films stay in the library.
+func CategoryDelete(cx *core.Scope) string { return For(cx).CategoryDelete() }
+
+// CategoryDelete is the package's CategoryDelete in the language of msgs.
+func (msgs Messages) CategoryDelete() string { return msgs.text(textCategoryDelete) }
+
+// CategoryDeleteButton says "Delete"
+// in the language the app shows under cx.
+//
+// Button of the confirmation that deletes a category. Its films stay in the library.
+func CategoryDeleteButton(cx *core.Scope) string { return For(cx).CategoryDeleteButton() }
+
+// CategoryDeleteButton is the package's CategoryDeleteButton in the language of msgs.
+func (msgs Messages) CategoryDeleteButton() string { return msgs.text(textCategoryDeleteButton) }
+
+// CategoryDeleteConfirm says "Delete the category “{name}”?"
+// in the language the app shows under cx.
+//
+// Title of the confirmation before a category is deleted. {name} is the category's name.
+func CategoryDeleteConfirm(cx *core.Scope, name string) string {
+	return For(cx).CategoryDeleteConfirm(name)
+}
+
+// CategoryDeleteConfirm is the package's CategoryDeleteConfirm in the language of msgs.
+func (msgs Messages) CategoryDeleteConfirm(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategoryDeleteConfirm(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategoryDeleteConfirm; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Delete the category “" + msgs.arg(name) + "”?"
+		case "ja":
+			return "カテゴリ「" + name + "」を削除しますか？"
+		case "ko":
+			return "‘" + name + "’ 카테고리를 삭제할까요?"
+		case "zh-Hans":
+			return "删除分类「" + name + "」？"
+		case "zh-Hant":
+			return "刪除分類「" + name + "」？"
+		}
+	}
+}
+
+// CategoryDeleteMessage says "No film is deleted. Its films stay in the library and in their other categories."
+// in the language the app shows under cx.
+//
+// Message of the confirmation before a category is deleted.
+func CategoryDeleteMessage(cx *core.Scope) string { return For(cx).CategoryDeleteMessage() }
+
+// CategoryDeleteMessage is the package's CategoryDeleteMessage in the language of msgs.
+func (msgs Messages) CategoryDeleteMessage() string { return msgs.text(textCategoryDeleteMessage) }
+
+// CategoryEmpty says "Sort films into categories, such as Films and Anime. Right-click a film to put it in one."
+// in the language the app shows under cx.
+//
+// Line under the sidebar's Categories title while the library has no category yet.
+func CategoryEmpty(cx *core.Scope) string { return For(cx).CategoryEmpty() }
+
+// CategoryEmpty is the package's CategoryEmpty in the language of msgs.
+func (msgs Messages) CategoryEmpty() string { return msgs.text(textCategoryEmpty) }
+
+// CategoryEmptyPage says "No films in “{name}” here yet. Right-click a film and choose Category to put it in."
+// in the language the app shows under cx.
+//
+// The library page when the category chosen in the sidebar holds none of the films the other filters leave. {name} is the category's name.
+func CategoryEmptyPage(cx *core.Scope, name string) string { return For(cx).CategoryEmptyPage(name) }
+
+// CategoryEmptyPage is the package's CategoryEmptyPage in the language of msgs.
+func (msgs Messages) CategoryEmptyPage(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategoryEmptyPage(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategoryEmptyPage; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "No films in “" + msgs.arg(name) + "” here yet. Right-click a film and choose Category to put it in."
+		case "ja":
+			return "ここには「" + name + "」の作品がまだありません。作品を右クリックして「カテゴリ」から入れます。"
+		case "ko":
+			return "여기에는 아직 ‘" + name + "’ 영화가 없습니다. 영화를 오른쪽 클릭하고 ‘카테고리’에서 넣으세요."
+		case "zh-Hans":
+			return "这里还没有「" + name + "」的影片。右键影片，选择「分类」即可加入。"
+		case "zh-Hant":
+			return "這裡還沒有「" + name + "」的影片。右鍵點按影片，選擇「分類」即可加入。"
+		}
+	}
+}
+
+// CategoryMenu says "Category"
+// in the language the app shows under cx.
+//
+// Submenu of a film's menu and of several films selected: each category, checked when the films are in it, then New Category….
+func CategoryMenu(cx *core.Scope) string { return For(cx).CategoryMenu() }
+
+// CategoryMenu is the package's CategoryMenu in the language of msgs.
+func (msgs Messages) CategoryMenu() string { return msgs.text(textCategoryMenu) }
+
+// CategoryMoveTo says "Move To"
+// in the language the app shows under cx.
+//
+// Submenu of a film's menu while the library shows a category's films: the other categories, which take the film out of this one and put it in the one chosen.
+func CategoryMoveTo(cx *core.Scope) string { return For(cx).CategoryMoveTo() }
+
+// CategoryMoveTo is the package's CategoryMoveTo in the language of msgs.
+func (msgs Messages) CategoryMoveTo() string { return msgs.text(textCategoryMoveTo) }
+
+// CategoryNameEmpty says "Enter a name."
+// in the language the app shows under cx.
+//
+// Line under the field of the dialog naming a category when the name is empty.
+func CategoryNameEmpty(cx *core.Scope) string { return For(cx).CategoryNameEmpty() }
+
+// CategoryNameEmpty is the package's CategoryNameEmpty in the language of msgs.
+func (msgs Messages) CategoryNameEmpty() string { return msgs.text(textCategoryNameEmpty) }
+
+// CategoryNameField says "Name"
+// in the language the app shows under cx.
+//
+// Accessible name of the field of the dialog naming a category.
+func CategoryNameField(cx *core.Scope) string { return For(cx).CategoryNameField() }
+
+// CategoryNameField is the package's CategoryNameField in the language of msgs.
+func (msgs Messages) CategoryNameField() string { return msgs.text(textCategoryNameField) }
+
+// CategoryNamePlaceholder says "For example: Anime"
+// in the language the app shows under cx.
+//
+// Placeholder of the field of the dialog naming a category.
+func CategoryNamePlaceholder(cx *core.Scope) string { return For(cx).CategoryNamePlaceholder() }
+
+// CategoryNamePlaceholder is the package's CategoryNamePlaceholder in the language of msgs.
+func (msgs Messages) CategoryNamePlaceholder() string { return msgs.text(textCategoryNamePlaceholder) }
+
+// CategoryNameTaken says "There is already a category named “{name}”."
+// in the language the app shows under cx.
+//
+// Line under the field of the dialog naming a category when another category has the name. {name} is the name typed.
+func CategoryNameTaken(cx *core.Scope, name string) string { return For(cx).CategoryNameTaken(name) }
+
+// CategoryNameTaken is the package's CategoryNameTaken in the language of msgs.
+func (msgs Messages) CategoryNameTaken(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategoryNameTaken(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategoryNameTaken; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "There is already a category named “" + msgs.arg(name) + "”."
+		case "ja":
+			return "「" + name + "」という名前のカテゴリはすでにあります。"
+		case "ko":
+			return "‘" + name + "’ 카테고리가 이미 있습니다."
+		case "zh-Hans":
+			return "已经有叫「" + name + "」的分类了。"
+		case "zh-Hant":
+			return "已經有叫「" + name + "」的分類了。"
+		}
+	}
+}
+
+// CategoryNew says "New Category"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the + button of the sidebar's Categories section.
+func CategoryNew(cx *core.Scope) string { return For(cx).CategoryNew() }
+
+// CategoryNew is the package's CategoryNew in the language of msgs.
+func (msgs Messages) CategoryNew() string { return msgs.text(textCategoryNew) }
+
+// CategoryNewEllipsis says "New Category…"
+// in the language the app shows under cx.
+//
+// Last item of a film's Category submenu: names a new category and puts the film in it.
+func CategoryNewEllipsis(cx *core.Scope) string { return For(cx).CategoryNewEllipsis() }
+
+// CategoryNewEllipsis is the package's CategoryNewEllipsis in the language of msgs.
+func (msgs Messages) CategoryNewEllipsis() string { return msgs.text(textCategoryNewEllipsis) }
+
+// CategoryNewTitle says "New Category"
+// in the language the app shows under cx.
+//
+// Title of the dialog naming a new category.
+func CategoryNewTitle(cx *core.Scope) string { return For(cx).CategoryNewTitle() }
+
+// CategoryNewTitle is the package's CategoryNewTitle in the language of msgs.
+func (msgs Messages) CategoryNewTitle() string { return msgs.text(textCategoryNewTitle) }
+
+// CategoryNone says "Uncategorized"
+// in the language the app shows under cx.
+//
+// Last row of the sidebar's Categories section: shows the films in no category.
+func CategoryNone(cx *core.Scope) string { return For(cx).CategoryNone() }
+
+// CategoryNone is the package's CategoryNone in the language of msgs.
+func (msgs Messages) CategoryNone() string { return msgs.text(textCategoryNone) }
+
+// CategoryNoneEmptyPage says "Every film here is in a category."
+// in the language the app shows under cx.
+//
+// The library page when Uncategorized is chosen in the sidebar and every film the other filters leave is in a category.
+func CategoryNoneEmptyPage(cx *core.Scope) string { return For(cx).CategoryNoneEmptyPage() }
+
+// CategoryNoneEmptyPage is the package's CategoryNoneEmptyPage in the language of msgs.
+func (msgs Messages) CategoryNoneEmptyPage() string { return msgs.text(textCategoryNoneEmptyPage) }
+
+// CategoryReadFailed says "Couldn't read this library's categories, so they are not changed."
+// in the language the app shows under cx.
+//
+// Message bar when the library's categories.json is there but cannot be read; Kando does not write over it.
+func CategoryReadFailed(cx *core.Scope) string { return For(cx).CategoryReadFailed() }
+
+// CategoryReadFailed is the package's CategoryReadFailed in the language of msgs.
+func (msgs Messages) CategoryReadFailed() string { return msgs.text(textCategoryReadFailed) }
+
+// CategoryRename says "Rename…"
+// in the language the app shows under cx.
+//
+// Item of a category's menu in the sidebar: opens the dialog renaming it.
+func CategoryRename(cx *core.Scope) string { return For(cx).CategoryRename() }
+
+// CategoryRename is the package's CategoryRename in the language of msgs.
+func (msgs Messages) CategoryRename() string { return msgs.text(textCategoryRename) }
+
+// CategoryRenameSave says "Rename"
+// in the language the app shows under cx.
+//
+// Button of the dialog renaming a category.
+func CategoryRenameSave(cx *core.Scope) string { return For(cx).CategoryRenameSave() }
+
+// CategoryRenameSave is the package's CategoryRenameSave in the language of msgs.
+func (msgs Messages) CategoryRenameSave() string { return msgs.text(textCategoryRenameSave) }
+
+// CategoryRenameTitle says "Rename Category"
+// in the language the app shows under cx.
+//
+// Title of the dialog renaming a category.
+func CategoryRenameTitle(cx *core.Scope) string { return For(cx).CategoryRenameTitle() }
+
+// CategoryRenameTitle is the package's CategoryRenameTitle in the language of msgs.
+func (msgs Messages) CategoryRenameTitle() string { return msgs.text(textCategoryRenameTitle) }
+
+// CategoryRowCount says "{name}, {count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Accessible name of a category's row in the sidebar, which draws the count as a number. {name} is the category's name.
+func CategoryRowCount(cx *core.Scope, name string, count int) string {
+	return For(cx).CategoryRowCount(name, count)
+}
+
+// CategoryRowCount is the package's CategoryRowCount in the language of msgs.
+func (msgs Messages) CategoryRowCount(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategoryRowCount(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategoryRowCount; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(name))
+			b.WriteString(", ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return name + "、" + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return name + ", 영화 " + i18n.FormatNumber("ko", float64(count)) + "편"
+		case "zh-Hans":
+			return name + "，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片"
+		case "zh-Hant":
+			return name + "，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
+		}
+	}
+}
+
+// CategorySaveFailed says "Couldn't save the categories: {error}"
+// in the language the app shows under cx.
+//
+// Message bar when the library's categories could not be written. {error} is the system's reason.
+func CategorySaveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).CategorySaveFailed(error_)
+}
+
+// CategorySaveFailed is the package's CategorySaveFailed in the language of msgs.
+func (msgs Messages) CategorySaveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategorySaveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategorySaveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't save the categories: " + msgs.arg(error_)
+		case "ja":
+			return "カテゴリを保存できませんでした：" + error_
+		case "ko":
+			return "카테고리를 저장할 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法保存分类：" + error_
+		case "zh-Hant":
+			return "無法儲存分類：" + error_
+		}
+	}
+}
+
+// CategorySection says "Categories"
+// in the language the app shows under cx.
+//
+// Title of the sidebar's section of the library's categories, groups the user sorts films into, such as Films and Anime.
+func CategorySection(cx *core.Scope) string { return For(cx).CategorySection() }
+
+// CategorySection is the package's CategorySection in the language of msgs.
+func (msgs Messages) CategorySection() string { return msgs.text(textCategorySection) }
+
+// CategoryShowAll says "Show All"
+// in the language the app shows under cx.
+//
+// Button on the library page when the category chosen holds no film here: chooses All in the sidebar's Categories section.
+func CategoryShowAll(cx *core.Scope) string { return For(cx).CategoryShowAll() }
+
+// CategoryShowAll is the package's CategoryShowAll in the language of msgs.
+func (msgs Messages) CategoryShowAll() string { return msgs.text(textCategoryShowAll) }
+
+// CategoryTakeOut says "Remove from “{name}”"
+// in the language the app shows under cx.
+//
+// Item of a film's menu while the library shows a category's films: takes the film out of it. The film stays in the library. {name} is the category's name.
+func CategoryTakeOut(cx *core.Scope, name string) string { return For(cx).CategoryTakeOut(name) }
+
+// CategoryTakeOut is the package's CategoryTakeOut in the language of msgs.
+func (msgs Messages) CategoryTakeOut(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.CategoryTakeOut(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].CategoryTakeOut; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove from “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」から外す"
+		case "ko":
+			return "‘" + name + "’에서 빼기"
+		case "zh-Hans":
+			return "从「" + name + "」中移出"
+		case "zh-Hant":
+			return "從「" + name + "」中移出"
+		}
+	}
+}
 
 // CheatsheetClose says "Close"
 // in the language the app shows under cx.
