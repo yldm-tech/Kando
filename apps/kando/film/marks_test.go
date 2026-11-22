@@ -18,31 +18,8 @@ func mark(line, word string, m subtitle.Mark) subtitle.Mark {
 	return m
 }
 
-// rubyOf is the view of the reading a span of lineSpans is, made in a scope of its own.
-func rubyOf(sp ns.Span) ns.View {
-	return sp.Attachment.(ns.Func)(ns.NewRoot(ns.RootOptions{})).(ns.View)
-}
-
-// TestRubyDrop checks where a run's baseline is in its text: its descent above the text's bottom where the line has no leading, as on Linux and Windows, and its descent and half its leading where it has some, as Apple's text lays out a CJK font, and the text's own room under its line counts too.
-func TestRubyDrop(t *testing.T) {
-	line := func(top, height, ascent, descent ns.Points) ns.TextLine {
-		return ns.TextLine{Bounds: ns.Bounds{Origin: ns.Point{Y: top}, Size: ns.Size{Height: height}}, Ascender: ascent, Descender: descent}
-	}
-	for _, c := range []struct {
-		height ns.Points
-		line   ns.TextLine
-		want   ns.Points
-	}{
-		{30, line(0, 30, 24, 6), 6},
-		{32, line(0, 32, 24, 6), 7},
-		{31, line(0, 30, 24, 6), 7},
-		{30, line(0, 30, 30, 0), 0},
-	} {
-		if got := rubyDrop(c.height, c.line); got != c.want {
-			t.Errorf("rubyDrop(%v, %+v) = %v; want %v", c.height, c.line, got, c.want)
-		}
-	}
-}
+// rubyOf is the view of the reading a span of lineSpans is.
+func rubyOf(sp ns.Span) ns.View { return sp.Attachment.(ns.View) }
 
 // TestLineSpansDrawTheMarks checks the spans of a line with marks: a reading is a view over its characters, which a click looks up as the word it is in; a tone draws a thick solid line in its color under its run, which keeps the line's color, and a word in the vocabulary a dashed one, so the two never look alike; a mark off a character's start or outside the line is left out; and a copy under the line, without look, has the readings alone, which take no click.
 func TestLineSpansDrawTheMarks(t *testing.T) {
@@ -86,8 +63,9 @@ func TestLineSpansDrawTheMarks(t *testing.T) {
 	if strings.Join(looked, "|") != "行った|猫" {
 		t.Fatalf("the clicks looked up %q", looked)
 	}
-	if got := ruby.Children[0].(ns.Text).Content; got != "ねこ" {
-		t.Fatalf("the reading: %q", got)
+	// The run comes first, so its baseline is the view's, and the reversed column draws the reading over it.
+	if run, reading := ruby.Children[0].(ns.Text).Content, ruby.Children[1].(ns.Text).Content; run != "猫" || reading != "ねこ" || ruby.Style.Direction != ns.ColumnReverse || ruby.Style.VerticalAlign != ns.VerticalAlignBaseline {
+		t.Fatalf("the reading's view: run %q, reading %q, style %+v", run, reading, ruby.Style)
 	}
 
 	copied := lineSpans(line, nil, marks, spanInk{style: ns.Style{FontSize: 22}})
