@@ -197,6 +197,12 @@ func (a *app) windowShowMain() {
 	a.window.main.Focus()
 }
 
+// windowMinimized reports whether the main window is minimized, false before its view is built.
+func (a *app) windowMinimized() bool {
+	cx := a.window.cx
+	return cx != nil && core.Untracked(cx, func() bool { return desktop.Minimized(cx) })
+}
+
 // windowUnhide brings the main window back when its close button put it away, and leaves it alone otherwise: the rows of the Window menu call it before they act on the window (menu.go).
 func (a *app) windowUnhide() {
 	if a.window.hidden {

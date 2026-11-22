@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,6 +14,8 @@ import (
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // TestSettingsWindowSwitchesCategoryAndToggles switches the window's category in its sidebar and turns a switch there, which is saved.
@@ -238,5 +241,28 @@ func TestSettingsStayWhileTheAppChanges(t *testing.T) {
 	again := tt.Find("id:settings-llm-base")
 	if again.ID != field.ID || !again.Focused || again.Text != "https://api.openai.com/v1/x" {
 		t.Fatalf("the field was built again (%d, then %d) or lost the focus (%v): %q", field.ID, again.ID, again.Focused, again.Text)
+	}
+}
+
+// TestOpeningTheSettingsBringsTheMainWindowBack checks that opening the settings window, a child of the main window, which macOS hides while the main window is put away or minimized, brings the main window to the front first when its close button has put it away or it is minimized, and leaves it alone when it shows.
+func TestOpeningTheSettingsBringsTheMainWindowBack(t *testing.T) {
+	for _, away := range []string{"", "hidden", "minimized"} {
+		a, tt, _ := newTestApp(t, &fakePipeline{})
+		a.prefs.overMain = false
+		// windowWatch, which keeps the main window, runs from ready, which the tests' app does not run.
+		a.window.main = nsdesktop.MainWindow(a.cx)
+		switch away {
+		case "hidden":
+			a.window.hidden = true
+		case "minimized":
+			tt.SetWindowEnvironment("", func(env *ns.Environment) { env.Minimized = true })
+		}
+		before := len(tt.Window)
+		a.OpenSettings(settings.SectionGeneral)
+		refresh(tt, a)
+		fronted := slices.ContainsFunc(tt.Window[before:], func(r nsgotest.WindowRequest) bool { return r.Action == nsgotest.WindowOrderFront })
+		if a.prefs.win == nil || a.window.hidden || fronted != (away != "") {
+			t.Fatalf("main window %q: settings window %v, main window hidden %v, brought to the front %v", away, a.prefs.win, a.window.hidden, fronted)
+		}
 	}
 }

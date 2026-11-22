@@ -314,35 +314,39 @@ func (a *app) settingsWindow(closeButton core.Node) core.Node {
 	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}, Plugins: settings.Plugins{App: a}, Marks: settings.Marks{App: a}, Styles: settings.Styles{App: a}, Sources: settings.Sources{App: a}, MediaSources: settings.MediaSources{App: a}, Close: closeButton}
 }
 
-// showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.
+// showSettingsWindow brings the settings window to the front, opening it the first time. It does so from a post under the app's scope, which owns the window, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. The settings window is a child of the main window, which macOS hides it with (openSettingsWindow), so the main window comes back first when its close button put it away or it is minimized, as when ⌘, is pressed with no window in sight. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.
 func (a *app) showSettingsWindow() {
 	if a.cx == nil || a.prefs.opening {
-		return
-	}
-	if w := a.prefs.win; w != nil && !w.Closed() {
-		w.Focus()
 		return
 	}
 	a.prefs.opening = true
 	a.cx.Post(func() {
 		a.prefs.opening = false
-		a.openSettingsWindow()
+		if a.window.hidden || a.windowMinimized() {
+			a.windowShowMain()
+		}
+		if w := a.prefs.win; w != nil && !w.Closed() {
+			w.Focus()
+		} else {
+			a.openSettingsWindow()
+		}
 		a.Changed()
 	})
 }
 
-// openSettingsWindow opens the settings window, a window of the app's own, or the settings over the main window where the platform opens none or the tests ask for that (overMain).
+// openSettingsWindow opens the settings window, a child window of the main one, or the settings over the main window where the platform opens none or the tests ask for that (overMain). As a child it closes with the main window, and on macOS opens centered over it unless settings.json kept where it was, stays above it, hides while it is minimized or put away and comes back with it, and follows it into full screen.
 func (a *app) openSettingsWindow() {
 	if a.prefs.overMain {
 		a.prefs.inWindow = true
 		return
 	}
-	// TODO(nsgo#108): open the settings as a child window of the main one, which moves, minimizes and comes forward with it, as MyGo's WindowOptions.Parent did https://github.com/nsgo-dev/nsgo/issues/108
+	// TODO(nsgo): on Windows and Linux keep the settings window above the main window and hide and show it with it, as WindowOptions.Parent does on macOS; there NSGo only closes it with the main window, and its roadmap names owned Win32 windows and gtk_window_set_transient_for for the rest
 	w := nsdesktop.OpenWindow(a.cx, nsdesktop.WindowOptions{
 		Title:       locales.SettingsWindowTitle(a.cx),
 		Width:       880,
 		Height:      640,
 		Key:         "settings",
+		Parent:      nsdesktop.MainWindow(a.cx),
 		Frame:       a.prefs.frame,
 		Constraints: core.WindowConstraints{MinWidth: 720, MinHeight: 480, NoMaximize: true},
 	}, a.settingsView)
