@@ -2507,6 +2507,12 @@ vocabRemoveTitle:
 widgetContinue:
   message: "Continue"
   description: "Over the film of the Continue widget."
+widgetContinueDescription:
+  message: "The film you left partway, and the line you left it on."
+  description: "iOS: the description of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets)."
+widgetContinueName:
+  message: "Kando Continue Watching"
+  description: "iOS: the name of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetContinuePercent:
   message: "Continue · {percent}%"
   description: "Over the film of the wide Continue widget: how far it was watched."
@@ -2540,6 +2546,12 @@ widgetNoFilmHint:
 widgetStreak:
   message: "Streak"
   description: "Top of the streak widget, beside a flame."
+widgetStudyDescription:
+  message: "Days in a row you watched, and what is waiting for review."
+  description: "iOS: the description of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets)."
+widgetStudyName:
+  message: "Kando Streak"
+  description: "iOS: the name of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetTapToReview:
   message: "Tap to review"
   description: "Foot of the streak widget."

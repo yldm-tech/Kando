@@ -32,7 +32,7 @@ func TestCatalogsAreComplete(t *testing.T) {
 	}
 }
 
-// Every message of the source catalog is named by the app's Go code outside this package's generated file and the tests, so translators keep no strings nobody sees. appName is NSGo's, which it reads by its key for the packages, as it reads the message of an apple.info entry of nsgo.yaml by the entry's key for the Apple packages' InfoPlist.strings.
+// Every message of the source catalog is named by the app's Go code outside this package's generated file and the tests, so translators keep no strings nobody sees. appName is NSGo's, which it reads by its key for the packages, as it reads the message of an apple.info entry of nsgo.yaml by the entry's key for the Apple packages' InfoPlist.strings, and the messages a widget's name and description name for the widget extension.
 func TestEveryMessageIsUsed(t *testing.T) {
 	used := map[string]bool{"AppName": true}
 	manifest, err := os.ReadFile(filepath.Join("..", "nsgo.yaml"))
@@ -40,8 +40,15 @@ func TestEveryMessageIsUsed(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, line := range strings.Split(string(manifest), "\n") {
-		if key, _, ok := strings.Cut(strings.TrimSpace(line), ":"); ok && !strings.HasPrefix(key, "#") {
-			used[key] = true
+		key, value, ok := strings.Cut(strings.TrimPrefix(strings.TrimSpace(line), "- "), ":")
+		if !ok || strings.HasPrefix(key, "#") {
+			continue
+		}
+		used[key] = true
+		// A widget's name and description name their messages, which nsgo build gives the widget extension.
+		if value = strings.TrimSpace(value); (key == "name" || key == "description") && value != "" {
+			r, size := utf8.DecodeRuneInString(value)
+			used[string(unicode.ToUpper(r))+value[size:]] = true
 		}
 	}
 	err = filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {

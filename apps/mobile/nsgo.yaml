@@ -29,14 +29,14 @@ android:
 licenses:
   allow: [kando/packages/study, kando/packages/sync]
 
-# The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#657).
-# TODO(nsgo#744): a kind's name and description, which the system's gallery of widgets shows, are one string each (cmd/nsgo/widgets.go:108-118, Kinds.swift's Text(verbatim:)), so they are in English whatever the phone's language; say them in the catalog's languages once nsgo.yaml can take them from the app's locales https://github.com/nsgo-dev/nsgo/issues/744
+# The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#1469).
+# A kind's name and description name messages of the catalogs, which the system's gallery of widgets shows in the phone's language (the widget extension's Localizable.strings).
 widgets:
   - kind: study
-    name: Kando Streak
-    description: Days in a row you watched, and what is waiting for review.
+    name: widgetStudyName
+    description: widgetStudyDescription
     families: [small, circular]
   - kind: continue
-    name: Kando Continue Watching
-    description: The film you left partway, and the line you left it on.
+    name: widgetContinueName
+    description: widgetContinueDescription
     families: [small, medium]

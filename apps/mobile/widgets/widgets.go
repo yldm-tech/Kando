@@ -1,4 +1,4 @@
-// Package widgets is the phone app's widgets on the Home Screen and the Lock Screen of iPhones and iPads (yldm-tech/Kando#225), as the design's Settings › Widgets page shows them: the streak with what is due for review, and the film to go on with, the line it was left on and how far it played. WidgetKit draws them from what the app last wrote (NSGo's widget package), whether the app runs or not, so the study widget's timeline runs a few days ahead, an entry from each midnight. Android has no widgets of NSGo's yet (nsgo#657), and the app writes none there.
+// Package widgets is the phone app's widgets on the Home Screen and the Lock Screen of iPhones and iPads (yldm-tech/Kando#225), as the design's Settings › Widgets page shows them: the streak with what is due for review, and the film to go on with, the line it was left on and how far it played. WidgetKit draws them from what the app last wrote (NSGo's widget package), whether the app runs or not, so the study widget's timeline runs a few days ahead, an entry from each midnight. Android has no widgets of NSGo's yet (nsgo#1469), and the app writes none there.
 package widgets
 
 import (

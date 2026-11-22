@@ -1383,10 +1383,14 @@ const (
 	textVocabEmpty
 	textVocabRemoveMessage
 	textWidgetContinue
+	textWidgetContinueDescription
+	textWidgetContinueName
 	textWidgetDueShort
 	textWidgetNoFilm
 	textWidgetNoFilmHint
 	textWidgetStreak
+	textWidgetStudyDescription
+	textWidgetStudyName
 	textWidgetTapToReview
 	textPlayerCannotAddWord
 	textPlayerMini
@@ -1923,10 +1927,14 @@ var keyOfText = [numTexts]string{
 	"vocabEmpty",
 	"vocabRemoveMessage",
 	"widgetContinue",
+	"widgetContinueDescription",
+	"widgetContinueName",
 	"widgetDueShort",
 	"widgetNoFilm",
 	"widgetNoFilmHint",
 	"widgetStreak",
+	"widgetStudyDescription",
+	"widgetStudyName",
 	"widgetTapToReview",
 	"playerCannotAddWord",
 	"playerMini",
@@ -2461,10 +2469,14 @@ var textsEn = i18n.NewTexts(""+
 	"Words you look up and save while you watch show here"+
 	"It leaves the vocabulary on every device."+
 	"Continue"+
+	"The film you left partway, and the line you left it on."+
+	"Kando Continue Watching"+
 	"to review"+
 	"Nothing to continue"+
 	"Films you leave partway show here."+
 	"Streak"+
+	"Days in a row you watched, and what is waiting for review."+
+	"Kando Streak"+
 	"Tap to review"+
 	"Open this film once while its computer is reachable to add its words to the vocabulary."+
 	"Now Playing"+
@@ -2996,10 +3008,14 @@ var textsEn = i18n.NewTexts(""+
 		52,
 		41,
 		8,
+		55,
+		23,
 		9,
 		19,
 		34,
 		6,
+		58,
+		12,
 		13,
 		87,
 		11,
@@ -3534,10 +3550,14 @@ var textsJa = i18n.NewTexts(""+
 	"視聴中に調べて保存した単語がここに表示されます"+
 	"すべての端末の単語帳から削除されます。"+
 	"続きを見る"+
+	"途中まで見た映画と、止めたところのセリフ。"+
+	"Kando 続きを見る"+
 	"復習待ち"+
 	"途中の映画はありません"+
 	"途中まで見た映画がここに表示されます。"+
 	"連続学習"+
+	"連続で見た日数と、復習待ちの項目。"+
+	"Kando 連続学習"+
 	"タップして復習"+
 	"パソコンにつながる場所で一度この映像を開くと、単語を単語帳に追加できるようになります。"+
 	"再生中"+
@@ -4069,10 +4089,14 @@ var textsJa = i18n.NewTexts(""+
 		69,
 		57,
 		15,
+		63,
+		21,
 		12,
 		33,
 		57,
 		12,
+		51,
+		18,
 		21,
 		129,
 		9,
@@ -4607,10 +4631,14 @@ var textsKo = i18n.NewTexts(""+
 	"보면서 찾아 저장한 단어가 여기에 표시돼요"+
 	"모든 기기의 단어장에서 삭제됩니다."+
 	"이어 보기"+
+	"보다 만 영화와 멈춘 곳의 대사를 보여줘요."+
+	"Kando 이어 보기"+
 	"복습"+
 	"이어 볼 영화가 없어요"+
 	"보다 만 영화가 여기에 표시돼요."+
 	"연속 학습"+
+	"연속으로 본 날수와 복습할 항목을 보여줘요."+
+	"Kando 연속 학습"+
 	"탭하여 복습"+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 단어를 단어장에 추가할 수 있습니다."+
 	"재생 중"+
@@ -5142,10 +5170,14 @@ var textsKo = i18n.NewTexts(""+
 		59,
 		49,
 		13,
+		58,
+		19,
 		6,
 		30,
 		44,
 		13,
+		60,
+		19,
 		16,
 		115,
 		10,
@@ -5680,10 +5712,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"看片时查过并收藏的生词会出现在这里"+
 	"它会从所有设备的生词本里移除。"+
 	"继续看"+
+	"看到一半的影片，以及停下时的那句台词。"+
+	"看懂 继续看"+
 	"待复习"+
 	"没有看到一半的影片"+
 	"看到一半的影片会显示在这里。"+
 	"连续学习"+
+	"连续观看的天数，以及等待复习的内容。"+
+	"看懂 连续学习"+
 	"轻点开始复习"+
 	"在能连上电脑时打开一次这部影片，就能把它的词加入生词本。"+
 	"正在播放"+
@@ -6215,10 +6251,14 @@ var textsZhHans = i18n.NewTexts(""+
 		51,
 		45,
 		9,
+		57,
+		16,
 		9,
 		27,
 		42,
 		12,
+		54,
+		19,
 		18,
 		84,
 		12,
@@ -6753,10 +6793,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"看片時查過並收藏的生詞會出現在這裡"+
 	"它會從所有裝置的生詞本裡移除。"+
 	"繼續看"+
+	"看到一半的影片，以及停下時的那句台詞。"+
+	"看懂 繼續看"+
 	"待複習"+
 	"沒有看到一半的影片"+
 	"看到一半的影片會顯示在這裡。"+
 	"連續學習"+
+	"連續觀看的天數，以及等待複習的內容。"+
+	"看懂 連續學習"+
 	"輕點開始複習"+
 	"在能連上電腦時打開一次這部影片，就能把它的詞加入生詞本。"+
 	"正在播放"+
@@ -7288,10 +7332,14 @@ var textsZhHant = i18n.NewTexts(""+
 		51,
 		45,
 		9,
+		57,
+		16,
 		9,
 		27,
 		42,
 		12,
+		54,
+		19,
 		18,
 		84,
 		12,
@@ -19377,6 +19425,26 @@ func WidgetContinue(cx *core.Scope) string { return For(cx).WidgetContinue() }
 // WidgetContinue is the package's WidgetContinue in the language of msgs.
 func (msgs Messages) WidgetContinue() string { return msgs.text(textWidgetContinue) }
 
+// WidgetContinueDescription says "The film you left partway, and the line you left it on."
+// in the language the app shows under cx.
+//
+// iOS: the description of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets).
+func WidgetContinueDescription(cx *core.Scope) string { return For(cx).WidgetContinueDescription() }
+
+// WidgetContinueDescription is the package's WidgetContinueDescription in the language of msgs.
+func (msgs Messages) WidgetContinueDescription() string {
+	return msgs.text(textWidgetContinueDescription)
+}
+
+// WidgetContinueName says "Kando Continue Watching"
+// in the language the app shows under cx.
+//
+// iOS: the name of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name.
+func WidgetContinueName(cx *core.Scope) string { return For(cx).WidgetContinueName() }
+
+// WidgetContinueName is the package's WidgetContinueName in the language of msgs.
+func (msgs Messages) WidgetContinueName() string { return msgs.text(textWidgetContinueName) }
+
 // WidgetContinuePercent says "Continue · {percent}%"
 // in the language the app shows under cx.
 //
@@ -19619,6 +19687,24 @@ func WidgetStreak(cx *core.Scope) string { return For(cx).WidgetStreak() }
 
 // WidgetStreak is the package's WidgetStreak in the language of msgs.
 func (msgs Messages) WidgetStreak() string { return msgs.text(textWidgetStreak) }
+
+// WidgetStudyDescription says "Days in a row you watched, and what is waiting for review."
+// in the language the app shows under cx.
+//
+// iOS: the description of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets).
+func WidgetStudyDescription(cx *core.Scope) string { return For(cx).WidgetStudyDescription() }
+
+// WidgetStudyDescription is the package's WidgetStudyDescription in the language of msgs.
+func (msgs Messages) WidgetStudyDescription() string { return msgs.text(textWidgetStudyDescription) }
+
+// WidgetStudyName says "Kando Streak"
+// in the language the app shows under cx.
+//
+// iOS: the name of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name.
+func WidgetStudyName(cx *core.Scope) string { return For(cx).WidgetStudyName() }
+
+// WidgetStudyName is the package's WidgetStudyName in the language of msgs.
+func (msgs Messages) WidgetStudyName() string { return msgs.text(textWidgetStudyName) }
 
 // WidgetTapToReview says "Tap to review"
 // in the language the app shows under cx.
