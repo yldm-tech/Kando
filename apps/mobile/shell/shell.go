@@ -80,7 +80,7 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 		}
 	}
 	// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
-	// TODO(nsgo#1071): Android's navigation bar now takes its colors from the palette (nsgo#936), but from roles the rest of the app shares (core/tabbar.go:72-82): its fill is Surface, its idle tabs TextMuted and the selected tab's icon and name AccentText, which in this theme is the white drawn on the accent's fill, over an indicator of accentContainer or the accent at .12 (TabBar.java:186-203); so the selected tab is white on a faint pill of the accent where the design has theme.M3NavActive (the accent in the dark) on the accent at theme.M3NavIndicator, its idle tabs theme.TabInactive; give it those once the bar's idle and selected colors are roles of their own https://github.com/nsgo-dev/nsgo/issues/1071
+	// Android's bar takes its colors from the palette's tabBar roles (theme.Kando): TabInactive idle, M3NavActive on the accent at M3NavIndicator selected.
 	return ui.TabShell{Label: locales.AppName(cx), Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 
