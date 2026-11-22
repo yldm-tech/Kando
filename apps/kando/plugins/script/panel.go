@@ -59,7 +59,12 @@ func (pv panelView) Render(cx *core.Scope) core.Node {
 	r, p := pv.r, pv.p
 	down := core.NewSignal(cx, false)
 	w := &panelWatchdog{r: r, p: p, watch: r.panelWatch(), down: down.Set, stop: make(chan struct{}), heap: HeapBytes()}
-	cx.Cleanup(w.end)
+	// The view's JS is its plugin's, which the background watchdog adds up with its functions'.
+	r.bgPanel(p, w, true)
+	cx.Cleanup(func() {
+		w.end()
+		r.bgPanel(p, w, false)
+	})
 	// The watchdog starts once the view is built: no goroutine starts in a build.
 	r.Post(w.start)
 	return core.Show{When: func() bool { return !down.Get() }, Then: func(*core.Scope) core.Node { return pv.catch(w) }, Else: func(*core.Scope) core.Node { return core.View{} }}
