@@ -67,7 +67,7 @@ func (s *screen) transport() core.Node {
 				clock(left, "-", true),
 				s.volume(cx),
 				row(2,
-					core.Show{When: func() bool { return RateWorks(cx) }, Then: s.speedMenu},
+					core.Show{When: live.Func(a, func() bool { return !a.SpeedFixed() }), Then: s.speedMenu},
 					s.loopToggle(cx),
 					s.pauseLinesToggle(cx),
 					s.modeMenu(cx),

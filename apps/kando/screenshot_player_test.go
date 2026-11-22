@@ -343,7 +343,7 @@ func TestScreenshotsPlayer(t *testing.T) {
 	}))
 }
 
-// screenshotLoad has the system's player report the open film loaded, as a platform's does once it has opened the video, so the scene shows the film's transport as it plays. Headless nsgotest reports it to the video view (tt.Play); on a platform, where nsgotest leaves such reports to the platform and the scenes give the system's player nothing to play (screenshotOpen), the report goes to the app's handler of it on the engine's goroutine.
+// screenshotLoad has the system's player report the open film loaded, one whose speed it can change, as a platform's does once it has opened the video, so the scene shows the film's transport as it plays. The report goes to the app's handler of it on the engine's goroutine (playerReportLoad): on a platform nsgotest leaves such reports to the platform, and the scenes give the system's player nothing to play (screenshotOpen).
 func screenshotLoad(tt *nsgotest.App, a *app) {
 	if a.player.play == nil || a.player.playErr != "" {
 		return
@@ -352,16 +352,10 @@ func screenshotLoad(tt *nsgotest.App, a *app) {
 	if length <= 0 {
 		length = 5 * time.Minute
 	}
-	info := ns.VideoInfo{Duration: length, Size: ns.Size{Width: 1920, Height: 1080}}
-	switch {
-	case nsgotest.Target() != "":
-		onEngine(a, func() { a.VideoLoaded(info) })
-	case tt.Exists("id:film-video"):
-		tt.Play("id:film-video", info)
-	default:
+	if nsgotest.Target() == "" && !tt.Exists("id:film-video") {
 		return
 	}
-	refresh(tt, a)
+	playerReportLoad(tt, a, ns.VideoInfo{Duration: length, Size: ns.Size{Width: 1920, Height: 1080}, RateChangeable: true})
 }
 
 // screenshotProgress has the system's player report the open film played to position, as screenshotLoad reports its load.

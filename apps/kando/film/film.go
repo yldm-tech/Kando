@@ -138,10 +138,11 @@ type App interface {
 	SetStyleView(on bool)
 	// ModeMenu is whether the subtitle mode menu is open.
 	ModeMenu() *bool
-	// Rate is how fast films play, one of Rates, 1 as recorded; SetRate plays them at rate and says so on the picture. SpeedMenu is whether the speed menu is open.
+	// Rate is how fast films play, one of Rates, 1 as recorded; SetRate plays them at rate and says so on the picture. SpeedMenu is whether the speed menu is open. SpeedFixed is set while the open film plays only at the speed it was recorded at, as the system's player said when it opened it (ns.VideoInfo.RateChangeable false): the transport then has no speed button, which would name a speed the film does not play at.
 	Rate() float64
 	SetRate(rate float64)
 	SpeedMenu() *bool
+	SpeedFixed() bool
 	// SpeedKeys are the keys that step the speed down and up on os, as the shortcut table has them under the preset chosen in Settings › 快捷键, for the speed button's tooltip: ⇧, and ⇧. with Kando's own keys, [ and ] under mpv's.
 	SpeedKeys(os ns.OS) (slower, faster string)
 	// Search is the query of the subtitle list; SearchFocus asks the list's search field for the keyboard focus once.

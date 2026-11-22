@@ -65,9 +65,15 @@ func playerOpenFilm(t *testing.T, a *app, tt *nsgotest.App, updates chan func(),
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && (item.VideoPath == "" || a.player.film.info.Folder != "") })
 }
 
-// playerLoadFilm reports that the system's player loaded the open video, length long, as a platform's does once it has opened it.
+// playerLoadFilm reports that the system's player loaded the open video, length long, as a platform's does once it has opened it, one whose speed it can change.
 func playerLoadFilm(tt *nsgotest.App, a *app, length time.Duration) {
-	tt.Play("id:film-video", ns.VideoInfo{Duration: length, Size: ns.Size{Width: 640, Height: 360}})
+	playerReportLoad(tt, a, ns.VideoInfo{Duration: length, Size: ns.Size{Width: 640, Height: 360}, RateChangeable: true})
+}
+
+// playerReportLoad has the system's player report that it opened the open video, as info says, and refreshes.
+func playerReportLoad(tt *nsgotest.App, a *app, info ns.VideoInfo) {
+	// TODO(nsgo): nsgotest's App.Play reports a video's Duration and Size but drops VideoInfo.RateChangeable, so a film it loads always says its speed is fixed; once Play passes it on, report through tt.Play as for a film whose speed is fixed (TestSpeedStaysAtOneWhereTheFilmCannotChangeIt)
+	onEngine(a, func() { a.VideoLoaded(info) })
 	refresh(tt, a)
 }
 
@@ -1763,16 +1769,19 @@ func TestMediaKeysWhileTheFilmOpens(t *testing.T) {
 	}
 }
 
-// TestSpeedOnLinuxStaysAtOne opens a film on Linux with 2× kept in the settings, where the system's player plays every film at the speed it was recorded at: the transport has no speed button, ⇧. and ⇧, change nothing and say nothing on the picture, and the settings keep 2×; the player is asked for 1×, and the playhead, which the subtitles and the loop follow, moves at it.
-func TestSpeedOnLinuxStaysAtOne(t *testing.T) {
+// TestSpeedStaysAtOneWhereTheFilmCannotChangeIt opens a film with 2× kept in the settings that the system's player says it plays only at the speed it was recorded at (ns.VideoInfo.RateChangeable false), as Linux's player does without GStreamer's GstPlay and scaletempo: the transport has no speed button, ⇧. and ⇧, change nothing and say nothing on the picture, and the settings keep 2×; the player is asked for 1×, and the playhead, which the subtitles and the loop follow, moves at it.
+func TestSpeedStaysAtOneWhereTheFilmCannotChangeIt(t *testing.T) {
 	usePlatform(t, ns.OSLinux)
-	a, tt, _ := playerOpen(t)
-	apply(tt, a, func() { a.player.rate = 2; a.playerApplyRate() })
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	apply(tt, a, func() { a.player.rate = 2 })
+	playerOpenFilm(t, a, tt, updates, item)
+	tt.Play("id:film-video", ns.VideoInfo{Duration: 12 * time.Second, Size: ns.Size{Width: 640, Height: 360}})
+	refresh(tt, a)
 	tt.Key("shift+,")
 	tt.Key("shift+.")
 	m := testlocale.Messages()
-	if a.player.rate != 2 || tt.Exists("id:film-speed") || hasText(tt, m.PlayerOsdSpeed(film.RateTextIn(m, 1.5))) || hasText(tt, film.RateTextIn(m, 2)) || playerVideoConfig(tt).Rate != 1 {
-		t.Fatalf("rate %v, the player asked for %v; texts %q", a.player.rate, playerVideoConfig(tt).Rate, tt.Texts())
+	if !a.SpeedFixed() || a.player.rate != 2 || tt.Exists("id:film-speed") || hasText(tt, m.PlayerOsdSpeed(film.RateTextIn(m, 1.5))) || hasText(tt, film.RateTextIn(m, 2)) || playerVideoConfig(tt).Rate != 1 {
+		t.Fatalf("fixed %v, rate %v, the player asked for %v; texts %q", a.SpeedFixed(), a.player.rate, playerVideoConfig(tt).Rate, tt.Texts())
 	}
 	tt.Key("space")
 	playerPlayTo(tt, a, 2*time.Second)
@@ -1780,8 +1789,18 @@ func TestSpeedOnLinuxStaysAtOne(t *testing.T) {
 	if head := a.PlayHead(); head != 3*time.Second {
 		t.Fatalf("a second from 2s is at %v, want 3s", head)
 	}
-	if playerListsSpeedKeys(a) {
-		t.Fatal("the cheat sheet lists the speed keys on Linux")
+}
+
+// TestSpeedChangesOnLinux opens a film on Linux that the system's player says it can play at another speed, as it does with GStreamer's GstPlay and scaletempo: the transport has its speed button, ⇧. plays the film faster, and the cheat sheet lists the speed keys.
+func TestSpeedChangesOnLinux(t *testing.T) {
+	usePlatform(t, ns.OSLinux)
+	a, tt, _ := playerOpen(t)
+	tt.Key("shift+.")
+	if !tt.Exists("id:film-speed") || a.player.rate != 1.1 || playerVideoConfig(tt).Rate != 1.1 {
+		t.Fatalf("speed button %v, rate %v, the player asked for %v", tt.Exists("id:film-speed"), a.player.rate, playerVideoConfig(tt).Rate)
+	}
+	if !playerListsSpeedKeys(a) {
+		t.Fatal("the cheat sheet does not list the speed keys on Linux")
 	}
 }
 

@@ -49,6 +49,8 @@ type filmPlay struct {
 	paused   bool
 	// rate is how fast the system's player plays the film, picture and sound, as a multiple of the speed it was recorded at (playerSpeed); 0 counts as 1.
 	rate float64
+	// speedFixed is set once the system's player has opened the source and said it plays it only at the speed it was recorded at (ns.VideoInfo.RateChangeable false), as Linux's player does without GStreamer's GstPlay and scaletempo or for a stream it cannot seek; the film then plays at 1× (playerSpeed).
+	speedFixed bool
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
 	// played is set once this playback has played: opened playing at a point picked for it (继续, 从头看), started with play, or moved by a seek. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
@@ -120,7 +122,7 @@ func (a *app) startPlayback(path string) {
 func (a *app) playerOpen(path, source string, at time.Duration, jump bool) *filmPlay {
 	a.player.playGen++
 	a.player.playPath = path
-	a.player.play = &filmPlay{path: path, source: source, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
+	a.player.play = &filmPlay{path: path, source: source, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.player.rate, clock: a.playerNow, seek: a.player.ref.Seek}
 	return a.player.play
 }
 
@@ -140,9 +142,9 @@ func (a *app) playerVideo() film.Video {
 	}
 }
 
-// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 where the system's player plays every film at the speed it was recorded at (film.RateWorks), Linux, which has no speed button and no speed keys then. The settings keep the speed picked elsewhere all the same.
+// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 for a film the system's player plays only at the speed it was recorded at (filmPlay.speedFixed), which has no speed button and no speed keys then. The settings keep the speed picked all the same, for the next film.
 func (a *app) playerSpeed() float64 {
-	if a.cx != nil && !film.RateWorks(a.cx) {
+	if p := a.player.play; p != nil && p.speedFixed {
 		return 1
 	}
 	return a.player.rate
@@ -156,6 +158,8 @@ func (a *app) playerLoad(info ns.VideoInfo) {
 	}
 	p.loaded = true
 	p.sound = !p.stream && info.Size.Width <= 0 && info.Size.Height <= 0
+	p.speedFixed = !info.RateChangeable
+	p.rate = a.playerSpeed()
 	if info.Duration > 0 {
 		p.duration = info.Duration
 		a.player.length = info.Duration

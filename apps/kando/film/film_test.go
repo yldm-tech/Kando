@@ -81,6 +81,7 @@ type fakeApp struct {
 	styleView  bool
 	modeMenu   bool
 	speedMenu  bool
+	speedFixed bool
 	rate       float64
 	search     string
 	focus      bool
@@ -231,6 +232,7 @@ func (f *fakeApp) ModeMenu() *bool                         { return &f.modeMenu 
 func (f *fakeApp) Rate() float64                           { return f.rate }
 func (f *fakeApp) SetRate(rate float64)                    { f.rate = rate }
 func (f *fakeApp) SpeedMenu() *bool                        { return &f.speedMenu }
+func (f *fakeApp) SpeedFixed() bool                        { return f.speedFixed }
 func (f *fakeApp) SpeedKeys(ns.OS) (string, string)        { return "shift+,", "shift+." }
 func (f *fakeApp) Search() *string                         { return &f.search }
 func (f *fakeApp) SearchFocus() *bool                      { return &f.focus }
@@ -1065,14 +1067,18 @@ func TestSpeedMenuSetsTheRate(t *testing.T) {
 	}
 }
 
-// TestSpeedMenuIsGoneOnLinux shows the transport on Linux, where the system's player plays every film at the speed it was recorded at: it has no speed button, which would name a speed the film does not play at, and keeps the rest.
-func TestSpeedMenuIsGoneOnLinux(t *testing.T) {
+// TestSpeedMenuIsGoneWhereTheSpeedIsFixed shows the transport of a film the system's player plays only at the speed it was recorded at: it has no speed button, which would name a speed the film does not play at, and keeps the rest; once a film that can change speed opens, the button is back.
+func TestSpeedMenuIsGoneWhereTheSpeedIsFixed(t *testing.T) {
 	a := newFakeApp()
 	a.rate = 2
+	a.speedFixed = true
 	app := start(t, a)
-	app.SetEnvironment(testlocale.Environment(ns.Environment{OS: ns.OSLinux, Idiom: ns.IdiomDesktop}))
 	if app.Exists("id:film-speed") || !app.Exists("id:film-mode") {
-		t.Fatalf("the transport on Linux: speed %v, mode %v", app.Exists("id:film-speed"), app.Exists("id:film-mode"))
+		t.Fatalf("the transport of a film at a fixed speed: speed %v, mode %v", app.Exists("id:film-speed"), app.Exists("id:film-mode"))
+	}
+	change(app, a, func() { a.speedFixed = false })
+	if !app.Exists("id:film-speed") {
+		t.Fatal("no speed button for a film that can change speed")
 	}
 }
 

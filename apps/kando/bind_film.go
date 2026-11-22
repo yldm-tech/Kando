@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"slices"
 	"time"
 
 	"kando/apps/kando/film"
@@ -482,6 +481,8 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
+	// The speed keys do nothing to a film the system's player plays only at the speed it was recorded at (filmPlay.speedFixed), as its transport has no speed button.
+	speed := func() bool { return open() && !a.SpeedFixed() }
 	// Space and the arrows are left to the speed or mode menu while one is open, for its rows, wherever the keyboard focus is, and to the other translations of a line while they show (correctKeys).
 	menus := func() bool { return a.player.film.modeMenu || a.player.film.speedMenu || a.correctPicking() }
 	transport := func() bool { return playing() && !menus() }
@@ -507,6 +508,8 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(cx), Key: "m", When: open, Run: a.ToggleMute},
+		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: playerSlowerKey, Repeat: true, When: speed, Run: func() { a.playerStepRate(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: playerFasterKey, Repeat: true, When: speed, Run: func() { a.playerStepRate(1) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(cx), Key: "v", When: open, Run: a.toggleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(cx), Key: "s", When: open, Run: a.cycleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyPeekLine(cx), Key: "t", When: playing, Run: a.PeekLine},
@@ -526,13 +529,5 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 			return open() && !a.correctSelecting() && !a.correctPicking() && !a.correctSpreading()
 		}, Run: a.escapeFilm},
 	}
-	// The speed keys are only where the system's player plays at the speed picked, not on Linux (film.RateWorks), so neither the cheat sheet, Settings › 快捷键 nor the menu bar offers keys that do nothing there.
-	if !film.RateWorks(cx) {
-		return rows
-	}
-	mute := slices.IndexFunc(rows, func(s shortcut) bool { return s.Key == "m" })
-	return slices.Insert(rows, mute+1,
-		shortcut{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: playerSlowerKey, Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
-		shortcut{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: playerFasterKey, Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
-	)
+	return rows
 }

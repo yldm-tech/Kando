@@ -13,12 +13,6 @@ import (
 // Rates are the speeds a film plays at, slowest first, as multiples of the speed it was recorded at. The speed menu lists them and ⇧, and ⇧. step through them. The steps around 1 are a tenth, for slowing a film down a little to listen.
 var Rates = [...]float64{0.5, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2}
 
-// RateWorks reports whether the system's player on the system cx runs on plays a film at core.Video's Rate. Where it does not, the transport has no speed button and ⇧, and ⇧. do nothing, rather than name a speed the film does not play at.
-func RateWorks(cx *core.Scope) bool {
-	// TODO(nsgo#110): NSGo's player on Linux ignores core.Video's Rate and plays every film at the speed it was recorded at; once it plays at Rate, as MyGo's player and its atempo sound did, drop this and show the speed button and the speed keys on Linux again https://github.com/nsgo-dev/nsgo/issues/110
-	return cx.Env().OS() != core.OSLinux
-}
-
 // RateText is how the player writes a speed, as "1.5×", in the language the interface shows under cx.
 func RateText(cx *core.Scope, rate float64) string { return RateTextIn(locales.For(cx), rate) }
 

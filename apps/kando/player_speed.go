@@ -13,6 +13,9 @@ import (
 // Rate is how fast films play, one of film.Rates, for the transport's speed button (film.App).
 func (a *app) Rate() float64 { return a.player.rate }
 
+// SpeedFixed is whether the open film plays only at the speed it was recorded at, as the system's player said when it opened it (filmPlay.speedFixed).
+func (a *app) SpeedFixed() bool { return a.player.play != nil && a.player.play.speedFixed }
+
 // SpeedMenu is whether the transport's speed menu is open.
 func (a *app) SpeedMenu() *bool { return &a.player.film.speedMenu }
 
