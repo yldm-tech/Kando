@@ -114,7 +114,7 @@ func Load(s *session.Session, snap Snapshot) Shown {
 }
 
 // Keep writes the widgets' timelines with publish (widget.Update) as what they show changes, in the language the app shows, the first time once the session has read the store. The disk is read and the timelines written on a goroutine of its own, which takes the latest change and drops the ones it has not reached.
-// TODO(nsgo#1080): a tap on a widget only opens the app: iOS now registers url_schemes and hands their links to mobile.OnOpenLinks (nsgo#909), unchecked so far from a widget, but an Android app's own links do not reach it yet (NSGo's docs/roadmap.md, Widgets, The app's own links), so a widget's Entry.URL would open the review or the player on an iPhone alone; give the study widget a link to the review and the Continue widget one to the player, under a scheme of the app's own in nsgo.yaml, once the app's links reach it on Android too https://github.com/nsgo-dev/nsgo/issues/1080
+// A tap on the study widget opens the review, and on the Continue widget its film (Link), with a link of the app's own scheme, which the system hands to mobile.OnOpenLinks.
 func Keep(cx *core.Scope, s *session.Session, publish func(kind string, entries ...widget.Entry) error) {
 	changes := make(chan change, 1)
 	done := make(chan struct{})
@@ -182,11 +182,11 @@ var (
 	white = widget.RGB(0xFFFFFF)
 )
 
-// Entries are the timelines of the widgets of each kind, in the language of m: the study widget's an entry a day, the Continue widget's one.
+// Entries are the timelines of the widgets of each kind, in the language of m: the study widget's an entry a day, each opening the review, the Continue widget's one, which opens its film, or only the app while no film was left partway.
 func Entries(m locales.Messages, w Shown) map[string][]widget.Entry {
 	study := make([]widget.Entry, len(w.Days))
 	for i, d := range w.Days {
-		study[i] = widget.Entry{View: streakView(m, d), Families: map[widget.Family]widget.View{widget.Circular: ringView(m, d)}}
+		study[i] = widget.Entry{View: streakView(m, d), Families: map[widget.Family]widget.View{widget.Circular: ringView(m, d)}, URL: Link{Review: true}.URL()}
 		if i > 0 {
 			study[i].Date = d.At
 		}
@@ -194,7 +194,7 @@ func Entries(m locales.Messages, w Shown) map[string][]widget.Entry {
 	today := w.Days[0]
 	cont := widget.Entry{View: noFilmView(m)}
 	if w.Film.Key != "" {
-		cont = widget.Entry{View: filmView(m, w), Families: map[widget.Family]widget.View{widget.Medium: wideFilmView(m, w, today)}}
+		cont = widget.Entry{View: filmView(m, w), Families: map[widget.Family]widget.View{widget.Medium: wideFilmView(m, w, today)}, URL: Link{Film: w.Film.Key}.URL()}
 		if bg := poster(w, true); bg != nil {
 			cont.Background = bg
 		}

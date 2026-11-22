@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/session"
 	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
@@ -163,18 +164,21 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 // playIcon is the design's solid play triangle.
 var playIcon = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path d="M3 1.6v10.8a.8.8 0 0 0 1.2.7l9-5.4a.8.8 0 0 0 0-1.4l-9-5.4A.8.8 0 0 0 3 1.6z" fill="currentColor"/></svg>`))
 
-// resume plays e's film from where it was last left on any device, once it is on the phone; a film not on the phone yet opens its page, to download it.
-func (v *view) resume(e catalog.Entry) {
-	k, ok := v.s.Film(e.Key())
+// resume is Resume from the tab.
+func (v *view) resume(e catalog.Entry) { Resume(v.s, v.act, e) }
+
+// Resume plays e's film with act from where it was last left on any device, once it is on the phone; a film not on the phone yet opens its page, to download it. Continue Watching does it, and so does the Continue widget.
+func Resume(s *session.Session, act Actions, e catalog.Entry) {
+	k, ok := s.Film(e.Key())
 	if !ok || !k.Done() {
-		v.act.Film(e)
+		act.Film(e)
 		return
 	}
 	if !e.Position.Mine && e.Position.At > 0 {
-		v.playAt(e.Key(), e.Position.At)
+		act.PlayAt(e.Key(), e.Position.At)
 		return
 	}
-	v.act.Play(e.Key())
+	act.Play(e.Key())
 }
 
 // playAt plays the film kept under key from at.

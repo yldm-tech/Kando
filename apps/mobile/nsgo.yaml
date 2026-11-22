@@ -6,6 +6,8 @@ version: 0.1.0
 icon:
   png: assets/Icon.png
 i18n: { dir: locales, source: en }
+# The app's own links (package widgets, widgets.Scheme): a tap on a widget opens the review or the film it shows with one, which iOS and Android hand to mobile.OnOpenLinks. Kando on a computer has kando://.
+url_schemes: [kando-mobile]
 
 build:
   output: build

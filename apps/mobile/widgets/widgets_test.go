@@ -57,7 +57,7 @@ func texts(v widget.View) []string {
 	return out
 }
 
-// The study widget's timeline holds today's streak and what is due, then an entry from each midnight ahead, dated by it; the Lock Screen's ring shows what is due alone.
+// The study widget's timeline holds today's streak and what is due, then an entry from each midnight ahead, dated by it, each opening the review; the Lock Screen's ring shows what is due alone.
 func TestTheStudyWidgetFollowsTheDays(t *testing.T) {
 	m := locales.In("en")
 	var w Shown
@@ -87,9 +87,14 @@ func TestTheStudyWidgetFollowsTheDays(t *testing.T) {
 	if got := texts(study[2].View); !slices.Contains(got, "3") || !slices.Contains(got, "5 to review") {
 		t.Errorf("the entry of the second midnight shows %q, want its streak of 3 and 5 due", got)
 	}
+	for i, e := range study {
+		if e.URL != "kando-mobile://review" {
+			t.Errorf("a tap on entry %d opens %q, want the review", i, e.URL)
+		}
+	}
 }
 
-// The Continue widget shows the film left partway over its poster, the line it was left on and how far it played, and the medium one the title, the line and today's streak and what is due beside the poster; without a film it says there is none.
+// The Continue widget shows the film left partway over its poster, the line it was left on and how far it played, and the medium one the title, the line and today's streak and what is due beside the poster, and a tap opens the film; without a film it says there is none, and a tap only opens the app.
 func TestTheContinueWidgetShowsTheFilmLeftPartway(t *testing.T) {
 	m := locales.In("en")
 	w := Shown{Line: "你好吗？"}
@@ -109,14 +114,21 @@ func TestTheContinueWidgetShowsTheFilmLeftPartway(t *testing.T) {
 		t.Errorf("the medium Continue widget shows %q, want %q", got, want)
 	}
 
+	if got, want := cont[0].URL, "kando-mobile://continue?film=d%2Ff1"; got != want {
+		t.Errorf("a tap on the Continue widget opens %q, want %q", got, want)
+	}
+	if l, ok := ReadLink(cont[0].URL); !ok || l != (Link{Film: "d/f1"}) {
+		t.Errorf("the Continue widget's link reads as %+v, %v", l, ok)
+	}
+
 	w.Line = ""
 	if got := texts(Entries(m, w)[Continue][0].View); !slices.Contains(got, "Morning Talk") {
 		t.Errorf("a film whose lines the phone does not keep shows %q, want its title", got)
 	}
 	w.Film = Film{}
 	none := Entries(m, w)[Continue][0]
-	if none.Background != nil || none.Families != nil {
-		t.Errorf("the Continue widget without a film has a background %#v or families %v", none.Background, none.Families)
+	if none.Background != nil || none.Families != nil || none.URL != "" {
+		t.Errorf("the Continue widget without a film has a background %#v, families %v or a link %q", none.Background, none.Families, none.URL)
 	}
 	if got := texts(none.View); !slices.Contains(got, "Nothing to continue") {
 		t.Errorf("the Continue widget without a film shows %q", got)
@@ -267,4 +279,18 @@ func TestKeepReadsTheDaysAgainWhenTheAppShows(t *testing.T) {
 	app.SetEnvironment(core.Environment{Locale: "en", Lifecycle: core.LifecycleActive})
 	want := tomorrow.AddDate(0, 0, 5)
 	app.WaitUntil(10*time.Second, func() bool { return firstMidnight().Equal(want) })
+}
+
+// A link reads as what a widget opens only when it is of the app's scheme and names the review or a film; any other is left to whoever made it.
+func TestReadLinkTakesOnlyTheWidgetsLinks(t *testing.T) {
+	for _, l := range []Link{{Review: true}, {Film: "desk/f1"}, {Film: "a b&c=d"}} {
+		if got, ok := ReadLink(l.URL()); !ok || got != l {
+			t.Errorf("%q reads as %+v, %v, want %+v", l.URL(), got, ok, l)
+		}
+	}
+	for _, link := range []string{"kando://review", "https://kando.yldm.ai/review", "kando-mobile://continue", "kando-mobile://continue?film=", "kando-mobile://settings", "kando-mobile:review", "%"} {
+		if l, ok := ReadLink(link); ok {
+			t.Errorf("%q reads as %+v", link, l)
+		}
+	}
 }

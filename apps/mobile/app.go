@@ -162,6 +162,34 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	play := layer.Play
 	// A film's page and a film's row in the Library open the player held where the film was left, with the recap of the part watched, as a poster does on the computer; Continue Watching and a line found play at once.
 	playHeld := layer.PlayHeld
+	// A tap on a widget opens what it shows over the tabs: the study widget the review, or Learn while nothing is due, the Continue widget its film, as Continue Watching does. Pairing, the introduction, a computer that no longer takes the phone and the review are left as they are.
+	widgetLinks(cx, s, func(l widgets.Link) {
+		if routes := outer.Routes(); routes[len(routes)-1].page != rootPage {
+			return
+		}
+		layer.Minimize()
+		if l.Review {
+			if len(learning.Due(s.LearnItems(), s.Now())) > 0 {
+				outer.Push(route{page: reviewPage})
+				return
+			}
+			selected.Set(learnTab)
+			navs[learnTab].PopToRoot()
+			return
+		}
+		entries := s.Entries()
+		i := slices.IndexFunc(entries, func(e catalog.Entry) bool { return e.Key() == l.Film })
+		if i < 0 {
+			return
+		}
+		films.Resume(s, films.Actions{Play: play, PlayAt: layer.PlayAt, Film: func(e catalog.Entry) {
+			selected.Set(filmsTab)
+			routes := navs[filmsTab].Routes()
+			if top := routes[len(routes)-1]; top.page != filmPage || top.desktop != e.Desktop || top.film.ID != e.Film.ID {
+				navs[filmsTab].Push(route{page: filmPage, desktop: e.Desktop, library: e.Library, film: e.Film})
+			}
+		}}, entries[i])
+	})
 	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
 	revoked := ""
 	cx.Effect(func() {
