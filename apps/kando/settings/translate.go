@@ -37,7 +37,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 		}
 		return options
 	}
-	// TODO(nsgo): give ui.Select a SearchPlaceholderFunc twin, so the search field's placeholder follows the interface language as the name and the options do; it is read once here and follows the language only because the window is built again for another (Window)
+	// TODO(nsgo#1861): give ui.Select a SearchPlaceholderFunc twin, so the search field's placeholder follows the interface language as the name and the options do; it is read once here and follows the language only because the window is built again for another (Window) https://github.com/nsgo-dev/nsgo/issues/1861
 	target := ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SettingsTranslateTarget(cx) }, TestID: "settings-translate-language",
 		Searchable: true, SearchPlaceholder: locales.SettingsLanguagesSearch(cx),
 		Value: live.Func(a, func() string { return *a.Language() }),

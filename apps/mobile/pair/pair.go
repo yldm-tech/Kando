@@ -315,7 +315,7 @@ func field(cx *core.Scope, label func() string, control core.Node) core.Node {
 
 // codeInput is the field of the pairing code, in cells a phone's thumb and eye find at once: the design's 44 by 52, 22pt semibold tabular digits, 10 round, under a 24pt caret.
 func codeInput(cx *core.Scope, value func() string, change func(string), disabled func() bool) core.Node {
-	// TODO(nsgo): ui.OtpInput.Label and base.OtpInput.Label are strings only, with no LabelFunc (ui/otpinput.go:34, base/otpinput.go:46, listed in NSGo's textFuncExceptions), so the field's spoken name keeps the language it was built in; it cannot sit in a core.Dynamic, which would take its focus, so pass a LabelFunc once OtpInput has one
+	// TODO(nsgo#1861): ui.OtpInput.Label and base.OtpInput.Label are strings only, with no LabelFunc (ui/otpinput.go:34, base/otpinput.go:46, listed in NSGo's textFuncExceptions), so the field's spoken name keeps the language it was built in; it cannot sit in a core.Dynamic, which would take its focus, so pass a LabelFunc once OtpInput has one https://github.com/nsgo-dev/nsgo/issues/1861
 	return ui.OtpInput{TestID: "pair-code", Label: locales.PairCode(cx), Length: sync.CodeDigits, Groups: 2, Value: value, OnChange: change, Disabled: disabled,
 		CellWidth: 44, CellHeight: 52, CornerRadius: 10, CaretHeight: 24,
 		TextStyle: core.Style{FontSize: 22, FontWeight: core.FontWeightSemibold, FontVariant: core.FontTabularNums}}
