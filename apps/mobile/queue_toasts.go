@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/brand"
 	"kando/apps/mobile/jobs"
 	"kando/apps/mobile/locales"
+	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/theme"
 	"kando/packages/sync"
@@ -22,11 +23,10 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 	name := func(desktop string) string { d, _ := s.Desktop(desktop); return d.Name }
 	s.OnQueue(session.QueueEvents{
 		Done: func(desktop string, job sync.Job) {
-			// The design's banner of a finished job leads with the app's icon, opens its film from anywhere on it and stays a little longer than a toast.
-			// TODO(nsgo#1072): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the banner is NSGo's card rather than the design's frosted banner https://github.com/nsgo-dev/nsgo/issues/1072
+			// The design's banner of a finished job is frosted as the bars are, leads with the app's icon, opens its film from anywhere on it and stays a little longer than a toast.
 			t := ui.ToastContent{ID: "job-done-" + job.ID, Type: ui.ToastSuccess, Title: locales.JobsDoneTitle(cx, name(desktop)), Description: locales.JobsDoneBody(cx, job.Title),
 				Leading:  core.Image{Source: brand.Icon(), ResizeMode: core.Cover, ElementsHidden: true, Style: core.Style{Width: core.Pt(38), Height: core.Pt(38), CornerRadius: 9, BorderCurve: core.BorderCurveContinuous}},
-				Duration: 5200 * time.Millisecond}
+				Duration: 5200 * time.Millisecond, StyleFunc: banner(cx)}
 			if job.Film != "" {
 				open := func() { s.JobFilm(desktop, job, func(lib sync.Library, f sync.Film) { openFilm(desktop, lib, f) }) }
 				t.Action, t.OnAction, t.OnPress = locales.JobsOpen(cx), open, open
@@ -41,14 +41,14 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			case created.Existing:
 				title = locales.JobsSentExisting(cx, name(desktop))
 			}
-			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
+			toaster.Show(brief(cx, ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
 		},
 		Subscribed: func(desktop string, got sync.Subscribed) {
 			title := locales.AddSubscribed(cx, got.Subscription.Name, name(desktop))
 			if got.Existing {
 				title = locales.AddSubscribedExisting(cx, got.Subscription.Name, name(desktop))
 			}
-			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
+			toaster.Show(brief(cx, ui.ToastContent{Type: ui.ToastSuccess, Title: title}))
 		},
 		Acted: func(desktop, op, title string) {
 			var text string
@@ -62,7 +62,7 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			default:
 				return
 			}
-			toaster.Show(brief(ui.ToastContent{Type: ui.ToastSuccess, Title: text}))
+			toaster.Show(brief(cx, ui.ToastContent{Type: ui.ToastSuccess, Title: text}))
 		},
 		Failed: func(desktop string, err error) {
 			// A done job's film the computer does not serve is told as such; a computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
@@ -91,11 +91,22 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 	})
 }
 
-// brief is t as the design's toast of something done: a green check before its line, with no close button, gone after 2.6 seconds.
-// TODO(nsgo#1072): ui.Toasts and ui.ToastContent take no style of a toast's surface (ui/toast.go:354-363), so the toast is NSGo's card rather than the design's dark pill https://github.com/nsgo-dev/nsgo/issues/1072
-func brief(t ui.ToastContent) ui.ToastContent {
+// brief is t as the design's toast of something done: a dark pill with a green check before its white line, with no close button, gone after 2.6 seconds.
+func brief(cx *core.Scope, t ui.ToastContent) ui.ToastContent {
 	t.Leading = ui.Icon(lucide.CircleCheck, 16, func() core.Color { return theme.StatusOK })
 	t.NoClose = true
 	t.Duration = 2600 * time.Millisecond
+	pill := theme.Of(cx).Pill
+	t.StyleFunc = func() core.Style {
+		return core.Style{Background: pill(), Color: theme.OnMark, BorderWidth: 0, CornerRadius: ui.RadiusFull, Padding: core.Edges{Top: 12, Right: 18, Bottom: 12, Left: 16}}
+	}
 	return t
+}
+
+// banner is the surface of the banner of a finished job: the bars' frosted fill over their blur, under their hairline, CardRadius round.
+func banner(cx *core.Scope) func() core.Style {
+	colors := theme.Of(cx)
+	return func() core.Style {
+		return core.Style{Background: colors.Bar(), BackdropFilters: theme.BarBlur, BorderWidth: 0.5, BorderColor: colors.BarLine(), CornerRadius: look.CardRadius}
+	}
 }

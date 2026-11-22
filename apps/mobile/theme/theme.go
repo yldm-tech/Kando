@@ -22,6 +22,7 @@ const (
 	roleWarnBody = "warnBody"
 	roleGlyph    = "glyph"
 	roleNoteText = "noteText"
+	rolePill     = "pill"
 )
 
 // Kando is NSGo's default theme in the design's palette: the page is the grouped list's grey and a card (Surface) is white, black under #1C1C1E in the dark; ink, muted text, hairlines and fills are the system's; danger is the destructive red and warning the system's orange, with warnText the orange that reads as text.
@@ -52,6 +53,7 @@ func Kando() *core.Theme {
 	l.SetColor(roleWarnBody, core.RGB(0x6B4A1F))
 	l.SetColor(roleGlyph, core.RGB(0x3A3A3F))
 	l.SetColor(roleNoteText, core.RGB(0x6B5300))
+	l.SetColor(rolePill, core.RGBA(0x1D1D1F, 0.94))
 	d.Background, d.Surface, d.Text, d.TextMuted = core.RGB(0x000000), core.RGB(0x1C1C1E), core.RGB(0xF5F5F7), core.RGB(0xA1A1A6)
 	d.SurfacePressed, d.Border = core.RGBA(0x767680, 0.32), core.RGBA(0x545458, 0.65)
 	d.SetColor("line", core.RGBA(0x545458, 0.65))
@@ -72,6 +74,8 @@ func Kando() *core.Theme {
 	d.SetColor(roleWarnBody, core.RGB(0xE3C9A3))
 	d.SetColor(roleGlyph, core.RGB(0xD1D1D6))
 	d.SetColor(roleNoteText, core.RGB(0xFFE066))
+	// The ink's pill would be lost on the black page, so the dark's is the raised grey.
+	d.SetColor(rolePill, core.RGBA(0x2C2C2E, 0.94))
 	return t
 }
 
@@ -119,6 +123,9 @@ func (c Colors) Glyph() core.Color { return c.role(roleGlyph) }
 
 // NoteText is the ink of a learner's note on its yellow box (NoteBox).
 func (c Colors) NoteText() core.Color { return c.role(roleNoteText) }
+
+// Pill is the dark pill of a short confirmation (a brief toast), under OnMark's white: the ink in the light, the raised grey in the dark.
+func (c Colors) Pill() core.Color { return c.role(rolePill) }
 
 // BarBlur is what a bar's fill frosts behind it.
 var BarBlur = []core.Filter{core.Blur(24), core.Saturate(1.8)}

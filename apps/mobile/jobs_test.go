@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/films"
+	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
@@ -99,6 +100,10 @@ func TestALinkSentFromThePhoneIsFollowedToItsFilm(t *testing.T) {
 	p.app.WaitFor("id:job-done-job1", wait)
 	if got := p.texts("id:job-done-job1"); !strings.Contains(got, msgs.JobsDoneTitle("Studio")) {
 		t.Fatalf("the banner says %q, want %q", got, msgs.JobsDoneTitle("Studio"))
+	}
+	// The banner is frosted as the bars are.
+	if banner := p.app.Find("id:job-done-job1"); banner.Style.CornerRadius != look.CardRadius || banner.Style.Effects == nil || len(banner.Style.Effects.BackdropFilters) != len(theme.BarBlur) {
+		t.Fatalf("the banner is %v round over %+v, want %v round over the bars' blur", banner.Style.CornerRadius, banner.Style.Effects, look.CardRadius)
 	}
 	p.app.Press("id:jobs-open-job1")
 	p.app.WaitFor("id:film-page", wait)
