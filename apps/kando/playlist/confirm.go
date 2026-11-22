@@ -87,10 +87,11 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 		}
 	}
 	return core.Show{When: c.Open, Then: func(cx *core.Scope) core.Node {
-		// What the dialog says under its title and its rows are built again when the look or the language changes, as the rows are settings/form's, which take their titles once; the title and the buttons follow both without building the dialog again.
+		// What the dialog shows under its title is built again only when its shape changes, which lines and rows there are; their words and numbers follow the look and the language through bindings, so a switch or the drop-down keeps its focus while the videos are counted or the language changes.
+		shape := core.NewMemo(cx, func() shapeOf { return shapeFor(look.Get(), c) })
 		content := core.Dynamic(func(cx *core.Scope) core.Node {
-			l := look.Get()
-			children := body(cx, l)
+			s := shape.Get()
+			children := body(cx, s, look.Get)
 			var rows []core.Node
 			add := func(row core.Node) {
 				if len(rows) > 0 {
@@ -98,15 +99,17 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 				}
 				rows = append(rows, row)
 			}
-			if l.OneChannel() && c.Recent != nil && c.OnRecent != nil {
+			if s.recent {
 				add(recentRow(cx, c))
 			}
-			if l.Subscribable() && c.Subscribe != nil && c.OnSubscribe != nil {
-				add(form.SwitchRow{Title: locales.PlaylistSubscribe(cx, l.kind()), Subtitle: locales.PlaylistSubscribeHint(cx), TestID: "playlist-subscribe",
+			if s.subscribe {
+				add(form.SwitchRow{TitleFunc: func() string { return locales.PlaylistSubscribe(cx, look.Get().kind()) },
+					SubtitleFunc: func() string { return locales.PlaylistSubscribeHint(cx) }, TestID: "playlist-subscribe",
 					On: c.Subscribe, OnChange: c.OnSubscribe})
 			}
-			if l.Serial() && c.Series != nil && c.OnSeries != nil {
-				add(form.SwitchRow{Title: locales.PlaylistSeries(cx), Subtitle: locales.PlaylistSeriesHint(cx), TestID: "playlist-series",
+			if s.series {
+				add(form.SwitchRow{TitleFunc: func() string { return locales.PlaylistSeries(cx) },
+					SubtitleFunc: func() string { return locales.PlaylistSeriesHint(cx) }, TestID: "playlist-series",
 					On: c.Series, OnChange: c.OnSeries})
 			}
 			if len(rows) > 0 {
@@ -157,17 +160,38 @@ func (c Confirm) addButton(cx *core.Scope, look func() Look) core.Node {
 
 // recentRow is 现在添加: how many of the channel's most recent videos Add queues now, none, the latest 3 or the latest 10 (RecentChoices).
 func recentRow(cx *core.Scope, c Confirm) core.Node {
-	options := make([]ui.Option[int], 0, len(RecentChoices))
-	for _, n := range RecentChoices {
-		label := locales.PlaylistRecentNone(cx)
-		if n > 0 {
-			label = locales.PlaylistRecentLatest(cx, n)
+	options := func() []ui.Option[int] {
+		out := make([]ui.Option[int], 0, len(RecentChoices))
+		for _, n := range RecentChoices {
+			label := locales.PlaylistRecentNone(cx)
+			if n > 0 {
+				label = locales.PlaylistRecentLatest(cx, n)
+			}
+			out = append(out, ui.Option[int]{Value: n, Label: label})
 		}
-		options = append(options, ui.Option[int]{Value: n, Label: label})
+		return out
 	}
-	return form.Row{Title: locales.PlaylistRecent(cx), Subtitle: locales.PlaylistRecentHint(cx), NoGroup: true, TestID: "playlist-recent-row",
-		Trailing: []core.Node{ui.Select[int]{Options: options, Label: locales.PlaylistRecent(cx), TestID: "playlist-recent",
+	recent := func() string { return locales.PlaylistRecent(cx) }
+	return form.Row{TitleFunc: recent, SubtitleFunc: func() string { return locales.PlaylistRecentHint(cx) }, NoGroup: true, TestID: "playlist-recent-row",
+		Trailing: []core.Node{ui.Select[int]{OptionsFunc: options, LabelFunc: recent, TestID: "playlist-recent",
 			Value: c.Recent, OnChange: c.OnRecent, Style: core.Style{Width: core.Pt(130)}}}}
+}
+
+// shapeOf is which lines and rows the dialog shows under its title, all that building them again depends on; their words and numbers are bound.
+type shapeOf struct {
+	loading, failed, empty, channels, have bool
+	recent, subscribe, series              bool
+}
+
+// shapeFor is the shape of what the dialog shows for l, with the rows c has callbacks for.
+func shapeFor(l Look, c Confirm) shapeOf {
+	return shapeOf{
+		loading: l.Loading, failed: !l.Loading && l.Err != "", empty: !l.Loading && l.Err == "" && l.Videos == 0,
+		channels: l.Channels > 0, have: l.Have > 0,
+		recent:    l.OneChannel() && c.Recent != nil && c.OnRecent != nil,
+		subscribe: l.Subscribable() && c.Subscribe != nil && c.OnSubscribe != nil,
+		series:    l.Serial() && c.Series != nil && c.OnSeries != nil,
+	}
 }
 
 // title is the dialog's title for l: that the videos are being looked for, the one list's name, what it is when it has none, or how many lists were read.
@@ -186,27 +210,29 @@ func title(cx *core.Scope, l Look) string {
 }
 
 // body is what the dialog says under its title, a sentence a line: a spinner while the videos are looked for, why they could not be, or how many there are, that a channel gives only its most recent, and how many the library has.
-func body(cx *core.Scope, l Look) []core.Node {
+func body(cx *core.Scope, s shapeOf, look func() Look) []core.Node {
 	colors := ui.ColorsOf(cx)
-	line := func(text, id string) core.Node {
-		return core.Text{Content: text, TestID: id, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
+	line := func(text func() string, id string) core.Node {
+		return core.Text{ContentFunc: text, TestID: id, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
 	}
 	switch {
-	case l.Loading:
-		return []core.Node{core.View{Style: core.Style{AlignItems: core.AlignCenter, Padding: core.Symmetric(8, 0)}, Children: []core.Node{
-			ui.Spinner{Size: 24, Label: locales.PlaylistReading(cx), TestID: "playlist-spinner"},
-		}}}
-	case l.Err != "":
-		return []core.Node{line(l.Err, "playlist-error")}
-	case l.Videos == 0:
-		return []core.Node{line(locales.PlaylistEmpty(cx), "playlist-count")}
+	case s.loading:
+		// TODO(nsgo#1861): ui.Spinner takes its name for assistive technology as a string only (Label, ui/spinner.go), so it is built again in the interface's language https://github.com/nsgo-dev/nsgo/issues/1861
+		spinner := core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Spinner{Size: 24, Label: locales.PlaylistReading(cx), TestID: "playlist-spinner"}
+		})
+		return []core.Node{core.View{Style: core.Style{AlignItems: core.AlignCenter, Padding: core.Symmetric(8, 0)}, Children: []core.Node{spinner}}}
+	case s.failed:
+		return []core.Node{line(func() string { return look().Err }, "playlist-error")}
+	case s.empty:
+		return []core.Node{line(func() string { return locales.PlaylistEmpty(cx) }, "playlist-count")}
 	}
-	lines := []core.Node{line(locales.PlaylistVideos(cx, l.Videos), "playlist-count")}
-	if l.Channels > 0 {
-		lines = append(lines, line(locales.PlaylistChannelLimit(cx, ChannelLimit), "playlist-limit"))
+	lines := []core.Node{line(func() string { return locales.PlaylistVideos(cx, look().Videos) }, "playlist-count")}
+	if s.channels {
+		lines = append(lines, line(func() string { return locales.PlaylistChannelLimit(cx, ChannelLimit) }, "playlist-limit"))
 	}
-	if l.Have > 0 {
-		lines = append(lines, line(locales.PlaylistHave(cx, l.Have), "playlist-have"))
+	if s.have {
+		lines = append(lines, line(func() string { return locales.PlaylistHave(cx, look().Have) }, "playlist-have"))
 	}
 	return []core.Node{core.View{Style: core.Style{Gap: 4}, Children: lines}}
 }
