@@ -6,7 +6,6 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/packages/core"
-	"kando/packages/media"
 )
 
 // countLibraries reads, off the UI thread, how many films each known library that is not open holds, as its shelf would list them, and keeps them in the sidebar's state for the library switcher's menu, unless a later run started meanwhile. The open library's count is the shelf's own.
@@ -27,13 +26,13 @@ func (a *app) countLibraries() {
 	if len(dirs) == 0 {
 		return
 	}
-	jobs := slices.Clone(a.library.Jobs)
+	jobs, added := slices.Clone(a.library.Jobs), a.library.AddedCopy()
 	update := a.update
 	go func() {
 		counts := make(map[string]int, len(dirs))
 		noName := func(core.Job) string { return "" }
 		for _, dir := range dirs {
-			videos, err := media.ListVideos(dir)
+			videos, err := films.Videos(dir, jobs, nil, added[dir])
 			if err != nil {
 				continue
 			}

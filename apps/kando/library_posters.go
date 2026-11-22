@@ -70,8 +70,13 @@ func (a *app) ensurePoster(item films.Film) {
 		a.lib.posterBusy = map[string]bool{}
 	}
 	a.lib.posterBusy[video] = true
-	update := a.update
+	if a.lib.posterSlots == nil {
+		a.lib.posterSlots = make(chan struct{}, posterLimit)
+	}
+	slots, update := a.lib.posterSlots, a.update
 	go func() {
+		slots <- struct{}{}
+		defer func() { <-slots }()
 		var length time.Duration
 		if cover.ffmpeg != "" {
 			header := media.ReadHeader(cover.ffmpeg, video)
@@ -218,8 +223,12 @@ func posterKey(video string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// posterLimit is how many posters are looked for at once.
+const posterLimit = 4
+
+// posterDest is where the poster of the video at video is kept: cover.jpg beside a video.<ext> of a film's folder in a library bundle of Kando's own, which Kando laid out, else a file named after the video in posterDir. A video.<ext> anywhere else is the user's, as in a folder kept for another player, whose cover.jpg is the user's own and is never written.
 func posterDest(posterDir, video string) string {
-	if strings.TrimSuffix(filepath.Base(video), filepath.Ext(video)) == "video" {
+	if strings.TrimSuffix(filepath.Base(video), filepath.Ext(video)) == "video" && inBundle(video) {
 		return filepath.Join(filepath.Dir(video), "cover.jpg")
 	}
 	posterDir = posterFolder(posterDir, video)
@@ -227,6 +236,18 @@ func posterDest(posterDir, video string) string {
 		return ""
 	}
 	return filepath.Join(posterDir, posterKey(video)+".jpg")
+}
+
+// inBundle reports whether path is inside a library bundle of Kando's own (media.LibraryExt).
+func inBundle(path string) bool {
+	for dir := filepath.Dir(filepath.Clean(path)); ; dir = filepath.Dir(dir) {
+		if shelfBundle(dir) {
+			return true
+		}
+		if parent := filepath.Dir(dir); parent == dir {
+			return false
+		}
+	}
 }
 
 // posterVaultDir is the hidden folder inside an encrypted library (package vault) where its posters and site thumbnails are kept in place of the app's cache, which is not encrypted: a frame of a film would show there what the library hides.

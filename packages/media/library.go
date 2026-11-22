@@ -17,6 +17,8 @@ type Video struct {
 	ModTime int64
 	// Subtitles is the bilingual .srt beside the video, named as the pipeline exports it (<video>.bilingual.srt), or "" when its folder holds none. A video no job has processed shows these, as one copied in from another library or kept after its job records were lost.
 	Subtitles string
+	// Added is when a video kept outside the library was added to it without a job, as a large folder dropped adds its films, which the shelf lists as it lists a video of its folder; zero for a video found in the library's folder.
+	Added time.Time
 }
 
 // ListVideos is the films' files directly in directory and directly in each folder in it (filmFile), newest first. away are the paths of films that belong under directory but are not on disk now, as those moved to a storage location: a file of the same name beside one of them is its companion, not a film of its own.

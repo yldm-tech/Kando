@@ -26,6 +26,8 @@ import (
 
 // jobQueue is the job being made and the jobs being run. The link field and the line under it, and the job the page follows, are the job being made; removed is the jobs removed while they ran. The queue runs the shelf's jobs one at a time, oldest first. The shelf (a.library) is the truth about each job's stage; the queue only keeps the order jobs were asked for and the one running now.
 type jobQueue struct {
+	// batching is set while many jobs are queued at once, as a large drop's 全部生成字幕 queues them (libraryGenerateAdded): show leaves the shelf unsaved, and the one queueing saves it once they are all queued.
+	batching   bool
 	source     string
 	status     string
 	selectedID string
@@ -1082,6 +1084,8 @@ func (a *app) show(job core.Job) {
 	// A job that has completed is a film of its own, no longer a video of the folder's to put back.
 	if job.Stage == core.StageComplete {
 		job.FromFolder = false
+		// A video added without a job is the job's from now on (library_added.go).
+		a.library.Unadd(job.LibraryDir, job.VideoPath)
 	}
 	// A film that kept no video and has just downloaded it (core.RedoVideo) is watched from that video, whose extension is the download's rather than its sound's: its place, how far it was played, its subtitle delay and what else is kept by its video's path follow it, as they do a video moved on disk.
 	if was.SubtitlesOnly && !job.SubtitlesOnly && was.VideoPath != "" && job.VideoPath != "" && was.VideoPath != job.VideoPath {
@@ -1089,10 +1093,13 @@ func (a *app) show(job core.Job) {
 		a.moveVideos(func(path string) (string, bool) { return to, path == from })
 	}
 	a.library.Upsert(job)
-	if err := a.library.Save(); err != nil {
-		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
-	} else {
-		a.saveErr = ""
+	// While a batch is queued, the one queueing saves the shelf once it is all queued.
+	if !a.queue.batching {
+		if err := a.library.Save(); err != nil {
+			a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
+		} else {
+			a.saveErr = ""
+		}
 	}
 	if a.queue.selectedID == job.ID {
 		a.queue.job = &job

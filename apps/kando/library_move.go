@@ -227,7 +227,7 @@ func (a *app) libraryMoveFilmsOf(dir string) []films.Film {
 	if filepath.Clean(dir) == filepath.Clean(a.snap().LibraryDir) {
 		return a.films()
 	}
-	videos, _ := media.ListVideos(dir)
+	videos, _ := films.Videos(dir, a.library.Jobs, nil, a.library.AddedIn(dir))
 	return films.List(dir, a.library.Jobs, videos, a.library.Names, jobName, a.statusOf)
 }
 

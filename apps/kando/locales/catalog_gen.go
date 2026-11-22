@@ -523,12 +523,24 @@ var Parameters = map[string][]string{
 	"CorrectStepStart":                         {"line"},
 	"CorrectUndo":                              {"step"},
 	"CorrectUndone":                            {"step"},
+	"DropAdd":                                  {"count"},
+	"DropCategory":                             {"folder"},
+	"DropCut":                                  {"count"},
+	"DropDisguised":                            {"count", "name"},
+	"DropDisguisedMany":                        {"count", "first", "second"},
+	"DropFound":                                {"count", "size"},
+	"DropHave":                                 {"count"},
+	"DropSkipped":                              {"count"},
+	"DropTitle":                                {"folder"},
 	"FilmNotesDueCount":                        {"count"},
 	"FilmNotesLines":                           {"count"},
 	"FilmNotesPlay":                            {"time_", "text"},
 	"FilmNotesRemoveWord":                      {"word"},
 	"FilmNotesReviewLabel":                     {"count"},
 	"FilmNotesWords":                           {"count"},
+	"LibraryAddedOnly":                         {"count"},
+	"LibraryDropDisguised":                     {"text", "name", "count"},
+	"LibraryMakingSome":                        {"done", "total", "reason"},
 	"SettingsAIRequestsNote":                   {"size", "retries"},
 	"SettingsShortcutsPresetNote":              {"player"},
 	"SettingsSpeechThreadsAuto":                {"count"},
@@ -1267,12 +1279,24 @@ type Translation struct {
 	CorrectStepStart                         func(line int) string
 	CorrectUndo                              func(step string) string
 	CorrectUndone                            func(step string) string
+	DropAdd                                  func(count int) string
+	DropCategory                             func(folder string) string
+	DropCut                                  func(count int) string
+	DropDisguised                            func(count int, name string) string
+	DropDisguisedMany                        func(count int, first string, second string) string
+	DropFound                                func(count int, size string) string
+	DropHave                                 func(count int) string
+	DropSkipped                              func(count int) string
+	DropTitle                                func(folder string) string
 	FilmNotesDueCount                        func(count int) string
 	FilmNotesLines                           func(count int) string
 	FilmNotesPlay                            func(time_ string, text string) string
 	FilmNotesRemoveWord                      func(word string) string
 	FilmNotesReviewLabel                     func(count int) string
 	FilmNotesWords                           func(count int) string
+	LibraryAddedOnly                         func(count int) string
+	LibraryDropDisguised                     func(text string, name string, count int) string
+	LibraryMakingSome                        func(done int, total int, reason string) string
 	SettingsAIRequestsNote                   func(size int, retries int) string
 	SettingsShortcutsPresetNote              func(player string) string
 	SettingsSpeechThreadsAuto                func(count int) string
@@ -2181,6 +2205,13 @@ const (
 	textCorrectSubmit
 	textCorrectTranslation
 	textCorrectUnreadable
+	textDropCancel
+	textDropGenerate
+	textDropGenerateHint
+	textDropHow
+	textDropOnlyAdd
+	textDropOnlyAddHint
+	textDropTitleSeveral
 	textFilmNotesEmptyLines
 	textFilmNotesEmptyWords
 	textFilmNotesKind
@@ -2191,6 +2222,7 @@ const (
 	textFilmNotesReviewEmpty
 	textFilmNotesSoundKept
 	textFilmTabNotes
+	textLibraryDropReading
 	textSettingsAIBatchSize
 	textSettingsAIBatchSizeHint
 	textSettingsAIRequests
@@ -2579,7 +2611,10 @@ const (
 	textLibraryNameHasPath
 	textLibraryNameNotAllowed
 	textLibraryNameTaken
+	textLibraryOpenFoldersMenu
 	textLibraryOpenVideosMenu
+	textLibraryPickFoldersButton
+	textLibraryPickFoldersTitle
 	textLibraryPickVideosButton
 	textLibraryPickVideosTitle
 	textLibraryPlaceButton
@@ -4053,6 +4088,13 @@ var keyOfText = [numTexts]string{
 	"correctSubmit",
 	"correctTranslation",
 	"correctUnreadable",
+	"dropCancel",
+	"dropGenerate",
+	"dropGenerateHint",
+	"dropHow",
+	"dropOnlyAdd",
+	"dropOnlyAddHint",
+	"dropTitleSeveral",
 	"filmNotesEmptyLines",
 	"filmNotesEmptyWords",
 	"filmNotesKind",
@@ -4063,6 +4105,7 @@ var keyOfText = [numTexts]string{
 	"filmNotesReviewEmpty",
 	"filmNotesSoundKept",
 	"filmTabNotes",
+	"libraryDropReading",
 	"settingsAIBatchSize",
 	"settingsAIBatchSizeHint",
 	"settingsAIRequests",
@@ -4451,7 +4494,10 @@ var keyOfText = [numTexts]string{
 	"libraryNameHasPath",
 	"libraryNameNotAllowed",
 	"libraryNameTaken",
+	"libraryOpenFoldersMenu",
 	"libraryOpenVideosMenu",
+	"libraryPickFoldersButton",
+	"libraryPickFoldersTitle",
 	"libraryPickVideosButton",
 	"libraryPickVideosTitle",
 	"libraryPlaceButton",
@@ -5923,6 +5969,13 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"Translation"+
 	"This film’s corrections couldn’t be read, so they can’t be changed"+
+	"Cancel"+
+	"Make subtitles for all of them"+
+	"They queue one after another. That can take hours, and each film uses the translation service."+
+	"How to add them"+
+	"Only add them, and make subtitles as I watch"+
+	"They show in the library at once, where they are. Open one and press Make Subtitles to have them made as it plays. Nothing runs now, and nothing is translated."+
+	"Add These Videos"+
 	"No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."+
 	"No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."+
 	"Show"+
@@ -5933,6 +5986,7 @@ var textsEn = i18n.NewTexts(""+
 	"Saved lines and words show up here"+
 	"Each line's audio is cut when you save it, so the review does not need the video."+
 	"Notes"+
+	"Looking through the folder…"+
 	"Lines per Request"+
 	"More lines take fewer requests; fewer suit a small model."+
 	"Requests"+
@@ -6321,7 +6375,10 @@ var textsEn = i18n.NewTexts(""+
 	"A library name can't contain a path."+
 	"Windows doesn't allow this name. Leave out < > : \" | ? * and don't use a name Windows reserves, such as CON or NUL."+
 	"A library with this name already exists. Choose another name."+
+	"Add Folder…"+
 	"Open Local File…"+
+	"Add"+
+	"Choose Folders of Videos or Audio"+
 	"Open"+
 	"Choose Videos or Audio"+
 	"Choose"+
@@ -7790,6 +7847,13 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		11,
 		72,
+		6,
+		30,
+		94,
+		15,
+		44,
+		159,
+		16,
 		141,
 		97,
 		4,
@@ -7800,6 +7864,7 @@ var textsEn = i18n.NewTexts(""+
 		34,
 		81,
 		5,
+		29,
 		17,
 		57,
 		8,
@@ -8188,7 +8253,10 @@ var textsEn = i18n.NewTexts(""+
 		36,
 		115,
 		61,
+		13,
 		18,
+		3,
+		33,
 		4,
 		22,
 		6,
@@ -9660,6 +9728,13 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"訳文"+
 	"この作品の修正を読み込めないため、変更できません"+
+	"キャンセル"+
+	"すべて字幕を生成"+
+	"順番にキューに入ります。数時間かかることがあり、1 本ごとに翻訳サービスを使います。"+
+	"追加の方法"+
+	"追加だけして、見るときに字幕を作る"+
+	"すぐにライブラリに表示され、ファイルは元の場所のままです。1 本開いて「字幕を作成」を押すと、再生しながら作られます。今は何も動かず、翻訳もしません。"+
+	"これらの動画を追加"+
 	"この作品にはまだ保存したセリフがありません。覚えたいセリフで B を押すか、「このセリフを解説」で「この行をノートに保存」を押すと、毎日の復習に入ります。"+
 	"この作品の単語はまだありません。字幕の単語をクリックして調べ、「単語帳に追加」を押してください。"+
 	"表示"+
@@ -9670,6 +9745,7 @@ var textsJa = i18n.NewTexts(""+
 	"保存したセリフと単語がここに表示されます"+
 	"保存したときにセリフの音声を切り出すので、復習に元の動画は要りません。"+
 	"ノート"+
+	"フォルダを確認しています…"+
 	"1 回あたりの行数"+
 	"多いほどリクエストが減ります。小さなモデルには少なめが向いています。"+
 	"リクエスト"+
@@ -10058,7 +10134,10 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリの名前にはパスを含められません"+
 	"Windows ではこの名前を使えません。< > : \" | ? * を含めず、CON や NUL など Windows が予約している名前も避けてください。"+
 	"この名前のライブラリはすでにあります。別の名前にしてください"+
+	"フォルダを追加…"+
 	"ローカルファイルを開く…"+
+	"追加"+
+	"動画や音声が入ったフォルダを選択"+
 	"開く"+
 	"動画または音声を選択"+
 	"選択"+
@@ -11527,6 +11606,13 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		15,
+		24,
+		122,
+		15,
+		51,
+		221,
+		27,
 		225,
 		144,
 		6,
@@ -11537,6 +11623,7 @@ var textsJa = i18n.NewTexts(""+
 		60,
 		105,
 		9,
+		39,
 		23,
 		102,
 		15,
@@ -11925,7 +12012,10 @@ var textsJa = i18n.NewTexts(""+
 		60,
 		157,
 		90,
+		24,
 		36,
+		6,
+		48,
 		6,
 		30,
 		6,
@@ -13397,6 +13487,13 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"번역"+
 	"이 영상의 수정 내용을 읽을 수 없어 바꿀 수 없습니다"+
+	"취소"+
+	"모두 자막 만들기"+
+	"차례로 대기열에 들어갑니다. 몇 시간이 걸릴 수 있고, 편마다 번역 서비스를 씁니다."+
+	"추가 방식"+
+	"추가만 하고, 볼 때 자막 만들기"+
+	"바로 보관함에 나타나고 파일은 제자리에 둡니다. 한 편을 열고 \"자막 만들기\"를 누르면 재생하면서 만들어집니다. 지금은 아무것도 실행하지 않고 번역하지도 않습니다."+
+	"이 동영상 추가"+
 	"이 영상에는 아직 저장한 대사가 없습니다. 기억하고 싶은 대사에서 B를 누르거나 「이 대사 설명」에서 「이 대사를 노트에 저장」을 누르면 매일 복습에 들어갑니다."+
 	"이 영상의 단어가 아직 없습니다. 자막의 단어를 클릭해 찾아본 뒤 「단어장에 추가」를 누르세요."+
 	"보기"+
@@ -13407,6 +13504,7 @@ var textsKo = i18n.NewTexts(""+
 	"저장한 대사와 단어가 여기에 나타납니다"+
 	"저장할 때 대사의 원음을 잘라 두므로 복습에 원본 영상이 필요 없습니다."+
 	"노트"+
+	"폴더를 살펴보는 중…"+
 	"요청당 줄 수"+
 	"많을수록 요청 수가 줄고, 작은 모델에는 적게 두는 편이 좋습니다."+
 	"요청"+
@@ -13795,7 +13893,10 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 이름에는 경로를 포함할 수 없습니다"+
 	"Windows에서는 이 이름을 사용할 수 없습니다. < > : \" | ? *를 빼고, CON이나 NUL처럼 Windows가 예약한 이름도 쓰지 마십시오."+
 	"같은 이름의 라이브러리가 이미 있습니다. 다른 이름을 사용하세요"+
+	"폴더 추가…"+
 	"로컬 파일 열기…"+
+	"추가"+
+	"동영상이나 오디오가 있는 폴더 선택"+
 	"열기"+
 	"동영상 또는 오디오 선택"+
 	"선택"+
@@ -15264,6 +15365,13 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		72,
+		6,
+		23,
+		113,
+		13,
+		42,
+		225,
+		20,
 		222,
 		131,
 		6,
@@ -15274,6 +15382,7 @@ var textsKo = i18n.NewTexts(""+
 		55,
 		98,
 		6,
+		29,
 		17,
 		89,
 		6,
@@ -15662,7 +15771,10 @@ var textsKo = i18n.NewTexts(""+
 		65,
 		155,
 		89,
+		16,
 		23,
+		6,
+		49,
 		6,
 		33,
 		6,
@@ -17134,6 +17246,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"提交"+
 	"译文"+
 	"这部影片的修改记录读不出来，不能更改"+
+	"取消"+
+	"全部生成字幕"+
+	"依次排队生成。可能要花几个小时，每部都会用到翻译服务。"+
+	"加入方式"+
+	"只加入，看到哪部做哪部"+
+	"片子马上出现在资料库里，文件留在原处。打开一部，点「生成字幕」，边播边出。现在不占用电脑，也不花翻译费用。"+
+	"加入这些视频"+
 	"这部影片还没有存下的句子。听到想记住的句子按 B，或在「讲解这句」里点「存这句到笔记」，它会进入每天的复习。"+
 	"这部影片还没有生词。点字幕上的词查一下，再点「加入生词本」。"+
 	"显示"+
@@ -17144,6 +17263,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"存下句子和生词后会出现在这里"+
 	"存下时就切好这句的原声，以后复习不需要原视频。"+
 	"笔记"+
+	"正在查看文件夹…"+
 	"每批句数"+
 	"句数多，请求就少；小模型适合少一些。"+
 	"请求"+
@@ -17532,7 +17652,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库名称不能包含路径"+
 	"Windows 不允许这个名称。请不要使用 < > : \" | ? *，也不要使用 CON、NUL 等 Windows 保留的名称。"+
 	"已经有这个资料库，换个名字"+
+	"添加文件夹…"+
 	"打开本地文件…"+
+	"添加"+
+	"选择存有视频或音频的文件夹"+
 	"打开"+
 	"选择视频或音频"+
 	"选择"+
@@ -19001,6 +19124,13 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		6,
+		18,
+		81,
+		12,
+		33,
+		159,
+		18,
 		158,
 		90,
 		6,
@@ -19011,6 +19141,7 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		69,
 		6,
+		24,
 		12,
 		54,
 		6,
@@ -19399,7 +19530,10 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		120,
 		39,
+		18,
 		21,
+		6,
+		39,
 		6,
 		21,
 		6,
@@ -20871,6 +21005,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"提交"+
 	"譯文"+
 	"這部影片的修改紀錄讀不出來，不能更改"+
+	"取消"+
+	"全部產生字幕"+
+	"依序排隊產生。可能要花幾個小時，每部都會用到翻譯服務。"+
+	"加入方式"+
+	"只加入，看到哪部做哪部"+
+	"影片馬上出現在資料庫裡，檔案留在原處。打開一部，按「產生字幕」，邊播邊出。現在不佔用電腦，也不花翻譯費用。"+
+	"加入這些影片"+
 	"這部影片還沒有存下的句子。聽到想記住的句子按 B，或在「講解這句」裡點「存這句到筆記」，它會進入每天的複習。"+
 	"這部影片還沒有生詞。點字幕上的詞查一下，再點「加入生詞本」。"+
 	"顯示"+
@@ -20881,6 +21022,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"存下句子和生詞後會出現在這裡"+
 	"存下時就切好這句的原聲，以後複習不需要原影片。"+
 	"筆記"+
+	"正在查看資料夾…"+
 	"每批句數"+
 	"句數多，請求就少；小模型適合少一些。"+
 	"請求"+
@@ -21269,7 +21411,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫名稱不能包含路徑"+
 	"Windows 不允許這個名稱。請不要使用 < > : \" | ? *，也不要使用 CON、NUL 等 Windows 保留的名稱。"+
 	"已經有這個資料庫，請換個名稱"+
+	"加入資料夾…"+
 	"打開本機檔案…"+
+	"加入"+
+	"選擇存有影片或音訊的資料夾"+
 	"打開"+
 	"選擇影片或音訊"+
 	"選擇"+
@@ -22738,6 +22883,13 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		54,
+		6,
+		18,
+		81,
+		12,
+		33,
+		159,
+		18,
 		158,
 		90,
 		6,
@@ -22748,6 +22900,7 @@ var textsZhHant = i18n.NewTexts(""+
 		42,
 		69,
 		6,
+		24,
 		12,
 		54,
 		6,
@@ -23136,7 +23289,10 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		120,
 		42,
+		18,
 		21,
+		6,
+		39,
 		6,
 		21,
 		6,
@@ -24612,6 +24768,33 @@ func Supply(lang string, t Translation) {
 	if t.CorrectUndone != nil {
 		s.CorrectUndone = t.CorrectUndone
 	}
+	if t.DropAdd != nil {
+		s.DropAdd = t.DropAdd
+	}
+	if t.DropCategory != nil {
+		s.DropCategory = t.DropCategory
+	}
+	if t.DropCut != nil {
+		s.DropCut = t.DropCut
+	}
+	if t.DropDisguised != nil {
+		s.DropDisguised = t.DropDisguised
+	}
+	if t.DropDisguisedMany != nil {
+		s.DropDisguisedMany = t.DropDisguisedMany
+	}
+	if t.DropFound != nil {
+		s.DropFound = t.DropFound
+	}
+	if t.DropHave != nil {
+		s.DropHave = t.DropHave
+	}
+	if t.DropSkipped != nil {
+		s.DropSkipped = t.DropSkipped
+	}
+	if t.DropTitle != nil {
+		s.DropTitle = t.DropTitle
+	}
 	if t.FilmNotesDueCount != nil {
 		s.FilmNotesDueCount = t.FilmNotesDueCount
 	}
@@ -24629,6 +24812,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmNotesWords != nil {
 		s.FilmNotesWords = t.FilmNotesWords
+	}
+	if t.LibraryAddedOnly != nil {
+		s.LibraryAddedOnly = t.LibraryAddedOnly
+	}
+	if t.LibraryDropDisguised != nil {
+		s.LibraryDropDisguised = t.LibraryDropDisguised
+	}
+	if t.LibraryMakingSome != nil {
+		s.LibraryMakingSome = t.LibraryMakingSome
 	}
 	if t.SettingsAIRequestsNote != nil {
 		s.SettingsAIRequestsNote = t.SettingsAIRequestsNote
@@ -30704,6 +30896,414 @@ func CorrectUnreadable(cx *core.Scope) string { return For(cx).CorrectUnreadable
 // CorrectUnreadable is the package's CorrectUnreadable in the language of msgs.
 func (msgs Messages) CorrectUnreadable() string { return msgs.text(textCorrectUnreadable) }
 
+// DropAdd says "Add {count}"
+// in the language the app shows under cx.
+//
+// The sheet's button that adds the films found in the folders dropped, in the way chosen. count is how many it adds.
+func DropAdd(cx *core.Scope, count int) string { return For(cx).DropAdd(count) }
+
+// DropAdd is the package's DropAdd in the language of msgs.
+func (msgs Messages) DropAdd(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropAdd(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropAdd; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Add " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本を追加"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "편 추가"
+		case "zh-Hans":
+			return "加入 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 部"
+		case "zh-Hant":
+			return "加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部"
+		}
+	}
+}
+
+// DropCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// The sheet's button that adds nothing and closes it.
+func DropCancel(cx *core.Scope) string { return For(cx).DropCancel() }
+
+// DropCancel is the package's DropCancel in the language of msgs.
+func (msgs Messages) DropCancel() string { return msgs.text(textDropCancel) }
+
+// DropCategory says "Put them in a category named “{folder}”"
+// in the language the app shows under cx.
+//
+// Checkbox of the sheet: the films added also go in a new category of the library, named after the folder dropped, or in the category of that name the library has.
+func DropCategory(cx *core.Scope, folder string) string { return For(cx).DropCategory(folder) }
+
+// DropCategory is the package's DropCategory in the language of msgs.
+func (msgs Messages) DropCategory(folder string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropCategory(folder))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropCategory; f != nil {
+			return f(folder)
+		}
+		switch lang {
+		case "", "en":
+			return "Put them in a category named “" + msgs.arg(folder) + "”"
+		case "ja":
+			return "カテゴリ「" + folder + "」を作って入れる"
+		case "ko":
+			return "\"" + folder + "\" 분류를 만들어 넣기"
+		case "zh-Hans":
+			return "建一个分类「" + folder + "」，把这些片放进去"
+		case "zh-Hant":
+			return "建立分類「" + folder + "」，把這些片放進去"
+		}
+	}
+}
+
+// DropCut says "Only the first {count, plural, one {# video was} other {# videos were}} looked at. Drop the rest in smaller folders."
+// in the language the app shows under cx.
+//
+// Line of the sheet when the folders dropped hold more videos than Kando looks at in one drop; the ones past the limit are not added.
+func DropCut(cx *core.Scope, count int) string { return For(cx).DropCut(count) }
+
+// DropCut is the package's DropCut in the language of msgs.
+func (msgs Messages) DropCut(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropCut(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropCut; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Only the first ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video was")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos were")
+			}
+			b.WriteString(" looked at. Drop the rest in smaller folders.")
+			return b.String()
+		case "ja":
+			return "最初の " + i18n.FormatNumber("ja", float64(count)) + " 本だけを確認しました。残りは小さなフォルダに分けてドロップしてください。"
+		case "ko":
+			return "처음 " + i18n.FormatNumber("ko", float64(count)) + "개만 확인했습니다. 나머지는 더 작은 폴더로 나눠서 끌어 놓으세요."
+		case "zh-Hans":
+			return "只看了前 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频，其余的请分开拖入更小的文件夹。"
+		case "zh-Hant":
+			return "只看了前 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片，其餘的請分開拖入更小的資料夾。"
+		}
+	}
+}
+
+// DropDisguised says "⚠ {count, plural, one {A file is} other {# files are}} a program named like a video: {name}. Kando won't add {count, plural, one {it} other {them}}. Don't open {count, plural, one {it} other {them}}."
+// in the language the app shows under cx.
+//
+// Warning of the sheet: files found whose names look like videos where the system hides extensions, as “Episode 5.mp4.exe”, but are programs. name is the first one's file name.
+func DropDisguised(cx *core.Scope, count int, name string) string {
+	return For(cx).DropDisguised(count, name)
+}
+
+// DropDisguised is the package's DropDisguised in the language of msgs.
+func (msgs Messages) DropDisguised(count int, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropDisguised(count, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropDisguised; f != nil {
+			return f(count, name)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("⚠ ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("A file is")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" files are")
+			}
+			b.WriteString(" a program named like a video: ")
+			b.WriteString(msgs.arg(name))
+			b.WriteString(". Kando won't add ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("it")
+			default:
+				b.WriteString("them")
+			}
+			b.WriteString(". Don't open ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("it")
+			default:
+				b.WriteString("them")
+			}
+			b.WriteString(".")
+			return b.String()
+		case "ja":
+			return "⚠ 動画に見せかけたプログラムが " + i18n.FormatNumber("ja", float64(count)) + " 個あります：" + name + "。看懂は追加しません。開かないでください。"
+		case "ko":
+			return "⚠ 동영상처럼 보이는 프로그램이 " + i18n.FormatNumber("ko", float64(count)) + "개 있습니다: " + name + ". Kando는 추가하지 않습니다. 열지 마세요."
+		case "zh-Hans":
+			return "⚠ 有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个文件装成了视频，其实是程序：" + name + "。看懂不会加入，也请不要打开。"
+		case "zh-Hant":
+			return "⚠ 有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個檔案偽裝成影片，其實是程式：" + name + "。看懂不會加入，也請不要打開。"
+		}
+	}
+}
+
+// DropDisguisedMany says "⚠ {count} files are programs named like videos, such as {first} and {second}. Kando won't add them. Don't open them."
+// in the language the app shows under cx.
+//
+// Warning of the sheet when two or more files found look like videos but are programs. first and second are two of their file names.
+func DropDisguisedMany(cx *core.Scope, count int, first string, second string) string {
+	return For(cx).DropDisguisedMany(count, first, second)
+}
+
+// DropDisguisedMany is the package's DropDisguisedMany in the language of msgs.
+func (msgs Messages) DropDisguisedMany(count int, first string, second string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropDisguisedMany(count, first, second))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropDisguisedMany; f != nil {
+			return f(count, first, second)
+		}
+		switch lang {
+		case "", "en":
+			return "⚠ " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " files are programs named like videos, such as " + msgs.arg(first) + " and " + msgs.arg(second) + ". Kando won't add them. Don't open them."
+		case "ja":
+			return "⚠ 動画に見せかけたプログラムが " + i18n.FormatNumber("ja", float64(count)) + " 個あります（" + first + "、" + second + " など）。看懂は追加しません。開かないでください。"
+		case "ko":
+			return "⚠ 동영상처럼 보이는 프로그램이 " + i18n.FormatNumber("ko", float64(count)) + "개 있습니다(예: " + first + ", " + second + "). Kando는 추가하지 않습니다. 열지 마세요."
+		case "zh-Hans":
+			return "⚠ 有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个文件装成了视频，其实是程序，例如 " + first + "、" + second + "。看懂不会加入，也请不要打开。"
+		case "zh-Hant":
+			return "⚠ 有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個檔案偽裝成影片，其實是程式，例如 " + first + "、" + second + "。看懂不會加入，也請不要打開。"
+		}
+	}
+}
+
+// DropFound says "Found {count, plural, one {# video} other {# videos}}, {size} in all."
+// in the language the app shows under cx.
+//
+// First line of the sheet: how many videos and audio files the folders dropped hold, however deep, and how much room they take, as “280.4 GB”.
+func DropFound(cx *core.Scope, count int, size string) string { return For(cx).DropFound(count, size) }
+
+// DropFound is the package's DropFound in the language of msgs.
+func (msgs Messages) DropFound(count int, size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropFound(count, size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropFound; f != nil {
+			return f(count, size)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Found ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos")
+			}
+			b.WriteString(", ")
+			b.WriteString(msgs.arg(size))
+			b.WriteString(" in all.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の動画が見つかりました（合計 " + size + "）。"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개, 모두 " + size + "를 찾았습니다."
+		case "zh-Hans":
+			return "找到 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频，共 " + size + "。"
+		case "zh-Hant":
+			return "找到 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片，共 " + size + "。"
+		}
+	}
+}
+
+// DropGenerate says "Make subtitles for all of them"
+// in the language the app shows under cx.
+//
+// Choice of the sheet: every film found is queued to have its subtitles made now, as dropping a few videos does.
+func DropGenerate(cx *core.Scope) string { return For(cx).DropGenerate() }
+
+// DropGenerate is the package's DropGenerate in the language of msgs.
+func (msgs Messages) DropGenerate() string { return msgs.text(textDropGenerate) }
+
+// DropGenerateHint says "They queue one after another. That can take hours, and each film uses the translation service."
+// in the language the app shows under cx.
+//
+// Hint under “Make subtitles for all of them”.
+func DropGenerateHint(cx *core.Scope) string { return For(cx).DropGenerateHint() }
+
+// DropGenerateHint is the package's DropGenerateHint in the language of msgs.
+func (msgs Messages) DropGenerateHint() string { return msgs.text(textDropGenerateHint) }
+
+// DropHave says "{count, plural, one {# of them is} other {# of them are}} in the library already and won't be added again."
+// in the language the app shows under cx.
+//
+// Line of the sheet: how many of the videos found the library has already.
+func DropHave(cx *core.Scope, count int) string { return For(cx).DropHave(count) }
+
+// DropHave is the package's DropHave in the language of msgs.
+func (msgs Messages) DropHave(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropHave(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropHave; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" of them is")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" of them are")
+			}
+			b.WriteString(" in the library already and won't be added again.")
+			return b.String()
+		case "ja":
+			return "そのうち " + i18n.FormatNumber("ja", float64(count)) + " 本はすでにライブラリにあり、重複して追加しません。"
+		case "ko":
+			return "그중 " + i18n.FormatNumber("ko", float64(count)) + "개는 이미 보관함에 있어 다시 추가하지 않습니다."
+		case "zh-Hans":
+			return "其中 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个已经在资料库里，不会重复加入。"
+		case "zh-Hant":
+			return "其中 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個已經在資料庫裡，不會重複加入。"
+		}
+	}
+}
+
+// DropHow says "How to add them"
+// in the language the app shows under cx.
+//
+// What the sheet's two choices are, for assistive technology.
+func DropHow(cx *core.Scope) string { return For(cx).DropHow() }
+
+// DropHow is the package's DropHow in the language of msgs.
+func (msgs Messages) DropHow() string { return msgs.text(textDropHow) }
+
+// DropOnlyAdd says "Only add them, and make subtitles as I watch"
+// in the language the app shows under cx.
+//
+// Choice of the sheet, the one it starts at: the films found show in the library at once without subtitles, each made when it is watched.
+func DropOnlyAdd(cx *core.Scope) string { return For(cx).DropOnlyAdd() }
+
+// DropOnlyAdd is the package's DropOnlyAdd in the language of msgs.
+func (msgs Messages) DropOnlyAdd() string { return msgs.text(textDropOnlyAdd) }
+
+// DropOnlyAddHint says "They show in the library at once, where they are. Open one and press Make Subtitles to have them made as it plays. Nothing runs now, and nothing is translated."
+// in the language the app shows under cx.
+//
+// Hint under “Only add them…”. “Make Subtitles” is the player's button for a film without subtitles (filmMakeSubtitles). The files are neither moved nor copied.
+func DropOnlyAddHint(cx *core.Scope) string { return For(cx).DropOnlyAddHint() }
+
+// DropOnlyAddHint is the package's DropOnlyAddHint in the language of msgs.
+func (msgs Messages) DropOnlyAddHint() string { return msgs.text(textDropOnlyAddHint) }
+
+// DropSkipped says "Skipped {count, plural, one {# file that isn't a video or audio file} other {# files that aren't video or audio files}}."
+// in the language the app shows under cx.
+//
+// Line of the sheet: how many files of the folders dropped were left out.
+func DropSkipped(cx *core.Scope, count int) string { return For(cx).DropSkipped(count) }
+
+// DropSkipped is the package's DropSkipped in the language of msgs.
+func (msgs Messages) DropSkipped(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropSkipped(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropSkipped; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Skipped ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" file that isn't a video or audio file")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" files that aren't video or audio files")
+			}
+			b.WriteString(".")
+			return b.String()
+		case "ja":
+			return "動画・音声でないファイル " + i18n.FormatNumber("ja", float64(count)) + " 個をスキップしました。"
+		case "ko":
+			return "동영상이나 오디오가 아닌 파일 " + i18n.FormatNumber("ko", float64(count)) + "개를 건너뛰었습니다."
+		case "zh-Hans":
+			return "跳过了 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个不是视频或音频的文件。"
+		case "zh-Hant":
+			return "略過了 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個不是影片或音訊的檔案。"
+		}
+	}
+}
+
+// DropTitle says "Add “{folder}”"
+// in the language the app shows under cx.
+//
+// Title of the sheet a large folder dropped on the window opens. folder is its name.
+func DropTitle(cx *core.Scope, folder string) string { return For(cx).DropTitle(folder) }
+
+// DropTitle is the package's DropTitle in the language of msgs.
+func (msgs Messages) DropTitle(folder string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DropTitle(folder))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DropTitle; f != nil {
+			return f(folder)
+		}
+		switch lang {
+		case "", "en":
+			return "Add “" + msgs.arg(folder) + "”"
+		case "ja":
+			return "「" + folder + "」を追加"
+		case "ko":
+			return "\"" + folder + "\" 추가"
+		case "zh-Hans":
+			return "加入「" + folder + "」"
+		case "zh-Hant":
+			return "加入「" + folder + "」"
+		}
+	}
+}
+
+// DropTitleSeveral says "Add These Videos"
+// in the language the app shows under cx.
+//
+// Title of the sheet when several folders or files were dropped and they hold many videos.
+func DropTitleSeveral(cx *core.Scope) string { return For(cx).DropTitleSeveral() }
+
+// DropTitleSeveral is the package's DropTitleSeveral in the language of msgs.
+func (msgs Messages) DropTitleSeveral() string { return msgs.text(textDropTitleSeveral) }
+
 // FilmNotesDueCount says "{count, number}"
 // in the language the app shows under cx.
 //
@@ -31043,6 +31643,147 @@ func FilmTabNotes(cx *core.Scope) string { return For(cx).FilmTabNotes() }
 
 // FilmTabNotes is the package's FilmTabNotes in the language of msgs.
 func (msgs Messages) FilmTabNotes() string { return msgs.text(textFilmTabNotes) }
+
+// LibraryAddedOnly says "Added {count, plural, one {# film} other {# films}} to the library. Open one to make its subtitles."
+// in the language the app shows under cx.
+//
+// Message bar after films found in folders dropped were only added to the library, without subtitles.
+func LibraryAddedOnly(cx *core.Scope, count int) string { return For(cx).LibraryAddedOnly(count) }
+
+// LibraryAddedOnly is the package's LibraryAddedOnly in the language of msgs.
+func (msgs Messages) LibraryAddedOnly(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryAddedOnly(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibraryAddedOnly; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Added ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			b.WriteString(" to the library. Open one to make its subtitles.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本をライブラリに追加しました。開くと字幕を生成できます。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "편을 보관함에 추가했습니다. 열면 자막을 만들 수 있습니다."
+		case "zh-Hans":
+			return "已把 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 部片加入资料库，打开一部即可生成字幕。"
+		case "zh-Hant":
+			return "已把 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部片加入資料庫，打開一部即可產生字幕。"
+		}
+	}
+}
+
+// LibraryDropDisguised says "{text} {count, plural, one {{name} is a program named like a video, so it was left out. Don't open it.} other {# files, such as {name}, are programs named like videos, so they were left out. Don't open them.}}"
+// in the language the app shows under cx.
+//
+// Message bar after a drop whose files included programs named like videos, as “Episode 5.mp4.exe”. text is the bar's sentence about what was added, or that nothing could be. name is the first one's file name.
+func LibraryDropDisguised(cx *core.Scope, text string, name string, count int) string {
+	return For(cx).LibraryDropDisguised(text, name, count)
+}
+
+// LibraryDropDisguised is the package's LibraryDropDisguised in the language of msgs.
+func (msgs Messages) LibraryDropDisguised(text string, name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryDropDisguised(text, name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibraryDropDisguised; f != nil {
+			return f(text, name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(text))
+			b.WriteString(" ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(name))
+				b.WriteString(" is a program named like a video, so it was left out. Don't open it.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" files, such as ")
+				b.WriteString(msgs.arg(name))
+				b.WriteString(", are programs named like videos, so they were left out. Don't open them.")
+			}
+			return b.String()
+		case "ja":
+			return text + " 動画に見せかけたプログラムが " + i18n.FormatNumber("ja", float64(count)) + " 個あったため（" + name + " など）、追加しませんでした。開かないでください。"
+		case "ko":
+			return text + " 동영상처럼 보이는 프로그램 " + i18n.FormatNumber("ko", float64(count)) + "개(예: " + name + ")는 추가하지 않았습니다. 열지 마세요."
+		case "zh-Hans":
+			return text + " 有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个文件装成了视频，其实是程序（如 " + name + "），没有加入，请不要打开。"
+		case "zh-Hant":
+			return text + " 有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個檔案偽裝成影片，其實是程式（如 " + name + "），沒有加入，請不要打開。"
+		}
+	}
+}
+
+// LibraryDropReading says "Looking through the folder…"
+// in the language the app shows under cx.
+//
+// Message bar while a folder dropped on the window is read, before its videos are added or the sheet asks how to add them.
+func LibraryDropReading(cx *core.Scope) string { return For(cx).LibraryDropReading() }
+
+// LibraryDropReading is the package's LibraryDropReading in the language of msgs.
+func (msgs Messages) LibraryDropReading() string { return msgs.text(textLibraryDropReading) }
+
+// LibraryMakingSome says "Making the subtitles of {done} of {total, plural, one {# film} other {# films}}. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar after the films found in a large folder dropped were added to the library and queued to have their subtitles made, when some could not be queued. reason is why the first was not, a sentence of its own.
+func LibraryMakingSome(cx *core.Scope, done int, total int, reason string) string {
+	return For(cx).LibraryMakingSome(done, total, reason)
+}
+
+// LibraryMakingSome is the package's LibraryMakingSome in the language of msgs.
+func (msgs Messages) LibraryMakingSome(done int, total int, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryMakingSome(done, total, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibraryMakingSome; f != nil {
+			return f(done, total, reason)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Making the subtitles of ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(done))))
+			b.WriteString(" of ")
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" films")
+			}
+			b.WriteString(". ")
+			b.WriteString(msgs.arg(reason))
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(total)) + " 本のうち " + i18n.FormatNumber("ja", float64(done)) + " 本の字幕を生成しています。" + reason
+		case "ko":
+			return i18n.FormatNumber("ko", float64(total)) + "편 중 " + i18n.FormatNumber("ko", float64(done)) + "편의 자막을 만드는 중입니다. " + reason
+		case "zh-Hans":
+			return "正在为 " + i18n.FormatNumber("zh-Hans", float64(total)) + " 部中的 " + i18n.FormatNumber("zh-Hans", float64(done)) + " 部生成字幕。" + reason
+		case "zh-Hant":
+			return "正在為 " + i18n.FormatNumber("zh-Hant", float64(total)) + " 部中的 " + i18n.FormatNumber("zh-Hant", float64(done)) + " 部產生字幕。" + reason
+		}
+	}
+}
 
 // SettingsAIBatchSize says "Lines per Request"
 // in the language the app shows under cx.
@@ -39979,6 +40720,15 @@ func LibraryNameTaken(cx *core.Scope) string { return For(cx).LibraryNameTaken()
 // LibraryNameTaken is the package's LibraryNameTaken in the language of msgs.
 func (msgs Messages) LibraryNameTaken() string { return msgs.text(textLibraryNameTaken) }
 
+// LibraryOpenFoldersMenu says "Add Folder…"
+// in the language the app shows under cx.
+//
+// File menu item that opens a folder dialog to add the videos and audio files in folders, however deep.
+func LibraryOpenFoldersMenu(cx *core.Scope) string { return For(cx).LibraryOpenFoldersMenu() }
+
+// LibraryOpenFoldersMenu is the package's LibraryOpenFoldersMenu in the language of msgs.
+func (msgs Messages) LibraryOpenFoldersMenu() string { return msgs.text(textLibraryOpenFoldersMenu) }
+
 // LibraryOpenVideosMenu says "Open Local File…"
 // in the language the app shows under cx.
 //
@@ -39987,6 +40737,26 @@ func LibraryOpenVideosMenu(cx *core.Scope) string { return For(cx).LibraryOpenVi
 
 // LibraryOpenVideosMenu is the package's LibraryOpenVideosMenu in the language of msgs.
 func (msgs Messages) LibraryOpenVideosMenu() string { return msgs.text(textLibraryOpenVideosMenu) }
+
+// LibraryPickFoldersButton says "Add"
+// in the language the app shows under cx.
+//
+// Confirming button of the folder dialog that chooses folders of videos to add.
+func LibraryPickFoldersButton(cx *core.Scope) string { return For(cx).LibraryPickFoldersButton() }
+
+// LibraryPickFoldersButton is the package's LibraryPickFoldersButton in the language of msgs.
+func (msgs Messages) LibraryPickFoldersButton() string {
+	return msgs.text(textLibraryPickFoldersButton)
+}
+
+// LibraryPickFoldersTitle says "Choose Folders of Videos or Audio"
+// in the language the app shows under cx.
+//
+// Title of the folder dialog that chooses folders whose videos and audio files are added.
+func LibraryPickFoldersTitle(cx *core.Scope) string { return For(cx).LibraryPickFoldersTitle() }
+
+// LibraryPickFoldersTitle is the package's LibraryPickFoldersTitle in the language of msgs.
+func (msgs Messages) LibraryPickFoldersTitle() string { return msgs.text(textLibraryPickFoldersTitle) }
 
 // LibraryPickVideosButton says "Open"
 // in the language the app shows under cx.

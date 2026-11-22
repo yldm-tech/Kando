@@ -20,6 +20,10 @@ type libraryUI struct {
 	posters    map[string]ns.ImageSource
 	posterMiss map[string]bool
 	posterBusy map[string]bool
+	// posterSlots holds a place for each poster being looked for, so a library of thousands of films added at once runs a few ffmpeg at a time rather than one for each (posterLimit).
+	posterSlots chan struct{}
+	// dropReading is how many folders dropped are being read off the engine's goroutine (dropFiles).
+	dropReading int
 	// thumbs are the pictures the videos' sites give them, by address, for the processing cards; thumbMiss the addresses that gave none and thumbBusy those being fetched. They are kept in posterDir too.
 	thumbs    map[string]ns.ImageSource
 	thumbMiss map[string]bool

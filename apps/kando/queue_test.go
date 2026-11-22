@@ -3457,11 +3457,11 @@ func TestAFolderVideoWithSubtitlesAsksBeforeProcessingFromTheFilm(t *testing.T) 
 // A video of the library's folder dropped on the window again, as the library's own folder dropped back onto Kando, is the film it is. One with subtitles beside it is in the library already: nothing is queued, its files stay as they are, and the message bar offers to open it, as for a link already in the library. One without any is made as 生成字幕 makes it, on a card that puts the video back as it was if it fails.
 func TestDroppingALibraryFolderAgainQueuesNothingItHolds(t *testing.T) {
 	p := &retranslatePipeline{}
-	a, tt, _, item := folderLibrary(t, p, true)
+	a, tt, updates, item := folderLibrary(t, p, true)
 	folder := filepath.Dir(item.VideoPath)
 	bilingual := readFile(t, item.SubtitlePath)
 	a.dropFiles([]string{folder})
-	refresh(tt, a)
+	dropRead(t, tt, a, updates)
 	if len(a.library.Jobs) != 0 || a.running() || p.transcriptions != 0 {
 		t.Fatalf("jobs %+v, running %v, %d transcriptions", a.library.Jobs, a.running(), p.transcriptions)
 	}
@@ -3481,8 +3481,9 @@ func TestDroppingALibraryFolderAgainQueuesNothingItHolds(t *testing.T) {
 	}
 
 	p = &retranslatePipeline{}
-	a, tt, updates, item := folderLibrary(t, p, false)
+	a, tt, updates, item = folderLibrary(t, p, false)
 	a.dropFiles([]string{filepath.Dir(item.VideoPath)})
+	dropRead(t, tt, a, updates)
 	if len(a.library.Jobs) != 1 || !a.library.Jobs[0].FromFolder || a.library.Jobs[0].VideoPath != item.VideoPath {
 		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
@@ -3495,13 +3496,13 @@ func TestDroppingALibraryFolderAgainQueuesNothingItHolds(t *testing.T) {
 // The video of a film downloaded from a link, dropped on the window or added with kando add, is that film: no second job is queued to write its subtitles again, and the message bar offers to open it.
 func TestDroppingADownloadedFilmsVideoQueuesNothing(t *testing.T) {
 	p := &retranslatePipeline{}
-	a, tt, _ := retranslateLibrary(t, p)
+	a, tt, updates := retranslateLibrary(t, p)
 	job := stageOf(t, a, "talk")
 	srt, bilingual := readFile(t, strings.TrimSuffix(job.VideoPath, ".mp4")+".srt"), readFile(t, job.SubtitlePath)
 	for _, dropped := range []string{job.VideoPath, filepath.Dir(job.VideoPath)} {
 		a.lib.notice = films.Notice{}
 		a.dropFiles([]string{dropped})
-		refresh(tt, a)
+		dropRead(t, tt, a, updates)
 		if len(a.library.Jobs) != 1 || a.running() || a.lib.notice.Film != "talk" || a.lib.notice.Text != testlocale.Messages().QueueAlreadyInLibrary() {
 			t.Fatalf("dropping %s: jobs %+v, notice %+v", dropped, a.library.Jobs, a.lib.notice)
 		}

@@ -410,7 +410,7 @@ func TestStoredFilmWhoseLocationIsGoneOrUnreachable(t *testing.T) {
 	a.closeFilm()
 
 	// Removed from the library: library.json forgets where its video was.
-	a.libraryForget([]films.Film{item})
+	a.libraryForget(a.snap().LibraryDir, []films.Film{item})
 	if len(a.library.Stored) != 0 {
 		t.Fatalf("a removed film's video is still noted: %v", a.library.Stored)
 	}

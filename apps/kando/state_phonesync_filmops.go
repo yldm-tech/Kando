@@ -131,7 +131,7 @@ func (p phoneFilmOps) DeleteFilm(ctx context.Context, caller psync.Caller, ref p
 				return
 			}
 			defer a.Changed()
-			a.libraryForget(gone)
+			a.libraryForget(f.lib.Dir, gone)
 			a.tell(a.messages().LibraryTrashed(name))
 			a.phoneLog(caller.Name, settings.ActivityDeleted, name, 0, 0)
 			trashed <- nil

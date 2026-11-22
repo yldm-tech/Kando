@@ -96,10 +96,10 @@ func (a *app) TrashFilms(items ...films.Film) {
 	if len(items) == 0 {
 		return
 	}
-	m := a.messages()
-	a.libraryTrashIn(a.snap().LibraryDir, items, m, func(gone []films.Film, trashed bool, reason string) {
+	m, root := a.messages(), a.snap().LibraryDir
+	a.libraryTrashIn(root, items, m, func(gone []films.Film, trashed bool, reason string) {
 		defer a.Changed()
-		a.libraryForget(gone)
+		a.libraryForget(root, gone)
 		switch {
 		case len(items) == 1 && len(gone) == 0:
 			a.warn(reason, "")
@@ -165,8 +165,8 @@ func (a *app) libraryTrash(files []string, done func(err error)) {
 	})
 }
 
-// libraryForget takes items off the shelf once their files went to the Trash, or for a video outside the library without them: an open one closes, the title given to it in Kando goes, and its job; then the library's folder is read again, once.
-func (a *app) libraryForget(items []films.Film) {
+// libraryForget takes items, films of the library at root, off the shelf once their files went to the Trash, or for a video outside the library without them: an open one closes, the title given to it in Kando goes, and its job, or for a video added without a job its place among the library's (shelf.Library.Added), its file staying where it is; then the library's folder is read again, once.
+func (a *app) libraryForget(root string, items []films.Film) {
 	if len(items) == 0 {
 		return
 	}
@@ -178,6 +178,8 @@ func (a *app) libraryForget(items []films.Film) {
 		}
 		// The film leaves the shelf, and the title given to it in Kando with it; remove saves library.json for a job, and a video no job processed saves it here.
 		named = a.library.Rename(item.VideoPath, "") || named
+		// A video added without a job leaves the library and stays where it is.
+		named = a.library.Unadd(root, item.VideoPath) || named
 		a.storedForget(item)
 		if item.JobID != "" {
 			a.remove(item.JobID)

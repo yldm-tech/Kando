@@ -989,6 +989,76 @@ correctUndone:
 correctUnreadable:
   message: "This film’s corrections couldn’t be read, so they can’t be changed"
   description: "Message on the picture when the film's corrections file could not be read, which is then not written over."
+dropAdd:
+  message: "Add {count}"
+  description: "The sheet's button that adds the films found in the folders dropped, in the way chosen. count is how many it adds."
+  placeholders:
+    count: { type: "int", example: "312" }
+dropCancel:
+  message: "Cancel"
+  description: "The sheet's button that adds nothing and closes it."
+dropCategory:
+  message: "Put them in a category named “{folder}”"
+  description: "Checkbox of the sheet: the films added also go in a new category of the library, named after the folder dropped, or in the category of that name the library has."
+  placeholders:
+    folder: { type: "String", example: "Anime" }
+dropCut:
+  message: "Only the first {count, plural, one {# video was} other {# videos were}} looked at. Drop the rest in smaller folders."
+  description: "Line of the sheet when the folders dropped hold more videos than Kando looks at in one drop; the ones past the limit are not added."
+  placeholders:
+    count: { type: "int", example: "5000" }
+dropDisguised:
+  message: "⚠ {count, plural, one {A file is} other {# files are}} a program named like a video: {name}. Kando won't add {count, plural, one {it} other {them}}. Don't open {count, plural, one {it} other {them}}."
+  description: "Warning of the sheet: files found whose names look like videos where the system hides extensions, as “Episode 5.mp4.exe”, but are programs. name is the first one's file name."
+  placeholders:
+    count: { type: "int", example: "1" }
+    name: { type: "String", example: "Episode 05.mp4.exe" }
+dropDisguisedMany:
+  message: "⚠ {count} files are programs named like videos, such as {first} and {second}. Kando won't add them. Don't open them."
+  description: "Warning of the sheet when two or more files found look like videos but are programs. first and second are two of their file names."
+  placeholders:
+    count: { type: "int", example: "2" }
+    first: { type: "String", example: "Episode 05.mp4.exe" }
+    second: { type: "String", example: "Player.lnk" }
+dropFound:
+  message: "Found {count, plural, one {# video} other {# videos}}, {size} in all."
+  description: "First line of the sheet: how many videos and audio files the folders dropped hold, however deep, and how much room they take, as “280.4 GB”."
+  placeholders:
+    count: { type: "int", example: "312" }
+    size: { type: "String", example: "280.4 GB" }
+dropGenerate:
+  message: "Make subtitles for all of them"
+  description: "Choice of the sheet: every film found is queued to have its subtitles made now, as dropping a few videos does."
+dropGenerateHint:
+  message: "They queue one after another. That can take hours, and each film uses the translation service."
+  description: "Hint under “Make subtitles for all of them”."
+dropHave:
+  message: "{count, plural, one {# of them is} other {# of them are}} in the library already and won't be added again."
+  description: "Line of the sheet: how many of the videos found the library has already."
+  placeholders:
+    count: { type: "int", example: "4" }
+dropHow:
+  message: "How to add them"
+  description: "What the sheet's two choices are, for assistive technology."
+dropOnlyAdd:
+  message: "Only add them, and make subtitles as I watch"
+  description: "Choice of the sheet, the one it starts at: the films found show in the library at once without subtitles, each made when it is watched."
+dropOnlyAddHint:
+  message: "They show in the library at once, where they are. Open one and press Make Subtitles to have them made as it plays. Nothing runs now, and nothing is translated."
+  description: "Hint under “Only add them…”. “Make Subtitles” is the player's button for a film without subtitles (filmMakeSubtitles). The files are neither moved nor copied."
+dropSkipped:
+  message: "Skipped {count, plural, one {# file that isn't a video or audio file} other {# files that aren't video or audio files}}."
+  description: "Line of the sheet: how many files of the folders dropped were left out."
+  placeholders:
+    count: { type: "int", example: "41" }
+dropTitle:
+  message: "Add “{folder}”"
+  description: "Title of the sheet a large folder dropped on the window opens. folder is its name."
+  placeholders:
+    folder: { type: "String", example: "Anime" }
+dropTitleSeveral:
+  message: "Add These Videos"
+  description: "Title of the sheet when several folders or files were dropped and they hold many videos."
 filmNotesDueCount:
   message: "{count, number}"
   description: "The big number on the Notes tab's review card: how many saved lines and words are due for review."
@@ -1050,6 +1120,28 @@ filmNotesWords:
 filmTabNotes:
   message: "Notes"
   description: "Side panel tab listing the film's saved lines and the words looked up in it, with the review."
+libraryAddedOnly:
+  message: "Added {count, plural, one {# film} other {# films}} to the library. Open one to make its subtitles."
+  description: "Message bar after films found in folders dropped were only added to the library, without subtitles."
+  placeholders:
+    count: { type: "int", example: "312" }
+libraryDropDisguised:
+  message: "{text} {count, plural, one {{name} is a program named like a video, so it was left out. Don't open it.} other {# files, such as {name}, are programs named like videos, so they were left out. Don't open them.}}"
+  description: "Message bar after a drop whose files included programs named like videos, as “Episode 5.mp4.exe”. text is the bar's sentence about what was added, or that nothing could be. name is the first one's file name."
+  placeholders:
+    text: { type: "String", example: "Added 3 videos. Processing started." }
+    name: { type: "String", example: "Episode 05.mp4.exe" }
+    count: { type: "int", example: "1" }
+libraryDropReading:
+  message: "Looking through the folder…"
+  description: "Message bar while a folder dropped on the window is read, before its videos are added or the sheet asks how to add them."
+libraryMakingSome:
+  message: "Making the subtitles of {done} of {total, plural, one {# film} other {# films}}. {reason}"
+  description: "Message bar after the films found in a large folder dropped were added to the library and queued to have their subtitles made, when some could not be queued. reason is why the first was not, a sentence of its own."
+  placeholders:
+    done: { type: "int", example: "300" }
+    total: { type: "int", example: "312" }
+    reason: { type: "String", example: "Choose a subtitle language first." }
 settingsAIBatchSize:
   message: "Lines per Request"
   description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
@@ -3035,9 +3127,18 @@ libraryNameNotAllowed:
 libraryNameTaken:
   message: "A library with this name already exists. Choose another name."
   description: "Error in the new-library sheet: a library of that name is already in the chosen folder."
+libraryOpenFoldersMenu:
+  message: "Add Folder…"
+  description: "File menu item that opens a folder dialog to add the videos and audio files in folders, however deep."
 libraryOpenVideosMenu:
   message: "Open Local File…"
   description: "File menu item that opens a file dialog to add local videos and audio files."
+libraryPickFoldersButton:
+  message: "Add"
+  description: "Confirming button of the folder dialog that chooses folders of videos to add."
+libraryPickFoldersTitle:
+  message: "Choose Folders of Videos or Audio"
+  description: "Title of the folder dialog that chooses folders whose videos and audio files are added."
 libraryPickVideosButton:
   message: "Open"
   description: "Confirming button of the file dialog that chooses videos."

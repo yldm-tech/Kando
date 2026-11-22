@@ -72,12 +72,17 @@ type Film struct {
 	Stored string
 	// Missing is true for a done film whose video, kept outside the library's folder where it was picked, is not on disk now: moved or renamed in Finder, deleted, or on a drive that is not connected. The film stays on the shelf with its place, its title and its lines, marked, and plays again once its video is back.
 	Missing bool
+	// Added is when a video kept outside the library was added to it without a job, as a large folder dropped adds its films (shelf.Library.Added); zero for any other film.
+	Added time.Time
 }
 
-// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
+// List is the open library's films: the jobs that belong on its shelf, with the videos added to it without a job among them by when each was added (media.Video.Added), then the videos found in its folder that no job holds. A video without a job shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
 func List(root string, jobs []core.Job, videos []media.Video, names map[string]string, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
 	used := map[string]bool{}
 	out := make([]Film, 0, len(jobs)+len(videos))
+	// done is when each film of a job in out was done, and busy whether it is waiting or being processed now, which is newer than any added; a done film that kept no time, as one an older Kando made, is older than any.
+	var done []time.Time
+	var busy []bool
 	for i := range jobs {
 		job := jobs[i]
 		if !InLibrary(root, job) {
@@ -91,20 +96,89 @@ func List(root string, jobs []core.Job, videos []media.Video, names map[string]s
 			name = given
 		}
 		out = append(out, FromJob(job, name, detailOf(job)))
+		done, busy = append(done, job.CompletedAt), append(busy, !job.Stage.Done())
 	}
+	var added, found []Film
 	for _, video := range videos {
-		if used[video.Path] || !InDir(root, video.Path) {
+		if used[video.Path] || (video.Added.IsZero() && !InDir(root, video.Path)) {
 			continue
 		}
+		used[video.Path] = true
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
 		if given := names[video.Path]; given != "" {
 			name = given
 		}
-		out = append(out, Film{
-			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles,
-		})
+		f := Film{Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles, Added: video.Added}
+		if video.Added.IsZero() {
+			found = append(found, f)
+		} else {
+			added = append(added, f)
+		}
 	}
-	return out
+	if len(added) == 0 {
+		return append(out, found...)
+	}
+	slices.SortStableFunc(added, func(x, y Film) int { return y.Added.Compare(x.Added) })
+	merged := make([]Film, 0, len(out)+len(added)+len(found))
+	i := 0
+	for _, f := range added {
+		for i < len(out) && (busy[i] || !f.Added.After(done[i])) {
+			merged = append(merged, out[i])
+			i++
+		}
+		merged = append(merged, f)
+	}
+	merged = append(merged, out[i:]...)
+	return append(merged, found...)
+}
+
+// Videos is the videos the shelf of the library at root lists beside its jobs: those of its folder (media.ListVideos), then those no job holds that were moved to a storage location (MovedVideos), whose paths are moved, then those added to it without a job (AddedVideos), by path with when each was added. The open library's shelf, the libraries' counts, the paired phone and the control socket all list a library's films from it.
+func Videos(root string, jobs []core.Job, moved []string, added map[string]time.Time) ([]media.Video, error) {
+	videos, err := media.ListVideos(root)
+	if err != nil {
+		return nil, err
+	}
+	return AddedVideos(jobs, MovedVideos(root, jobs, videos, moved), added), nil
+}
+
+// AddedVideos is videos and then the videos of added, those added to the library without a job, by path with when each was added (shelf.Library.Added), that neither a job nor videos holds, the newest first. Each shows the bilingual subtitles beside it, as a video of the folder does, and is named after its file, or after its folder for a video.<ext>. One whose file is not there now is listed all the same, as its drive may be taken out; the shelf marks it (Film.Missing).
+func AddedVideos(jobs []core.Job, videos []media.Video, added map[string]time.Time) []media.Video {
+	if len(added) == 0 {
+		return videos
+	}
+	held := map[string]bool{}
+	for _, job := range jobs {
+		if job.VideoPath != "" {
+			held[filepath.Clean(job.VideoPath)] = true
+		}
+	}
+	for _, v := range videos {
+		held[filepath.Clean(v.Path)] = true
+	}
+	var extra []media.Video
+	for path, at := range added {
+		if path == "" || held[filepath.Clean(path)] {
+			continue
+		}
+		held[filepath.Clean(path)] = true
+		name := filepath.Base(path)
+		if strings.TrimSuffix(name, filepath.Ext(name)) == "video" {
+			// The shelf names a film by its file's name without its extension, so the folder's keeps a dot in it.
+			name = filepath.Base(filepath.Dir(path)) + filepath.Ext(path)
+		}
+		v := media.Video{Path: path, Name: name, Added: at}
+		if sub := strings.TrimSuffix(path, filepath.Ext(path)) + ".bilingual.srt"; fileThere(sub) {
+			v.Subtitles = sub
+		}
+		extra = append(extra, v)
+	}
+	slices.SortFunc(extra, func(x, y media.Video) int {
+		if c := y.Added.Compare(x.Added); c != 0 {
+			return c
+		}
+		return strings.Compare(x.Path, y.Path)
+	})
+	return append(slices.Clip(videos), extra...)
 }
 
 // MovedVideos is videos, the videos found in the library's folder at root, followed by one for each of moved, the paths of videos moved out of that folder to a storage location (shelf.Library.Stored), that no job holds and the folder no longer has: listed by the path it had, which the film is still known by, with the bilingual subtitles left beside it when they are there. A video no job processed is on the shelf by its file alone (List), so without this its film would leave the shelf as its video leaves the folder. It reads the disk, for the subtitles, so the library's refresh calls it rather than a binding.

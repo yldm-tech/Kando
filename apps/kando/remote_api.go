@@ -177,6 +177,7 @@ func (a *app) remotePlugins(ctx context.Context) ([]remote.Plugin, error) {
 // remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, the queue as the open library's 处理中 shows it (remoteQueue), and the libraries the app knows, with how many films each holds, read off the UI thread for those that are not open (remoteCountLibraries), but for a locked one, which says only that it is.
 func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 	var jobs []core.Job
+	var added map[string]map[string]time.Time
 	s, err := remote.OnUI(ctx, a.update, func() (remote.Status, error) {
 		ready := a.readiness()
 		running, waiting, _ := a.remoteQueue()
@@ -199,7 +200,7 @@ func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 			}
 			s.Libraries = append(s.Libraries, lib)
 		}
-		jobs = slices.Clone(a.library.Jobs)
+		jobs, added = slices.Clone(a.library.Jobs), a.library.AddedCopy()
 		if len(running) > 0 {
 			s.Running = running[0].ID
 		}
@@ -220,12 +221,12 @@ func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 	if err != nil {
 		return remote.Status{}, err
 	}
-	remoteCountLibraries(s.Libraries, jobs)
+	remoteCountLibraries(s.Libraries, jobs, added)
 	return s, nil
 }
 
-// remoteCountLibraries counts the films of each library that is not open, as countLibraries does for the library switcher, with jobs, the shelf's: those the shelf keeps for it, and the videos in its folder. A library whose folder cannot be read is missing.
-func remoteCountLibraries(libs []remote.Library, jobs []core.Job) {
+// remoteCountLibraries counts the films of each library that is not open, as countLibraries does for the library switcher, with jobs, the shelf's: those the shelf keeps for it, the videos in its folder, and those added to it without a job (added, shelf.Library.Added). A library whose folder cannot be read is missing.
+func remoteCountLibraries(libs []remote.Library, jobs []core.Job, added map[string]map[string]time.Time) {
 	noName := func(core.Job) string { return "" }
 	for i := range libs {
 		if libs[i].Open || libs[i].Locked {
@@ -236,7 +237,7 @@ func remoteCountLibraries(libs []remote.Library, jobs []core.Job) {
 			libs[i].Missing = true
 			continue
 		}
-		videos, err := media.ListVideos(dir)
+		videos, err := films.Videos(dir, jobs, nil, added[filepath.Clean(dir)])
 		if err != nil {
 			libs[i].Missing = true
 			continue
@@ -579,7 +580,7 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 	return added, nil
 }
 
-// remoteLists lists the videos of each of p's playlist and channel links, as the playlist dialog does (playlist.Read): a playlist whole, a channel's playlist.ChannelLimit most recent, and of each local folder, as dropping it on the window adds them (films.DroppedVideos), and marks those the open library has already, waiting, running or done, which jobs.add would skip (remoteHas). yt-dlp and the folders' reads run off the UI thread; what the library has is read on it once the videos are known. A source that is not a playlist, a channel or a folder, that yt-dlp could not list, or a folder that holds no video, says why in its List's Error, and the others are still listed. Without a library, or without yt-dlp, it answers not_ready with what precheckReady says.
+// remoteLists lists the videos of each of p's playlist and channel links, as the playlist dialog does (playlist.Read): a playlist whole, a channel's playlist.ChannelLimit most recent, and of each local folder, as dropping it on the window finds them (films.Dropped), and marks those the open library has already, waiting, running or done, which jobs.add would skip (remoteHas). yt-dlp and the folders' reads run off the UI thread; what the library has is read on it once the videos are known. A source that is not a playlist, a channel or a folder, that yt-dlp could not list, or a folder that holds no video, says why in its List's Error, and the others are still listed. Without a library, or without yt-dlp, it answers not_ready with what precheckReady says.
 func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.List, error) {
 	if len(p.Sources) == 0 {
 		return nil, remote.Errorf(remote.CodeInvalid, "no sources")
@@ -612,12 +613,12 @@ func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.L
 	for i, source := range p.Sources {
 		lists[i] = remote.List{Source: source, Videos: []remote.ListVideo{}}
 		if folders[i] != "" {
-			videos, notVideos := films.DroppedVideos([]string{folders[i]}, got.tag)
-			lists[i].Kind, lists[i].Title, lists[i].NotVideos = remote.ListFolder, filepath.Base(folders[i]), notVideos
-			for _, video := range videos {
+			d := films.Dropped([]string{folders[i]}, got.tag)
+			lists[i].Kind, lists[i].Title, lists[i].NotVideos, lists[i].Cut = remote.ListFolder, filepath.Base(folders[i]), d.Skipped+len(d.Disguised), d.Cut
+			for _, video := range d.Videos {
 				lists[i].Videos = append(lists[i].Videos, remote.ListVideo{URL: core.FileURL(video), Title: strings.TrimSuffix(filepath.Base(video), filepath.Ext(video))})
 			}
-			if len(videos) == 0 {
+			if len(d.Videos) == 0 {
 				lists[i].Error = remoteMessages().PrecheckNoVideo()
 			}
 			continue

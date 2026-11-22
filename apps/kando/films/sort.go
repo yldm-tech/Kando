@@ -95,7 +95,7 @@ func SortLabel(m locales.Messages, order string) string {
 // sourceOrder is the sources in the order the sidebar lists them, which SortSource groups the films in.
 var sourceOrder = []string{sidebar.SourceYouTube, sidebar.SourceBilibili, sidebar.SourceWeb, sidebar.SourceLocal}
 
-// Sorted returns items in o, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt); SortDuration the longest first, by length (App.Duration); SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names; SortSpoken groups them by the language heard in them (Heard), by its name in tag's language. A Reversed order turns that around, but only for the films the order can place: those it knows nothing of stay last either way, as Finder keeps its empty fields last, being a film never played, one whose length is not known yet, one whose language is not known, and for SortAdded a video found in the folder, which Kando did not add. Films the order does not tell apart keep the order they were added in.
+// Sorted returns items in o, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt); SortDuration the longest first, by length (App.Duration); SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names; SortSpoken groups them by the language heard in them (Heard), by its name in tag's language. A Reversed order turns that around, but only for the films the order can place: those it knows nothing of stay last either way, as Finder keeps its empty fields last, being a film never played, one whose length is not known yet, one whose language is not known, and for SortAdded a video found in the folder, which Kando did not add, rather than one added without a job (Film.Added). Films the order does not tell apart keep the order they were added in.
 func Sorted(items []Film, o Order, tag string, played func(path string) time.Time, length func(path string) time.Duration) []Film {
 	o = o.Valid()
 	if len(items) < 2 || o == (Order{By: SortAdded}) {
@@ -118,7 +118,7 @@ func Sorted(items []Film, o Order, tag string, played func(path string) time.Tim
 		switch o.By {
 		case SortAdded:
 			// The shelf lists the films added last first: the later in items, the earlier added.
-			e.num, e.unknown = int64(-i), item.JobID == ""
+			e.num, e.unknown = int64(-i), item.JobID == "" && item.Added.IsZero()
 		case SortWatched:
 			at := played(item.VideoPath)
 			e.num, e.unknown = at.UnixNano(), at.IsZero()

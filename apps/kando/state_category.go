@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	"kando/apps/kando/category"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -74,6 +76,22 @@ func (a *app) categoryWrite() {
 		}
 		a.saveErr = a.messages().CategorySaveFailed(err.Error())
 	}
+}
+
+// categoryPutNamed puts the films whose videos are at paths in the open library's category named name, made when it has none of that name, as a folder dropped is put in the category named after it, and saves the library's categories.
+func (a *app) categoryPutNamed(name string, paths ...string) {
+	book, ok := a.categoryBook()
+	if !ok {
+		return
+	}
+	c, err := book.Add(name)
+	if errors.Is(err, category.ErrNameTaken) {
+		c, _ = book.Named(name)
+	} else if err != nil {
+		return
+	}
+	book.Put(c.ID, true, paths...)
+	a.categoryWrite()
 }
 
 // categoryDropGone lets go of the category chosen in the sidebar once the library no longer has it, as after it was deleted, so the page shows every category rather than none.

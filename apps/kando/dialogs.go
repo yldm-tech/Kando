@@ -41,6 +41,34 @@ func (a *app) pickVideos() {
 	})
 }
 
+// pickVideoFolders asks for folders of videos and sounds, as 文件 › 添加文件夹… does, and adds what they hold, however deep, as dropping them does (dropFiles). A panel of its own, as Windows' picker cannot offer files and folders at once.
+func (a *app) pickVideoFolders() {
+	if a.cx == nil {
+		return
+	}
+	release := a.holdModal()
+	m := a.messages()
+	a.cx.Run(func() {
+		a.cx.PickDirectories(ns.PickDirectoriesOptions{Multiple: true, Title: m.LibraryPickFoldersTitle(), Button: m.LibraryPickFoldersButton()}, func(dirs []ns.Directory, err error) {
+			release()
+			defer a.Changed()
+			if err != nil {
+				a.warn(err.Error(), "")
+				return
+			}
+			var paths []string
+			for _, d := range dirs {
+				if d.Path != "" {
+					paths = append(paths, d.Path)
+				}
+			}
+			if len(paths) > 0 {
+				a.dropFiles(paths)
+			}
+		})
+	})
+}
+
 // pickFolder asks for a folder in a panel with the title and button of o, starting in its Start when it has one, and passes the one picked to done.
 func (a *app) pickFolder(o ns.PickDirectoriesOptions, done func(string)) {
 	if a.cx == nil {

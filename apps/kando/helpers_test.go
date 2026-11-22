@@ -461,6 +461,16 @@ func waitUntil(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), do
 }
 
 // waitUpdate applies the next background update and refreshes.
+// dropRead applies the background updates until the folders dropped were read and what they hold added (dropFiles).
+func dropRead(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func()) {
+	t.Helper()
+	for a.lib.dropReading > 0 {
+		waitUpdate(t, tt, a, updates)
+	}
+	refresh(tt, a)
+}
+
+// waitUpdate applies the next background update.
 func waitUpdate(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func()) {
 	t.Helper()
 	select {

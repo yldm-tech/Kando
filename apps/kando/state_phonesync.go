@@ -351,7 +351,9 @@ type phoneSource struct{ a *app }
 
 // phoneShelf is what the app holds of a library's films, read on the engine's goroutine.
 type phoneShelf struct {
-	jobs      []core.Job
+	jobs []core.Job
+	// added is the videos added to the library without a job (shelf.Library.Added).
+	added     map[string]time.Time
 	names     map[string]string
 	durations map[string]time.Duration
 	posterDir string
@@ -440,14 +442,14 @@ func (s phoneSource) items(ctx context.Context, lib phonesync.Library) ([]films.
 		if a.libraryLocked(lib.Dir) {
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
-		return phoneShelf{jobs: slices.Clone(a.library.Jobs), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
+		return phoneShelf{jobs: slices.Clone(a.library.Jobs), added: maps.Clone(a.library.AddedIn(lib.Dir)), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
 			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played),
 			stored: maps.Clone(a.library.Stored), targets: a.storedPlayable(), pool: a.stored.pool, tag: a.prefs.interfaceLanguage}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err
 	}
-	videos, err := media.ListVideos(lib.Dir)
+	videos, err := films.Videos(lib.Dir, shelf.jobs, nil, shelf.added)
 	if err != nil {
 		return nil, phoneShelf{}, phonesync.ErrNotFound
 	}

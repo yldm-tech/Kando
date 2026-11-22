@@ -192,7 +192,7 @@ type ListsParams struct {
 	Dir     string   `json:"dir,omitempty"`
 }
 
-// List is the videos of a playlist or a channel link, or of a local folder. A channel lists its Limit most recent videos; a playlist lists all of its own; a folder the videos in it and in the folders directly in it, in their names' order, as dropping it on the window adds them, and NotVideos counts the files in them that are not videos, which are left out. Error says why a source could not be listed, as when it is not a playlist, a channel or a folder, and Videos is then empty.
+// List is the videos of a playlist or a channel link, or of a local folder. A channel lists its Limit most recent videos; a playlist lists all of its own; a folder the videos in it and in its folders however deep, in their names' order, as dropping it on the window finds them, and NotVideos counts the files in them that are not videos, which are left out, and Cut says the folder held more than one drop looks at (films.DropLimit), the videos past it left out. Error says why a source could not be listed, as when it is not a playlist, a channel or a folder, and Videos is then empty.
 type List struct {
 	Source string `json:"source"`
 	// Kind is "playlist", "channel" or "folder".
@@ -201,6 +201,7 @@ type List struct {
 	Limit     int         `json:"limit,omitempty"`
 	Videos    []ListVideo `json:"videos"`
 	NotVideos int         `json:"not_videos,omitempty"`
+	Cut       bool        `json:"cut,omitempty"`
 	Error     string      `json:"error,omitempty"`
 }
 

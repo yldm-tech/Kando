@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -598,23 +599,71 @@ func (a *app) libraryQueue(sources []string) bool {
 	return added > 0
 }
 
-// dropFiles adds every video among files and folders dropped on the window, picked with 本地视频 or opened with Kando, to the queue: a folder adds the videos in it and in its folders, in their names' order (films.DroppedVideos). Files that are not videos are left out, and the message bar says how many after what was added; when none is a video, it says what can be added. Files dropped on another page or over an open film, or picked from there with ⌘O, take the window to the library, whose message bar and queue show what became of them.
+// dropFiles adds the videos among files and folders dropped on the window, picked with 本地视频 or 添加文件夹… or opened with Kando: a folder gives the videos in it and in its folders however deep, in their names' order (films.Dropped). A folder is read off the engine's goroutine, as a large one, or a network drive's, takes a while, and what it holds is added once it is read (dropFound). Files dropped on another page or over an open film, or picked from there with ⌘O, take the window to the library, whose message bar and queue show what became of them.
 func (a *app) dropFiles(paths []string) {
 	if a.page != pageFilms || a.openKey != "" {
 		a.Select(pageFilms)
 	}
-	videos, skipped := films.DroppedVideos(paths, a.prefs.interfaceLanguage)
-	if len(videos) == 0 {
-		a.warn(a.messages().PrecheckNoVideo(), "")
+	tag := a.prefs.interfaceLanguage
+	if !slices.ContainsFunc(paths, dropIsFolder) {
+		a.dropFound(paths, films.Dropped(paths, tag))
 		return
 	}
-	sources := make([]string, len(videos))
-	for i, path := range videos {
+	a.tell(a.messages().LibraryDropReading())
+	lib := a.snap().LibraryDir
+	a.lib.dropReading++
+	go func() {
+		d := films.Dropped(paths, tag)
+		a.update(func() {
+			a.lib.dropReading--
+			// What was dropped on one library is not added to another opened while the folder was read.
+			if a.snap().LibraryDir != lib {
+				if a.lib.notice.Text == a.messages().LibraryDropReading() {
+					a.lib.notice = films.Notice{}
+				}
+				return
+			}
+			a.dropFound(paths, d)
+		})
+	}()
+}
+
+// dropIsFolder reports whether path is a folder.
+func dropIsFolder(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// dropFound adds d, the films paths hold, to the queue, as dropping them asked: a few, when at most films.ConfirmAbove of them are new to the library or have no subtitles yet (dropCount), at once, and the message bar says how many files were left out because they are not videos; when none is a video, it says what can be added. More than that open the sheet that asks how to add them first (dropAsk). Programs named as videos are, which are never added, are named in the bar, or the sheet, so they are left unopened.
+func (a *app) dropFound(paths []string, d films.Drop) {
+	m := a.messages()
+	if fresh, unmade := a.dropCount(d.Videos); len(fresh)+unmade > films.ConfirmAbove {
+		a.dropAsk(paths, d)
+		return
+	}
+	if len(d.Videos) == 0 {
+		a.warn(dropDisguisedNote(m, m.PrecheckNoVideo(), d), "")
+		return
+	}
+	sources := make([]string, len(d.Videos))
+	for i, path := range d.Videos {
 		sources[i] = core.FileURL(path)
 	}
-	if a.libraryEnqueue(sources...) && skipped > 0 {
-		a.lib.notice.Text = a.messages().LibrarySkippedNotVideos(a.lib.notice.Text, skipped)
+	if !a.libraryEnqueue(sources...) {
+		return
 	}
+	if d.Skipped > 0 {
+		a.lib.notice.Text = m.LibrarySkippedNotVideos(a.lib.notice.Text, d.Skipped)
+	}
+	a.lib.notice.Text = dropDisguisedNote(m, a.lib.notice.Text, d)
+}
+
+// dropDisguisedNote is text, what the message bar says of a drop, and then, when d holds programs named as videos are, which it left out, the sentence that names the first of them and asks that they be left unopened.
+func dropDisguisedNote(m locales.Messages, text string, d films.Drop) string {
+	if len(d.Disguised) == 0 {
+		return text
+	}
+	return m.LibraryDropDisguised(text, filepath.Base(d.Disguised[0]), len(d.Disguised))
 }
 
 // libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (menuSharedKeyCarriers, menu.go). File › 移到资料库 moves the open film to another library (libraryMoveRow). View › 为图标 and 为列表 show the done films as posters or as a list, and 排序方式 is the sort button's menu, as Finder's View menu has them; they have no key, ⌘1 and ⌘2 being Window › 资料库 and 播放器.
@@ -628,6 +677,7 @@ func (a *app) libraryKeys(cx *ns.Scope) []shortcut {
 	}
 	return slices.Concat([]shortcut{
 		a.libraryOpenVideos(cx),
+		{Group: groupFile, Label: locales.LibraryOpenFoldersMenu(cx), Key: "mod+alt+o", Run: a.pickVideoFolders},
 		{Group: groupEdit, Label: locales.LibrarySearchMenu(cx), Key: "mod+f", When: a.sidebarSearchable, Run: a.sidebarSearch},
 		a.libraryMoveRow(cx),
 	}, a.librarySelectionKeys(cx), []shortcut{

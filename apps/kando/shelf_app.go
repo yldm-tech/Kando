@@ -224,6 +224,9 @@ func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	if a.lockMoved(oldRoot, newRoot) {
 		changed = true
 	}
+	if a.library.MoveAdded(oldRoot, newRoot) {
+		changed = true
+	}
 	for i, job := range a.library.Jobs {
 		if job.LibraryDir != "" && filepath.Clean(job.LibraryDir) == filepath.Clean(oldRoot) {
 			a.library.Jobs[i].LibraryDir = newRoot
@@ -633,13 +636,12 @@ func (a *app) refreshLibrary() {
 			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 		}
 	}
-	videos, err := media.ListVideos(dir)
+	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go), and one added without a job from outside the folder shows where it is.
+	videos, err := films.Videos(dir, a.library.Jobs, a.storedPaths(), a.library.AddedIn(dir))
 	if err != nil {
 		a.saveErr = err.Error()
 		return
 	}
-	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go).
-	videos = films.MovedVideos(dir, a.library.Jobs, videos, a.storedPaths())
 	gone := a.goneOutside(dir)
 	a.edit(func(s *session) {
 		s.Videos, s.Gone = videos, gone
@@ -653,7 +655,7 @@ func shelfBundle(dir string) bool {
 	return strings.EqualFold(filepath.Ext(filepath.Clean(dir)), media.LibraryExt)
 }
 
-// goneOutside is the videos of root's done films kept outside it, where they were picked, that are not on disk now (session.Gone). dropMissing keeps their films, as only Kando's own files in the library's folder are Kando's to drop; a film whose video was moved to a storage location, or that keeps none, is not one of them.
+// goneOutside is the videos of root's done films kept outside it, where they were picked, and of those added to it without a job (shelf.Library.Added), that are not on disk now (session.Gone). dropMissing keeps their films, as only Kando's own files in the library's folder are Kando's to drop; a film whose video was moved to a storage location, or that keeps none, is not one of them.
 func (a *app) goneOutside(root string) map[string]bool {
 	var gone map[string]bool
 	for _, job := range a.library.Jobs {
@@ -665,6 +667,15 @@ func (a *app) goneOutside(root string) map[string]bool {
 				gone = map[string]bool{}
 			}
 			gone[job.VideoPath] = true
+		}
+	}
+	// A video added without a job is the user's file where it was picked too.
+	for path := range a.library.AddedIn(root) {
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			if gone == nil {
+				gone = map[string]bool{}
+			}
+			gone[path] = true
 		}
 	}
 	return gone

@@ -928,3 +928,36 @@ func TestLibraryKeepsTheSourceAFilmWasNotTranslatedBy(t *testing.T) {
 		t.Fatalf("an old library's film reads %q from %q", job.TranslationErr, job.TranslationSource)
 	}
 }
+
+// The videos added to a library without a job are kept by library, with when each was added, across a save; adding one again keeps when it first was, taking one out drops it, and they follow the library's folder when it is renamed.
+func TestAddedVideosRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	if n := lib.AddVideos("/films/日语学习.kando/", first, "/videos/a.mp4", "/videos/b.mp4", ""); n != 2 {
+		t.Fatalf("added %d", n)
+	}
+	if n := lib.AddVideos("/films/日语学习.kando", first.Add(time.Hour), "/videos/a.mp4", "/videos/c.mp4"); n != 1 {
+		t.Fatalf("added again %d", n)
+	}
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	back, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := back.AddedIn("/films/日语学习.kando")
+	if len(got) != 3 || !got["/videos/a.mp4"].Equal(first) || !got["/videos/c.mp4"].Equal(first.Add(time.Hour)) {
+		t.Fatalf("read back %v", got)
+	}
+	if !back.Unadd("/films/日语学习.kando", "/videos/b.mp4") || back.Unadd("/films/日语学习.kando", "/videos/b.mp4") {
+		t.Fatal("taking a video out twice")
+	}
+	if !back.MoveAdded("/films/日语学习.kando", "/films/日本語.kando") || len(back.AddedIn("/films/日语学习.kando")) != 0 || len(back.AddedIn("/films/日本語.kando")) != 2 {
+		t.Fatalf("after the rename %v", back.Added)
+	}
+}

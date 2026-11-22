@@ -387,7 +387,7 @@ func TestDropFolderAddsItsVideos(t *testing.T) {
 		}
 	}
 	tt.DropFiles("id:main-column", fileURLs(course)...)
-	refresh(tt, a)
+	dropRead(t, tt, a, updates)
 	var sources []string
 	for _, id := range append([]string{a.RunningJob()}, a.queue.order...) {
 		sources = append(sources, stageOf(t, a, id).Source)
@@ -1041,7 +1041,7 @@ func libraryPressBackdrop(t *testing.T, tt *nsgotest.App) {
 }
 
 func TestPostersAreReadByTheShelfNotTheView(t *testing.T) {
-	lib := t.TempDir()
+	lib := filepath.Join(t.TempDir(), "videos"+media.LibraryExt)
 	video := filepath.Join(lib, "Talk", "video.mp4")
 	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
 		t.Fatal(err)

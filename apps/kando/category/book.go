@@ -168,6 +168,15 @@ func (b Book) checkName(name, except string) (string, error) {
 	return name, nil
 }
 
+// Named is the category named name, as two names are compared (nameKey), and whether the library has it.
+func (b Book) Named(name string) (Category, bool) {
+	i := slices.IndexFunc(b.Categories, func(c Category) bool { return nameKey(c.Name) == nameKey(name) })
+	if i < 0 {
+		return Category{}, false
+	}
+	return b.Categories[i], true
+}
+
 // Add makes a category named name, the spaces around it left out, and returns it.
 func (b *Book) Add(name string) (Category, error) {
 	name, err := b.checkName(name, "")
