@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/shelf"
@@ -404,6 +405,37 @@ func TestLockFollowsARenamedLibrary(t *testing.T) {
 	}
 	if got := sidebar.Title(a.snap().LibraryDir); got != "Renamed" {
 		t.Fatalf("open library %q", got)
+	}
+}
+
+// TestLockScreenFollowsTheLanguage checks that the lock screen says another interface language in place: its title, its field and its buttons change, and the field keeps the keyboard and what was typed in it.
+func TestLockScreenFollowsTheLanguage(t *testing.T) {
+	a, tt, updates, _, _, shelfPath := lockLibrary(t)
+	lockSetPassword(t, a, tt, updates)
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	b, bt, _ := newTestApp(t, &fakePipeline{})
+	b.settingsPath = a.settingsPath
+	b.restoreSettings(b.loadSettings())
+	b.openLibrary(shelfPath)
+	b.refreshLibrary()
+	refresh(bt, b)
+	bt.Type("id:lock-current", "half")
+	field := bt.Find("id:lock-current")
+	b.cx.SetLocale("en")
+	refresh(bt, b)
+	en := locales.In("en")
+	if got := bt.Find("id:lock-current"); got.ID != field.ID || !got.Focused || got.Text != "half" || got.Props.Label != en.LockFieldPassword() {
+		t.Fatalf("in English the field is view %d (was %d), focused %v, holds %q, named %q", got.ID, field.ID, got.Focused, got.Text, got.Props.Label)
+	}
+	for _, want := range []string{en.LockScreenTitle("Private"), en.LockUnlockButton(), en.LockScreenOthers()} {
+		if !hasText(bt, want) {
+			t.Fatalf("the lock screen does not say %q in English: %q", want, bt.Texts())
+		}
+	}
+	if got := bt.Find("id:lock-screen").Props.Label; got != en.LockScreenTitle("Private") {
+		t.Fatalf("in English the lock screen is named %q", got)
 	}
 }
 

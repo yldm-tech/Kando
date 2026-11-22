@@ -24,9 +24,10 @@ func (s Screen) Render(cx *core.Scope) core.Node {
 	name := core.NewMemo(cx, func() string { return look.Get().Name })
 	colors := ui.ColorsOf(cx)
 	return core.Show{When: s.Shown, Then: func(cx *core.Scope) core.Node {
+		// The screen is built again for another library, which empties the field; the words follow the language through their bindings.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			n := name.Get()
-			// TODO(nsgo#145): give base.Dialog a LabelFunc, ui.Button a TextFunc and core.Input a LabelFunc, so the words follow the language without building the screen again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+			screenTitle := func() string { return locales.LockScreenTitle(cx, n) }
 			f := newForm(cx, Unlock)
 			unlock := func() {
 				if look.Get().Busy || !f.filled() {
@@ -49,19 +50,19 @@ func (s Screen) Render(cx *core.Scope) core.Node {
 				}
 				nsdesktop.PopupMenu(cx, s.Others(), at, nil)
 			}
-			heading := core.Text{Content: locales.LockScreenTitle(cx, n), Role: core.RoleHeader, TestID: "lock-screen-title", MaxLines: 2,
+			heading := core.Text{ContentFunc: screenTitle, Role: core.RoleHeader, TestID: "lock-screen-title", MaxLines: 2,
 				Style: ui.TypeTitle.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Text)}
 			field := core.View{Style: core.Style{AlignSelf: core.AlignStretch}, Children: f.fields(unlock)}
-			unlockButton := ui.Button{Text: locales.LockUnlockButton(cx), TestID: "lock-screen-unlock", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: unlock}
+			unlockButton := ui.Button{TextFunc: func() string { return locales.LockUnlockButton(cx) }, TestID: "lock-screen-unlock", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: unlock}
 			otherButton := core.View{Ref: place, Children: []core.Node{
-				ui.Button{Text: locales.LockScreenOthers(cx), Variant: ui.ButtonGhost, TestID: "lock-screen-others", OnPress: others},
+				ui.Button{TextFunc: func() string { return locales.LockScreenOthers(cx) }, Variant: ui.ButtonGhost, TestID: "lock-screen-others", OnPress: others},
 			}}
 			// The band under the title bar still moves the window, as the window's own does.
 			band := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, PointerEvents: core.PointerEventsBoxOnly,
 				Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(40)}}
 			return base.Dialog{
 				TestID:                 "lock-screen",
-				Label:                  locales.LockScreenTitle(cx, n),
+				LabelFunc:              screenTitle,
 				Open:                   func() bool { return true },
 				NoCloseOnEscape:        true,
 				NoCloseOnBackdropPress: true,

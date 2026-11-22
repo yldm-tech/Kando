@@ -81,9 +81,9 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 		}
 	}
 	return core.Show{When: d.Open, Then: func(cx *core.Scope) core.Node {
+		// The dialog is built again for another question, which empties the fields; the words follow the language through their bindings.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			a := asks.Get()
-			// TODO(nsgo#145): give ui.Dialog TitleFunc and DescriptionFunc twins, ui.Button a TextFunc and core.Input a LabelFunc, so the words follow the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			f := newForm(cx, a.mode)
 			submit := func() {
 				if look.Get().Busy || !f.filled() {
@@ -94,19 +94,22 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 					d.OnSubmit(current, next, confirm)
 				}
 			}
-			description := ""
-			if a.mode == Set && a.encrypts {
-				description = locales.LockSetNoteEncrypted(cx)
-			} else if a.mode == Set {
-				description = locales.LockSetNote(cx)
+			description := func() string {
+				switch {
+				case a.mode == Set && a.encrypts:
+					return locales.LockSetNoteEncrypted(cx)
+				case a.mode == Set:
+					return locales.LockSetNote(cx)
+				}
+				return ""
 			}
 			return ui.Dialog{
 				TestID:                 "lock-dialog",
 				Role:                   core.RoleAlertDialog,
 				NoCloseOnBackdropPress: true,
 				Open:                   func() bool { return true },
-				Title:                  title(cx, a.mode, a.name),
-				Description:            description,
+				TitleFunc:              func() string { return title(cx, a.mode, a.name) },
+				DescriptionFunc:        description,
 				Style:                  core.Style{Width: core.Pt(380)},
 				OnOpenChange: func(open bool, _ base.Reason) {
 					if !open {
@@ -115,8 +118,8 @@ func (d Dialog) Render(cx *core.Scope) core.Node {
 				},
 				Children: []core.Node{core.View{Style: core.Style{Gap: 8}, Children: append(f.fields(submit), problemLine(cx, look.Get), copyingLine(cx, look.Get))}},
 				Footer: []core.Node{
-					ui.Button{Text: locales.LockCancel(cx), Variant: ui.ButtonSecondary, TestID: "lock-cancel", Disabled: func() bool { return look.Get().Copying }, OnPress: cancel},
-					ui.Button{Text: action(cx, a.mode), TestID: "lock-submit", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: submit},
+					ui.Button{TextFunc: func() string { return locales.LockCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "lock-cancel", Disabled: func() bool { return look.Get().Copying }, OnPress: cancel},
+					ui.Button{TextFunc: func() string { return action(cx, a.mode) }, TestID: "lock-submit", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: submit},
 				},
 			}
 		})
@@ -185,32 +188,34 @@ func (f form) take() (current, next, confirm string) {
 func (f form) fields(submit func()) []core.Node {
 	var out []core.Node
 	if f.asksCurrent() {
-		label := locales.LockFieldCurrent(f.cx)
-		if f.mode == Unlock {
-			label = locales.LockFieldPassword(f.cx)
+		label := func() string {
+			if f.mode == Unlock {
+				return locales.LockFieldPassword(f.cx)
+			}
+			return locales.LockFieldCurrent(f.cx)
 		}
 		out = append(out, passwordField(f.current, "lock-current", label, core.AutoCompletePassword, true, submit))
 	}
 	if f.asksNew() {
 		out = append(out,
-			passwordField(f.next, "lock-new", locales.LockFieldNew(f.cx), core.AutoCompleteNewPassword, !f.asksCurrent(), submit),
-			passwordField(f.confirm, "lock-confirm", locales.LockFieldConfirm(f.cx), core.AutoCompleteNewPassword, false, submit))
+			passwordField(f.next, "lock-new", func() string { return locales.LockFieldNew(f.cx) }, core.AutoCompleteNewPassword, !f.asksCurrent(), submit),
+			passwordField(f.confirm, "lock-confirm", func() string { return locales.LockFieldConfirm(f.cx) }, core.AutoCompleteNewPassword, false, submit))
 	}
 	return out
 }
 
 // passwordField is a secure text field (Masked) that keeps what is typed in value, labelled and hinted with label.
-func passwordField(value *core.Signal[string], id, label string, fill core.AutoComplete, focus bool, submit func()) core.Node {
+func passwordField(value *core.Signal[string], id string, label func() string, fill core.AutoComplete, focus bool, submit func()) core.Node {
 	return ui.Input{
-		TestID:       id,
-		Label:        label,
-		Placeholder:  label,
-		Masked:       true,
-		AutoComplete: fill,
-		AutoFocus:    focus,
-		Value:        value.Get,
-		OnChange:     value.Set,
-		OnSubmit:     func(string) { submit() },
+		TestID:          id,
+		LabelFunc:       label,
+		PlaceholderFunc: label,
+		Masked:          true,
+		AutoComplete:    fill,
+		AutoFocus:       focus,
+		Value:           value.Get,
+		OnChange:        value.Set,
+		OnSubmit:        func(string) { submit() },
 	}
 }
 
