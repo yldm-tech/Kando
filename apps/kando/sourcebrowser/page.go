@@ -93,16 +93,11 @@ func folder(cx *core.Scope, a App) core.Node {
 		items := crumbs.Get()
 		return ui.Breadcrumbs{TestID: "media-sources-path", Items: items, OnSelect: live.On(a, a.OpenMediaBrowseCrumb), Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}}
 	})
-	// The button shows while videos are chosen, and its words count them, so it is built again as that count changes.
+	// The button shows while videos are chosen, and its words count them.
 	count := core.NewMemo(cx, chosen)
-	importButton := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the count without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		n := count.Get()
-		if n == 0 {
-			return nil
-		}
-		return ui.Button{TestID: "media-sources-import", Text: locales.MediaSourceImportSome(cx, n), OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
-	})
+	importButton := core.Show{When: func() bool { return count.Get() > 0 }, Then: func(cx *core.Scope) core.Node {
+		return ui.Button{TestID: "media-sources-import", TextFunc: func() string { return locales.MediaSourceImportSome(cx, count.Get()) }, OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
+	}}
 	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{path, importButton}}
 	note := live.Func(a, a.MediaBrowseNote)
 	noteLine := core.Show{When: func() bool { return note() != "" }, Then: func(*core.Scope) core.Node {
