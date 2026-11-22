@@ -395,13 +395,20 @@ func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 	return cues[i], true
 }
 
-// playingCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1.
+// playingCue is the index of the cue the picture shows at the moment shown (shownHead): the line at the pointer while the scrubber is held, else the line playing (heldCue), or -1.
 func (s *screen) playingCue(list []core.Segment) int {
-	at := s.playhead() - s.a.Delay()
+	if s.held.Get() {
+		return cueIndex(list, s.shownHead()-s.a.Delay())
+	}
+	return s.heldCue(list)
+}
+
+// heldCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1, whatever the scrubber shows.
+func (s *screen) heldCue(list []core.Segment) int {
 	if i := s.a.HeldLine(); i >= 0 && i < len(list) {
 		return i
 	}
-	return cueIndex(list, at)
+	return cueIndex(list, s.playhead()-s.a.Delay())
 }
 
 // cueIndex is the index of the line CueAt finds, or -1.

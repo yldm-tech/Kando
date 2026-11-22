@@ -66,7 +66,7 @@ func (s *screen) playhead() time.Duration {
 	return s.a.PlayHead()
 }
 
-// shownHead is the playhead, or while the scrubber is held where it would seek.
+// shownHead is the moment the screen shows: the playhead, or while the scrubber is held where it would seek, so the time, the lines on the picture, the subtitle list and the 片段 follow the pointer as it drags, as the picture does once it lets go.
 func (s *screen) shownHead() time.Duration {
 	if s.held.Get() {
 		return seconds(s.scrub.Get())

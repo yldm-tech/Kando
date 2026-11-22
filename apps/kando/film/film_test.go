@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -610,7 +611,89 @@ func TestCueListLetsTheUserReadAway(t *testing.T) {
 	if got := offset(); got == away || app.Exists(pill) {
 		t.Fatalf("a move of the user's left the list at %v; pill %v", got, app.Exists(pill))
 	}
+	// A drag of the scrubber is a move of the user's too: the list read away follows the pointer before the film seeks.
+	app.Scroll("id:film-cues", 2000)
+	away = offset()
+	finger := scrubTo(app, 300*time.Second, 400*time.Second)
+	if got := offset(); got == away || app.Exists(pill) || !slices.Equal(litRows(app), []string{"第 151 句"}) {
+		t.Fatalf("a drag to 5:00 left the list at %v, lit %q; pill %v", got, litRows(app), app.Exists(pill))
+	}
+	finger.Lift()
 }
+
+// TestCueListGoesToTheNextLineFromAGap moves the picture to between two lines, by a jump and by a drag of the scrubber: the list goes to the line coming next, unlit until the film reaches it, rather than stay at the line it left.
+func TestCueListGoesToTheNextLineFromAGap(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = nil
+	for i := range 200 {
+		at := time.Duration(i) * 2 * time.Second
+		a.subs.Cues = append(a.subs.Cues, core.Segment{Start: at, End: at + time.Second, Text: fmt.Sprintf("第 %d 句", i+1)})
+	}
+	a.play = &fakePlay{head: 500 * time.Millisecond, length: 400 * time.Second}
+	app := start(t, a)
+	app.Advance(time.Second)
+	shows := func(text string) bool {
+		app.Advance(time.Second)
+		return app.Exists("id:film-cues >> " + whole(text))
+	}
+	change(app, a, func() { a.jumps++; a.play.head = 201500 * time.Millisecond })
+	if !shows("第 102 句") || shows("第 1 句") || len(litRows(app)) != 0 {
+		t.Fatalf("a jump to 3:21.5 shows %q, lit %q", app.Texts(), litRows(app))
+	}
+	change(app, a, func() { a.play.head = 202500 * time.Millisecond })
+	if !slices.Equal(litRows(app), []string{"第 102 句"}) {
+		t.Fatalf("at 3:22.5 the list lights %q", litRows(app))
+	}
+	finger := scrubTo(app, 301*time.Second, 400*time.Second)
+	if !shows("第 152 句") || shows("第 102 句") || len(litRows(app)) != 0 {
+		t.Fatalf("a drag to 5:01 shows %q, lit %q", app.Texts(), litRows(app))
+	}
+	finger.Lift()
+}
+
+// TestHeldLineStaysAsTheScrubberDrags holds the film on its first line and drags the scrubber to between two lines: the card under the list keeps the line the film is held on, rather than going and coming back as the pointer passes over lines, until the film plays from where the drag lets go.
+func TestHeldLineStaysAsTheScrubberDrags(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = nil
+	for i := range 20 {
+		at := time.Duration(i) * 2 * time.Second
+		a.subs.Cues = append(a.subs.Cues, core.Segment{Start: at, End: at + time.Second, Text: fmt.Sprintf("第 %d 句", i+1)})
+	}
+	a.play = &fakePlay{head: 500 * time.Millisecond, length: 40 * time.Second}
+	app := start(t, a)
+	app.Advance(time.Second)
+	held := func() bool { return app.Exists("id:film-held-text >> " + whole("第 1 句")) }
+	if !held() {
+		t.Fatalf("the film held on its first line shows no card: %q", app.Texts())
+	}
+	finger := scrubTo(app, 21*time.Second, 40*time.Second)
+	if !held() || app.Exists("id:film-held-text >> text:第 11 句") {
+		t.Fatalf("with the scrubber dragged to 0:21 the card shows %q", app.Texts())
+	}
+	finger.Lift()
+}
+
+// scrubTo puts a finger down on the scrubber at, of a film length long, and holds it there.
+func scrubTo(app *nsgotest.App, at, length time.Duration) *nsgotest.Finger {
+	bar := app.Find("id:film-scrubber")
+	x := bar.Frame.Size.Width * ns.Points(at.Seconds()/length.Seconds())
+	finger := app.Touch("id:film-scrubber", ns.Point{X: x, Y: bar.Frame.Size.Height / 2})
+	app.Advance(time.Second)
+	return finger
+}
+
+// litRows are the lines of the subtitle list's lit rows, "第 N 句", as their labels name them.
+func litRows(app *nsgotest.App) []string {
+	var lit []string
+	for _, v := range app.Query("id:film-cues >> role:button") {
+		if v.Props.Selected {
+			lit = append(lit, litLine.FindString(v.Props.Label))
+		}
+	}
+	return lit
+}
+
+var litLine = regexp.MustCompile(`第 \d+ 句`)
 
 // TestCueListKeepsItsRowsAsLinesComeBefore reads the subtitle list away from the playing line while lines come in before the part read, as they do for a film made while it plays from where it was opened, which goes back for the part before it once it reaches the end: the rows read stay where they are, rather than the list's rows moving on by the lines that came in.
 func TestCueListKeepsItsRowsAsLinesComeBefore(t *testing.T) {
