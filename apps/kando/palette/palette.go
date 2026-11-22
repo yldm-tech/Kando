@@ -43,7 +43,7 @@ type Answer struct {
 
 // View is what the palette shows.
 type View struct {
-	// Label is the field's accessible name, read as the palette opens.
+	// Label is the field's accessible name.
 	Label       string
 	Placeholder string
 	Footer      string
@@ -262,11 +262,10 @@ func (p panel) Render(cx *core.Scope) core.Node {
 
 // field is the search row: the magnifier, the field 17 high in a row of 30 that has the keyboard as the palette opens, and Esc.
 func field(cx *core.Scope, a App, view *core.Memo[View], send func(fill func(*Event))) core.Node {
-	// TODO(nsgo#145): give core.Input a LabelFunc twin so the field's accessible name follows the interface language as it changes; it is read once as the palette opens, for where it opens (View.Label) https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		TestID:          "palette-field",
 		AutoFocus:       true,
-		Label:           view.GetUntracked().Label,
+		LabelFunc:       func() string { return view.Get().Label },
 		Value:           live.Func(a, func() string { return *a.PaletteQuery() }),
 		PlaceholderFunc: func() string { return view.Get().Placeholder },
 		OnChange: func(text string) {
@@ -425,11 +424,9 @@ func (c answer) Render(cx *core.Scope) core.Node {
 						return core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 6}, Children: []core.Node{chips}}
 					}},
 					core.Show{When: func() bool { return action.Get() != "" }, Then: func(*core.Scope) core.Node {
-						// ui.Button takes its title once, so the button is built again when the title changes, which only another language does.
-						// TODO(nsgo#145): give ui.Button a TextFunc twin so its title follows the language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-						return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{core.Dynamic(func(*core.Scope) core.Node {
-							return ui.Button{Text: action.Get(), TestID: "palette-action", OnPress: func() { c.send(func(ev *Event) { ev.Action = true }) }}
-						})}}
+						return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{
+							ui.Button{TextFunc: action.Get, TestID: "palette-action", OnPress: func() { c.send(func(ev *Event) { ev.Action = true }) }},
+						}}
 					}},
 					core.Show{When: func() bool { return get().Note != "" }, Then: func(*core.Scope) core.Node {
 						return core.Text{ContentFunc: func() string { return get().Note }, Style: core.Style{FontSize: 11, Opacity: core.Alpha(0.55)}}

@@ -265,6 +265,19 @@ func TestPaletteRevealsTheHighlight(t *testing.T) {
 	}
 }
 
+// The field's accessible name follows the view the app hands the palette, as it does when the interface language changes: the field is renamed in place and keeps the keyboard and what was typed.
+func TestPaletteFieldFollowsItsLabel(t *testing.T) {
+	a := newFakeApp()
+	a.view.Label = "搜索命令"
+	app := start(t, a, 720)
+	app.Type("id:palette-field", "河")
+	field := app.Find("id:palette-field").ID
+	change(app, a, func() { a.view.Label = "Search commands" })
+	if got := app.Find("id:palette-field"); got.ID != field || !got.Focused || got.Text != "河" || got.Props.Label != "Search commands" {
+		t.Fatalf("the field is view %d (was %d), focused %v, holds %q, named %q", got.ID, field, got.Focused, got.Text, got.Props.Label)
+	}
+}
+
 // The app hands the palette a view that follows its whole revision (live.Func), which changes on every keystroke and progress report; the field must not be built again for those, so it keeps the keyboard focus and what was typed.
 func TestPaletteStaysWhileTheAppChanges(t *testing.T) {
 	a := newFakeApp()
