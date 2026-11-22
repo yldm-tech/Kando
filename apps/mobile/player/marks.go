@@ -170,9 +170,10 @@ func (ink markInk) span(content, ruby, word string, st core.Style) core.Span {
 	}
 	base := core.Style{FontSize: ink.style.FontSize, FontWeight: ink.style.FontWeight, Color: ink.style.Color}.Merge(st)
 	small := core.Style{FontSize: ink.style.FontSize * rubyScale, Color: ink.style.Color}
-	return core.Span{Content: content, Style: core.Style{VerticalAlign: core.VerticalAlignTextBottom}, Attachment: core.View{TestID: "player-ruby", Style: core.Style{AlignItems: core.AlignCenter}, OnPress: press, Children: []core.Node{
+	// The line puts a baseline-aligned view's first text on its baseline, so the run comes first, and the column is reversed to draw the reading over it: the run sits level with the characters around it, though it falls back to a font whose descent is larger than the line's.
+	return core.Span{Content: content, Attachment: core.View{TestID: "player-ruby", Style: core.Style{Direction: core.ColumnReverse, AlignItems: core.AlignCenter, VerticalAlign: core.VerticalAlignBaseline}, OnPress: press, Children: []core.Node{
+		core.Text{Content: content, MaxLines: 1, Style: base},
 		// The screen reader reads the run, not its reading.
 		core.Text{Content: ruby, MaxLines: 1, Style: small, Role: core.RoleNone},
-		core.Text{Content: content, MaxLines: 1, Style: base},
 	}}}
 }
