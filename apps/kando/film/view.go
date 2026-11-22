@@ -272,18 +272,17 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, MaxWidth: core.Pct(100)}, Children: []core.Node{
 			core.Text{TestID: "film-stage-command", Content: GStreamerInstall, Selectable: core.SelectableOn,
 				Style: core.Style{FontFamily: "monospace", FontSize: 11, LineHeight: 16, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Muted)},
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language and 已拷贝 without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			core.Dynamic(func(cx *core.Scope) core.Node {
-				text := locales.FilmCopyCommand(cx)
-				if copied.Get() {
-					text = locales.FilmCommandCopied(cx)
-				}
-				return ui.Button{TestID: "film-stage-copy-command", Text: text, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-					OnPress: func() {
-						cx.SetClipboard(GStreamerInstall)
-						copied.Set(true)
-					}}
-			}),
+			ui.Button{TestID: "film-stage-copy-command", Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+				TextFunc: func() string {
+					if copied.Get() {
+						return locales.FilmCommandCopied(cx)
+					}
+					return locales.FilmCopyCommand(cx)
+				},
+				OnPress: func() {
+					cx.SetClipboard(GStreamerInstall)
+					copied.Set(true)
+				}},
 		}}
 	}}
 }
@@ -292,16 +291,20 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
 	return core.Show{When: func() bool { return note().err != "" && note().err != ErrStoredUnplayable && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return core.Dynamic(func(cx *core.Scope) core.Node {
+		stored := core.NewMemo(cx, func() bool {
 			switch note().err {
 			case ErrStoredGone, ErrStoredUnreachable, ErrStoredMissing:
-				return ui.Button{TestID: "film-stage-stored-settings", Text: locales.FilmsOpenSettings(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-					OnPress: live.Do(a, func() { a.OpenSettings(sectionid.Account) })}
+				return true
 			}
-			return ui.Button{TestID: "film-stage-reveal", Text: locales.FilmShowInFinder(cx, desktop.Platform(cx)), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-				OnPress: live.Do(a, func() { a.Reveal(a.PlayPath()) })}
+			return false
 		})
+		return core.Show{When: stored.Get, Then: func(cx *core.Scope) core.Node {
+			return ui.Button{TestID: "film-stage-stored-settings", TextFunc: func() string { return locales.FilmsOpenSettings(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+				OnPress: live.Do(a, func() { a.OpenSettings(sectionid.Account) })}
+		}, Else: func(cx *core.Scope) core.Node {
+			return ui.Button{TestID: "film-stage-reveal", TextFunc: func() string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+				OnPress: live.Do(a, func() { a.Reveal(a.PlayPath()) })}
+		}}
 	}}
 }
 

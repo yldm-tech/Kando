@@ -155,10 +155,9 @@ func (s *screen) lineEditor(cx *core.Scope) core.Node {
 	cancel := live.Do(a, a.CancelEdit)
 	cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, cancel)
 	field := func(id string, label func() string, value func() *string, focus bool) core.Node {
-		// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 		return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
 			core.Text{ContentFunc: label, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightSemibold, Color: core.RGBA(0xFFFFFF, 0.6)}},
-			base.Input{TestID: id, Label: label(), AutoFocus: focus,
+			base.Input{TestID: id, LabelFunc: label, AutoFocus: focus,
 				Value:          live.Func(a, func() string { return *value() }),
 				OnChange:       live.On(a, func(text string) { *value() = text }),
 				SubmitBehavior: core.SubmitBehaviorSubmit,
@@ -167,14 +166,9 @@ func (s *screen) lineEditor(cx *core.Scope) core.Node {
 					BorderWidth: 1, BorderColor: core.RGBA(0xFFFFFF, 0.18), Color: onGlass, CaretColor: onGlass, PlaceholderColor: core.RGBA(0xFFFFFF, 0.45)}},
 		}}
 	}
-	// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop these Dynamics https://github.com/nsgo-dev/nsgo/issues/145
 	buttons := core.View{Style: core.Style{Direction: core.Row, Gap: 8, JustifyContent: core.JustifyEnd}, Children: []core.Node{
-		core.Dynamic(func(cx *core.Scope) core.Node {
-			return ui.Button{TestID: "film-correct-cancel", Text: locales.CorrectCancel(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: cancel}
-		}),
-		core.Dynamic(func(cx *core.Scope) core.Node {
-			return ui.Button{TestID: "film-correct-submit", Text: locales.CorrectSubmit(cx), Size: ui.SizeSmall, OnPress: submit}
-		}),
+		ui.Button{TestID: "film-correct-cancel", TextFunc: func() string { return locales.CorrectCancel(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, OnPress: cancel},
+		ui.Button{TestID: "film-correct-submit", TextFunc: func() string { return locales.CorrectSubmit(cx) }, Size: ui.SizeSmall, OnPress: submit},
 	}}
 	return core.View{TestID: "film-correct-editor", Role: core.RoleGroup, LabelFunc: func() string { return locales.CorrectKeyEdit(cx) },
 		Style: correctGlass.style().Merge(core.Style{Width: core.Pct(100), MaxWidth: core.Pt(660), Gap: 8, Padding: core.Symmetric(12, 14), CornerRadius: 18}),

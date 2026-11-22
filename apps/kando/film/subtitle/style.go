@@ -82,26 +82,22 @@ type Edit func(change func(l *Look))
 
 // FontSelect is the drop-down of the font both lines are drawn in, the families the platform offers (Fonts) by their names in the interface's language; the look keeps the saved value of the one chosen. id is its test ID; look reads the look.
 func FontSelect(cx *core.Scope, id string, look func() Look, edit Edit) core.Node {
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		fonts := Fonts(cx.Env().OS())
-		opts := make([]ui.Option[string], len(fonts))
-		for i, family := range fonts {
-			opts[i] = ui.Option[string]{Value: family, Label: FontName(cx, family)}
-		}
-		return ui.Select[string]{TestID: id, Label: locales.FilmStyleFont(cx), Options: opts,
-			Value: func() string { return look().Translation.Family },
-			OnChange: func(family string) {
-				edit(func(l *Look) { l.Translation.Family, l.Original.Family = family, family })
-			},
-			Style: core.Style{Width: core.Pt(150)}}
-	})
+	fonts := Fonts(cx.Env().OS())
+	opts := make([]ui.Option[string], len(fonts))
+	for i, family := range fonts {
+		opts[i] = ui.Option[string]{Value: family, LabelFunc: func() string { return FontName(cx, family) }}
+	}
+	return ui.Select[string]{TestID: id, LabelFunc: func() string { return locales.FilmStyleFont(cx) }, Options: opts,
+		Value: func() string { return look().Translation.Family },
+		OnChange: func(family string) {
+			edit(func(l *Look) { l.Translation.Family, l.Original.Family = family, family })
+		},
+		Style: core.Style{Width: core.Pt(150)}}
 }
 
 // SizeSlider is the slider of line's size, between its Min and Max. id is its test ID; look reads the look.
 func SizeSlider(cx *core.Scope, id string, line Line, look func() Look, edit Edit) ui.Slider {
-	// TODO(nsgo#145): give ui.Slider's Label a LabelFunc twin, as base.Slider's, so the size slider's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
-	return ui.Slider{TestID: id, Label: locales.FilmFaceSize(cx, line.Name(cx)), Min: line.Min, Max: line.Max, Step: 1,
+	return ui.Slider{TestID: id, LabelFunc: func() string { return locales.FilmFaceSize(cx, line.Name(cx)) }, Min: line.Min, Max: line.Max, Step: 1,
 		Value:    func() float64 { l := look(); return float64(line.Face(&l).Size) },
 		OnChange: func(v float64) { edit(func(l *Look) { line.Face(l).Size = float32(v) }) },
 		Style:    core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}}

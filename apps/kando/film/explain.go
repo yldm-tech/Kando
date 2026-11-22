@@ -176,10 +176,9 @@ func (s *screen) explainTab(cx *ns.Scope) ns.Node {
 func (s *screen) explainFoot(cx *ns.Scope, e func() Explanation) ns.Node {
 	a := s.a
 	question := live.Func(a, func() string { return *a.ExplainQuestion() })
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		TestID:          "film-explain-ask",
-		Label:           locales.ExplainAskLabel(cx),
+		LabelFunc:       func() string { return locales.ExplainAskLabel(cx) },
 		Value:           question,
 		PlaceholderFunc: func() string { return locales.ExplainAskPlaceholder(cx, cx.KeyLabel("enter")) },
 		OnChange:        live.On(a, func(text string) { *a.ExplainQuestion() = text }),

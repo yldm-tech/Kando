@@ -88,8 +88,7 @@ func (s *screen) extensionsTab(cx *ns.Scope) ns.Node {
 				Style: ns.Style{FontSize: 15, LineHeight: 21, FontWeight: ns.FontWeightBold, Color: onGlass, FlexShrink: 1}},
 		}}
 	}, Else: func(cx *ns.Scope) ns.Node {
-		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
-		return ns.Dynamic(func(cx *ns.Scope) ns.Node { return s.extensionSelect(cx, panels) })
+		return s.extensionSelect(cx, panels)
 	}}
 	head := ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 10, Left: 14}, Gap: 4, Borders: ns.Edges{Bottom: 0.5}, BorderColor: panelLine}, Children: []ns.Node{
 		heading,
@@ -131,7 +130,7 @@ func (s *screen) extensionSelect(cx *ns.Scope, joined func() string) ns.Node {
 		}
 		return options
 	}
-	return ui.Select[string]{OptionsFunc: options, Label: locales.FilmExtensionPick(cx), TestID: "film-extension-pick",
+	return ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.FilmExtensionPick(cx) }, TestID: "film-extension-pick",
 		Value:    live.Func(a, func() string { return extensionChosen(a.Extensions(cx), a.Extension()).ID }),
 		OnChange: live.On(a, a.SetExtension), Style: ns.Style{AlignSelf: ns.AlignStretch}}
 }

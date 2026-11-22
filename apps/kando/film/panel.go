@@ -218,13 +218,12 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 		tab := chosen()
 		ns.Untracked(cx, func() struct{} { reveal(tab); return struct{}{} })
 	})
-	// TODO(nsgo#145): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	return ns.Scroll{TestID: "film-tabs-scroll", Ref: scroll, Horizontal: true, HideIndicator: true, Style: ns.Style{Height: ns.Pt(32), FlexGrow: 0, FlexShrink: 0, CornerRadius: 12},
 		OnLayout: func(b ns.Bounds) {
 			bar = b.Size.Width
 			reveal(ns.Untracked(cx, chosen))
 		},
-		Children: []ns.Node{base.Tabs{TestID: "film-tabs", Label: locales.FilmSidebar(cx),
+		Children: []ns.Node{base.Tabs{TestID: "film-tabs", LabelFunc: func() string { return locales.FilmSidebar(cx) },
 			Style:    ns.Style{Direction: ns.Row, Height: ns.Pt(32), MinWidth: ns.Pt(panelWidth - 28), Padding: ns.All(3), CornerRadius: 12, Background: ns.RGBA(0xFFFFFF, 0.1)},
 			Children: tabs}}}
 }
@@ -509,10 +508,9 @@ func (s *screen) searchField(cx *ns.Scope, step func(back bool)) ns.Node {
 		cx.OnKeyWith("shift+enter", ns.KeyOptions{When: ns.KeyAlways}, live.Do(a, func() { step(true) }))
 		return nil
 	}}
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		Ref: field, TestID: "film-search", Role: ns.RoleSearchField,
-		Label:           locales.FilmSearchLines(cx),
+		LabelFunc:       func() string { return locales.FilmSearchLines(cx) },
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.FilmSearchLines(cx) + "  " + cx.KeyLabel("mod+f") },
 		OnChange:        live.On(a, func(text string) { *a.Search() = text }),

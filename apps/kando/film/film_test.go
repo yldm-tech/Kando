@@ -1813,3 +1813,65 @@ func TestNotesTabListsTheFilmsLinesAndWords(t *testing.T) {
 		t.Fatalf("nothing saved, the tab shows %q", app.Texts())
 	}
 }
+
+// TestPageFollowsTheLanguage switches the interface's language while a film is open: the names of the transport's controls, the side panel's tabs and the search field, and the style view's choices, say the new language, and none of those controls is built again for it, so the search field keeps what it holds.
+func TestPageFollowsTheLanguage(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	env := ns.Environment{OS: ns.OSMacOS, Idiom: ns.IdiomDesktop, AppleKeyboard: true}
+	ids := []string{"film-mode", "film-speed", "film-volume", "film-scrubber", "film-tabs", "film-search"}
+	before := map[string]*nsgotest.View{}
+	for _, id := range ids {
+		before[id] = app.Find("id:" + id)
+	}
+	app.Type("id:film-search", "bye")
+	testlocale.Use(t, "en")
+	app.SetEnvironment(testlocale.Environment(env))
+	en := testlocale.Messages()
+	for id, want := range map[string]string{
+		"film-mode":     en.FilmSubtitlesMode(ModeNameIn(en, SubBilingual)),
+		"film-speed":    en.FilmSpeedLabel(RateTextIn(en, 1)),
+		"film-volume":   en.FilmVolume(),
+		"film-scrubber": en.FilmPlaybackPosition(),
+		"film-tabs":     en.FilmSidebar(),
+		"film-search":   en.FilmSearchLines(),
+	} {
+		named := app.Find("id:" + id)
+		if id == "film-volume" || id == "film-scrubber" {
+			// A slider's name is its thumb's, which the test window lays out at no size.
+			named = app.FindMounted("id:" + id + " >> role:adjustable")
+		}
+		if got := named.Props.Label; got != want {
+			t.Errorf("%s is named %q in English, want %q", id, got, want)
+		}
+	}
+	for _, id := range ids {
+		if app.Find("id:"+id).ID != before[id].ID {
+			t.Errorf("%s was built again for the language", id)
+		}
+	}
+	if got := app.Find("id:film-search").Text; got != "bye" {
+		t.Errorf("the search field holds %q after the switch", got)
+	}
+	change(app, a, func() { a.styleView = true })
+	style := map[string]*nsgotest.View{}
+	for _, id := range []string{"film-style-mode", "film-style-font", "film-style-reset"} {
+		style[id] = app.Find("id:" + id)
+	}
+	testlocale.Use(t, "ja")
+	app.SetEnvironment(testlocale.Environment(env))
+	ja := testlocale.Messages()
+	for _, want := range []string{ja.FilmStyleReset(), ja.FilmPositionHigh(), ja.FilmPositionBottom(), ModeNameIn(ja, SubOff)} {
+		if !app.Exists(whole(want)) {
+			t.Errorf("no %q in the style view in Japanese: %q", want, app.Texts())
+		}
+	}
+	if got := app.Find("id:film-style-font").Props.Label; got != ja.FilmStyleFont() {
+		t.Errorf("the font drop-down is named %q in Japanese", got)
+	}
+	for id, was := range style {
+		if app.Find("id:"+id).ID != was.ID {
+			t.Errorf("%s was built again for the language", id)
+		}
+	}
+}

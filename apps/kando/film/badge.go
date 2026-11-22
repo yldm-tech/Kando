@@ -77,7 +77,6 @@ func (s *screen) progressBadge() core.Node {
 			}
 			return locales.FilmBadgeRunning(cx, l.Percent)
 		}
-		name := core.NewMemo(cx, label).Get
 		ring := ui.ProgressRing{TestID: "film-badge-ring", Size: 28, Value: func() float32 { return float32(layers().Percent) },
 			Tint: func() core.Color {
 				if attention() {
@@ -95,19 +94,16 @@ func (s *screen) progressBadge() core.Node {
 			StyleFunc: func() core.Style {
 				return core.Style{Right: core.Pt(s.roomRight() + 20), Transition: roomTransition}
 			},
-			Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): give base.Popover a LabelFunc twin so the badge's name follows how far the subtitles are and the interface language without building the popover again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-				return base.Popover{TestID: "film-badge", Label: name(), Tooltip: tip(cx, label),
-					Open:         open.Get,
-					OnOpenChange: func(now bool, _ base.Reason) { open.Set(now) },
-					Placement:    core.PlaceBottom, Align: core.AlignEnd, Offset: 8,
-					Style: badgeGlass.style().Merge(core.Style{Width: core.Pt(badgeSize), Height: core.Pt(badgeSize), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-						Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.2)}, FocusVisible: ui.FocusRing(cx, -2)}),
-					Trigger:    core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Width: core.Pt(badgeSize), Height: core.Pt(badgeSize), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{ring, mark}},
-					PopupStyle: badgePanel.floating().Merge(core.Style{Width: core.Pt(310), Padding: core.All(14), Gap: 10}),
-					Children:   s.badgePanel(cx, layers, attention, func() { open.Set(false) }),
-				}
-			})},
+			Children: []core.Node{base.Popover{TestID: "film-badge", LabelFunc: label, Tooltip: tip(cx, label),
+				Open:         open.Get,
+				OnOpenChange: func(now bool, _ base.Reason) { open.Set(now) },
+				Placement:    core.PlaceBottom, Align: core.AlignEnd, Offset: 8,
+				Style: badgeGlass.style().Merge(core.Style{Width: core.Pt(badgeSize), Height: core.Pt(badgeSize), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+					Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.2)}, FocusVisible: ui.FocusRing(cx, -2)}),
+				Trigger:    core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Width: core.Pt(badgeSize), Height: core.Pt(badgeSize), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{ring, mark}},
+				PopupStyle: badgePanel.floating().Merge(core.Style{Width: core.Pt(310), Padding: core.All(14), Gap: 10}),
+				Children:   s.badgePanel(cx, layers, attention, func() { open.Set(false) }),
+			}},
 		}
 	}}
 }

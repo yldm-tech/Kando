@@ -303,8 +303,7 @@ func (s *screen) termAdder(cx *ns.Scope) ns.Node {
 	add := live.Do(a, a.AddTerm)
 	writable := live.Func(a, a.TermsWritable)
 	field := func(id string, label, placeholder func() string, value func() *string) ns.Node {
-		// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
-		return base.Input{TestID: id, Label: label(), PlaceholderFunc: placeholder,
+		return base.Input{TestID: id, LabelFunc: label, PlaceholderFunc: placeholder,
 			Value:          live.Func(a, func() string { return *value() }),
 			OnChange:       live.On(a, func(text string) { *value() = text }),
 			Disabled:       func() bool { return !writable() },

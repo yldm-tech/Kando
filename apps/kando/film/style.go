@@ -26,39 +26,35 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 		})
 	}
 	change := func(fn func(l *Look)) { edit(fn)() }
-	// The segmented controls show their options' labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes, which happens in the settings, away from them; none holds the keyboard's text. A control whose language shows only in its accessible name reads it once instead, as the size sliders do.
-	modes := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		opts := make([]ui.Option[string], len(styleModes))
-		for i, m := range styleModes {
-			opts[i] = ui.Option[string]{Value: m, Label: ModeName(cx, m)}
-		}
-		return ui.Tabs[string]{TestID: "film-style-mode", Label: locales.FilmStyleShow(cx), Size: ui.SizeSmall, Options: opts,
-			Value: live.Func(a, func() string { return modeOrOff(a.SubMode()) }), OnChange: live.On(a, a.SetSubMode)}
-	})
-	order := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.Tabs[string]{TestID: "film-style-order", Label: locales.FilmStyleOrder(cx), Size: ui.SizeSmall,
-			Options: []ui.Option[string]{{Value: SubTranslationFirst, Label: subtitle.OrderName(cx, SubTranslationFirst)}, {Value: SubOriginalFirst, Label: subtitle.OrderName(cx, SubOriginalFirst)}},
-			Value:   live.Func(a, a.SubOrder),
-			OnChange: live.On(a, func(order string) {
-				a.SetSubOrder(order)
-				a.LookChanged()
-			})}
-	})
-	place := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.Tabs[bool]{TestID: "film-style-place", Label: locales.FilmStylePosition(cx), Size: ui.SizeSmall,
-			Options: []ui.Option[bool]{{Value: true, Label: locales.FilmPositionHigh(cx)}, {Value: false, Label: locales.FilmPositionBottom(cx)}},
-			Value:   func() bool { return look().High },
-			// Picking a place also puts the open film's subtitles, if they were moved away from it (SubLift), back there.
-			OnChange: func(high bool) {
-				edit(func(l *Look) {
-					l.High = high
-					a.SetSubLift(0)
-				})()
-			}}
-	})
+	opts := make([]ui.Option[string], len(styleModes))
+	for i, m := range styleModes {
+		opts[i] = ui.Option[string]{Value: m, LabelFunc: func() string { return ModeName(cx, m) }}
+	}
+	modes := ui.Tabs[string]{TestID: "film-style-mode", LabelFunc: func() string { return locales.FilmStyleShow(cx) }, Size: ui.SizeSmall, Options: opts,
+		Value: live.Func(a, func() string { return modeOrOff(a.SubMode()) }), OnChange: live.On(a, a.SetSubMode)}
+	order := ui.Tabs[string]{TestID: "film-style-order", LabelFunc: func() string { return locales.FilmStyleOrder(cx) }, Size: ui.SizeSmall,
+		Options: []ui.Option[string]{
+			{Value: SubTranslationFirst, LabelFunc: func() string { return subtitle.OrderName(cx, SubTranslationFirst) }},
+			{Value: SubOriginalFirst, LabelFunc: func() string { return subtitle.OrderName(cx, SubOriginalFirst) }},
+		},
+		Value: live.Func(a, a.SubOrder),
+		OnChange: live.On(a, func(order string) {
+			a.SetSubOrder(order)
+			a.LookChanged()
+		})}
+	place := ui.Tabs[bool]{TestID: "film-style-place", LabelFunc: func() string { return locales.FilmStylePosition(cx) }, Size: ui.SizeSmall,
+		Options: []ui.Option[bool]{
+			{Value: true, LabelFunc: func() string { return locales.FilmPositionHigh(cx) }},
+			{Value: false, LabelFunc: func() string { return locales.FilmPositionBottom(cx) }},
+		},
+		Value: func() bool { return look().High },
+		// Picking a place also puts the open film's subtitles, if they were moved away from it (SubLift), back there.
+		OnChange: func(high bool) {
+			edit(func(l *Look) {
+				l.High = high
+				a.SetSubLift(0)
+			})()
+		}}
 	font := subtitle.FontSelect(cx, "film-style-font", look, change)
 	presets := make([]core.Node, len(subtitle.Presets))
 	for i, p := range subtitle.Presets {
@@ -72,14 +68,11 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 	}
 	presetRow := core.View{TestID: "film-style-preset", Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.FilmStylePresets(cx) },
 		Style: core.Style{Direction: core.Row, Gap: 8}, Children: presets}
-	reset := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.Button{TestID: "film-style-reset", Text: locales.FilmStyleReset(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-			OnPress: edit(func(l *Look) {
-				*l = DefaultLook()
-				a.SetSubLift(0)
-			})}
-	})
+	reset := ui.Button{TestID: "film-style-reset", TextFunc: func() string { return locales.FilmStyleReset(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+		OnPress: edit(func(l *Look) {
+			*l = DefaultLook()
+			a.SetSubLift(0)
+		})}
 	content := []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(28), AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			heading(func() string { return locales.FilmStylePlayback(cx) }), reset,

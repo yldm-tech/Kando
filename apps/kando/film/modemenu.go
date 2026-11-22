@@ -49,34 +49,30 @@ func modeNote(cx *core.Scope, mode, untranslated string) string {
 // menuGlass is the glass of the transport's menus, which open above it.
 var menuGlass = glassSpec{theme.GlassCard, 14}
 
-// transportMenu is a transport button that opens a menu above it, as the subtitle and the speed buttons do: open is the app's flag, which the menu sets as it opens and closes; trigger is what the button shows, label its name, and rows what the menu holds. The prototype opens the menu above the button, its right edge 6 past the button's and its bottom 14 above the button's top, over the picture rather than the panel. The button's name is read as it is built, as base.Popover takes a static one, so it is built again when the name changes.
+// transportMenu is a transport button that opens a menu above it, as the subtitle and the speed buttons do: open is the app's flag, which the menu sets as it opens and closes; trigger is what the button shows, label its name, and rows what the menu holds. The prototype opens the menu above the button, its right edge 6 past the button's and its bottom 14 above the button's top, over the picture rather than the panel.
 func (s *screen) transportMenu(cx *core.Scope, id string, open *bool, label func() string, tooltip func() string, width core.Points, trigger []core.Node, rows func(cx *core.Scope) []core.Node) core.Node {
 	a := s.a
-	name := core.NewMemo(cx, label).Get
 	isOpen := live.Func(a, func() bool { return *open })
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give base.Popover a LabelFunc twin so the button's name follows the mode, the speed and the interface language without building the popover again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return base.Popover{
-			TestID: id, Label: name(), Tooltip: tip(cx, tooltip),
-			Open: isOpen,
-			OnOpenChange: func(now bool, _ base.Reason) {
-				*open = now
-				a.Changed()
-			},
-			Placement: core.PlaceTop, Align: core.AlignEnd, Offset: 14,
-			Style: core.Style{Direction: core.Row, Height: core.Pt(30), Padding: core.Symmetric(0, 8), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0,
-				Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.12)}, Expanded: &core.Style{Background: core.RGBA(0xFFFFFF, 0.2)}, FocusVisible: ui.FocusRing(cx, -2)},
-			StyleFunc: func() core.Style {
-				if width > 0 {
-					return core.Style{Width: core.Pt(width)}
-				}
-				return core.Style{}
-			},
-			Trigger:    core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trigger},
-			PopupStyle: menuGlass.floating().Merge(core.Style{Padding: core.All(6), Margin: core.Edges{Right: -6}}),
-			Children:   rows(cx),
-		}
-	})
+	return base.Popover{
+		TestID: id, LabelFunc: label, Tooltip: tip(cx, tooltip),
+		Open: isOpen,
+		OnOpenChange: func(now bool, _ base.Reason) {
+			*open = now
+			a.Changed()
+		},
+		Placement: core.PlaceTop, Align: core.AlignEnd, Offset: 14,
+		Style: core.Style{Direction: core.Row, Height: core.Pt(30), Padding: core.Symmetric(0, 8), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0,
+			Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.12)}, Expanded: &core.Style{Background: core.RGBA(0xFFFFFF, 0.2)}, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() core.Style {
+			if width > 0 {
+				return core.Style{Width: core.Pt(width)}
+			}
+			return core.Style{}
+		},
+		Trigger:    core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trigger},
+		PopupStyle: menuGlass.floating().Merge(core.Style{Padding: core.All(6), Margin: core.Edges{Right: -6}}),
+		Children:   rows(cx),
+	}
 }
 
 // menuHeading is the small heading over a menu's rows.
@@ -173,7 +169,7 @@ func (s *screen) delayRow(cx *core.Scope) core.Node {
 // delayInput is the subtitle delay as a number a tenth of a second at a time, from -30 to 30 seconds, written as DelayText writes it. The field keeps the text Format wrote until its value changes, and reads its name as it is built, as ui.NumberInput takes a static one, so it is built again when the language changes, which happens in the settings, away from it, to show the delay in the new language.
 func delayInput(cx *core.Scope, a App, id string) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.NumberInput (core.Input) a LabelFunc twin so the field's name follows the interface language without building the field again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		// TODO(nsgo): give ui.NumberInput (and base.NumberInput) a LabelFunc twin, which NSGo's Func-field guard still lists as an exception, and write the value again when what Format reads changes, so the field's name and the delay's text follow the interface language without building the field again; then drop this Dynamic
 		return ui.NumberInput{TestID: id, Label: locales.FilmDelay(cx), Min: -30, Max: 30, Step: 0.1,
 			Value:  live.Func(a, func() float64 { return a.Delay().Seconds() }),
 			Format: func(v float64) string { return DelayText(cx, seconds(v)) },

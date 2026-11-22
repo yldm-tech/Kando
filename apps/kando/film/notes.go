@@ -101,8 +101,7 @@ func (s *screen) notesTab(cx *ns.Scope) ns.Node {
 					return ns.Style{FontWeight: ns.FontWeightNormal}
 				}}}}
 	}
-	// TODO(nsgo#145): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
-	segments := base.Tabs{TestID: "film-notes-kind", Label: locales.FilmNotesKind(cx),
+	segments := base.Tabs{TestID: "film-notes-kind", LabelFunc: func() string { return locales.FilmNotesKind(cx) },
 		Style: ns.Style{Direction: ns.Row, Padding: ns.All(3), CornerRadius: 10, Background: ns.RGBA(0xFFFFFF, 0.08)},
 		Children: []ns.Node{
 			segment(false, "film-notes-lines", func() string { return locales.FilmNotesLines(cx, count(false)) }),
