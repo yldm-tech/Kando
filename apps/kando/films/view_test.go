@@ -966,18 +966,40 @@ func TestEmptyPagesSayWhatToDo(t *testing.T) {
 	}
 }
 
+// TestPageFollowsTheLanguage switches the interface's language with the library page showing and the removal confirmation open: the page's words, the view switch's, the link field's and the confirmation's names, and its buttons, say the new language, and none of those controls is built again for it.
 func TestPageFollowsTheLanguage(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
 	if !app.Exists(whole(testlocale.Messages().FilmsStart())) {
 		t.Fatalf("no %q", testlocale.Messages().FilmsStart())
 	}
+	change(app, a, func() { a.removing, a.removeOpen = a.items[:1], true })
+	ids := []string{"films-view", "films-link", "films-start", "remove-confirm", "remove-cancel"}
+	before := map[string]*nsgotest.View{}
+	for _, id := range ids {
+		before[id] = app.Find("id:" + id)
+	}
 	testlocale.Use(t, "en")
 	app.SetEnvironment(testEnvironment())
 	en := testlocale.Messages()
-	for _, text := range []string{en.FilmsStart(), en.FilmsQueueTitle(), en.SourceAll(), en.FilmsLocalVideo()} {
+	for _, text := range []string{en.FilmsStart(), en.FilmsQueueTitle(), en.SourceAll(), en.FilmsLocalVideo(), en.FilmsCancel(), en.FilmsRemove(), en.FilmsRemoveFiles()} {
 		if !app.Exists(whole(text)) {
 			t.Errorf("no %q in English: %q", text, app.Texts())
+		}
+	}
+	for id, want := range map[string]string{
+		"films-view":      en.FilmsView(),
+		"films-view-grid": en.FilmsViewGrid(),
+		"films-link":      en.FilmsLinkLabel(),
+		"remove-confirm":  en.FilmsRemoveConfirm("Rivers of Europe"),
+	} {
+		if got := app.Find("id:" + id).Props.Label; got != want {
+			t.Errorf("%s is named %q in English, want %q", id, got, want)
+		}
+	}
+	for _, id := range ids {
+		if app.Find("id:"+id).ID != before[id].ID {
+			t.Errorf("%s was built again for the language", id)
 		}
 	}
 }

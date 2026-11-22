@@ -471,15 +471,15 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 		}}
 		actions := ns.Each(func() []RemedyAction { return look().remedy.Actions }, func(r RemedyAction) string { return r.ID },
 			func(cx *ns.Scope, action func() RemedyAction, _ func() int) ns.Node {
-				// The remedies' words come from the app in the interface's language, so a button is built again when its action says something else.
+				// The remedies' words come from the app in the interface's language and follow the action; ui.Button takes its variant once, so the button is built again only when the action turns primary or back.
+				primary := ns.NewMemo(cx, func() bool { return action().Primary })
+				id := ns.Untracked(cx, action).ID
 				return ns.Dynamic(func(*ns.Scope) ns.Node {
-					// TODO(nsgo#145): give ui.Button a TextFunc twin so a remedy's words follow its action and the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-					r := action()
 					variant := ui.ButtonSecondary
-					if r.Primary {
+					if primary.Get() {
 						variant = ui.ButtonPrimary
 					}
-					return ui.Button{Text: r.Label, Variant: variant, Size: ui.SizeSmall, TestID: "queue-remedy-" + r.ID,
+					return ui.Button{TextFunc: func() string { return action().Label }, Variant: variant, Size: ui.SizeSmall, TestID: "queue-remedy-" + id,
 						Disabled: func() bool { return action().Disabled },
 						OnPress:  live.Do(a, func() { a.RunRemedy(item(), action().ID) })}
 				})

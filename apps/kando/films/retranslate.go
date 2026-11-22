@@ -36,31 +36,37 @@ func (r RetranslateDialog) Render(cx *core.Scope) core.Node {
 	cancel := live.Do(a, a.CloseRetranslate)
 	translate := live.Do(a, a.Retranslate)
 	return core.Show{When: open, Then: func(cx *core.Scope) core.Node {
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		title := func() string {
 			l := look()
-			title, message := locales.FilmsRetranslateConfirm(cx, l.name, subtitle.TargetLanguageName(cx, l.language)), locales.FilmsRetranslateConfirmMessage(cx, subtitle.TargetLanguageName(cx, l.current))
 			if l.count > 1 {
-				title, message = locales.FilmsRetranslateConfirmMany(cx, l.count, subtitle.TargetLanguageName(cx, l.language)), locales.FilmsRetranslateManyMessage(cx, l.replaced)
+				return locales.FilmsRetranslateConfirmMany(cx, l.count, subtitle.TargetLanguageName(cx, l.language))
 			}
-			return ui.Dialog{
-				TestID:                 "retranslate-confirm",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  title,
-				Description:            message,
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.FilmsCancel(cx), Variant: ui.ButtonSecondary, TestID: "retranslate-cancel", OnPress: cancel},
-					ui.Button{Text: locales.FilmsTranslate(cx), TestID: "retranslate-confirm-run", OnPress: translate},
-				},
+			return locales.FilmsRetranslateConfirm(cx, l.name, subtitle.TargetLanguageName(cx, l.language))
+		}
+		message := func() string {
+			l := look()
+			if l.count > 1 {
+				return locales.FilmsRetranslateManyMessage(cx, l.replaced)
 			}
-		})
+			return locales.FilmsRetranslateConfirmMessage(cx, subtitle.TargetLanguageName(cx, l.current))
+		}
+		return ui.Dialog{
+			TestID:                 "retranslate-confirm",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              title,
+			DescriptionFunc:        message,
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.FilmsCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "retranslate-cancel", OnPress: cancel},
+				ui.Button{TextFunc: func() string { return locales.FilmsTranslate(cx) }, TestID: "retranslate-confirm-run", OnPress: translate},
+			},
+		}
 	}}
 }
 

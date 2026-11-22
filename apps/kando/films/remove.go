@@ -29,7 +29,7 @@ func (r removeDialog) Render(cx *core.Scope) core.Node {
 		open, _, _ := a.Removing()
 		return *open
 	})
-	// The confirmation is built again only when what it says changes, not on every change of the app's state.
+	// What the confirmation says is worked out again only when the films it is about change, not on every change of the app's state.
 	look := live.Memo(cx, a, func() removeLook {
 		_, items, folder := a.Removing()
 		if len(items) != 1 {
@@ -54,39 +54,44 @@ func (r removeDialog) Render(cx *core.Scope) core.Node {
 	return core.Show{When: open, Then: func(cx *core.Scope) core.Node {
 		// Enter answers 取消, the default answer, wherever the keyboard focus is in the dialog; the binding goes when the dialog does.
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		title := func() string {
+			if l := look(); l.count > 1 {
+				return locales.FilmsRemoveConfirmMany(cx, l.count)
+			}
+			return locales.FilmsRemoveConfirm(cx, look().name)
+		}
+		message := func() string {
 			l := look()
-			title, message := locales.FilmsRemoveConfirm(cx, l.name), locales.FilmsRemoveFiles(cx)
 			switch {
 			case l.count > 1 && l.stored != "":
-				title, message = locales.FilmsRemoveConfirmMany(cx, l.count), locales.FilmsRemoveManyStored(cx)
+				return locales.FilmsRemoveManyStored(cx)
 			case l.count > 1:
-				title, message = locales.FilmsRemoveConfirmMany(cx, l.count), locales.FilmsRemoveManyMessage(cx)
+				return locales.FilmsRemoveManyMessage(cx)
 			case l.stored != "":
-				message = locales.FilmsRemoveStored(cx, l.stored)
+				return locales.FilmsRemoveStored(cx, l.stored)
 			case l.outside:
-				message = locales.FilmsRemoveOutside(cx)
+				return locales.FilmsRemoveOutside(cx)
 			case l.folder:
-				message = locales.FilmsRemoveFolder(cx)
+				return locales.FilmsRemoveFolder(cx)
 			}
-			return ui.Dialog{
-				TestID:                 "remove-confirm",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  title,
-				Description:            message,
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.FilmsCancel(cx), Variant: ui.ButtonSecondary, TestID: "remove-cancel", OnPress: cancel},
-					ui.Button{Text: locales.FilmsRemove(cx), Color: colors.Danger, TestID: "remove-confirm-trash", OnPress: trash},
-				},
-			}
-		})
+			return locales.FilmsRemoveFiles(cx)
+		}
+		return ui.Dialog{
+			TestID:                 "remove-confirm",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              title,
+			DescriptionFunc:        message,
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.FilmsCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "remove-cancel", OnPress: cancel},
+				ui.Button{TextFunc: func() string { return locales.FilmsRemove(cx) }, Color: colors.Danger, TestID: "remove-confirm-trash", OnPress: trash},
+			},
+		}
 	}}
 }

@@ -55,10 +55,9 @@ func (r renameBody) Render(cx *core.Scope) core.Node {
 			a.RenameFilm()
 		}
 	})
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once, as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	field := ui.Input{
 		TestID:          "rename-name",
-		Label:           locales.FilmsRenameField(cx),
+		LabelFunc:       func() string { return locales.FilmsRenameField(cx) },
 		AutoFocus:       true,
 		Value:           name,
 		PlaceholderFunc: original,

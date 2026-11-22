@@ -36,22 +36,18 @@ type viewSwitch struct{ a App }
 // Render implements core.Node.
 func (v viewSwitch) Render(cx *core.Scope) core.Node {
 	a := v.a
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Option and ui.Tabs a LabelFunc twin so the switch's names follow the interface language without building it again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		m := locales.For(cx)
-		icon := func(svg func() *core.SVG) core.Node { return ui.Icon(svg, 14, ui.Inherited) }
-		return ui.Tabs[string]{
-			Options: []ui.Option[string]{
-				{Value: ViewGrid, Label: m.FilmsViewGrid(), Content: icon(lucide.LayoutGrid), TestID: "films-view-grid"},
-				{Value: ViewList, Label: m.FilmsViewList(), Content: icon(lucide.List), TestID: "films-view-list"},
-			},
-			Value:    live.Func(a, a.LibraryView),
-			OnChange: live.On(a, a.SetLibraryView),
-			Size:     ui.SizeSmall,
-			Label:    m.FilmsView(),
-			TestID:   "films-view",
-		}
-	})
+	icon := func(svg func() *core.SVG) core.Node { return ui.Icon(svg, 14, ui.Inherited) }
+	return ui.Tabs[string]{
+		Options: []ui.Option[string]{
+			{Value: ViewGrid, LabelFunc: func() string { return locales.FilmsViewGrid(cx) }, Content: icon(lucide.LayoutGrid), TestID: "films-view-grid"},
+			{Value: ViewList, LabelFunc: func() string { return locales.FilmsViewList(cx) }, Content: icon(lucide.List), TestID: "films-view-list"},
+		},
+		Value:     live.Func(a, a.LibraryView),
+		OnChange:  live.On(a, a.SetLibraryView),
+		Size:      ui.SizeSmall,
+		LabelFunc: func() string { return locales.FilmsView(cx) },
+		TestID:    "films-view",
+	}
 }
 
 // The list's columns, by key. Each sortable one sorts by the order of the same name as the sort menu does (listColumnOrder).
@@ -359,11 +355,10 @@ func (l filmList) Render(cx *core.Scope) core.Node {
 			return core.Text{ContentFunc: func() string { return cell().Text }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: style, StyleFunc: ui.Colored(colors.Muted)}
 		})
 	}
-	// TODO(nsgo#145): give datatable.DataTable a LabelFunc twin, so the list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	return datatable.DataTable{
 		TestID:               "films-list",
 		Ref:                  ref,
-		Label:                locales.FilmsViewList(cx),
+		LabelFunc:            func() string { return locales.FilmsViewList(cx) },
 		Columns:              columns,
 		RowCount:             func() int { return len(done()) },
 		Text:                 text,

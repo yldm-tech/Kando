@@ -26,7 +26,7 @@ func (r ReprocessDialog) Render(cx *core.Scope) core.Node {
 		open, _, _ := a.Reprocessing()
 		return *open
 	})
-	// The confirmation is built again only when what it says changes, not on every change of the app's state.
+	// What the confirmation says is worked out again only when the films it is about change, not on every change of the app's state.
 	look := live.Memo(cx, a, func() reprocessLook {
 		_, items, language := a.Reprocessing()
 		name := ""
@@ -44,33 +44,38 @@ func (r ReprocessDialog) Render(cx *core.Scope) core.Node {
 		}
 	})
 	return core.Show{When: open, Then: func(cx *core.Scope) core.Node {
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		title := func() string {
+			if l := look(); l.count > 1 {
+				return locales.FilmsReprocessConfirmMany(cx, l.count)
+			}
+			return locales.FilmsReprocessConfirm(cx, look().name)
+		}
+		message := func() string {
 			l := look()
-			title, message := locales.FilmsReprocessConfirm(cx, l.name), locales.FilmsReprocessConfirmMessage(cx, subtitle.TargetLanguageName(cx, l.language))
 			switch {
 			case l.count > 1 && l.language == "":
-				title, message = locales.FilmsReprocessConfirmMany(cx, l.count), locales.FilmsReprocessManyOwnMessage(cx)
+				return locales.FilmsReprocessManyOwnMessage(cx)
 			case l.count > 1:
-				title, message = locales.FilmsReprocessConfirmMany(cx, l.count), locales.FilmsReprocessManyMessage(cx, subtitle.TargetLanguageName(cx, l.language))
+				return locales.FilmsReprocessManyMessage(cx, subtitle.TargetLanguageName(cx, l.language))
 			}
-			return ui.Dialog{
-				TestID:                 "reprocess-confirm",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  title,
-				Description:            message,
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.FilmsCancel(cx), Variant: ui.ButtonSecondary, TestID: "reprocess-cancel", OnPress: cancel},
-					ui.Button{Text: locales.FilmsReprocess(cx), TestID: "reprocess-confirm-run", OnPress: reprocess},
-				},
-			}
-		})
+			return locales.FilmsReprocessConfirmMessage(cx, subtitle.TargetLanguageName(cx, l.language))
+		}
+		return ui.Dialog{
+			TestID:                 "reprocess-confirm",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              title,
+			DescriptionFunc:        message,
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.FilmsCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "reprocess-cancel", OnPress: cancel},
+				ui.Button{TextFunc: func() string { return locales.FilmsReprocess(cx) }, TestID: "reprocess-confirm-run", OnPress: reprocess},
+			},
+		}
 	}}
 }
