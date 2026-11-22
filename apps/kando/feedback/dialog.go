@@ -77,10 +77,9 @@ type Dialog struct{ App App }
 // Render implements core.Node.
 func (d Dialog) Render(cx *core.Scope) core.Node {
 	a := d.App
-	// TODO(nsgo#145): give ui.Dialog (base.Dialog) a LabelFunc so the dialog's accessible name follows the interface language as it changes; it is read once as the dialog is built https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
 		TestID:                 "feedback",
-		Label:                  locales.FeedbackTitle(cx),
+		LabelFunc:              func() string { return locales.FeedbackTitle(cx) },
 		Open:                   live.Func(a, a.FeedbackOpen),
 		NoCloseOnBackdropPress: true,
 		OnOpenChange: func(open bool, _ base.Reason) {
@@ -147,27 +146,18 @@ func header(cx *core.Scope) core.Node {
 // headingLevel is the title's level among the dialog's headings.
 func headingLevel() int { return 1 }
 
-// titled builds a control whose title NSGo's ui controls take once, again whenever title changes, which only another language or another state of the control does: the control holds no text being typed, so building it again loses nothing but the keyboard focus on it.
-func titled(cx *core.Scope, title func() string, build func(title string) core.Node) core.Node {
-	// TODO(nsgo#145): give ui.Button and ui.Tabs TextFunc and LabelFunc twins, so their titles follow the language and the state without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-	memo := core.NewMemo(cx, title)
-	return core.Dynamic(func(*core.Scope) core.Node { return build(memo.Get()) })
-}
-
 // kinds is the segmented control of the feedback's kind, by Kind, its labels in the interface's language. The issue names the kind with Kind.Name, which stays in Chinese.
 func kinds(cx *core.Scope, a App, form *Form) core.Node {
-	labels := func() string {
-		return strings.Join([]string{locales.FeedbackKindsLabel(cx), locales.FeedbackKindBug(cx), locales.FeedbackKindIdea(cx), locales.FeedbackKindSubs(cx)}, "\x00")
-	}
-	return core.View{TestID: "feedback-kind", Style: core.Style{AlignSelf: core.AlignStart}, Children: []core.Node{titled(cx, labels, func(joined string) core.Node {
-		l := strings.Split(joined, "\x00")
-		return ui.Tabs[int]{
-			Label:    l[0],
-			Options:  []ui.Option[int]{{Value: int(KindBug), Label: l[1]}, {Value: int(KindIdea), Label: l[2]}, {Value: int(KindSubs), Label: l[3]}},
-			Value:    live.Func(a, func() int { return form.Kind }),
-			OnChange: live.On(a, func(kind int) { form.Kind = kind }),
-		}
-	})}}
+	return core.View{TestID: "feedback-kind", Style: core.Style{AlignSelf: core.AlignStart}, Children: []core.Node{ui.Tabs[int]{
+		LabelFunc: func() string { return locales.FeedbackKindsLabel(cx) },
+		Options: []ui.Option[int]{
+			{Value: int(KindBug), LabelFunc: func() string { return locales.FeedbackKindBug(cx) }},
+			{Value: int(KindIdea), LabelFunc: func() string { return locales.FeedbackKindIdea(cx) }},
+			{Value: int(KindSubs), LabelFunc: func() string { return locales.FeedbackKindSubs(cx) }},
+		},
+		Value:    live.Func(a, func() int { return form.Kind }),
+		OnChange: live.On(a, func(kind int) { form.Kind = kind }),
+	}}}
 }
 
 // card is a white card of rows, a hairline between them.
@@ -187,10 +177,9 @@ func card(cx *core.Scope, rows ...core.Node) core.Node {
 func fields(cx *core.Scope, a App, form *Form) core.Node {
 	hasTitle := strings.TrimSpace(form.Title) != ""
 	kind := live.Func(a, func() Kind { return Kind(form.Kind) })
-	// TODO(nsgo#145): give core.Input a LabelFunc twin so the fields' accessible names follow the interface language as it changes; they are read once as the dialog opens https://github.com/nsgo-dev/nsgo/issues/145
 	title := ui.Input{
 		TestID:          "feedback-title",
-		Label:           locales.FeedbackFieldTitle(cx),
+		LabelFunc:       func() string { return locales.FeedbackFieldTitle(cx) },
 		AutoFocus:       !hasTitle,
 		Value:           live.Func(a, func() string { return form.Title }),
 		PlaceholderFunc: func() string { return titleHint(cx, kind()) },
@@ -199,7 +188,7 @@ func fields(cx *core.Scope, a App, form *Form) core.Node {
 	}
 	description := ui.Input{
 		TestID:          "feedback-description",
-		Label:           locales.FeedbackFieldDescription(cx),
+		LabelFunc:       func() string { return locales.FeedbackFieldDescription(cx) },
 		AutoFocus:       hasTitle,
 		Multiline:       true,
 		Value:           live.Func(a, func() string { return form.Description }),
@@ -303,23 +292,16 @@ func footer(cx *core.Scope, a App, form *Form, view func() View) core.Node {
 		core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
 			core.Text{Content: strings.TrimPrefix(NewIssue, "https://"), MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 				Style: core.Style{FontFamily: ui.Mono, FontSize: 11, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Muted)},
-			titled(cx, func() string { return locales.FeedbackCancel(cx) }, func(title string) core.Node {
-				return ui.Button{Text: title, Variant: ui.ButtonSecondary, TestID: "feedback-cancel", OnPress: live.Do(a, a.CloseFeedback)}
-			}),
-			titled(cx, func() string { return copyTitle() + "\x00" + locales.FeedbackCopy(cx) }, func(titles string) core.Node {
-				title, label, _ := strings.Cut(titles, "\x00")
-				return ui.Button{Text: title, Label: label, Variant: ui.ButtonSecondary, TestID: "feedback-copy", OnPress: live.Do(a, func() {
-					cx.SetClipboard(core.Untracked(cx, view).Issue.Full)
-					a.FeedbackCopied()
-				})}
-			}),
-			titled(cx, func() string { return locales.FeedbackOpen(cx) }, func(title string) core.Node {
-				return ui.Button{Text: title, TestID: "feedback-send", Disabled: func() bool { return !ready() }, OnPress: live.Do(a, func() {
-					if core.Untracked(cx, ready) {
-						a.SendFeedback()
-					}
-				})}
-			}),
+			ui.Button{TextFunc: func() string { return locales.FeedbackCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "feedback-cancel", OnPress: live.Do(a, a.CloseFeedback)},
+			ui.Button{TextFunc: copyTitle, LabelFunc: func() string { return locales.FeedbackCopy(cx) }, Variant: ui.ButtonSecondary, TestID: "feedback-copy", OnPress: live.Do(a, func() {
+				cx.SetClipboard(core.Untracked(cx, view).Issue.Full)
+				a.FeedbackCopied()
+			})},
+			ui.Button{TextFunc: func() string { return locales.FeedbackOpen(cx) }, TestID: "feedback-send", Disabled: func() bool { return !ready() }, OnPress: live.Do(a, func() {
+				if core.Untracked(cx, ready) {
+					a.SendFeedback()
+				}
+			})},
 		}},
 	}}
 }

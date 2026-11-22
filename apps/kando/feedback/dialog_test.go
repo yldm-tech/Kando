@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -182,5 +183,37 @@ func TestDialogStaysWhileTheAppChanges(t *testing.T) {
 	}
 	if got := app.Find("id:feedback-send").ID; got != send {
 		t.Fatalf("在 GitHub 中打开 was built again (view %d, was %d)", got, send)
+	}
+}
+
+// Another interface language renames the dialog, its fields, the kinds and the buttons in place: the title field keeps the keyboard and what was typed, and the buttons are not built again.
+func TestDialogFollowsTheLanguage(t *testing.T) {
+	a := newFakeApp()
+	var root *core.Scope
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		root = cx
+		a.Attach(cx)
+		return Dialog{App: a}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
+	app.Type("id:feedback-title", "崩溃")
+	field := app.Find("id:feedback-title").ID
+	send := app.Find("id:feedback-send").ID
+	root.SetLocale("en")
+	app.Settle()
+	en := locales.In("en")
+	if got := app.Find("id:feedback").Props.Label; got != en.FeedbackTitle() {
+		t.Fatalf("in English the dialog is named %q, want %q", got, en.FeedbackTitle())
+	}
+	if got := app.Find("id:feedback-title"); got.ID != field || !got.Focused || got.Text != "崩溃" || got.Props.Label != en.FeedbackFieldTitle() {
+		t.Fatalf("the title field is view %d (was %d), focused %v, holds %q, named %q", got.ID, field, got.Focused, got.Text, got.Props.Label)
+	}
+	if got := app.Find("id:feedback-send"); got.ID != send || !app.Exists(`text:"`+en.FeedbackOpen()+`"`) {
+		t.Fatalf("在 GitHub 中打开 is view %d (was %d) in English: %q", got.ID, send, app.Texts())
+	}
+	for _, want := range []string{en.FeedbackKindBug(), en.FeedbackKindIdea(), en.FeedbackKindSubs(), en.FeedbackCancel(), en.FeedbackCopy()} {
+		if !app.Exists(`text:"` + want + `"`) {
+			t.Fatalf("missing %q in English: %q", want, app.Texts())
+		}
 	}
 }
