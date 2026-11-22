@@ -1125,20 +1125,20 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			}},
 		}})}
 		if st.speech {
-			groups = append(groups, panelHeading(locales.FilmSpokenLanguage(cx)), panelGroup(s.speechLanguage(cx, st.spoken)))
+			groups = append(groups, panelHeading(func() string { return locales.FilmSpokenLanguage(cx) }), panelGroup(s.speechLanguage(cx, st.spoken)))
 		}
 		if line := originalLines(cx, st); line != "" {
-			groups = append(groups, panelHeading(locales.FilmOriginalLines(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
+			groups = append(groups, panelHeading(func() string { return locales.FilmOriginalLines(cx) }), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
 				ns.Text{TestID: "film-info-original", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
 			}}))
 		}
 		if line := chapterInfo(cx, st.chapters, st.cut, st.source); line != "" {
-			groups = append(groups, panelHeading(locales.FilmChapters(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
+			groups = append(groups, panelHeading(func() string { return locales.FilmChapters(cx) }), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12)}, Children: []ns.Node{
 				ns.Text{TestID: "film-info-chapters", Content: line, Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}},
 			}}))
 		}
 		if st.folder != "" {
-			groups = append(groups, panelHeading(locales.FilmFolder(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 8}, Children: []ns.Node{
+			groups = append(groups, panelHeading(func() string { return locales.FilmFolder(cx) }), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 8}, Children: []ns.Node{
 				ns.View{Selectable: true, Children: []ns.Node{ns.Text{Content: displayPath(st.folder), Style: monoStyle(11, 16, 0.9)}}},
 				ns.View{Style: ns.Style{AlignSelf: ns.AlignStart}, Children: []ns.Node{
 					ui.Button{TestID: "film-info-reveal", Text: locales.FilmShowInFinder(cx, desktop.Platform(cx)), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
@@ -1155,7 +1155,7 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 					}
 				})))
 			}
-			groups = append(groups, panelHeading(locales.FilmFiles(cx)), panelGroup(rows...))
+			groups = append(groups, panelHeading(func() string { return locales.FilmFiles(cx) }), panelGroup(rows...))
 		}
 		if card := s.streamInfo(cx, st); card != nil {
 			groups = append(groups, card)
@@ -1169,7 +1169,7 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 				copyInfoButton(cx, st.source),
 			}}
 		}
-		groups = append(groups, panelHeading(locales.FilmSource(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 6}, Children: []ns.Node{
+		groups = append(groups, panelHeading(func() string { return locales.FilmSource(cx) }), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 6}, Children: []ns.Node{
 			source,
 			ns.Text{Content: locales.FilmJobRecord(cx), Style: ns.Style{FontSize: 11, LineHeight: 14, Color: onGlass, Opacity: ns.Alpha(0.55)}},
 			ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignStart}, Children: []ns.Node{
@@ -1388,9 +1388,9 @@ func fileSize(cx *ns.Scope, n int64) string {
 	return locales.FilmBytes(cx, int(n))
 }
 
-// panelHeading is a heading over a card of the panel.
-func panelHeading(text string) ns.Node {
-	return ns.Text{Content: text, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightBold, Color: onGlass, Opacity: ns.Alpha(0.6), Padding: ns.Symmetric(0, 4)}}
+// panelHeading is a heading over a card of the panel, its words bound so they follow the interface's language.
+func panelHeading(text func() string) ns.Node {
+	return ns.Text{ContentFunc: text, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightBold, Color: onGlass, Opacity: ns.Alpha(0.6), Padding: ns.Symmetric(0, 4)}}
 }
 
 // panelGroup is a card of the panel, a lighter glass holding rows.

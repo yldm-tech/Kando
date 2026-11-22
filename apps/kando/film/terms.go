@@ -316,7 +316,7 @@ func (s *screen) termAdder(cx *ns.Scope) ns.Node {
 		return a.TermsWritable() && strings.TrimSpace(*a.NewTermSource()) != "" && strings.TrimSpace(*a.NewTermTarget()) != ""
 	})
 	return ns.View{TestID: "film-terms-add", Role: ns.RoleGroup, LabelFunc: func() string { return locales.GlossaryAddGroup(cx) }, Style: ns.Style{Gap: 6}, Children: []ns.Node{
-		panelHeading(locales.GlossaryAddGroup(cx)),
+		panelHeading(func() string { return locales.GlossaryAddGroup(cx) }),
 		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignCenter}, Children: []ns.Node{
 			field("film-term-source", func() string { return locales.GlossarySource(cx) }, func() string { return locales.GlossarySourceHint(cx) }, a.NewTermSource),
 			ns.Text{Content: "→", Role: ns.RoleNone, Style: ns.Style{FontSize: 12, Color: onGlass, Opacity: ns.Alpha(0.45)}},
