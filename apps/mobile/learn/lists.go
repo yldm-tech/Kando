@@ -192,21 +192,19 @@ func lineCard(cx *core.Scope, s *session.Session, it func() learning.Item, play 
 				Children: []core.Node{ui.Icon(playIcon, 14, colors.Accent)}}
 		}},
 	}
-	// TODO(nsgo#145): core.AccessibilityAction's Label is a string, with no LabelFunc, so the card that names its remove action is built again as the language changes. https://github.com/nsgo-dev/nsgo/issues/145
-	id := "learn-line-" + it().ID
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		return core.View{TestID: id, Style: core.Style{Padding: core.Symmetric(14, 16), Gap: 6}, StyleFunc: func() core.Style { return look.Card(cx) },
-			OnLongPress:           func(core.PressEvent) { remove() },
-			AccessibilityActions:  []core.AccessibilityAction{{Name: "remove", Label: locales.LearnRemove(cx)}},
-			OnAccessibilityAction: func(string) { remove() },
-			Children: []core.Node{
-				core.Text{ContentFunc: func() string { return it().Text }, Style: core.Style{FontSize: 16, LineHeight: 22, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
-				core.Show{When: func() bool { return it().Meaning != "" }, Then: func(cx *core.Scope) core.Node {
-					// The translation is the ink a little lighter, as a word's meaning is, rather than the muted grey.
-					return core.Text{ContentFunc: func() string { return it().Meaning }, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: func() core.Style { return core.Style{Color: ui.Alpha(colors.Text(), 0.85)} }}
-				}},
-				note,
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 6}}, Children: footer},
-			}}
-	})
+	return core.View{TestID: "learn-line-" + it().ID, Style: core.Style{Padding: core.Symmetric(14, 16), Gap: 6}, StyleFunc: func() core.Style { return look.Card(cx) },
+		OnLongPress: func(core.PressEvent) { remove() },
+		AccessibilityActionsFunc: func() []core.AccessibilityAction {
+			return []core.AccessibilityAction{{Name: "remove", Label: locales.LearnRemove(cx)}}
+		},
+		OnAccessibilityAction: func(string) { remove() },
+		Children: []core.Node{
+			core.Text{ContentFunc: func() string { return it().Text }, Style: core.Style{FontSize: 16, LineHeight: 22, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Show{When: func() bool { return it().Meaning != "" }, Then: func(cx *core.Scope) core.Node {
+				// The translation is the ink a little lighter, as a word's meaning is, rather than the muted grey.
+				return core.Text{ContentFunc: func() string { return it().Meaning }, Style: core.Style{FontSize: 14, LineHeight: 20}, StyleFunc: func() core.Style { return core.Style{Color: ui.Alpha(colors.Text(), 0.85)} }}
+			}},
+			note,
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 6}}, Children: footer},
+		}}
 }

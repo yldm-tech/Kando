@@ -76,15 +76,12 @@ func contextRow(cx *core.Scope, s *session.Session, id func() string, index int)
 		Leading: look.GlyphTile(cx, glyph("↺"), fixed(theme.TileOrange)),
 		Title:   func() string { return locales.ComputerContext(cx) },
 		Detail:  func() string { return locales.ComputerContextDetail(cx) },
-		// TODO(nsgo#145): ui.Switch takes its accessibility label as a string (ui/switch.go:19), with no LabelFunc, so the switch is built again as the language changes, as the reminder's is. https://github.com/nsgo-dev/nsgo/issues/145
-		Trailing: core.Dynamic(func(cx *core.Scope) core.Node {
-			return look.Switch{TestID: "computer-context-switch", Label: locales.ComputerContext(cx),
-				Checked: contextOn, OnChange: setContext,
-				Disabled: func() bool {
-					st, ok := got()
-					return !ok || st.Context == nil || st.ReadOnly || pending.Get() != nil
-				}}
-		})}
+		Trailing: look.Switch{TestID: "computer-context-switch", Label: func() string { return locales.ComputerContext(cx) },
+			Checked: contextOn, OnChange: setContext,
+			Disabled: func() bool {
+				st, ok := got()
+				return !ok || st.Context == nil || st.ReadOnly || pending.Get() != nil
+			}}}
 }
 
 // ComputerPage is the page of the computer that processes the links the phone sends (session.SendTo): its card, with whether it answers and how many videos it is processing; the paired computers to send new links to; how the phone reaches it; the AI service it translates with, which only the computer changes, as it keeps the service's key; the films it lists and how the user's storage serves the phone away from it; and the ways to pair another computer and to unpair this one. What the computer answered at the last sync this run is what it shows; before one reached it, or when its Kando is too old to share them, it says so. unpaired runs once the user unpaired the computer it shows; the page then shows the next one, and goes with the last.

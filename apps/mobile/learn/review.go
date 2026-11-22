@@ -160,17 +160,16 @@ func progressRow(cx *core.Scope, run func() reviewRun, leave func()) core.Node {
 		PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Right: core.EnvSafeArea, Left: core.EnvSafeArea}}, Children: []core.Node{
 		ui.IconButton{TestID: "review-end", Icon: closeIcon, Variant: ui.IconButtonGhost, Size: 44, IconSize: 14,
 			LabelFunc: func() string { return locales.ReviewEnd(cx) }, OnPress: leave},
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
-			// base.Progress's label is a string, so the bar is built again as the language changes.
-			return base.Progress{TestID: "review-bar", Label: locales.ReviewTitle(cx),
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
+			base.Progress{TestID: "review-bar", LabelFunc: func() string { return locales.ReviewTitle(cx) },
 				Value:          func() float32 { return 100 * float32(through()) / float32(max(total(), 1)) },
 				TrackStyle:     core.Style{Height: core.Pt(6), CornerRadius: 3, Overflow: core.Hidden},
 				TrackStyleFunc: func() core.Style { return core.Style{Background: ui.Alpha(theme.TabInactive, 0.18)} },
 				IndicatorStyleFunc: func() core.Style {
 					return core.Style{Height: core.Pt(6), CornerRadius: 3, Background: theme.StatusOK,
 						Transition: core.Transition{Duration: 300 * time.Millisecond, Easing: core.EaseOut, Properties: core.TransitionLayout}}
-				}}
-		})}},
+				}},
+		}},
 		ui.Tabular(core.Text{TestID: "review-progress", ContentFunc: func() string {
 			return locales.ReviewProgress(cx, counter(), run().total)
 		}, MaxLines: 1, Style: look.Caption.Merge(core.Style{FontFamily: core.FontMonospace}), StyleFunc: ui.Colored(colors.Muted)}),

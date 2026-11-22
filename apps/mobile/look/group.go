@@ -7,7 +7,7 @@ import (
 
 // Group is a card of rows, as a grouped list's section: white (the palette's Surface) on the grey page, 16 round, with no rim or shadow.
 // Its rows draw their own hairline.
-// TODO(nsgo#145): ui.FormSection's card now takes a style (CardStyle, CardStyleFunc) and ui.FormRow a leading node, a tile's size and a title's style (nsgo#1074), but the section's Title and the row's Title and Detail are strings only, so a section's rows are Row, which draws its own hairline (Row.Index, Row.Inset) where FormSection would draw one 12 points in beside any row but a FormRow (ui/formsection.go:52-55, 74-90); make Group a FormSection on Surface, CardRadius round, once its rows can be FormRows https://github.com/nsgo-dev/nsgo/issues/145
+// TODO(nsgo): ui.FormSection.Title and Footer and ui.FormRow.Title, Detail and Label are strings only, with no TitleFunc, FooterFunc, DetailFunc or LabelFunc (ui/formsection.go:7, ui/formrow.go:36-45; NSGo's textFuncExceptions lists FormSection.Title, FormRow.Title and FormRow.Label as still awaiting bindings), so rows built on them would keep the language they were built in; a section's rows are Row, which draws its own hairline (Row.Index, Row.Inset) where FormSection would draw one 12 points in beside any row but a FormRow (ui/formsection.go:52-55, 74-90); make Group a FormSection on Surface, CardRadius round, once its rows can be FormRows
 // TODO(nsgo#1841): ui.FormRow has no slot under its title and detail (Row.Below), no radio role (Row.Checked), no limit to its title's lines and no least height of its own (ui/formrow.go:27-47), which Row's callers use, so a section's rows stay Row even once FormRow takes a TitleFunc https://github.com/nsgo-dev/nsgo/issues/1841
 type Group struct {
 	Children []core.Node

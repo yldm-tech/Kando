@@ -208,10 +208,10 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 			return look.Button{Kind: look.Tinted, Icon: lucide.ScanQrCode, Text: func() string { return locales.PairScan(cx) }, TestID: "pair-scan",
 				Busy: scanning.Get, BusyLabel: func() string { return locales.PairScanning(cx) }, Disabled: busy, OnPress: scan}
 		}},
-		field(cx, locales.PairAddress(cx), ui.Input{TestID: "pair-address", Label: locales.PairAddress(cx), Value: address.Get, OnChange: func(v string) { address.Set(v); problem.Set("") },
-			Placeholder: locales.PairAddressExample(cx), KeyboardType: core.KeyboardURL, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true, Disabled: busy,
+		field(cx, func() string { return locales.PairAddress(cx) }, ui.Input{TestID: "pair-address", LabelFunc: func() string { return locales.PairAddress(cx) }, Value: address.Get, OnChange: func(v string) { address.Set(v); problem.Set("") },
+			PlaceholderFunc: func() string { return locales.PairAddressExample(cx) }, KeyboardType: core.KeyboardURL, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true, Disabled: busy,
 			Style: core.Style{Height: core.Pt(50), FontSize: 17, CornerRadius: 12, Padding: core.Symmetric(0, 14)}}),
-		field(cx, locales.PairCode(cx), codeInput(cx, code.Get, func(v string) { code.Set(v); problem.Set("") }, busy)),
+		field(cx, func() string { return locales.PairCode(cx) }, codeInput(cx, code.Get, func(v string) { code.Set(v); problem.Set("") }, busy)),
 		core.Show{When: func() bool { return problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "pair-problem", ContentFunc: problem.Get, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 		}},
@@ -305,16 +305,17 @@ func connecting(cx *core.Scope, fill func() core.Color) core.Node {
 }
 
 // field is a labeled control of the form.
-func field(cx *core.Scope, label string, control core.Node) core.Node {
+func field(cx *core.Scope, label func() string, control core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
-		core.Text{Content: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
+		core.Text{ContentFunc: label, Style: look.Section.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(colors.Muted)},
 		control,
 	}}
 }
 
 // codeInput is the field of the pairing code, in cells a phone's thumb and eye find at once: the design's 44 by 52, 22pt semibold tabular digits, 10 round, under a 24pt caret.
 func codeInput(cx *core.Scope, value func() string, change func(string), disabled func() bool) core.Node {
+	// TODO(nsgo): ui.OtpInput.Label and base.OtpInput.Label are strings only, with no LabelFunc (ui/otpinput.go:34, base/otpinput.go:46, listed in NSGo's textFuncExceptions), so the field's spoken name keeps the language it was built in; it cannot sit in a core.Dynamic, which would take its focus, so pass a LabelFunc once OtpInput has one
 	return ui.OtpInput{TestID: "pair-code", Label: locales.PairCode(cx), Length: sync.CodeDigits, Groups: 2, Value: value, OnChange: change, Disabled: disabled,
 		CellWidth: 44, CellHeight: 52, CornerRadius: 10, CaretHeight: 24,
 		TextStyle: core.Style{FontSize: 22, FontWeight: core.FontWeightSemibold, FontVariant: core.FontTabularNums}}

@@ -198,8 +198,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					return core.Style{Color: colors.Text()}
 				}},
 			core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): ui.Progress.Label is a string only (ui/progress.go:12-19), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-				return ui.Progress{TestID: "film-progress", Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }}
+				return ui.Progress{TestID: "film-progress", LabelFunc: func() string { return locales.FilmDownload(cx) }, Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }}
 			}},
 		}}
 		row := core.Dynamic(func(cx *core.Scope) core.Node {

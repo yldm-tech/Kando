@@ -74,14 +74,13 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 	ios := cx.Env().OS() == core.OSIOS
 	tabs := make([]ui.ShellTab, len(s.Tabs))
 	for i, t := range s.Tabs {
-		tabs[i] = ui.ShellTab{Text: t.Text(), Icon: t.Icon, TestID: t.TestID, Content: t.Content}
+		tabs[i] = ui.ShellTab{TextFunc: t.Text, Icon: t.Icon, TestID: t.TestID, Content: t.Content}
 		if ios {
 			tabs[i].SystemIcon = t.SystemIcon
 		}
 	}
-	// TODO(nsgo#145): ui.ShellTab.Text and TabShell.Label are strings only (ui/tabshell.go:10-36), so the tab titles keep the language they were built in; pass TextFunc/LabelFunc once ShellTab has them (mobile.TabBar already takes ItemsFunc) https://github.com/nsgo-dev/nsgo/issues/145
 	// Android's bar takes its colors from the palette's tabBar roles (theme.Kando): TabInactive idle, M3NavActive on the accent at M3NavIndicator selected.
-	return ui.TabShell{Label: locales.AppName(cx), Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
+	return ui.TabShell{LabelFunc: func() string { return locales.AppName(cx) }, Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 
 // drawn is the shell the app draws itself, a tablet's and, where the system has no tab bar, a phone's: the sections beside a sidebar while a tablet is on its side and over a tab bar otherwise, switching the one for the other in place, so the sections and their pages stay as the tablet turns.
@@ -180,7 +179,7 @@ func (s Shell) sidebar(cx *core.Scope) core.Node {
 		},
 		Children: []core.Node{
 			s.header(cx),
-			base.Tabs{TestID: "sidebar-tabs", Label: locales.AppName(cx), Style: core.Style{Gap: 4, Margin: core.Edges{Top: 18}}, Children: rows},
+			base.Tabs{TestID: "sidebar-tabs", LabelFunc: func() string { return locales.AppName(cx) }, Style: core.Style{Gap: 4, Margin: core.Edges{Top: 18}}, Children: rows},
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{s.aside()}},
 			s.Footer,
 		}}
@@ -263,7 +262,7 @@ func (s Shell) bar(cx *core.Scope) core.Node {
 			return st
 		},
 		Children: []core.Node{
-			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: tabs},
+			base.Tabs{LabelFunc: func() string { return locales.AppName(cx) }, TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: tabs},
 		}}
 }
 
@@ -284,6 +283,6 @@ func (s Shell) wideBar(cx *core.Scope) core.Node {
 	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Right: 40, Bottom: 14, Left: 40},
 		PaddingEnv: core.EnvEdges{Right: core.EnvSafeArea, Bottom: core.EnvSafeArea, Left: core.EnvSafeArea}},
 		StyleFunc: barStyle(cx), Children: []core.Node{
-			base.Tabs{Label: locales.AppName(cx), TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 4}, Children: tabs},
+			base.Tabs{LabelFunc: func() string { return locales.AppName(cx) }, TestID: "tab-bar", Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 4}, Children: tabs},
 		}}
 }

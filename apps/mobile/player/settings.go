@@ -41,8 +41,7 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 				core.Text{ContentFunc: title, Style: core.Style{FontSize: 16, LineHeight: 21, Color: theme.PlayerInk}},
 				note(detail),
 			}},
-			// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
-			look.Switch{TestID: id, Label: title(), Checked: on, OnChange: set},
+			look.Switch{TestID: id, Label: title, Checked: on, OnChange: set},
 		}}
 	}
 	// A link's hairline over it is its holder's, as the rows before it show or not.
@@ -67,11 +66,11 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 				core.Text{ContentFunc: func() string { return locales.PlayerSettings(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy, Padding: core.Edges{Left: 4}, Color: theme.PlayerInk})},
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					label(func() string { return locales.PlayerSpeed(cx) }),
-					segmented("player-settings-speed", locales.PlayerSpeed(cx), 14, speeds, p.speed, func(r float32) { _ = p.rate.Set(r) }),
+					segmented("player-settings-speed", func() string { return locales.PlayerSpeed(cx) }, 14, speeds, p.speed, func(r float32) { _ = p.rate.Set(r) }),
 				}},
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					label(func() string { return locales.PlayerSleep(cx) }),
-					segmented("player-settings-sleep", locales.PlayerSleep(cx), 13, sleeps, p.sleep.Get, p.setSleep),
+					segmented("player-settings-sleep", func() string { return locales.PlayerSleep(cx) }, 13, sleeps, p.sleep.Get, p.setSleep),
 				}},
 				core.View{Style: core.Style{Gap: 8, Padding: core.Symmetric(12, 14), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, Background: faint(0.08)}, Children: []core.Node{
 					core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
@@ -141,31 +140,24 @@ type choice[T comparable] struct {
 	text   func() string
 }
 
-// segmented is a choice among options in a segmented control, as the design's: a faint track 38 tall, the option chosen on a lighter thumb in bold, the others in white of weight 500, size big; a press on another option sets it. label names it for screen readers.
-// TODO(nsgo#145): base.Tabs' Label is a string only, so the control's spoken name keeps the language it was built in; pass a LabelFunc once Tabs has one. The control is base.Tabs rather than ui.Tabs with TabStyle and IndicatorStyle because ui.Tabs' options take their spoken name from Label, a string only too (ui/option.go:8, ui/tabs.go:165), where these tabs' follow their text https://github.com/nsgo-dev/nsgo/issues/145
-func segmented[T comparable](id, label string, size core.Points, options []choice[T], value func() T, set func(T)) core.Node {
-	var tabs []core.Node
+// segmented is a choice among options in a segmented control, as the design's: ui.Tabs on a faint track 38 tall, the option chosen on a lighter thumb in bold, the others in white of weight 500, size big; a press on another option sets it. label names it for screen readers, and each option's text names the option.
+func segmented[T comparable](id string, label func() string, size core.Points, options []choice[T], value func() T, set func(T)) core.Node {
+	var tabs []ui.Option[T]
 	for _, o := range options {
-		on := func() bool { return value() == o.value }
-		tabs = append(tabs, base.Tab{TestID: o.testID, Selected: on, OnPress: func(core.PressEvent) {
-			if !on() {
-				set(o.value)
-			}
-		},
-			Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 4),
-				Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			Children: []core.Node{core.Text{ContentFunc: o.text, MaxLines: 2, Style: core.Style{FontSize: size, LineHeight: size + 3, TextAlign: core.TextAlignCenter, Color: theme.PlayerInk},
+		tabs = append(tabs, ui.Option[T]{Value: o.value, LabelFunc: o.text, TestID: o.testID,
+			Content: core.Text{ContentFunc: o.text, MaxLines: 2, Style: core.Style{FontSize: size, LineHeight: size + 3, TextAlign: core.TextAlignCenter, Color: theme.PlayerInk},
 				StyleFunc: func() core.Style {
-					if on() {
+					if value() == o.value {
 						return core.Style{FontWeight: core.FontWeightBold}
 					}
 					return core.Style{FontWeight: core.FontWeightMedium}
-				}}}})
+				}}})
 	}
-	return base.Tabs{TestID: id, Label: label,
-		Style:          core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.All(2), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, Background: faint(0.1)},
-		IndicatorStyle: core.Style{Top: core.Pt(2), Bottom: core.Pt(2), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Background: faint(0.24)},
-		Children:       tabs}
+	// The thumb is the faint fill alone: no shadow (an empty list, not nil, takes the theme's pill shadow away).
+	return ui.Tabs[T]{TestID: id, LabelFunc: label, Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Options: tabs, Value: value, OnChange: set,
+		Style:          core.Style{Height: core.Pt(38), Padding: core.All(2), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, Background: faint(0.1)},
+		TabStyle:       core.Style{Height: core.Pt(34), Padding: core.Symmetric(0, 4), CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+		IndicatorStyle: core.Style{CornerRadius: 8, BorderCurve: core.BorderCurveContinuous, Background: faint(0.24), Shadows: []core.BoxShadow{}}}
 }
 
 // sleepID names a sleep mode in test IDs.

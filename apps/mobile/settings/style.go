@@ -69,19 +69,16 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	style := func() store.SubStyle { return s.Prefs().Subtitles }
 	ref := &core.Ref{}
 	// sizes are the size control's options: the short name shows, in the ink, bold while chosen, and the full name is what assistive technology reads.
-	sizes := func(cx *core.Scope) []ui.Option[store.SubSize] {
-		var out []ui.Option[store.SubSize]
-		for _, z := range store.SubSizes {
-			out = append(out, ui.Option[store.SubSize]{Value: z, Label: sizeName(cx, z), TestID: "style-size-" + sizeTestID(z),
-				Content: core.Text{ContentFunc: func() string { return sizeShortName(cx, z) }, MaxLines: 1, StyleFunc: func() core.Style {
-					st := core.Style{FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightMedium, Color: colors.Text()}
-					if style().Size == z {
-						st.FontWeight = core.FontWeightBold
-					}
-					return st
-				}}})
-		}
-		return out
+	var sizes []ui.Option[store.SubSize]
+	for _, z := range store.SubSizes {
+		sizes = append(sizes, ui.Option[store.SubSize]{Value: z, LabelFunc: func() string { return sizeName(cx, z) }, TestID: "style-size-" + sizeTestID(z),
+			Content: core.Text{ContentFunc: func() string { return sizeShortName(cx, z) }, MaxLines: 1, StyleFunc: func() core.Style {
+				st := core.Style{FontSize: 13, LineHeight: 16, FontWeight: core.FontWeightMedium, Color: colors.Text()}
+				if style().Size == z {
+					st.FontWeight = core.FontWeightBold
+				}
+				return st
+			}}})
 	}
 	// A swatch is 36 points across; the chosen one is ringed in the accent, 3 points out from it, as the design draws it.
 	var swatches []core.Node
@@ -121,12 +118,9 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					look.GroupHeader(cx, func() string { return locales.StyleSize(cx) }),
 					// The design's segmented control: its labels in the ink at 500, 700 while chosen, drawn as each option's Content.
-					// ui.Tabs' and its options' labels are strings, so the control is built again as the language changes, as Learn's modes are.
-					core.Dynamic(func(cx *core.Scope) core.Node {
-						return ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, Label: locales.StyleSize(cx), Options: sizes(cx),
-							Style: look.SegmentTrack, TabStyle: look.SegmentTab, IndicatorStyle: look.SegmentThumb,
-							Value: func() store.SubSize { return style().Size }, OnChange: func(z store.SubSize) { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }}
-					}),
+					ui.Tabs[store.SubSize]{TestID: "style-size", Variant: ui.TabsSegmented, Equal: true, Size: ui.SizeLarge, LabelFunc: func() string { return locales.StyleSize(cx) }, Options: sizes,
+						Style: look.SegmentTrack, TabStyle: look.SegmentTab, IndicatorStyle: look.SegmentThumb,
+						Value: func() store.SubSize { return style().Size }, OnChange: func(z store.SubSize) { setStyle(s, func(st *store.SubStyle) { st.Size = z }) }},
 				}},
 				core.View{Style: core.Style{Gap: 7}, Children: []core.Node{
 					look.GroupHeader(cx, func() string { return locales.StyleColor(cx) }),
@@ -140,7 +134,7 @@ func StylePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 				look.Group{Children: []core.Node{look.Row{TestID: "style-marks", TitleLines: 1,
 					Title:  func() string { return locales.StyleMarks(cx) },
 					Detail: func() string { return locales.StyleMarksDetail(cx) },
-					Trailing: look.Switch{TestID: "style-marks-switch", Label: locales.StyleMarks(cx),
+					Trailing: look.Switch{TestID: "style-marks-switch", Label: func() string { return locales.StyleMarks(cx) },
 						Checked: func() bool { return !style().NoMarks }, OnChange: func(on bool) { setStyle(s, func(st *store.SubStyle) { st.NoMarks = !on }) }}}}},
 			}},
 		}},

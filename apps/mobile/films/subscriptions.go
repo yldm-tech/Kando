@@ -292,10 +292,9 @@ func SubscriptionSheet(cx *core.Scope, s *session.Session, open *core.Signal[str
 			}, Then: func(cx *core.Scope) core.Node {
 				return look.Group{Children: []core.Node{
 					core.Show{When: func() bool { return s.Queue(sub().Desktop).Can(sync.OpSubscriptionSet) }, Then: func(cx *core.Scope) core.Node {
-						// TODO(nsgo#145): ui.Switch's Label is a string only (ui/switch.go:19), so its spoken name keeps the language it was built in; pass a LabelFunc once Switch has one https://github.com/nsgo-dev/nsgo/issues/145
 						return look.Row{TestID: "films-subscription-auto", TitleLines: 2,
 							Title: func() string { return locales.FilmsSubscriptionAuto(cx) },
-							Trailing: look.Switch{TestID: "films-subscription-auto-switch", Label: locales.FilmsSubscriptionAuto(cx),
+							Trailing: look.Switch{TestID: "films-subscription-auto-switch", Label: func() string { return locales.FilmsSubscriptionAuto(cx) },
 								Checked: func() bool { return sub().Auto }, Disabled: func() bool { return !lets(sync.OpSubscriptionSet) },
 								OnChange: func(on bool) { s.SetSubscriptionAuto(sub(), on) }}}
 					}},

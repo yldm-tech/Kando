@@ -256,29 +256,28 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 // Shadowing, the design's third way (reading the line along with the film, recorded and compared), is left for later: NSGo's microphone package records it (microphone.Capture streams samples on iOS, microphone.RecordWAV writes a file with levels on Android), but the comparison of the learner's take with the film's line, and the page that shows it, are still to be designed and built, so the review offers cards and dictation.
 func mode(cx *core.Scope, s *session.Session, settings func()) core.Node {
 	colors := ui.ColorsOf(cx)
+	// The design's segmented control, its labels in the ink at 500, 700 while chosen, drawn as each option's Content.
+	option := func(value string, label func() string, testID string) ui.Option[string] {
+		return ui.Option[string]{Value: value, LabelFunc: label, TestID: testID,
+			Content: core.Text{ContentFunc: label, MaxLines: 1, StyleFunc: func() core.Style {
+				st := core.Style{FontWeight: core.FontWeightMedium, Color: colors.Text()}
+				if s.ReviewMode() == value {
+					st.FontWeight = core.FontWeightBold
+				}
+				return st
+			}}}
+	}
 	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 		core.Text{ContentFunc: func() string { return locales.LearnReviewMode(cx) }, MaxLines: 1, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
-		// ui.Tabs' labels are strings, so the modes are built again as the language changes.
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
-			// The design's segmented control, its labels in the ink at 500, 700 while chosen, drawn as each option's Content.
-			option := func(value, label, testID string) ui.Option[string] {
-				return ui.Option[string]{Value: value, Label: label, TestID: testID,
-					Content: core.Text{Content: label, MaxLines: 1, StyleFunc: func() core.Style {
-						st := core.Style{FontWeight: core.FontWeightMedium, Color: colors.Text()}
-						if s.ReviewMode() == value {
-							st.FontWeight = core.FontWeightBold
-						}
-						return st
-					}}}
-			}
-			return ui.Tabs[string]{TestID: "learn-review-mode", Label: locales.LearnReviewMode(cx), Equal: true, Size: ui.SizeLarge,
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
+			ui.Tabs[string]{TestID: "learn-review-mode", LabelFunc: func() string { return locales.LearnReviewMode(cx) }, Equal: true, Size: ui.SizeLarge,
 				Options: []ui.Option[string]{
-					option(session.ReviewCards, locales.LearnReviewCards(cx), "learn-review-cards"),
-					option(session.ReviewDictation, locales.LearnReviewDictation(cx), "learn-review-dictation"),
+					option(session.ReviewCards, func() string { return locales.LearnReviewCards(cx) }, "learn-review-cards"),
+					option(session.ReviewDictation, func() string { return locales.LearnReviewDictation(cx) }, "learn-review-dictation"),
 				},
 				Style: look.SegmentTrack, TabStyle: look.SegmentTab, IndicatorStyle: look.SegmentThumb,
-				Value: s.ReviewMode, OnChange: s.SetReviewMode}
-		})}},
+				Value: s.ReviewMode, OnChange: s.SetReviewMode},
+		}},
 	}}
 	reminder := core.Show{When: func() bool { return s.Prefs().Remind }, Then: func(cx *core.Scope) core.Node {
 		text := func() string { return locales.LearnReminderCaption(cx, fmt.Sprintf("%d:00", learning.ReminderHour)) }

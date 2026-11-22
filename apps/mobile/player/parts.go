@@ -97,7 +97,7 @@ func positionSlider(cx *core.Scope, p *play, inset bool) core.Node {
 	if inset {
 		ends = knob / 2
 	}
-	return base.Slider{TestID: "player-position", ThumbTestID: "player-position-thumb", Label: locales.PlayerPosition(cx),
+	return base.Slider{TestID: "player-position", ThumbTestID: "player-position-thumb", LabelFunc: func() string { return locales.PlayerPosition(cx) },
 		Min:      func() float64 { return 0 },
 		Max:      func() float64 { return max(seconds.Get(), 1) },
 		Step:     func() float64 { return 1 },
@@ -133,7 +133,7 @@ func pillFace(text func() string, width, height core.Points) core.Node {
 
 // speedMenu is the speed's pill, which offers the player's speeds.
 func speedMenu(cx *core.Scope, p *play, height core.Points) core.Node {
-	return ui.Menu{TestID: "player-speed", Label: locales.PlayerSpeed(cx), Presentation: base.PresentSheet,
+	return ui.Menu{TestID: "player-speed", LabelFunc: func() string { return locales.PlayerSpeed(cx) }, Presentation: base.PresentSheet,
 		Trigger: ui.Button{Variant: ui.ButtonGhost},
 		Face:    pillFace(func() string { return speedFace(p.speed()) }, 52, height),
 		Children: func() []core.Node {
@@ -179,13 +179,13 @@ func transport(cx *core.Scope, p *play) core.Node {
 		Style: core.Style{Width: core.Pt(66), Height: core.Pt(66), CornerRadius: 33, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Background: theme.PlayerInk,
 			Active: &core.Style{Opacity: core.Alpha(0.8)}, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
 		Children: []core.Node{ui.IconOf(playGlyphOf(p), 30, func() core.Color { return theme.PlayerOnLight })}}
-	mode := ui.Menu{TestID: "player-mode", Label: locales.PlayerSubtitles(cx), Presentation: base.PresentSheet,
+	mode := ui.Menu{TestID: "player-mode", LabelFunc: func() string { return locales.PlayerSubtitles(cx) }, Presentation: base.PresentSheet,
 		Trigger: ui.Button{Variant: ui.ButtonGhost},
 		Face:    pillFace(func() string { return modeShort(cx, p.mode.Get()) }, 52, 30),
 		Children: func() []core.Node {
 			var items []core.Node
 			for _, m := range Modes {
-				items = append(items, ui.MenuItem{TestID: "player-mode-" + m, Text: modeName(cx, m), Checked: func() bool { return p.mode.Get() == m }, OnSelect: func() { _ = p.mode.Set(m) }})
+				items = append(items, ui.MenuItem{TestID: "player-mode-" + m, TextFunc: func() string { return modeName(cx, m) }, Checked: func() bool { return p.mode.Get() == m }, OnSelect: func() { _ = p.mode.Set(m) }})
 			}
 			return items
 		}()}

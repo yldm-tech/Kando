@@ -585,8 +585,7 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 				core.Text{TestID: "jobs-step-detail-" + job + "-" + st().Name, ContentFunc: detail, MaxLines: 1, Style: look.Footnote, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 			// The bar is drawn on base.Progress: ui.Progress's is 6 points and always the accent (ui/progress.go:24-27), the design's 4 and green once the step is done.
-			// TODO(nsgo#145): base.Progress.Label is a string only (base/progress.go:31), so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-			base.Progress{Label: StepName(cx, st().Name),
+			base.Progress{LabelFunc: func() string { return StepName(cx, st().Name) },
 				Value: func() float32 {
 					switch st().State {
 					case sync.StepDone:

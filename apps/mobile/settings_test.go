@@ -40,6 +40,48 @@ func TestTheInterfaceLanguageIsTheOneChosenInSettings(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.Language == "" })
 }
 
+// What another tab shows follows a change of the interface language where it stands, built once: the tab bar's name and its tabs', and Learn's review modes and a saved line's remove action, which the screen reader reads from bindings.
+func TestOtherTabsFollowTheInterfaceLanguage(t *testing.T) {
+	d := studyDesktop(t)
+	dir, f := keptFrom(t, d)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-line-l-fine", wait)
+	p.app.WaitFor("id:learn-review-mode", wait)
+	// mounted is the one view of selector mounted, shown or in a tab that is not.
+	mounted := func(selector string) *nsgotest.View {
+		views := p.app.QueryMounted(selector)
+		if len(views) != 1 {
+			t.Fatalf("%d views %s are mounted, want 1", len(views), selector)
+		}
+		return views[0]
+	}
+	line := mounted("id:learn-line-l-fine")
+
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-language")
+	p.app.WaitFor("id:settings-language-page", wait)
+	p.app.Press("id:settings-language-zh-Hans")
+	zh := locales.In("zh-Hans")
+	p.app.WaitUntil(wait, func() bool { return mounted("id:tab-bar").Props.Label == zh.AppName() })
+	if got, want := mounted("id:bar-tab-learn").Props.Label, zh.LearnTitle(); got != want {
+		t.Errorf("Learn's tab is read as %q, want %q", got, want)
+	}
+	if got, want := mounted("id:learn-review-mode").Props.Label, zh.LearnReviewMode(); got != want {
+		t.Errorf("the review modes are read as %q, want %q", got, want)
+	}
+	if got, want := mounted("id:learn-review-cards").Props.Label, zh.LearnReviewCards(); got != want {
+		t.Errorf("the cards mode is read as %q, want %q", got, want)
+	}
+	if got := mounted("id:learn-line-l-fine").Props.ActionList(); len(got) != 1 || got[0].Label != zh.LearnRemove() {
+		t.Errorf("the saved line offers %+v, want its remove action read as %q", got, zh.LearnRemove())
+	}
+	if mounted("id:learn-line-l-fine") != line {
+		t.Error("the saved line's card was built again")
+	}
+}
+
 // Settings › Offline Films lists the films saved on the device, and Delete, once confirmed, deletes one from it. Where the system does not say the room on the device, the page shows what the films take alone.
 func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	dir := t.TempDir()

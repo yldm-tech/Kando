@@ -36,7 +36,7 @@ func materialLook(cx *core.Scope) core.Node {
 	text := func(s string) func() string { return func() string { return s } }
 	row := func(i int, title string, tile core.Color, on *core.Signal[bool]) core.Node {
 		return look.Row{Index: func() int { return i }, Title: text(title), Leading: look.ColorTile(cx, lucide.Bell, func() core.Color { return tile }),
-			Trailing: look.Switch{Label: title, Checked: on.Get, OnChange: on.Set}}
+			Trailing: look.Switch{Label: text(title), Checked: on.Get, OnChange: on.Set}}
 	}
 	return core.View{TestID: "android-look", StyleFunc: ui.Filled(colors.Background), Style: core.Style{FlexGrow: 1}, Children: []core.Node{
 		core.View{Style: core.Style{Padding: core.Edges{Top: 56}}, Children: []core.Node{
