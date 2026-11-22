@@ -29,7 +29,7 @@ type browseUI struct {
 	url                 string
 	loading             bool
 	canBack, canForward bool
-	// title is the title of the page at titleURL, as the web view reported it once the page loaded or the page said it changed (browse.TitleMessage); it names the page's video while titleURL is the page shown.
+	// title is the title of the page at titleURL, as the web view reported it once the page loaded or the page changed it, as a site that is one page does; it names the page's video while titleURL is the page shown.
 	title, titleURL string
 	// address is the address field's text. shown is the address the field last showed of the page: the field follows the page while it does not have the keyboard or still shows that, and keeps what the user is typing otherwise. focus asks for the keyboard in the field; focused is whether it has it.
 	address string
@@ -273,7 +273,7 @@ func (a *app) browseColumnGone() {
 	a.browse.buttons = browseButtons{}
 }
 
-// browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
+// browseNavigated follows the page's address, title and history as the web view reports them: as a page starts loading, finishes and navigates, and as it changes its address or its title without loading another page, as a site that is one page does. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
 func (a *app) browseNavigated(nav core.WebNavigation) {
 	// A page the web view went to by itself while offline mode is on, as one a swipe through the history or a script opened, is left for the start at once (browseOffline).
 	if a.privacy.offline && browse.Allowed(nav.URL) && a.browse.source != "" {
@@ -284,9 +284,13 @@ func (a *app) browseNavigated(nav core.WebNavigation) {
 	if nav.URL == browseBlank || browse.Allowed(nav.URL) {
 		a.browse.url = nav.URL
 	}
-	// The page's title is its own once it has loaded; as it starts loading the web view may still report the title of the page before it.
-	if !nav.Loading && browse.Allowed(nav.URL) {
-		a.browse.title, a.browse.titleURL = strings.TrimSpace(nav.Title), nav.URL
+	// The page's title is its own once it has loaded; as it starts loading the web view may still report the title of the page before it, and so may a page that moved to another address within the document until it sets its own, as a site that is one page sets the title of the video it moved to after its address: the same title for another address names nothing.
+	if title := strings.TrimSpace(nav.Title); !nav.Loading && browse.Allowed(nav.URL) {
+		if nav.URL != a.browse.titleURL && title == a.browse.title {
+			a.browse.titleURL = ""
+		} else {
+			a.browse.title, a.browse.titleURL = title, nav.URL
+		}
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = nav.Loading, nav.CanGoBack, nav.CanGoForward
 	if nav.Loading {
@@ -311,10 +315,10 @@ func (a *app) browseFollow() {
 	a.browse.shown = shown
 }
 
-// browseFailed says in the message bar that a page did not load, and why, as the web view reports it; the web view reports no load the page itself cut short by starting another, nor one that turned into a file. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started; nor does a load the app cut short (cutShort), whose failure the platform reports as cancelled, or any failure while the start shows.
+// browseFailed says in the message bar that a page did not load, and why, as the web view reports it; the web view reports no load the page itself cut short by starting another, nor one that turned into a file. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started, nor does a window a page asked for without a web address, as window.open() with none or about:blank, which the web view refuses without an error of the platform's (no Domain); nor does a load the app cut short (cutShort), whose failure the platform reports as cancelled, or any failure while the start shows.
 func (a *app) browseFailed(err error) {
 	var failed *core.WebError
-	if errors.As(err, &failed) && failed.URL != "" && failed.URL != browseBlank && !browse.Allowed(failed.URL) {
+	if errors.As(err, &failed) && !browse.Allowed(failed.URL) && (failed.Domain == "" || (failed.URL != "" && failed.URL != browseBlank)) {
 		return
 	}
 	if a.browse.cutShort || !a.browseShowing() {
@@ -331,7 +335,14 @@ func (a *app) browseCutShort() {
 	}
 }
 
-// browseHeard is what a page posted: that it changed its address without loading another page, or its title (browse.Script), as the web view reports nothing then, or what its own buttons ask and add (browsePageAsk, browsePageAdd). The address and the title are read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
+// browseOpenWindow is a window a page asked to open, which the web view never opens itself: a link or a script that opens one loads its http or https address in the same view when the user clicked it, and does nothing otherwise, as a pop-up a script opens by itself, so the page never opens a window of the app.
+func (a *app) browseOpenWindow(req core.WebWindowRequest) {
+	if req.UserInitiated && browse.Allowed(req.URL) {
+		a.browseLoad(req.URL)
+	}
+}
+
+// browseHeard is what a page posted: what its own buttons ask and add (browsePageAsk, browsePageAdd).
 func (a *app) browseHeard(msg core.WebMessage) {
 	data := msg.Data
 	if links, ok := browse.ParseAskWith(data, a.browsePageVideo); ok {
@@ -340,35 +351,7 @@ func (a *app) browseHeard(msg core.WebMessage) {
 	}
 	if link, title, ok := browse.ParseAddWith(data, a.browsePageVideo); ok {
 		a.browsePageAdd(msg.Origin, link, title, browse.AddedAt(data))
-		return
 	}
-	if data == browse.TitleMessage {
-		a.browse.view.Evaluate("[location.href, document.title]", func(raw string, err error) {
-			var page []string
-			if err != nil || json.Unmarshal([]byte(raw), &page) != nil || len(page) != 2 || !browse.Allowed(page[0]) {
-				return
-			}
-			a.browse.title, a.browse.titleURL = strings.TrimSpace(page[1]), page[0]
-			a.Changed()
-		})
-		return
-	}
-	kind, ok := strings.CutPrefix(data, browse.HistoryMessage)
-	if !ok {
-		return
-	}
-	a.browse.view.Evaluate("location.href", func(raw string, err error) {
-		var u string
-		if err != nil || json.Unmarshal([]byte(raw), &u) != nil || !browse.Allowed(u) {
-			return
-		}
-		a.browse.url = u
-		if kind == "push" {
-			a.browse.canBack, a.browse.canForward = true, false
-		}
-		a.browseFollow()
-		a.Changed()
-	})
 }
 
 // browseGo opens what the address field holds, an address or a search for it in the interface's language.

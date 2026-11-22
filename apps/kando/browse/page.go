@@ -10,7 +10,7 @@ import (
 // pageFill is the page's background before the page paints its own, as a browser's is.
 var pageFill = core.RGB(0xFFFFFF)
 
-// page is the web view showing the web page. Its pages are someone else's: they may go to http and https addresses at the top level, and nowhere else (webOnly), not to pages of their own making (about:, data:, blob:) either, and they reach the app only through what they post to window.nsgo, which BrowseMessage hears as a plain string with the origin of the page that posted it. Every page reaches it, of whichever site the user went on to, as the app checks what each message asks of it.
+// page is the web view showing the web page. Its pages are someone else's: they may go to http and https addresses at the top level, and nowhere else (webOnly), not to pages of their own making (about:, data:, blob:) either, they open no window of the app, as the web view only tells BrowseOpenWindow of one a page asks for, and they reach the app only through what they post to window.nsgo, which BrowseMessage hears as a plain string with the origin of the page that posted it. Every page reaches it, of whichever site the user went on to, as the app checks what each message asks of it.
 type page struct{ a App }
 
 // Render implements core.Node.
@@ -27,6 +27,7 @@ func (p page) Render(cx *core.Scope) core.Node {
 		BackForwardGestures:                 true,
 		PinchZoom:                           true,
 		OnNavigationStateChange:             live.On(a, a.BrowseNavigated),
+		OnOpenWindow:                        live.On(a, a.BrowseOpenWindow),
 		OnError:                             live.On(a, a.BrowseFailed),
 		MessageOrigins:                      []string{"*"},
 		OnMessageFrom:                       live.On(a, a.BrowseMessage),

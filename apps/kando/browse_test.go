@@ -239,25 +239,53 @@ func TestBrowseAddressFollowsThePage(t *testing.T) {
 	}
 }
 
-// A page that changes its address without loading another says so through the app's script, and the address field and back follow the address read from the page itself.
+// browseMoved reports that the page changed its address, its title or its history without loading another page, as a site that is one page does, which the platform reports as a change of the navigation's state alone.
+func browseMoved(tt *nsgotest.App, nav ns.WebNavigation) {
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventNavigationStateChange, ID: tt.FindMounted(browsePage).ID, Navigation: &nav})
+	tt.Settle()
+}
+
+// A page that changes its address without loading another has the web view say so, and the address field and back follow it.
 func TestBrowseFollowsAPageThatChangesItsAddress(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://www.youtube.com/")
-	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browse.HistoryMessage) {
-		t.Fatal("the pages do not run the browser's script")
+	browseMoved(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw", CanGoBack: true})
+	if a.browse.address != "https://www.youtube.com/watch?v=jNQXAC9IVRw" || !tt.Enabled("id:browse-back") || a.browse.loading {
+		t.Fatalf("address %q, back %v, loading %v", a.browse.address, a.browse.canBack, a.browse.loading)
 	}
-	tt.PostMessage(browsePage, browse.HistoryMessage+"push")
-	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
-	tt.Settle()
-	if a.browse.address != "https://www.youtube.com/watch?v=jNQXAC9IVRw" || !tt.Enabled("id:browse-back") {
-		t.Fatalf("address %q, back %v", a.browse.address, a.browse.canBack)
-	}
-	// What a page posts is never taken for its address.
-	tt.PostMessage(browsePage, browse.HistoryMessage+"replace")
-	tt.AnswerScript(browsePage, `"file:///etc/passwd"`, "")
-	tt.Settle()
+	// An address that is not on the web is never taken for the page's.
+	browseMoved(tt, ns.WebNavigation{URL: "file:///etc/passwd", CanGoBack: true})
 	if a.browse.url != "https://www.youtube.com/watch?v=jNQXAC9IVRw" {
 		t.Fatalf("url %q", a.browse.url)
+	}
+}
+
+// A link or a script that opens a window loads its address in the same view when the user clicked it; a pop-up a script opens by itself, or one that is not on the web, loads nothing, and a window the web view refused for want of a web address says nothing.
+func TestBrowseOpensAWindowInTheSameView(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/")
+	web := tt.Find(browsePage)
+	// nsgotest names no kind for a page's new-window request, which shares a video's EventEnd (the web view and the video use the same bit).
+	open := func(req ns.WebWindowRequest) {
+		tt.Report(nsgotest.Event{Kind: nsgotest.EventEnd, ID: web.ID, Data: req})
+		tt.Settle()
+	}
+	open(ns.WebWindowRequest{URL: "https://example.com/ad"})
+	open(ns.WebWindowRequest{URL: "kando://open", UserInitiated: true})
+	if a.browse.url != "https://example.com/" || len(browseCommands(tt, nsgotest.WebLoad)) != 0 || tt.Find(browsePage).Web.Source.Src != "https://example.com/" {
+		t.Fatalf("a window loaded: page %q, source %q", a.browse.url, tt.Find(browsePage).Web.Source.Src)
+	}
+	open(ns.WebWindowRequest{URL: "https://example.com/watch", UserInitiated: true})
+	if a.browse.url != "https://example.com/watch" || !a.browse.loading || tt.Find(browsePage).Web.Source.Src != "https://example.com/watch" {
+		t.Fatalf("the window the user opened: page %q, source %q", a.browse.url, tt.Find(browsePage).Web.Source.Src)
+	}
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/watch", CanGoBack: true})
+	for _, refused := range []string{"", browseBlank} {
+		tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: "nsgo: the web view may not navigate to " + refused, Navigation: &ns.WebNavigation{URL: refused}})
+		tt.Settle()
+	}
+	if a.browse.notice.Open {
+		t.Fatalf("a refused window said %q", a.browse.notice.Text)
 	}
 }
 
@@ -383,7 +411,7 @@ func wantTooltip(t *testing.T, tt *nsgotest.App, want string) {
 	}
 }
 
-// 下载视频's tooltip names the page's video by the title the web view reported once the page loaded, and, on a site that is one page, by the title the page says it moved to; a title reported for another address names nothing.
+// 下载视频's tooltip names the page's video by the title the web view reported once the page loaded, and, on a site that is one page, by the title the page set after it moved to another video, not by the one before's it still reported with the new address; a title of an address that is not on the web names nothing.
 func TestBrowseNamesThePagesVideo(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
@@ -391,20 +419,12 @@ func TestBrowseNamesThePagesVideo(t *testing.T) {
 	wantTooltip(t, tt, msgs.BrowseDownloadTooltip())
 	browseReport(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Title: " French in 10 Minutes - YouTube "})
 	wantTooltip(t, tt, msgs.BrowseDownloadTitled("French in 10 Minutes - YouTube"))
-	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browse.TitleMessage) {
-		t.Fatal("the pages do not say when their title changes")
-	}
-	tt.PostMessage(browsePage, browse.HistoryMessage+"push")
-	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
-	tt.Settle()
+	// The page moved to another video, reporting the title of the one before until it sets its own.
+	browseMoved(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Title: "French in 10 Minutes - YouTube", CanGoBack: true})
 	wantTooltip(t, tt, msgs.BrowseDownloadTooltip())
-	tt.PostMessage(browsePage, browse.TitleMessage)
-	tt.AnswerScript(browsePage, `["https://www.youtube.com/watch?v=jNQXAC9IVRw", "Me at the zoo - YouTube"]`, "")
-	tt.Settle()
+	browseMoved(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Title: "Me at the zoo - YouTube", CanGoBack: true})
 	wantTooltip(t, tt, msgs.BrowseDownloadTitled("Me at the zoo - YouTube"))
-	tt.PostMessage(browsePage, browse.TitleMessage)
-	tt.AnswerScript(browsePage, `["file:///etc/passwd", "passwd"]`, "")
-	tt.Settle()
+	browseMoved(tt, ns.WebNavigation{URL: "file:///etc/passwd", Title: "passwd", CanGoBack: true})
 	if a.browse.title != "Me at the zoo - YouTube" {
 		t.Fatalf("title %q from a page that is not on the web", a.browse.title)
 	}

@@ -44,6 +44,8 @@ func (a *app) BrowseScript() string { return a.browse.script }
 
 func (a *app) BrowseNavigated(nav core.WebNavigation) { a.browseNavigated(nav) }
 
+func (a *app) BrowseOpenWindow(req core.WebWindowRequest) { a.browseOpenWindow(req) }
+
 func (a *app) BrowseFailed(err error) { a.browseFailed(err) }
 
 func (a *app) BrowseMessage(msg core.WebMessage) { a.browseHeard(msg) }

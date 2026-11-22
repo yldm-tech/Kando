@@ -37,6 +37,7 @@ type fakeApp struct {
 	notice     Notice
 	clearOpen  bool
 	navs       []core.WebNavigation
+	windows    []core.WebWindowRequest
 	failures   []error
 	messages   []core.WebMessage
 	calls      []string
@@ -51,30 +52,33 @@ func (f *fakeApp) BrowseWeb() *core.Ref                   { return &f.web }
 func (f *fakeApp) BrowseUserAgent() string                { return f.agent }
 func (f *fakeApp) BrowseScript() string                   { return f.script }
 func (f *fakeApp) BrowseNavigated(nav core.WebNavigation) { f.navs = append(f.navs, nav) }
-func (f *fakeApp) BrowseFailed(err error)                 { f.failures = append(f.failures, err) }
-func (f *fakeApp) BrowseMessage(msg core.WebMessage)      { f.messages = append(f.messages, msg) }
-func (f *fakeApp) BrowseAddress() *string                 { return &f.address }
-func (f *fakeApp) BrowseAddressFocus() *bool              { return &f.focus }
-func (f *fakeApp) BrowseAddressFocused(focused bool)      { f.focused = focused }
-func (f *fakeApp) BrowseGo()                              { f.call("go " + f.address) }
-func (f *fakeApp) BrowseBack()                            { f.call("back") }
-func (f *fakeApp) BrowseForward()                         { f.call("forward") }
-func (f *fakeApp) BrowseReload()                          { f.call("reload") }
-func (f *fakeApp) BrowseStop()                            { f.call("stop") }
-func (f *fakeApp) BrowseHome()                            { f.call("home") }
-func (f *fakeApp) BrowseDownload()                        { f.call("download") }
-func (f *fakeApp) BrowseShowFilm(id string)               { f.call("show " + id) }
-func (f *fakeApp) BrowseNotice() *Notice                  { return &f.notice }
-func (f *fakeApp) BrowseAddList(source string)            { f.call("add list " + source) }
-func (f *fakeApp) BrowseClearOpen() bool                  { return f.clearOpen }
-func (f *fakeApp) BrowseAskClear()                        { f.call("ask clear"); f.clearOpen = true }
-func (f *fakeApp) BrowseClear()                           { f.call("clear"); f.clearOpen = false }
-func (f *fakeApp) BrowseCancelClear()                     { f.call("cancel clear"); f.clearOpen = false }
-func (f *fakeApp) BrowseRefreshSignIn()                   { f.call("refresh sign-in") }
-func (f *fakeApp) OpenSettings(section string)            { f.settingsAt = section }
-func (f *fakeApp) SiteLogo(s catalog.Site) []byte         { return catalog.Logo(s) }
-func (f *fakeApp) OpenSite(s catalog.Site)                { f.call("open " + s.Domain) }
-func (f *fakeApp) OpenSites()                             { f.call("sites") }
+func (f *fakeApp) BrowseOpenWindow(req core.WebWindowRequest) {
+	f.windows = append(f.windows, req)
+}
+func (f *fakeApp) BrowseFailed(err error)            { f.failures = append(f.failures, err) }
+func (f *fakeApp) BrowseMessage(msg core.WebMessage) { f.messages = append(f.messages, msg) }
+func (f *fakeApp) BrowseAddress() *string            { return &f.address }
+func (f *fakeApp) BrowseAddressFocus() *bool         { return &f.focus }
+func (f *fakeApp) BrowseAddressFocused(focused bool) { f.focused = focused }
+func (f *fakeApp) BrowseGo()                         { f.call("go " + f.address) }
+func (f *fakeApp) BrowseBack()                       { f.call("back") }
+func (f *fakeApp) BrowseForward()                    { f.call("forward") }
+func (f *fakeApp) BrowseReload()                     { f.call("reload") }
+func (f *fakeApp) BrowseStop()                       { f.call("stop") }
+func (f *fakeApp) BrowseHome()                       { f.call("home") }
+func (f *fakeApp) BrowseDownload()                   { f.call("download") }
+func (f *fakeApp) BrowseShowFilm(id string)          { f.call("show " + id) }
+func (f *fakeApp) BrowseNotice() *Notice             { return &f.notice }
+func (f *fakeApp) BrowseAddList(source string)       { f.call("add list " + source) }
+func (f *fakeApp) BrowseClearOpen() bool             { return f.clearOpen }
+func (f *fakeApp) BrowseAskClear()                   { f.call("ask clear"); f.clearOpen = true }
+func (f *fakeApp) BrowseClear()                      { f.call("clear"); f.clearOpen = false }
+func (f *fakeApp) BrowseCancelClear()                { f.call("cancel clear"); f.clearOpen = false }
+func (f *fakeApp) BrowseRefreshSignIn()              { f.call("refresh sign-in") }
+func (f *fakeApp) OpenSettings(section string)       { f.settingsAt = section }
+func (f *fakeApp) SiteLogo(s catalog.Site) []byte    { return catalog.Logo(s) }
+func (f *fakeApp) OpenSite(s catalog.Site)           { f.call("open " + s.Domain) }
+func (f *fakeApp) OpenSites()                        { f.call("sites") }
 
 // show shows the browser of a across the window, on a Mac, in testlocale's language.
 func show(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -151,14 +155,19 @@ func TestPageShowsTheWebView(t *testing.T) {
 		t.Fatalf("navigations %+v", a.navs)
 	}
 	app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: "A server with the specified hostname could not be found.", Navigation: &core.WebNavigation{URL: "https://nowhere.example/"}})
-	app.PostMessage("id:browse-page", "kando-history:push")
+	// nsgotest names no kind for a page's new-window request, which shares a video's EventEnd (the web view and the video use the same bit).
+	app.Report(nsgotest.Event{Kind: nsgotest.EventEnd, ID: web.ID, Data: core.WebWindowRequest{URL: "https://example.com/popup", UserInitiated: true}})
+	app.PostMessage("id:browse-page", "kando-hello")
 	// A page the user went on to, of another site, reaches the app too, with its origin, and the app checks what it asks.
 	app.PostMessageFrom("id:browse-page", "https://www.youtube.com/watch?v=jNQXAC9IVRw", true, "kando-ask:[]")
 	app.Settle()
 	var we *core.WebError
-	want := []core.WebMessage{{Data: "kando-history:push", Origin: "https://example.com"}, {Data: "kando-ask:[]", Origin: "https://www.youtube.com"}}
+	want := []core.WebMessage{{Data: "kando-hello", Origin: "https://example.com"}, {Data: "kando-ask:[]", Origin: "https://www.youtube.com"}}
 	if len(a.failures) != 1 || !errors.As(a.failures[0], &we) || we.URL != "https://nowhere.example/" || !slices.Equal(a.messages, want) {
 		t.Fatalf("failures %v, messages %q", a.failures, a.messages)
+	}
+	if len(a.windows) != 1 || a.windows[0] != (core.WebWindowRequest{URL: "https://example.com/popup", UserInitiated: true}) {
+		t.Fatalf("windows %+v", a.windows)
 	}
 	change(app, a, func() { a.state.Page = false })
 	if !app.Exists(whole(testlocale.Messages().BrowseEmptyTitle())) || len(app.QueryMounted("id:browse-page")) != 1 {

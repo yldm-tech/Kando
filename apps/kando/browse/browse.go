@@ -62,8 +62,9 @@ type App interface {
 	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts; when it changes, the web view loads its source again with it, in place of the page it shows, keeping its history (core.WebView.InjectedJavaScriptBeforeContentFunc).
 	BrowseUserAgent() string
 	BrowseScript() string
-	// BrowseNavigated hears the page's address and history as it starts loading, finishes and navigates, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo, with the page's origin.
+	// BrowseNavigated hears the page's address, title and history as it starts loading, finishes and navigates, within the document too, BrowseOpenWindow a window the page asks to open, which the platform never opens itself, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo, with the page's origin.
 	BrowseNavigated(nav core.WebNavigation)
+	BrowseOpenWindow(req core.WebWindowRequest)
 	BrowseFailed(err error)
 	BrowseMessage(msg core.WebMessage)
 	// BrowseAddress is the address field's text.
