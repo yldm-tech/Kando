@@ -99,3 +99,36 @@ func TestConfirmShowsWhatWasRead(t *testing.T) {
 		t.Fatalf("answers %q", answers)
 	}
 }
+
+// What the dialog says follows the interface's language as it changes while the dialog is open, and the dialog is not built again for it; Add's words follow the number it adds without building it again.
+func TestConfirmFollowsTheLanguage(t *testing.T) {
+	env := core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop}
+	var adding *core.Signal[int]
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		adding = core.NewSignal(cx, 3)
+		return Confirm{
+			Open:     func() bool { return true },
+			Look:     func() Look { return Look{Lists: 1, Channels: 1, Title: "Veritasium", Videos: 50, Have: 2} },
+			Adding:   adding.Get,
+			OnAdd:    func() {},
+			OnCancel: func() {},
+		}
+	}, nsgotest.Size(800, 600), nsgotest.Environment(testlocale.Environment(env)))
+	dialog, add := app.Find("id:playlist-confirm").ID, app.Find("id:playlist-add").ID
+	adding.Set(10)
+	app.Settle()
+	if !app.Exists(`text:"`+testlocale.Messages().PlaylistAdd(10)+`"`) || app.Find("id:playlist-add").ID != add {
+		t.Fatalf("Add does not say the number it adds in place: %q", app.Texts())
+	}
+	testlocale.Use(t, "en")
+	app.SetEnvironment(testlocale.Environment(env))
+	en := testlocale.Messages()
+	for _, want := range []string{"Veritasium", en.PlaylistVideos(50), en.PlaylistHave(2), en.PlaylistCancel(), en.PlaylistAdd(10)} {
+		if !app.Exists(`text:"` + want + `"`) {
+			t.Errorf("no %q in English: %q", want, app.Texts())
+		}
+	}
+	if app.Find("id:playlist-confirm").ID != dialog || app.Find("id:playlist-add").ID != add {
+		t.Fatal("the dialog or its Add was built again for the language")
+	}
+}

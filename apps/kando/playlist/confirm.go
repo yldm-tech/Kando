@@ -79,7 +79,7 @@ func (l Look) OneChannel() bool {
 
 // Render implements core.Node.
 func (c Confirm) Render(cx *core.Scope) core.Node {
-	// Look may follow the app's whole revision, which changes on every keystroke and progress report; the memo lets the dialog below be built again only when what it shows changes.
+	// Look may follow the app's whole revision, which changes on every keystroke and progress report; the memo lets what the dialog shows be worked out again only when it changes.
 	look := core.NewMemo(cx, c.Look)
 	cancel := func() {
 		if c.OnCancel != nil {
@@ -87,10 +87,9 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 		}
 	}
 	return core.Show{When: c.Open, Then: func(cx *core.Scope) core.Node {
-		return core.Dynamic(func(cx *core.Scope) core.Node {
+		// What the dialog says under its title and its rows are built again when the look or the language changes, as the rows are settings/form's, which take their titles once; the title and the buttons follow both without building the dialog again.
+		content := core.Dynamic(func(cx *core.Scope) core.Node {
 			l := look.Get()
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the list and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			footer := []core.Node{ui.Button{Text: locales.PlaylistCancel(cx), Variant: ui.ButtonSecondary, TestID: "playlist-cancel", OnPress: cancel}, c.addButton(cx, l)}
 			children := body(cx, l)
 			var rows []core.Node
 			add := func(row core.Node) {
@@ -113,44 +112,47 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 			if len(rows) > 0 {
 				children = append(children, form.Card(rows...))
 			}
-			return ui.Dialog{
-				TestID:                 "playlist-confirm",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  title(cx, l),
-				Children:               children,
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: footer,
-			}
+			return core.Group(children)
 		})
+		return ui.Dialog{
+			TestID:                 "playlist-confirm",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              func() string { return title(cx, look.Get()) },
+			Children:               []core.Node{content},
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.PlaylistCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "playlist-cancel", OnPress: cancel},
+				c.addButton(cx, look.Get),
+			},
+		}
 	}}
 }
 
-// addButton is Add, which says how many videos it queues, or, with none to queue, Subscribe, which is on while the subscribe switch is. It is built again as the number changes, as a channel's Recent changes it, while the rest of the dialog stays.
-func (c Confirm) addButton(cx *core.Scope, l Look) core.Node {
-	adding := func() int {
-		if c.Adding != nil && !l.Loading && l.Err == "" {
+// addButton is Add, which says how many videos it queues, or, with none to queue, Subscribe, which is on while the subscribe switch is; with neither, there is no button. Its words follow the number, as a channel's Recent changes it, and the look.
+func (c Confirm) addButton(cx *core.Scope, look func() Look) core.Node {
+	n := core.NewMemo(cx, func() int {
+		if l := look(); c.Adding != nil && !l.Loading && l.Err == "" {
 			return c.Adding()
 		}
-		return l.Adds()
-	}
-	n := core.NewMemo(cx, adding)
-	// TODO(nsgo#145): give ui.Button a TextFunc twin, so its label follows the number without building the button again https://github.com/nsgo-dev/nsgo/issues/145
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		if n := n.Get(); n > 0 {
-			return ui.Button{Text: locales.PlaylistAdd(cx, n), TestID: "playlist-add", OnPress: c.OnAdd}
-		}
-		if l.Subscribable() && c.Subscribe != nil {
-			return ui.Button{Text: locales.PlaylistSubscribeOnly(cx), TestID: "playlist-add", OnPress: c.OnAdd,
-				Disabled: func() bool { return !c.Subscribe() }}
-		}
-		return core.View{}
+		return look().Adds()
 	})
+	subscribeOnly := func() bool { return n.Get() == 0 && look().Subscribable() && c.Subscribe != nil }
+	return core.Show{When: func() bool { return n.Get() > 0 || subscribeOnly() }, Then: func(cx *core.Scope) core.Node {
+		return ui.Button{TestID: "playlist-add", OnPress: c.OnAdd,
+			TextFunc: func() string {
+				if n := n.Get(); n > 0 {
+					return locales.PlaylistAdd(cx, n)
+				}
+				return locales.PlaylistSubscribeOnly(cx)
+			},
+			Disabled: func() bool { return subscribeOnly() && !c.Subscribe() }}
+	}}
 }
 
 // recentRow is 现在添加: how many of the channel's most recent videos Add queues now, none, the latest 3 or the latest 10 (RecentChoices).
