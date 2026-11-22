@@ -152,14 +152,12 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 // addButton is the sheet's primary button: 添加并开始, or 列出视频 while the whole playlist is chosen, whose videos the playlist dialog lists before they are added.
 func addButton(cx *core.Scope, s Sheet) core.Node {
 	whole := core.NewMemo(cx, func() bool { return s.Choice().Whole })
-	// TODO(nsgo#145): give ui.Button a TextFunc twin, so its label follows the choice without building the button again https://github.com/nsgo-dev/nsgo/issues/145
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		text := locales.AddSheetAdd(cx)
+	return ui.Button{TestID: "addsheet-add", OnPress: s.OnAdd, TextFunc: func() string {
 		if whole.Get() {
-			text = locales.AddSheetListVideos(cx)
+			return locales.AddSheetListVideos(cx)
 		}
-		return ui.Button{Text: text, TestID: "addsheet-add", OnPress: s.OnAdd}
-	})
+		return locales.AddSheetAdd(cx)
+	}}
 }
 
 // body is the sheet's content for l: the video, a note on its site, then the choices, those that do not apply to its site left out.
