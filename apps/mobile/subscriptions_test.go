@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"kando/apps/mobile/store"
 	"kando/packages/study"
@@ -90,10 +89,8 @@ func TestTheLibraryListsTheComputersSubscriptions(t *testing.T) {
 	}
 	p.app.Answer(1)
 	p.app.WaitUntil(wait, func() bool { return len(d.Subscriptions()) == 0 })
-	// The row leaves as the phone reads the computer's answer, which also starts the sheet's motion out. That answer arrives after Answer's step has taken its frames, and WaitForGone only settles without moving the test's clock, so the sheet would stay on its way out for good: the clock is moved past the motion.
-	// TODO(nsgo#1642): nsgotest's WaitUntil, WaitFor and WaitForGone settle without taking frames, so a sheet that closes on a cx.Post from another goroutine never finishes its motion out while they wait, where the JS harness lets time pass a frame at a time; drop the Advance once they take the frames a step takes https://github.com/nsgo-dev/nsgo/issues/1642
+	// The row leaves as the phone reads the computer's answer, which also starts the sheet's motion out.
 	p.app.WaitForGone("id:films-subscriptions", wait)
-	p.app.Advance(time.Second)
 	p.app.WaitForGone("id:films-subscription-sheet", wait)
 }
 
