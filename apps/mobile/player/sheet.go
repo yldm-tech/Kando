@@ -7,7 +7,7 @@ import (
 )
 
 // appSheet is a sheet over the player in the app's own appearance rather than the player's dark, as the design draws the word, the explanation and the fix: the page's grey under white cards, rounder at its top than ui.Sheet. Dark keeps the player's dark on the surface's color instead, as the playback settings. Label names it for screen readers. It is at most 86% of the screen tall, as the design's tallest; a Scroll among its children shrinks to fit it (give it FlexShrink 1 and MinHeight 0, with no MaxHeight of its own), so its foot is reached by scrolling rather than cut.
-// TODO(nsgo#1036): ui.Sheet takes no style for its surface (ui/sheet.go:29-32), which is Surface, white in the light, where the design's sheet is the grouped page's grey under white cards; it is base.Sheet with ui.Sheet's grabber and padding meanwhile. https://github.com/nsgo-dev/nsgo/issues/1036
+// TODO(nsgo): ui.Sheet now takes a Style and a StyleFunc for its surface (nsgo#1036), but no Label or LabelFunc for screen readers, no TestID and no CloseOnSwipe (ui/sheet.go:11-19), which base.Sheet has and this sheet uses, so it is base.Sheet with ui.Sheet's grabber and padding meanwhile; make it ui.Sheet with its fill, corners and height in StyleFunc once ui.Sheet passes those through
 type appSheet struct {
 	Dark     bool
 	Open     func() bool
