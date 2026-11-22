@@ -20,8 +20,7 @@ const (
 	Plain
 )
 
-// Button is a phone's full-width button, 50 points tall and 14 round (44 Plain), with an optional leading icon. A Tall one is the introduction's call to action at a screen's foot: 56 points tall, 16 round, its text bold, and a Primary one lifted by a shadow in the accent. While Busy it shows a spinner in the icon's place, in the button's text color, and takes no presses, and BusyLabel, when set, is what assistive technology reads meanwhile.
-// TODO(nsgo#1073): ui.Button now takes a Style for its size (nsgo#482), but its Text is a string only (ui/button.go:31, nsgo#145), it draws the text at its Size's font in the regular weight (ui/button.go:129) where the design's is 17pt semibold, bold when Tall, and it has no look of the accent or danger's color on its tint (Tinted, Danger) nor a BusyLabel, so a phone's large or full-width button is still base.Button with the app's own style; use ui.Button once it takes those https://github.com/nsgo-dev/nsgo/issues/1073
+// Button is a phone's full-width button, ui.Button 50 points tall and 14 round (44 Plain) in the design's 17pt semibold, with an optional leading icon. A Tall one is the introduction's call to action at a screen's foot: 56 points tall, 16 round, its text bold, and a Primary one lifted by a shadow in the accent. While Busy it shows a spinner in the button's text color before BusyLabel, or before its Text without one, and takes no presses; assistive technology reads the label shown.
 type Button struct {
 	Text      func() string
 	Icon      func() *core.SVG
@@ -38,77 +37,32 @@ type Button struct {
 
 // Render implements core.Node.
 func (b Button) Render(cx *core.Scope) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
-	busy := func() bool { return b.Busy != nil && b.Busy() }
-	shape := core.Style{Height: core.Pt(50), CornerRadius: 14, BorderCurve: core.BorderCurveContinuous, Direction: core.Row, Gap: 8,
-		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(0, 20),
-		Active: &core.Style{Opacity: core.Alpha(0.7)}}
+	variant := map[Kind]ui.ButtonVariant{Primary: ui.ButtonPrimary, Tinted: ui.ButtonTinted, Danger: ui.ButtonDanger, Plain: ui.ButtonGhost}[b.Kind]
+	// A button's TextStyle and Style are read once, so what they take of the accent is the accent as it is built: Kando's is the same in both appearances (theme.Kando).
+	accent := ui.ColorsOf(cx).Accent()
+	shape := core.Style{Height: core.Pt(50), CornerRadius: 14}
+	text := core.Style{FontSize: 17, LineHeight: 22, FontWeight: core.FontWeightSemibold}
+	var tint func() core.Color
 	if b.Kind == Plain {
-		shape.Height = core.Pt(44)
+		// A ghost's text is the ink; Plain's is the accent.
+		shape.Height, text.Color, tint = core.Pt(44), accent, ui.Fixed(accent)
 	}
 	if b.Tall {
-		shape.Height, shape.CornerRadius = core.Pt(56), 16
+		shape.Height, shape.CornerRadius, text.FontWeight = core.Pt(56), 16, core.FontWeightBold
+		if b.Kind == Primary {
+			shape.Shadows = []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 24, Color: ui.Alpha(accent, 0.3)}}
+		}
 	}
 	if b.Flex > 0 {
-		shape.FlexGrow, shape.FlexShrink, shape.FlexBasis, shape.MinWidth = b.Flex, 1, core.Pt(0), core.Pt(0)
+		shape.FlexBasis, shape.MinWidth = core.Pt(0), core.Pt(0)
 	}
-	kindStyle := func() core.Style {
-		switch b.Kind {
-		case Tinted:
-			return core.Style{Background: tints.Accent(), Color: colors.Accent()}
-		case Danger:
-			return core.Style{Background: tints.Danger(), Color: colors.Danger()}
-		case Plain:
-			return core.Style{Color: colors.Accent()}
-		}
-		st := core.Style{Background: colors.Accent(), Color: colors.OnAccent()}
-		if b.Tall {
-			st.Shadows = []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 24, Color: ui.Alpha(colors.Accent(), 0.3)}}
-		}
-		return st
+	busyLabel := b.BusyLabel
+	if busyLabel == nil {
+		// Without a label of its own a busy button keeps its text beside the spinner, which takes the icon's place.
+		busyLabel = b.Text
 	}
-	look := func() core.Style {
-		st := kindStyle()
-		// A busy button takes no presses but stays whole, as the platforms' own do: only one that cannot be pressed fades.
-		if !busy() {
-			st.Disabled = &core.Style{Opacity: core.Alpha(0.4)}
-		}
-		return st
-	}
-	// ink is the button's text color, which its spinner takes.
-	ink := func() core.Color {
-		switch b.Kind {
-		case Primary:
-			return colors.OnAccent()
-		case Danger:
-			return colors.Danger()
-		}
-		return colors.Accent()
-	}
-	var lead core.Node
-	if b.Icon != nil {
-		lead = ui.Icon(b.Icon, 20, ui.Inherited)
-	}
-	weight := core.FontWeightSemibold
-	if b.Tall {
-		weight = core.FontWeightBold
-	}
-	label := b.Text
-	if b.BusyLabel != nil {
-		label = func() string {
-			if busy() {
-				return b.BusyLabel()
-			}
-			return b.Text()
-		}
-	}
-	return base.Button{TestID: b.TestID, LabelFunc: label, Style: shape, StyleFunc: look,
-		OnPress:  func(core.PressEvent) { b.OnPress() },
-		Disabled: func() bool { return busy() || (b.Disabled != nil && b.Disabled()) },
-		Children: []core.Node{
-			core.Show{When: busy, Then: func(*core.Scope) core.Node { return ui.Spinner{Size: 20, Tint: ink} }, Else: func(*core.Scope) core.Node { return lead }},
-			core.Text{ContentFunc: b.Text, MaxLines: 1, Style: core.Style{FontSize: 17, LineHeight: 22, FontWeight: weight, FlexShrink: 1}},
-		}}
+	return ui.Button{TestID: b.TestID, TextFunc: b.Text, TextStyle: text, Variant: variant, Icon: b.Icon, IconSize: 20, Tint: tint,
+		Busy: b.Busy, BusyLabelFunc: busyLabel, Disabled: b.Disabled, Flex: b.Flex, Size: ui.SizeLarge, Style: shape, OnPress: b.OnPress}
 }
 
 // Pill is a small capsule button, for a way out at a screen's top, as Skip.
