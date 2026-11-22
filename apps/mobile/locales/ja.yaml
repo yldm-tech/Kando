@@ -433,6 +433,7 @@ pairErrWrongCode: "コンピュータに表示されているコードと違い�
 pairScan: "QR コードをスキャン"
 pairScanning: "QR コードを読み取り中…"
 pairStepEnter: "表示されたアドレスとペアリングコードを入力"
+pairStepScan: "表示された QR コードをこのスマートフォンでスキャン"
 pairStepOpen: "コンピュータで Kando を開く"
 pairStepSettings: "設定 › スマートフォン同期"
 pairSteps: "ペアリングの手順"

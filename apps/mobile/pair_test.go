@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"kando/apps/mobile/pair"
@@ -311,13 +312,28 @@ func TestScanningAnotherPhotoSaysSo(t *testing.T) {
 	}
 }
 
-// Where the phone has no camera the pairing page offers no scanning.
+// Where the phone has no camera the pairing page offers no scanning: its steps end in typing the address and code, with no QR code beside them.
 func TestNoCameraNoScanning(t *testing.T) {
 	p := startPhone(t, "")
 	p.startPairing()
 	p.app.WaitFor("id:pair-address", wait)
-	if p.app.Exists("id:pair-scan") {
+	if p.app.Exists("id:pair-scan") || p.app.Exists("id:pair-steps-qr") {
 		t.Fatal("the pairing page offers scanning without a camera")
+	}
+	if got := p.texts("id:pair-steps"); !strings.HasSuffix(got, msgs.PairStepEnter()) {
+		t.Fatalf("the steps read %q, want them to end in %q", got, msgs.PairStepEnter())
+	}
+}
+
+// A phone that reads codes shows a QR code beside the steps, as the design does, and the steps end in scanning the computer's.
+func TestTheStepsShowTheQRCodeToScan(t *testing.T) {
+	p := startScanningPhone(t, nil)
+	p.app.WaitFor("id:pair-scan", wait)
+	if !p.app.Exists("id:pair-steps-qr") || !p.app.Find("id:pair-steps-qr").Props.ElementsHidden {
+		t.Fatal("the steps have no QR code beside them, or assistive technology reads it")
+	}
+	if got := p.texts("id:pair-steps"); !strings.HasSuffix(got, msgs.PairStepScan()) {
+		t.Fatalf("the steps read %q, want them to end in %q", got, msgs.PairStepScan())
 	}
 }
 

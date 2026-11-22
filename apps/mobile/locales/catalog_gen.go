@@ -1183,6 +1183,7 @@ const (
 	textPairScan
 	textPairScanning
 	textPairStepEnter
+	textPairStepScan
 	textPairStepOpen
 	textPairStepSettings
 	textPairSteps
@@ -1731,6 +1732,7 @@ var keyOfText = [numTexts]string{
 	"pairScan",
 	"pairScanning",
 	"pairStepEnter",
+	"pairStepScan",
 	"pairStepOpen",
 	"pairStepSettings",
 	"pairSteps",
@@ -2277,6 +2279,7 @@ var textsEn = i18n.NewTexts(""+
 	"Scan QR Code"+
 	"Reading the QR code…"+
 	"Enter the address and code it shows"+
+	"Scan the QR code it shows with this phone"+
 	"Open Kando on your computer"+
 	"Settings › Phone Sync"+
 	"How to pair"+
@@ -2820,6 +2823,7 @@ var textsEn = i18n.NewTexts(""+
 		12,
 		22,
 		35,
+		41,
 		27,
 		23,
 		11,
@@ -3366,6 +3370,7 @@ var textsJa = i18n.NewTexts(""+
 	"QR コードをスキャン"+
 	"QR コードを読み取り中…"+
 	"表示されたアドレスとペアリングコードを入力"+
+	"表示された QR コードをこのスマートフォンでスキャン"+
 	"コンピュータで Kando を開く"+
 	"設定 › スマートフォン同期"+
 	"ペアリングの手順"+
@@ -3909,6 +3914,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		33,
 		63,
+		73,
 		37,
 		38,
 		24,
@@ -4455,6 +4461,7 @@ var textsKo = i18n.NewTexts(""+
 	"QR 코드 스캔"+
 	"QR 코드 읽는 중…"+
 	"표시된 주소와 페어링 코드 입력"+
+	"표시된 QR 코드를 이 휴대폰으로 스캔"+
 	"컴퓨터에서 Kando 열기"+
 	"설정 › 휴대폰 동기화"+
 	"페어링 방법"+
@@ -4998,6 +5005,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		23,
 		43,
+		49,
 		28,
 		30,
 		16,
@@ -5544,6 +5552,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"扫描二维码"+
 	"正在读取二维码…"+
 	"输入那里显示的地址和配对码"+
+	"用这台手机扫描那里显示的二维码"+
 	"在电脑上打开看懂"+
 	"设置 › 手机同步"+
 	"配对步骤"+
@@ -6087,6 +6096,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		24,
 		39,
+		45,
 		24,
 		23,
 		12,
@@ -6633,6 +6643,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"掃描 QR 碼"+
 	"正在讀取 QR 碼…"+
 	"輸入那裡顯示的位址和配對碼"+
+	"用這支手機掃描那裡顯示的 QR 碼"+
 	"在電腦上開啟看懂"+
 	"設定 › 手機同步"+
 	"配對步驟"+
@@ -7176,6 +7187,7 @@ var textsZhHant = i18n.NewTexts(""+
 		13,
 		22,
 		39,
+		43,
 		24,
 		23,
 		12,
@@ -15653,6 +15665,15 @@ func PairStepEnter(cx *core.Scope) string { return For(cx).PairStepEnter() }
 
 // PairStepEnter is the package's PairStepEnter in the language of msgs.
 func (msgs Messages) PairStepEnter() string { return msgs.text(textPairStepEnter) }
+
+// PairStepScan says "Scan the QR code it shows with this phone"
+// in the language the app shows under cx.
+//
+// Third of the numbered steps over the pairing form, on a phone that can read the QR code the computer shows (the Scan QR Code button under the steps).
+func PairStepScan(cx *core.Scope) string { return For(cx).PairStepScan() }
+
+// PairStepScan is the package's PairStepScan in the language of msgs.
+func (msgs Messages) PairStepScan() string { return msgs.text(textPairStepScan) }
 
 // PairStepOpen says "Open Kando on your computer"
 // in the language the app shows under cx.

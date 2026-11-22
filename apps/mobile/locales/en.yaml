@@ -1609,6 +1609,9 @@ pairScanning:
 pairStepEnter:
   message: "Enter the address and code it shows"
   description: "Third of the numbered steps over the pairing form."
+pairStepScan:
+  message: "Scan the QR code it shows with this phone"
+  description: "Third of the numbered steps over the pairing form, on a phone that can read the QR code the computer shows (the Scan QR Code button under the steps)."
 pairStepOpen:
   message: "Open Kando on your computer"
   description: "First of the numbered steps over the pairing form."
