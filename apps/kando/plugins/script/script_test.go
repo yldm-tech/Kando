@@ -1220,3 +1220,30 @@ func TestScriptBackgroundEndsWithThePlugins(t *testing.T) {
 		t.Fatal("the background watchdog runs on with no plugin held")
 	}
 }
+
+// TestScriptOthersJSCountsFromWhenAPluginJoins checks that what other plugins ran, which spares a call or a panel the engine's time they took, moves only by what they run while it is measured: a plugin that ran 300 ms of JS as it loaded adds nothing as it joins the registry in the middle of a measure, and one that leaves takes nothing it ran away.
+func TestScriptOthersJSCountsFromWhenAPluginJoins(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	quiet := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.quiet", code: `export function work() { return 1 }`}), plugins.Grant{})
+	busy := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.busy", code: `const t = Date.now(); while (Date.now() - t < 300) {}
+export function work() { return 1 }`}), plugins.Grant{})
+	if ran, _ := busy.p.JSTime(); ran < 250*time.Millisecond {
+		t.Fatalf("the busy plugin ran %v as it loaded, want 300 ms", ran)
+	}
+	w := testBgWatch()
+	w.BgBeat = 0
+	r, _ := bgRunner(e, w, quiet)
+	before := r.othersJS(quiet)
+	e.do(func() { r.Hold(busy) })
+	joined := r.othersJS(quiet)
+	if d := joined - before; d > 50*time.Millisecond {
+		t.Errorf("a plugin joining added %v of what it ran before it joined", d)
+	}
+	e.do(func() { r.Close(busy) })
+	if left := r.othersJS(quiet); left < joined {
+		t.Errorf("a plugin leaving took %v away", joined-left)
+	}
+}

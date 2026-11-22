@@ -32,11 +32,14 @@ type background struct {
 	last  time.Time
 	total time.Duration
 	span  time.Duration
+	// left is what the plugins that left the registry ran from when they joined it, for othersJS: each plugin counts from what its JS was as it joined (held.joined) and keeps what it ran once it leaves, so that what others ran over a span is what they ran in it, however the registry changed meanwhile. A plugin that left runs no call any more, so it is never the p othersJS leaves out.
+	left time.Duration
 }
 
 // held is a plugin in the registry: its panels' watchdogs, and what the JS of their builds gone ran (panelsGone); whether a call of it runs unpaused (watching), since its JS ran watchFrom, and what its JS ran in all while one did (watched). The sampler keeps what its unwatched JS was at the last reading (seen, last), its bucket, what it poured into the all-plugins bucket since that was last empty (share), and whether it is being stopped.
 type held struct {
 	p          *Plugin
+	joined     time.Duration
 	panels     map[*panelWatchdog]struct{}
 	panelsGone time.Duration
 	watching   bool
@@ -79,7 +82,9 @@ func (r *Runner) hold(p *Plugin) {
 	if r.bg.plugins[p] != nil {
 		return
 	}
-	r.bg.plugins[p] = &held{p: p, panels: map[*panelWatchdog]struct{}{}}
+	h := &held{p: p, panels: map[*panelWatchdog]struct{}{}}
+	h.joined = h.js()
+	r.bg.plugins[p] = h
 	if r.Watch.BgBeat > 0 && !r.bg.running && !r.bg.posted && r.Post != nil {
 		// Hold is called as a panel's view is built, where no goroutine starts.
 		r.bg.posted = true
@@ -96,6 +101,7 @@ func (r *Runner) release(p *Plugin) {
 		return
 	}
 	delete(r.bg.plugins, p)
+	r.bgLeft(h)
 	r.bgTakeOut(h)
 	if len(r.bg.plugins) == 0 && r.bg.wake != nil {
 		select {
@@ -152,6 +158,7 @@ func (r *Runner) bgSample(now time.Time) (stops []*held, ok bool) {
 		// A plugin whose owner went without closing it through the runner, as a test's engine as it ends, runs no JS any more.
 		if errors.Is(p.p.Err(), tsx.ErrPluginClosed) {
 			delete(b.plugins, p)
+			r.bgLeft(h)
 			r.bgTakeOut(h)
 		}
 	}
@@ -288,15 +295,20 @@ func (r *Runner) bgPanel(p *Plugin, w *panelWatchdog, on bool) {
 	}
 }
 
-// othersJS is how long the JS of every plugin held but p ran in all, from any goroutine: what of the engine's time a heartbeat of p's call, or a panel of p, waited for that is not p's.
+// othersJS is how long the JS of the plugins but p ran since each joined the registry, those that left it included, from any goroutine: the difference of two readings is what of the engine's time a heartbeat of p's call, or a panel of p, waited for that is not p's, even when a plugin joined or left between them.
 func (r *Runner) othersJS(p *Plugin) time.Duration {
 	r.bg.mu.Lock()
 	defer r.bg.mu.Unlock()
 	var d time.Duration
 	for q, h := range r.bg.plugins {
 		if q != p {
-			d += h.js()
+			d += h.js() - h.joined
 		}
 	}
-	return d
+	return d + r.bg.left
+}
+
+// bgLeft keeps what h ran since it joined the registry, as it leaves it, for othersJS.
+func (r *Runner) bgLeft(h *held) {
+	r.bg.left += h.js() - h.joined
 }
