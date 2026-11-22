@@ -27,33 +27,21 @@ func noticeBar(cx *core.Scope, a App) core.Node {
 	text := live.Func(a, func() string { return a.BrowseNotice().Text })
 	success := live.Memo(cx, a, func() bool { return a.BrowseNotice().Kind == "success" })
 	fixable := live.Memo(cx, a, func() bool { return a.BrowseNotice().Section != "" })
-	settings := core.Show{When: fixable, Then: func(*core.Scope) core.Node {
-		// The button's words are set as it is built, so it is built again for another language.
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Button{Text: locales.BrowseOpenSettings(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-settings",
-				OnPress: live.Do(a, func() { a.OpenSettings(a.BrowseNotice().Section) })}
-		})
+	settings := core.Show{When: fixable, Then: func(cx *core.Scope) core.Node {
+		return ui.Button{TextFunc: func() string { return locales.BrowseOpenSettings(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-settings",
+			OnPress: live.Do(a, func() { a.OpenSettings(a.BrowseNotice().Section) })}
 	}}
-	film := core.Show{When: live.Memo(cx, a, func() bool { return a.BrowseNotice().Film != "" }), Then: func(*core.Scope) core.Node {
-		// The button's words are set as it is built, so it is built again for another language.
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Button{Text: locales.BrowseShowInLibrary(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-film",
-				OnPress: live.Do(a, func() {
-					n := a.BrowseNotice()
-					n.Open = false
-					a.BrowseShowFilm(n.Film)
-				})}
-		})
+	film := core.Show{When: live.Memo(cx, a, func() bool { return a.BrowseNotice().Film != "" }), Then: func(cx *core.Scope) core.Node {
+		return ui.Button{TextFunc: func() string { return locales.BrowseShowInLibrary(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-film",
+			OnPress: live.Do(a, func() {
+				n := a.BrowseNotice()
+				n.Open = false
+				a.BrowseShowFilm(n.Film)
+			})}
 	}}
-	list := core.Show{When: live.Memo(cx, a, func() bool { return a.BrowseNotice().List != "" }), Then: func(*core.Scope) core.Node {
-		// The button's words are set as it is built, so it is built again for another language.
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Button{Text: locales.PlaylistAddWhole(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-list",
-				OnPress: live.Do(a, func() { a.BrowseAddList(a.BrowseNotice().List) })}
-		})
+	list := core.Show{When: live.Memo(cx, a, func() bool { return a.BrowseNotice().List != "" }), Then: func(cx *core.Scope) core.Node {
+		return ui.Button{TextFunc: func() string { return locales.PlaylistAddWhole(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-list",
+			OnPress: live.Do(a, func() { a.BrowseAddList(a.BrowseNotice().List) })}
 	}}
 	closer := ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.BrowseNoticeClose(cx) }, Size: 22, TestID: "browse-notice-close",
 		OnPress: live.Do(a, func() { a.BrowseNotice().Open = false })}

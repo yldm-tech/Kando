@@ -337,17 +337,25 @@ func TestBrowserStaysWhileTheAppChanges(t *testing.T) {
 	}
 }
 
-// The browser follows the interface's language as it changes, the words set as its buttons are built among them.
+// The browser follows the interface's language as it changes, its buttons' words among them, which change in place rather than building the buttons again; the address field is renamed in place too.
 func TestBrowserFollowsTheLanguage(t *testing.T) {
 	a := &fakeApp{state: State{Clearable: true}}
 	app := show(t, a)
+	clear, sites, field := app.Find("id:browse-clear").ID, app.Find("id:browse-sites").ID, app.Find("id:browse-address").ID
 	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
 	env.Locale = "en"
 	app.SetEnvironment(env)
-	for _, want := range []string{"Download Video", locales.In("en").BrowseEmptyTitle(), locales.In("en").BrowseClearData()} {
+	en := locales.In("en")
+	for _, want := range []string{"Download Video", en.BrowseEmptyTitle(), en.BrowseClearData(), en.SitesMenuItem(), en.BrowseSignInChoose()} {
 		if !app.Exists(whole(want)) {
 			t.Errorf("no %q in %q", want, app.Texts())
 		}
+	}
+	if app.Find("id:browse-clear").ID != clear || app.Find("id:browse-sites").ID != sites {
+		t.Error("the start's buttons were built again for another language")
+	}
+	if got := app.Find("id:browse-address"); got.ID != field || got.Props.Label != en.BrowseAddressLabel() {
+		t.Errorf("in English the address field is view %d (was %d) named %q", got.ID, field, got.Props.Label)
 	}
 	if label := app.Find("id:browse-download").Props.Label; label != "Download Video" {
 		t.Errorf("下载视频 is named %q in English", label)

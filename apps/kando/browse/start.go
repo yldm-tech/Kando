@@ -51,23 +51,15 @@ func (s start) Render(cx *core.Scope) core.Node {
 			title,
 			description,
 			startTiles(cx, a),
-			// The button's words are set as it is built, so it is built again for another language.
-			core.Dynamic(func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-				return ui.Button{Text: locales.SitesMenuItem(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-sites", OnPress: live.Do(a, a.OpenSites)}
-			}),
+			ui.Button{TextFunc: func() string { return locales.SitesMenuItem(cx) }, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-sites", OnPress: live.Do(a, a.OpenSites)},
 			signInLine(cx, a, state),
 		},
 	}
-	clear := core.Show{When: func() bool { return state().Clearable }, Then: func(*core.Scope) core.Node {
+	clear := core.Show{When: func() bool { return state().Clearable }, Then: func(cx *core.Scope) core.Node {
 		return core.View{
 			Style: core.Style{Direction: core.Row, FlexShrink: 0, JustifyContent: core.JustifyCenter, Padding: core.Edges{Bottom: 24}},
-			// The button's words are set as it is built, so it is built again for another language.
-			Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
-				// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-				return ui.Button{Text: locales.BrowseClearData(cx), Variant: ui.ButtonSecondary, TestID: "browse-clear",
-					Disabled: func() bool { return state().Clearing }, OnPress: live.Do(a, a.BrowseAskClear)}
-			})},
+			Children: []core.Node{ui.Button{TextFunc: func() string { return locales.BrowseClearData(cx) }, Variant: ui.ButtonSecondary, TestID: "browse-clear",
+				Disabled: func() bool { return state().Clearing }, OnPress: live.Do(a, a.BrowseAskClear)}},
 		}
 	}}
 	return core.View{
@@ -124,19 +116,21 @@ func signInLine(cx *core.Scope, a App, state func() State) core.Node {
 		Style:     core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, TextAlign: core.TextAlignCenter},
 		StyleFunc: ui.Colored(colors.Muted),
 	}
-	// The buttons' words are set as they are built, so they are built again for another language and once a browser is chosen or none is.
-	buttons := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		settings := live.Do(a, func() { a.OpenSettings(sectionid.General) })
-		if !on.Get() {
-			return ui.Button{Text: locales.BrowseSignInChoose(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings}
-		}
-		return core.Group([]core.Node{
-			ui.Button{Text: locales.BrowseSignInRefresh(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin-refresh",
-				Disabled: func() bool { return state().SigningIn }, OnPress: live.Do(a, a.BrowseRefreshSignIn)},
-			ui.Button{Text: locales.BrowseSignInChange(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings},
-		})
-	})
+	settings := live.Do(a, func() { a.OpenSettings(sectionid.General) })
+	// The buttons are built again once a browser is chosen or none is.
+	buttons := core.Show{
+		When: on.Get,
+		Then: func(cx *core.Scope) core.Node {
+			return core.Group([]core.Node{
+				ui.Button{TextFunc: func() string { return locales.BrowseSignInRefresh(cx) }, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin-refresh",
+					Disabled: func() bool { return state().SigningIn }, OnPress: live.Do(a, a.BrowseRefreshSignIn)},
+				ui.Button{TextFunc: func() string { return locales.BrowseSignInChange(cx) }, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings},
+			})
+		},
+		Else: func(cx *core.Scope) core.Node {
+			return ui.Button{TextFunc: func() string { return locales.BrowseSignInChoose(cx) }, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings}
+		},
+	}
 	return core.View{
 		TestID:   "browse-signin-line",
 		Style:    core.Style{Direction: core.Row, FlexShrink: 0, Wrap: core.Wrap, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 2, Margin: core.Edges{Top: 4}},
