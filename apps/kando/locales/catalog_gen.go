@@ -616,6 +616,7 @@ var Parameters = map[string][]string{
 	"FilmsMoreActions":                         {"film"},
 	"FilmsNewLibraryNote":                      {"platform"},
 	"FilmsNoLibraryDescription":                {"platform"},
+	"FilmsLibraryGoneDescription":              {"path"},
 	"FilmsNoticeOpenLibrary":                   {"library"},
 	"FilmsPosterBilingual":                     {"language"},
 	"FilmsPosterLanguages":                     {"spoken", "target"},
@@ -1353,6 +1354,7 @@ type Translation struct {
 	FilmsMoreActions                         func(film string) string
 	FilmsNewLibraryNote                      func(platform string) string
 	FilmsNoLibraryDescription                func(platform string) string
+	FilmsLibraryGoneDescription              func(path string) string
 	FilmsNoticeOpenLibrary                   func(library string) string
 	FilmsPosterBilingual                     func(language string) string
 	FilmsPosterLanguages                     func(spoken string, target string) string
@@ -2443,6 +2445,7 @@ const (
 	textFilmsNewLibraryPlace
 	textFilmsNewLibraryTitle
 	textFilmsNoLibraryTitle
+	textFilmsLibraryGoneTitle
 	textFilmsNoSubtitles
 	textFilmsNoTranslation
 	textFilmsNoticeOpen
@@ -3722,9 +3725,11 @@ const (
 	textGlossarySuggestDismiss
 	textFilmsRemoveManyStored
 	textFilmsStoredGone
+	textFilmsVideoMissing
 	textPlayerStoredGone
 	textPlayerStoredUnreachable
 	textPlayerStoredMissing
+	textPlayerVideoMissing
 	textPlayerStoredUnplayable
 	textStoredMoveTo
 	textStoredMoveBack
@@ -4289,6 +4294,7 @@ var keyOfText = [numTexts]string{
 	"filmsNewLibraryPlace",
 	"filmsNewLibraryTitle",
 	"filmsNoLibraryTitle",
+	"filmsLibraryGoneTitle",
 	"filmsNoSubtitles",
 	"filmsNoTranslation",
 	"filmsNoticeOpen",
@@ -5568,9 +5574,11 @@ var keyOfText = [numTexts]string{
 	"glossarySuggestDismiss",
 	"filmsRemoveManyStored",
 	"filmsStoredGone",
+	"filmsVideoMissing",
 	"playerStoredGone",
 	"playerStoredUnreachable",
 	"playerStoredMissing",
+	"playerVideoMissing",
 	"playerStoredUnplayable",
 	"storedMoveTo",
 	"storedMoveBack",
@@ -6133,6 +6141,7 @@ var textsEn = i18n.NewTexts(""+
 	"Location"+
 	"New Library"+
 	"No Library Yet"+
+	"Library Not Found"+
 	"No subtitles yet"+
 	"No translation"+
 	"Open"+
@@ -7412,9 +7421,11 @@ var textsEn = i18n.NewTexts(""+
 	"Dismiss"+
 	"Their files will be moved to the Trash. The videos of those moved to a storage location will be deleted from it."+
 	"The video's storage location is no longer in Settings"+
+	"Video not found: it was moved or renamed, or its drive isn't connected"+
 	"This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."+
 	"Couldn't reach the storage location this film's video is on. Its lines can still be studied."+
 	"This film's video is no longer on its storage location. Its lines can still be studied."+
+	"Kando can't find this film's video. It may have been moved or renamed, or its drive isn't connected. Put it back or connect the drive to play it. Its lines can still be studied."+
 	"This video can't be played from its storage location, even converted for the player. Its lines can still be studied."+
 	"Move Video To"+
 	"Move Video Back to the Library"+
@@ -7974,6 +7985,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		11,
 		14,
+		17,
 		16,
 		14,
 		4,
@@ -9253,9 +9265,11 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		112,
 		53,
+		70,
 		105,
 		92,
 		87,
+		177,
 		116,
 		13,
 		30,
@@ -9818,6 +9832,7 @@ var textsJa = i18n.NewTexts(""+
 	"場所"+
 	"新規ライブラリ"+
 	"ライブラリがまだありません"+
+	"ライブラリが見つかりません"+
 	"字幕はまだありません"+
 	"翻訳なし"+
 	"開く"+
@@ -11097,9 +11112,11 @@ var textsJa = i18n.NewTexts(""+
 	"使わない"+
 	"ファイルはゴミ箱に移動します。保存場所に移した動画はそこから削除されます。"+
 	"動画がある保存場所は、もう設定にありません"+
+	"動画が見つかりません：移動または名前変更されたか、ドライブが接続されていません"+
 	"この作品の動画がある保存場所は、もう設定にありません。字幕で学習することはできます。"+
 	"この作品の動画がある保存場所に接続できません。字幕で学習することはできます。"+
 	"この作品の動画が保存場所にもうありません。字幕で学習することはできます。"+
+	"この作品の動画が見つかりません。移動または名前変更されたか、ドライブが接続されていない可能性があります。元の場所に戻すかドライブを接続すると再生できます。字幕で学習することはできます。"+
 	"この動画は保存場所から再生できず、変換しても再生できません。字幕で学習することはできます。"+
 	"動画の移動先"+
 	"動画をライブラリに戻す"+
@@ -11658,6 +11675,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		6,
 		21,
+		39,
 		39,
 		30,
 		12,
@@ -12938,9 +12956,11 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		111,
 		63,
+		117,
 		126,
 		114,
 		108,
+		276,
 		135,
 		18,
 		33,
@@ -13503,6 +13523,7 @@ var textsKo = i18n.NewTexts(""+
 	"위치"+
 	"새로운 라이브러리"+
 	"아직 라이브러리가 없습니다"+
+	"라이브러리를 찾을 수 없습니다"+
 	"아직 자막 없음"+
 	"번역 없음"+
 	"열기"+
@@ -14782,9 +14803,11 @@ var textsKo = i18n.NewTexts(""+
 	"사용 안 함"+
 	"파일은 휴지통으로 이동합니다. 저장 위치로 옮긴 동영상은 그곳에서 삭제됩니다."+
 	"동영상이 있는 저장 위치가 더 이상 설정에 없습니다"+
+	"동영상을 찾을 수 없습니다: 이동되었거나 이름이 바뀌었거나 드라이브가 연결되어 있지 않습니다"+
 	"이 영화의 동영상이 있는 저장 위치가 더 이상 설정에 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 있는 저장 위치에 연결할 수 없습니다. 자막으로 학습할 수는 있습니다."+
 	"이 영화의 동영상이 저장 위치에 더 이상 없습니다. 자막으로 학습할 수는 있습니다."+
+	"이 영화의 동영상을 찾을 수 없습니다. 이동되었거나 이름이 바뀌었거나 드라이브가 연결되어 있지 않을 수 있습니다. 원래 위치로 되돌리거나 드라이브를 연결하면 재생할 수 있습니다. 자막으로 학습할 수는 있습니다."+
 	"이 동영상은 저장 위치에서 재생할 수 없고 변환해도 재생되지 않습니다. 자막으로 학습할 수는 있습니다."+
 	"동영상 이동 위치"+
 	"동영상을 라이브러리로 되돌리기"+
@@ -15344,6 +15367,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		25,
 		38,
+		42,
 		20,
 		13,
 		6,
@@ -16623,9 +16647,11 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		109,
 		70,
+		131,
 		129,
 		122,
 		112,
+		291,
 		141,
 		23,
 		44,
@@ -17188,6 +17214,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"位置"+
 	"新建资料库"+
 	"还没有资料库"+
+	"找不到这个资料库"+
 	"还没有字幕"+
 	"未翻译"+
 	"打开"+
@@ -18467,9 +18494,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"不用"+
 	"它们的文件将移到废纸篓。已移到存储位置的视频会从那里删除。"+
 	"视频所在的存储位置已不在设置中"+
+	"找不到视频：它被移走、改了名，或所在的盘没有接上"+
 	"这部影片的视频所在的存储位置已不在设置中。仍可以按字幕学习。"+
 	"连不上这部影片的视频所在的存储位置。仍可以按字幕学习。"+
 	"这部影片的视频已不在它的存储位置上。仍可以按字幕学习。"+
+	"找不到这部影片的视频，它可能被移走、改了名，或所在的盘没有接上。放回原处或接上盘后就能播放。仍可以按字幕学习。"+
 	"无法从存储位置播放这个视频，转换后也不行。仍可以按字幕学习。"+
 	"移动视频到"+
 	"将视频移回资料库"+
@@ -19029,6 +19058,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		15,
 		18,
+		24,
 		15,
 		9,
 		6,
@@ -20308,9 +20338,11 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		87,
 		45,
+		72,
 		90,
 		81,
 		81,
+		165,
 		90,
 		15,
 		24,
@@ -20873,6 +20905,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"位置"+
 	"新增資料庫"+
 	"還沒有資料庫"+
+	"找不到這個資料庫"+
 	"還沒有字幕"+
 	"未翻譯"+
 	"打開"+
@@ -22152,9 +22185,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"不用"+
 	"它們的檔案將移到垃圾桶。已移到儲存位置的影片會從那裡刪除。"+
 	"影片檔所在的儲存位置已不在設定中"+
+	"找不到影片檔：它被移走、改了名稱，或所在的磁碟沒有接上"+
 	"這部影片的影片檔所在的儲存位置已不在設定中。仍可以按字幕學習。"+
 	"連不上這部影片的影片檔所在的儲存位置。仍可以按字幕學習。"+
 	"這部影片的影片檔已不在它的儲存位置上。仍可以按字幕學習。"+
+	"找不到這部影片的影片檔，它可能被移走、改了名稱，或所在的磁碟沒有接上。放回原處或接上磁碟後就能播放。仍可以按字幕學習。"+
 	"無法從儲存位置播放這個影片，轉換後也不行。仍可以按字幕學習。"+
 	"移動影片檔到"+
 	"將影片檔移回資料庫"+
@@ -22714,6 +22749,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		15,
 		18,
+		24,
 		15,
 		9,
 		6,
@@ -23993,9 +24029,11 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		87,
 		48,
+		81,
 		93,
 		84,
 		84,
+		177,
 		90,
 		18,
 		27,
@@ -24564,6 +24602,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsNoLibraryDescription != nil {
 		s.FilmsNoLibraryDescription = t.FilmsNoLibraryDescription
+	}
+	if t.FilmsLibraryGoneDescription != nil {
+		s.FilmsLibraryGoneDescription = t.FilmsLibraryGoneDescription
 	}
 	if t.FilmsNoticeOpenLibrary != nil {
 		s.FilmsNoticeOpenLibrary = t.FilmsNoticeOpenLibrary
@@ -36267,6 +36308,47 @@ func FilmsNoLibraryTitle(cx *core.Scope) string { return For(cx).FilmsNoLibraryT
 
 // FilmsNoLibraryTitle is the package's FilmsNoLibraryTitle in the language of msgs.
 func (msgs Messages) FilmsNoLibraryTitle() string { return msgs.text(textFilmsNoLibraryTitle) }
+
+// FilmsLibraryGoneDescription says "This library was at {path}. Its drive may not be connected, or the folder was moved or renamed. It comes back on its own once the folder is there again. Nothing was deleted."
+// in the language the app shows under cx.
+//
+// What the library page says when the open library's folder is not on disk, as when its drive is not connected. Kando makes nothing in its place. {path} is where the library's folder was.
+func FilmsLibraryGoneDescription(cx *core.Scope, path string) string {
+	return For(cx).FilmsLibraryGoneDescription(path)
+}
+
+// FilmsLibraryGoneDescription is the package's FilmsLibraryGoneDescription in the language of msgs.
+func (msgs Messages) FilmsLibraryGoneDescription(path string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLibraryGoneDescription(path))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLibraryGoneDescription; f != nil {
+			return f(path)
+		}
+		switch lang {
+		case "", "en":
+			return "This library was at " + msgs.arg(path) + ". Its drive may not be connected, or the folder was moved or renamed. It comes back on its own once the folder is there again. Nothing was deleted."
+		case "ja":
+			return "このライブラリは " + path + " にありました。ドライブが接続されていないか、フォルダが移動または名前変更された可能性があります。フォルダが戻ると自動的に表示されます。何も削除されていません。"
+		case "ko":
+			return "이 라이브러리는 " + path + "에 있었습니다. 드라이브가 연결되어 있지 않거나 폴더가 이동되었거나 이름이 바뀌었을 수 있습니다. 폴더가 다시 생기면 자동으로 나타납니다. 삭제된 것은 없습니다."
+		case "zh-Hans":
+			return "这个资料库原来在 " + path + "。它所在的盘可能没有接上，或者文件夹被移走、改了名。文件夹回来后会自动出现，什么都没有删除。"
+		case "zh-Hant":
+			return "這個資料庫原本在 " + path + "。它所在的磁碟可能沒有接上，或者資料夾被移走、改了名稱。資料夾回來後會自動出現，什麼都沒有刪除。"
+		}
+	}
+}
+
+// FilmsLibraryGoneTitle says "Library Not Found"
+// in the language the app shows under cx.
+//
+// Title of the library page when the open library's folder is not on disk, as when its drive is not connected.
+func FilmsLibraryGoneTitle(cx *core.Scope) string { return For(cx).FilmsLibraryGoneTitle() }
+
+// FilmsLibraryGoneTitle is the package's FilmsLibraryGoneTitle in the language of msgs.
+func (msgs Messages) FilmsLibraryGoneTitle() string { return msgs.text(textFilmsLibraryGoneTitle) }
 
 // FilmsNoSubtitles says "No subtitles yet"
 // in the language the app shows under cx.
@@ -68629,6 +68711,15 @@ func FilmsStoredGone(cx *core.Scope) string { return For(cx).FilmsStoredGone() }
 // FilmsStoredGone is the package's FilmsStoredGone in the language of msgs.
 func (msgs Messages) FilmsStoredGone() string { return msgs.text(textFilmsStoredGone) }
 
+// FilmsVideoMissing says "Video not found: it was moved or renamed, or its drive isn't connected"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the warning mark on a film's poster and list row when its video, kept outside the library where it was picked, is not on disk now. The film stays in the library with its place and lines.
+func FilmsVideoMissing(cx *core.Scope) string { return For(cx).FilmsVideoMissing() }
+
+// FilmsVideoMissing is the package's FilmsVideoMissing in the language of msgs.
+func (msgs Messages) FilmsVideoMissing() string { return msgs.text(textFilmsVideoMissing) }
+
 // PlayerStoredGone says "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
 // in the language the app shows under cx.
 //
@@ -68655,6 +68746,15 @@ func PlayerStoredMissing(cx *core.Scope) string { return For(cx).PlayerStoredMis
 
 // PlayerStoredMissing is the package's PlayerStoredMissing in the language of msgs.
 func (msgs Messages) PlayerStoredMissing() string { return msgs.text(textPlayerStoredMissing) }
+
+// PlayerVideoMissing says "Kando can't find this film's video. It may have been moved or renamed, or its drive isn't connected. Put it back or connect the drive to play it. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the film's video, kept outside the library where it was picked, is not on disk now.
+func PlayerVideoMissing(cx *core.Scope) string { return For(cx).PlayerVideoMissing() }
+
+// PlayerVideoMissing is the package's PlayerVideoMissing in the language of msgs.
+func (msgs Messages) PlayerVideoMissing() string { return msgs.text(textPlayerVideoMissing) }
 
 // PlayerStoredUnplayable says "This video can't be played from its storage location, even converted for the player. Its lines can still be studied."
 // in the language the app shows under cx.

@@ -18,6 +18,9 @@ import (
 
 func (a *app) LibraryDir() string { return a.snap().LibraryDir }
 
+// LibraryGone reports whether the open library's folder is not on disk now (session.LibraryGone).
+func (a *app) LibraryGone() bool { return a.snap().LibraryGone }
+
 func (a *app) KnownLibraries() []string { return a.knownLibraries() }
 
 func (a *app) SaveErr() string { return a.saveErr }

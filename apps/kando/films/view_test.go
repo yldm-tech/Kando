@@ -85,6 +85,7 @@ func (f *fakeApp) call(format string, args ...string) {
 }
 
 func (f *fakeApp) LibraryDir() string     { return f.dir }
+func (f *fakeApp) LibraryGone() bool      { return false }
 func (f *fakeApp) MakingLibrary() bool    { return f.making }
 func (f *fakeApp) SaveErr() string        { return f.saveErr }
 func (f *fakeApp) Page() string           { return f.page }

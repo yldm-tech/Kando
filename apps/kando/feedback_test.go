@@ -383,7 +383,10 @@ func TestFeedbackHidesTheFilmsPaths(t *testing.T) {
 
 // TestFeedbackHidesTheSubtitlesBesideAVideoWithoutAJob checks that the bilingual .srt the scan found beside a video no job has processed is among the paths an issue hides, as a job's subtitles are.
 func TestFeedbackHidesTheSubtitlesBesideAVideoWithoutAJob(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "videos"+media.LibraryExt)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, data := range map[string]string{"interview.mp4": "video", "interview.bilingual.srt": "1\n00:00:00,500 --> 00:00:01,000\n早上好\nGood morning\n\n"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
 			t.Fatal(err)

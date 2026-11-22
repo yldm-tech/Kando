@@ -2314,6 +2314,14 @@ filmsNoLibraryDescription:
 filmsNoLibraryTitle:
   message: "No Library Yet"
   description: "Title of the library page before any library exists."
+filmsLibraryGoneDescription:
+  message: "This library was at {path}. Its drive may not be connected, or the folder was moved or renamed. It comes back on its own once the folder is there again. Nothing was deleted."
+  description: "What the library page says when the open library's folder is not on disk, as when its drive is not connected. Kando makes nothing in its place. {path} is where the library's folder was."
+  placeholders:
+    path: { type: "String", example: "/Volumes/Media/My Films.kando" }
+filmsLibraryGoneTitle:
+  message: "Library Not Found"
+  description: "Title of the library page when the open library's folder is not on disk, as when its drive is not connected."
 filmsNoSubtitles:
   message: "No subtitles yet"
   description: "Part of the line under a poster: the video has not been processed yet."
@@ -9012,6 +9020,9 @@ filmsStoredOn:
 filmsStoredGone:
   message: "The video's storage location is no longer in Settings"
   description: "Accessible name and tooltip of the mark on a film's poster and list row, drawn as a warning, when its video was moved to a storage location that was since removed from Settings > Account & Upload."
+filmsVideoMissing:
+  message: "Video not found: it was moved or renamed, or its drive isn't connected"
+  description: "Accessible name and tooltip of the warning mark on a film's poster and list row when its video, kept outside the library where it was picked, is not on disk now. The film stays in the library with its place and lines."
 playerStoredGone:
   message: "This film's video is on a storage location that is no longer in Settings. Its lines can still be studied."
   description: "Shown in place of the picture when the film's video was moved to a storage location (a NAS folder or object storage) that was since removed in Settings > Account & Upload."
@@ -9021,6 +9032,9 @@ playerStoredUnreachable:
 playerStoredMissing:
   message: "This film's video is no longer on its storage location. Its lines can still be studied."
   description: "Shown in place of the picture when the storage location the film's video was moved to can be reached but no longer has the video file."
+playerVideoMissing:
+  message: "Kando can't find this film's video. It may have been moved or renamed, or its drive isn't connected. Put it back or connect the drive to play it. Its lines can still be studied."
+  description: "Shown in place of the picture when the film's video, kept outside the library where it was picked, is not on disk now."
 playerStoredUnplayable:
   message: "This video can't be played from its storage location, even converted for the player. Its lines can still be studied."
   description: "Shown in place of the picture when neither the system's player nor the copy Kando converts for it from the storage location (a NAS folder or object storage) can play a video moved there."

@@ -181,9 +181,14 @@ func (a *app) applyLibrary(dir string) {
 			dir = next
 		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		a.saveErr = err.Error()
-		return
+	// A library that was on disk before and is gone now, as on a drive that is not connected or a folder moved away, is not made again empty in its place: the shelf says it cannot be found, and the watch shows it once its folder is back. Only a library that never was there yet, as the first one the guide opens, is made.
+	_, statErr := os.Stat(dir)
+	gone := errors.Is(statErr, os.ErrNotExist) && dirIDSet(a.inode(dir))
+	if !gone {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			a.saveErr = err.Error()
+			return
+		}
 	}
 	id := media.IdentifyDir(dir)
 	a.edit(func(s *session) {
@@ -194,7 +199,9 @@ func (a *app) applyLibrary(dir string) {
 		tools.OutputDir = dir
 		a.pipeline = tools
 	}
-	brand.Ensure(dir, appIconPNG)
+	if !gone {
+		brand.Ensure(dir, appIconPNG)
+	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 }
@@ -603,11 +610,23 @@ func (a *app) refreshLibrary() {
 		a.areasShelfChanged()
 		return
 	}
-	// A video moved to a storage location still belongs where it was: its folder is not taken as the folder of a video left in it, and no file is renamed to its path (state_stored.go).
-	moved, err := media.GatherVideos(dir, a.storedPaths())
-	if err != nil {
-		a.saveErr = err.Error()
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		a.edit(func(s *session) {
+			s.LibraryGone = true
+			s.Videos, s.Gone = nil, nil
+		})
+		a.areasShelfChanged()
 		return
+	}
+	// Kando keeps its own bundle one film to a folder, the video in it named video.<ext>, and gathers a video dropped loose into it into such a folder. Any other folder opened as a library is the user's, as a folder of series kept for another player or a download client: its files keep the names and the places they have, and its videos show as they are (media.ListVideos).
+	var moved map[string]string
+	if shelfBundle(dir) {
+		// A video moved to a storage location still belongs where it was: its folder is not taken as the folder of a video left in it, and no file is renamed to its path (state_stored.go).
+		var err error
+		if moved, err = media.GatherVideos(dir, a.storedPaths()); err != nil {
+			a.saveErr = err.Error()
+			return
+		}
 	}
 	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
 		if err := a.library.Save(); err != nil {
@@ -621,8 +640,34 @@ func (a *app) refreshLibrary() {
 	}
 	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go).
 	videos = films.MovedVideos(dir, a.library.Jobs, videos, a.storedPaths())
-	a.edit(func(s *session) { s.Videos = videos })
+	gone := a.goneOutside(dir)
+	a.edit(func(s *session) {
+		s.Videos, s.Gone = videos, gone
+		s.LibraryGone = false
+	})
 	a.areasShelfChanged()
+}
+
+// shelfBundle reports whether dir is a library bundle of Kando's own (media.LibraryExt), whose films Kando lays out, rather than a folder of the user's opened as a library.
+func shelfBundle(dir string) bool {
+	return strings.EqualFold(filepath.Ext(filepath.Clean(dir)), media.LibraryExt)
+}
+
+// goneOutside is the videos of root's done films kept outside it, where they were picked, that are not on disk now (session.Gone). dropMissing keeps their films, as only Kando's own files in the library's folder are Kando's to drop; a film whose video was moved to a storage location, or that keeps none, is not one of them.
+func (a *app) goneOutside(root string) map[string]bool {
+	var gone map[string]bool
+	for _, job := range a.library.Jobs {
+		if job.VideoPath == "" || job.SubtitlesOnly || !job.Stage.Done() || films.InDir(root, job.VideoPath) || !films.InLibrary(root, job) || a.storedHas(job) {
+			continue
+		}
+		if _, err := os.Stat(job.VideoPath); errors.Is(err, os.ErrNotExist) {
+			if gone == nil {
+				gone = map[string]bool{}
+			}
+			gone[job.VideoPath] = true
+		}
+	}
+	return gone
 }
 
 func (a *app) retargetRenamed() bool {
@@ -702,7 +747,7 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 	return changed
 }
 
-// dropMissing drops the finished jobs of the open library whose video is gone from disk, or for a film that keeps no video its subtitles (shelfKept). library.json holds the jobs of every library, and another library's videos may be on a disk that is not mounted or in a folder moved away for now, so only the open library's jobs are looked at, and none while the library folder itself cannot be found. A video kept outside the library where it was picked is dropped only while its folder is there, as a missing folder is as likely a disk that is not mounted.
+// dropMissing drops the finished jobs of the open library whose video is gone from its folder, or for a film that keeps no video its subtitles (shelfKept). library.json holds the jobs of every library, and another library's videos may be on a disk that is not mounted or in a folder moved away for now, so only the open library's jobs are looked at, and none while the library folder itself cannot be found. A video kept outside the library where it was picked is never dropped: it is the user's, renamed or moved in Finder or on a drive that is not connected as often as deleted, and dropping its film would lose its place, its title and what was learned from it; its film stays, marked as missing (goneOutside), for the user to take off the shelf.
 func (a *app) dropMissing() bool {
 	root := a.snap().LibraryDir
 	if root == "" {
@@ -754,16 +799,13 @@ func shelfKept(job core.Job) string {
 	return job.VideoPath
 }
 
-// shelfVideoGone reports whether video is gone from disk for good as far as dropMissing can tell: it does not exist, rather than failing to be read, and when it is outside the library root, its folder is there.
+// shelfVideoGone reports whether video, a file of the library at root, is gone from disk for good as far as dropMissing can tell: it does not exist, rather than failing to be read. A file outside root is never gone for dropMissing.
 func shelfVideoGone(root, video string) bool {
-	if _, err := os.Stat(video); !errors.Is(err, os.ErrNotExist) {
+	if !films.InDir(root, video) {
 		return false
 	}
-	if films.InDir(root, video) {
-		return true
-	}
-	_, err := os.Stat(filepath.Dir(video))
-	return err == nil
+	_, err := os.Stat(video)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // relocateMissing points jobs whose files are gone at the same folder and file names found elsewhere in the library, and what is kept by the videos' paths with them. Only files that were inside the open library are looked for, so a job of another library, whose disk may just not be mounted, is never pointed at a file of the same name here.

@@ -49,7 +49,7 @@ import (
 //   - tt.Image() and the PNG screenshots: none headless; on a platform (nsgo test -target) tt.Capture() and tt.CapturePNG(), which skip a headless test, so call them only when nsgotest.Target() is set (shootPNG)
 
 // TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). desktop.Headless keeps every reveal and trash off the system's tools, whichever area calls them and whether or not its test replaced its hook: a reveal opens the item's folder through the scope, which nsgotest records rather than opens, and a trash fails as unsupported, so a test never opens the file manager of the machine running it nor moves its files to the Trash. A reveal no test watches shows nothing at all.
-// testVideos is the library the test opens (newTestApp): a folder named videos of the test's own (testVideosFor). Films are written beside their videos (media.Make), so it is a folder on disk.
+// testVideos is the library the test opens (newTestApp): a bundle named videos.kando of the test's own (testVideosFor), as every library Kando makes is, whose loose videos Kando gathers into folders of their own. Films are written beside their videos (media.Make), so it is a folder on disk.
 var testVideos string
 
 // testVideosOf is the test testVideos was made for.
@@ -61,7 +61,7 @@ func testVideosFor(t *testing.T) {
 	if testVideosOf == t {
 		return
 	}
-	testVideosOf, testVideos = t, filepath.Join(t.TempDir(), "videos")
+	testVideosOf, testVideos = t, filepath.Join(t.TempDir(), "videos"+media.LibraryExt)
 	if err := os.Mkdir(testVideos, 0o755); err != nil {
 		t.Fatal(err)
 	}

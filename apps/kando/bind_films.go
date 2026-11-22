@@ -503,7 +503,20 @@ func (a *app) films() []films.Film {
 		return nil
 	}
 	shot := a.snap()
-	return storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored)
+	return goneMark(storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored), shot.Gone)
+}
+
+// goneMark sets Missing on each of items whose video is one of gone, the videos kept outside the library that are not on disk now (session.Gone).
+func goneMark(items []films.Film, gone map[string]bool) []films.Film {
+	if len(gone) == 0 {
+		return items
+	}
+	for i := range items {
+		if items[i].VideoPath != "" && gone[items[i].VideoPath] {
+			items[i].Missing = true
+		}
+	}
+	return items
 }
 
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.

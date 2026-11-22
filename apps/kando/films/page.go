@@ -19,6 +19,8 @@ import (
 type App interface {
 	live.State
 	LibraryDir() string
+	// LibraryGone is true while the open library's folder is not on disk, as on a drive that is not connected: the page says it cannot be found (missingLibrary) rather than show an empty library.
+	LibraryGone() bool
 	MakingLibrary() bool
 	SaveErr() string
 	Page() string
@@ -233,7 +235,13 @@ func (v View) Render(cx *core.Scope) core.Node {
 				core.Show{
 					When: live.Func(a, func() bool { return a.LibraryDir() == "" }),
 					Then: func(*core.Scope) core.Node { return noLibrary{a} },
-					Else: func(*core.Scope) core.Node { return shelf{a: a, source: source, model: model, viewport: viewport.Get} },
+					Else: func(*core.Scope) core.Node {
+						return core.Show{
+							When: live.Func(a, a.LibraryGone),
+							Then: func(*core.Scope) core.Node { return missingLibrary{a} },
+							Else: func(*core.Scope) core.Node { return shelf{a: a, source: source, model: model, viewport: viewport.Get} },
+						}
+					},
 				},
 			}},
 		}}

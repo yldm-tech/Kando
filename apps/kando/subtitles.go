@@ -28,6 +28,8 @@ const (
 	playerErrStoredUnreachable = film.ErrStoredUnreachable
 	playerErrStoredMissing     = film.ErrStoredMissing
 	playerErrStoredUnplayable  = film.ErrStoredUnplayable
+	// A done film whose video is not on disk now (playerMissing).
+	playerErrVideoMissing = film.ErrVideoMissing
 )
 
 // playerErrTextIn is what the page says for one of the errors above in the language of m, as the page says it (ErrText) and the feedback issue says it in the language it is written in; any other text shows as it is.
@@ -49,6 +51,8 @@ func playerErrTextIn(m locales.Messages, id string) string {
 		return m.PlayerStoredMissing()
 	case playerErrStoredUnplayable:
 		return m.PlayerStoredUnplayable()
+	case playerErrVideoMissing:
+		return m.PlayerVideoMissing()
 	}
 	return id
 }

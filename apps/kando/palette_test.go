@@ -539,7 +539,10 @@ func TestPaletteFollowsARenamedLibrary(t *testing.T) {
 
 // TestPaletteFollowsVideosGatheredIntoFolders checks that a loose video the library refresh moves into a folder of its own keeps how far it was played, under its new path.
 func TestPaletteFollowsVideosGatheredIntoFolders(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "videos"+media.LibraryExt)
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	loose := filepath.Join(dir, "talk.mp4")
 	if err := os.WriteFile(loose, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)

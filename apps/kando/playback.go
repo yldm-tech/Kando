@@ -108,12 +108,22 @@ func (a *app) startPlayback(path string) {
 	if !opens && a.playerStored(path, at, jump) {
 		return
 	}
+	if !opens && a.playerMissing(path) {
+		a.player.playErr = playerErrVideoMissing
+		return
+	}
 	if !opens {
 		// A film that keeps no video streams from its site instead.
 		a.playerStream(path, at, jump)
 		return
 	}
 	a.playerOpen(path, path, at, jump)
+}
+
+// playerMissing reports whether path is the video of the open film and that film should have it on disk: a done film, or a video no job processed, that keeps its video (not core.Job.SubtitlesOnly). Its file is not there, so the page says it cannot be found (playerErrVideoMissing) rather than show nothing. A film still being made has no video yet, and one moved to a storage location is opened from there (playerStored).
+func (a *app) playerMissing(path string) bool {
+	item, ok := a.openFilm()
+	return ok && path != "" && item.VideoPath == path && !item.SubtitlesOnly && (item.JobID == "" || item.Stage.Done())
 }
 
 // playerOpen opens source in the system's player as the open film's video at path, held at at, or playing from there when jump (startPlayback), and returns it.
