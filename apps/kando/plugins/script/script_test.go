@@ -1099,6 +1099,25 @@ func TestScriptBackgroundSparesACallBehindAPanel(t *testing.T) {
 	wantResponsive(t, e)
 }
 
+// TestScriptPanelSparesAQuietPanelBehindAnotherPlugin checks that a quiet panel is not suspected while another plugin keeps the engine busy in the background: what the other plugin's JS took of the engine is taken out of the engine's load the panel's watchdog measures, so the view is never taken down for a probe and stays its first build. The other plugin's bucket is kept from stopping it meanwhile.
+func TestScriptPanelSparesAQuietPanelBehindAnotherPlugin(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	hog := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "hog()"}), plugins.Grant{})
+	w := testBgWatch()
+	w.Burst, w.TotalBurst = 0, 0
+	r, stopped := bgRunner(e, w, hog)
+	r.PanelWatch = testPanelWatch
+	var builds atomic.Int32
+	bgShowPanel(t, e, r, s, bgPanelFixture, 1, &builds)
+	// Three windows of 300 ms suspect a view, and a probe of 300 ms takes it down and builds it again: 3 s hold a few.
+	wantNoStop(t, stopped, slow(3*time.Second))
+	if n := builds.Load(); n != 1 {
+		t.Errorf("the quiet panel was built %d times: it was taken down for the other plugin's load", n)
+	}
+}
+
 // TestScriptBackgroundStopsTheLargestOfMany checks the bucket of all plugins: three plugins that each work 16 ms of every 100, under Drain, together over TotalDrain, have one of them stopped, after which the other two, together back under TotalDrain, are left alone; and with a plugin that works 3 ms of every 100 and two of 16, over a TotalDrain of 0.3, the one stopped is one of the two, never the light one, which is under totalShare.
 func TestScriptBackgroundStopsTheLargestOfMany(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
