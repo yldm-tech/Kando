@@ -293,7 +293,7 @@ func TestScriptRegexpIsBounded(t *testing.T) {
 
 // TestScriptWatchdogStopsASlicedLoop checks that a call that keeps the engine busy in pieces under the call budget, awaiting a timer between them, which tsx never cuts, is stopped by the watchdog's heartbeats within the pieces they take, long before its Deadline, and reported slow.
 func TestScriptWatchdogStopsASlicedLoop(t *testing.T) {
-	// piece is how long the loop keeps the engine busy at a time: well under tsx's call budget of half a second, and longer than Stall and a Beat, so the heartbeat posted at most a Beat into each piece waits past Stall and counts. The budget is wall time (tsx/sandbox.go within, a time.AfterFunc), and a piece that a loaded runner holds past it is cut by tsx, which after the first await does not end the call (nsgo#1018): the engine then sits idle, no heartbeat stalls, and the call waits for Deadline, a minute, as a macOS runner once did with pieces of 430 ms of DefaultWatch's Beat of 100 ms and Stall of 250 ms. So the watchdog here runs at half that scale, with the same Stalls, Heap and Deadline: a heartbeat every 50 ms that counts past 125 ms, which pieces of 265 ms hold with 90 ms to spare for a late tick (DefaultWatch's 430 ms pieces had 80) while staying 235 ms under the budget rather than 70.
+	// piece is how long the loop keeps the engine busy at a time: well under tsx's call budget of half a second, and longer than Stall and a Beat, so the heartbeat posted at most a Beat into each piece waits past Stall and counts. The budget is wall time (tsx/sandbox.go within, a time.AfterFunc), and a piece that a loaded runner holds past it is cut by tsx, which ends the call with ErrBudget (nsgo#1018) before the watchdog stops it, as a macOS runner once held pieces of 430 ms of DefaultWatch's Beat of 100 ms and Stall of 250 ms. So the watchdog here runs at half that scale, with the same Stalls, Heap and Deadline: a heartbeat every 50 ms that counts past 125 ms, which pieces of 265 ms hold with 90 ms to spare for a late tick (DefaultWatch's 430 ms pieces had 80) while staying 235 ms under the budget rather than 70.
 	const piece = 265 * time.Millisecond
 	w := DefaultWatch
 	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
@@ -461,6 +461,35 @@ export function busyNow() { const e = new Error("Anki is not open"); e.code = "u
 	}
 }
 
+// TestScriptRunnerEndsACallCutAfterAnAwait checks that a call whose piece after an await runs past Limits' half second ends with tsx.ErrBudget soon after it, as one cut before its first await does, rather than waiting for the watchdog's Deadline, a minute (nsgo#1018), and that the runner goes on to the next call.
+func TestScriptRunnerEndsACallCutAfterAnAwait(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.late", code: `export async function late() {
+  await new Promise(r => setTimeout(r, 0))
+  const t = Date.now(); while (Date.now() - t < 2000) {}
+  return 1
+}
+export function ping() { return 1 }`}), plugins.Grant{})
+	watch := DefaultWatch
+	// tsx's budget is what this test is about: the heartbeats must not stop the plugin first.
+	watch.Stall = time.Hour
+	r := &Runner{Post: e.post, Watch: watch}
+	start := time.Now()
+	got := wait(t, e.call(r, pl, "late"), 30*time.Second)
+	if !errors.Is(got.err, tsx.ErrBudget) {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	// The piece would run 2 s; the budget cuts it at half a second.
+	if d := got.at.Sub(start); d > slow(1500*time.Millisecond) {
+		t.Errorf("the call ended after %v", d)
+	}
+	if got := wait(t, e.call(r, pl, "ping"), time.Second); got.err != nil {
+		t.Errorf("a call after: %v", got.err)
+	}
+}
+
 // TestScriptRunnerStopsAPluginTsxStopped checks that a plugin tsx stopped at its node quota, whose every call after fails at once with the quota's coded error, which the breaker does not count, is stopped and reported as failed by the call that ran into the quota, and that the calls after it end with ErrStopped.
 func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
@@ -469,8 +498,7 @@ func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
 	if nodeQuota != tsx.DefaultLimits.Nodes || Limits().Nodes != nodeQuota {
 		t.Fatalf("plugins run under a quota of %d nodes, Limits gives %d, not tsx.DefaultLimits' %d", nodeQuota, Limits().Nodes, tsx.DefaultLimits.Nodes)
 	}
-	// The plugin is held to 2000 nodes rather than tsx.DefaultLimits' 200 000: making that many elements took the engine about a second, and up to a minute on a shared CI runner, where some piece of the 200 ran past Limits' half second, and tsx cuts a piece of an awaiting call without ending the call, which then waited for the watchdog's Deadline, a minute. Here the third piece runs into the quota.
-	// TODO(nsgo#1018): tsx should end an awaiting call whose later piece it cuts with ErrBudget; once it does, the call fails at once instead of waiting a minute, and the test can go back to tsx.DefaultLimits' quota https://github.com/nsgo-dev/nsgo/issues/1018
+	// The plugin is held to 2000 nodes rather than tsx.DefaultLimits' 200 000, which hold about 3.7 GiB of the Go heap and took a shared CI runner up to a minute to make, the Go heap still holding them as the next test starts. Here the third piece runs into the quota, so only three pieces of 1000 elements have to stay under Limits' half second: one past it would end the call with ErrBudget (nsgo#1018), rather than with the quota's error.
 	quota := nodeQuota
 	nodeQuota = 2000
 	t.Cleanup(func() { nodeQuota = quota })

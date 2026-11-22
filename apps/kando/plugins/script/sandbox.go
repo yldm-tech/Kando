@@ -29,7 +29,7 @@ func Limits() *tsx.Limits {
 	return &l
 }
 
-// nodeQuota is Limits' Nodes, tsx.DefaultLimits', which only the test of a plugin stopped at its quota lowers: reaching 200 000 elements takes the engine about a second, and on a busy machine some piece of it can run past Limits' half second, which tsx cuts without ending the call (nsgo#1018, see that test).
+// nodeQuota is Limits' Nodes, tsx.DefaultLimits', which only the test of a plugin stopped at its quota lowers: 200 000 elements hold about 3.7 GiB of the Go heap, and take a busy runner up to a minute to make.
 var nodeQuota = tsx.DefaultLimits.Nodes
 
 // probeLimits are what a plugin runs under while Kando reads what it says of itself, before the user agreed to anything: tighter still, a node, a timer and a request at most (Nodes 1 rather than 0, which would be no limit) and 4 KiB of storage.
