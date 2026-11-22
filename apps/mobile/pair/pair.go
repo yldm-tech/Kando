@@ -313,21 +313,11 @@ func field(cx *core.Scope, label string, control core.Node) core.Node {
 	}}
 }
 
-// codeInput is the field of the pairing code, in cells a phone's thumb and eye find at once.
-// TODO(nsgo#1075): ui.OtpInput now takes its cells' side (Size, nsgo#482), but its cells are square, in the body's type, RadiusControl round, under a 16pt caret (ui/otpinput.go:44-50), where the design's are 44 by 52, 22pt semibold tabular digits, 10 round, under a 24pt caret, so the code is base.OtpInput in the app's own cells; use ui.OtpInput once it takes a cell's width and height, type and corner radius and the caret's height https://github.com/nsgo-dev/nsgo/issues/1075
+// codeInput is the field of the pairing code, in cells a phone's thumb and eye find at once: the design's 44 by 52, 22pt semibold tabular digits, 10 round, under a 24pt caret.
 func codeInput(cx *core.Scope, value func() string, change func(string), disabled func() bool) core.Node {
-	colors := ui.ColorsOf(cx)
-	return base.OtpInput{TestID: "pair-code", Label: locales.PairCode(cx), Length: sync.CodeDigits, Groups: 2, Value: value, OnChange: change, Disabled: disabled,
-		Style:      core.Style{Direction: core.Row, AlignItems: core.AlignCenter, AlignSelf: core.AlignStart, Gap: 12},
-		GroupStyle: core.Style{Direction: core.Row, Gap: 6},
-		CellStyle: core.Style{Width: core.Pt(44), Height: core.Pt(52), CornerRadius: 10, BorderCurve: core.BorderCurveContinuous, BorderWidth: 1,
-			FontSize: 22, FontWeight: core.FontWeightSemibold, FontVariant: core.FontTabularNums, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-			Disabled: ui.Dimmed()},
-		CellStyleFunc: func() core.Style {
-			return core.Style{Color: colors.Text(), Background: colors.Field(), BorderColor: colors.FieldBorder(), Focus: &core.Style{BorderColor: colors.Accent()}}
-		},
-		CaretStyle:     core.Style{Width: core.Pt(1.5), Height: core.Pt(24)},
-		CaretStyleFunc: ui.Filled(colors.Accent)}
+	return ui.OtpInput{TestID: "pair-code", Label: locales.PairCode(cx), Length: sync.CodeDigits, Groups: 2, Value: value, OnChange: change, Disabled: disabled,
+		CellWidth: 44, CellHeight: 52, CornerRadius: 10, CaretHeight: 24,
+		TextStyle: core.Style{FontSize: 22, FontWeight: core.FontWeightSemibold, FontVariant: core.FontTabularNums}}
 }
 
 // found is a computer that answered: where, and its certificate's fingerprint.
