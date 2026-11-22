@@ -14,9 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// The App Store's screenshots: go tool nsgo test -target ios_simulator -device <an iPhone, then an iPad> -run TestScreenshotsStore -env KANDO_SCREENSHOTS=1 saves them as store-*.png. Unlike the other scenes they show a library a learner would have: films with posters, a talk in Japanese translated into English whose video really plays (an original animation, testdata/store/talk.mp4), its words marked, and days of watching behind it.
-
-// TODO(nsgo#1275): the scenes stop at the Library and the player, as a test cannot select Learn, Jobs or Settings in the system's tab bar on a target (openTab); add Learn's review and saved words once nsgotest can https://github.com/nsgo-dev/nsgo/issues/1275
+// The App Store's screenshots: go tool nsgo test -target ios_simulator -device <an iPhone, then an iPad> -run TestScreenshotsStore -env KANDO_SCREENSHOTS=1 saves them as store-*.png. Unlike the other scenes they show a library a learner would have: films with posters, a talk in Japanese translated into English whose video really plays (an original animation, testdata/store/talk.mp4), its words marked, words saved from it, some due for review, and days of watching behind it.
 
 //go:embed testdata/store
 var storeAssets embed.FS
@@ -75,24 +73,30 @@ func storeDesktop(t *testing.T) *synctest.Desktop {
 		sync.ExplainSection{Kind: sync.ExplainBreakdown, Text: "お (polite prefix) + 元気 (well, healthy) + です (is) + か (question)"},
 		sync.ExplainSection{Kind: sync.ExplainTone, Text: "Friendly and polite. Between close friends, just 元気？ is enough."},
 	)
+	records := append(storeWords(now().Add(time.Hour)),
+		sync.Record{Kind: sync.KindPosition, ID: "f2", Film: "f2", Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(372_000)}}})
+	d.SetState("lib", now().Add(-time.Hour), records...)
+	d.Offer("123456")
+	return d
+}
+
+// storeWords are the words saved from the talk over the past hours, the latest first, each due for review at due.
+func storeWords(due time.Time) []sync.Record {
 	word := func(id, text, reading, meaning, context string, saved time.Duration) sync.Record {
 		return sync.Record{Kind: sync.KindWord, ID: id, Film: "f1", Fields: map[string]sync.Field{
 			sync.FieldWord: field(text), sync.FieldReading: field(reading), sync.FieldMeaning: field(meaning), sync.FieldSpoken: field("ja"),
 			sync.FieldContext: field(context), sync.FieldTitle: field("Morning Talk"), sync.FieldStartMS: field(1000),
-			sync.FieldSavedAt: field(now().Add(-saved)), sync.FieldReview: field(sync.Review{Due: now().Add(time.Hour)}),
+			sync.FieldSavedAt: field(now().Add(-saved)), sync.FieldReview: field(sync.Review{Due: due}),
 		}}
 	}
-	d.SetState("lib", now().Add(-time.Hour),
+	return []sync.Record{
 		word("w-ohayo", "おはよう", "ohayō", "good morning", "おはようございます。", 2*time.Hour),
 		word("w-genki", "元気", "げんき", "well, healthy", "お元気ですか？", 3*time.Hour),
 		word("w-ashita", "明日", "あした", "tomorrow", "じゃあ、また明日。", 4*time.Hour),
 		word("w-mata", "また", "mata", "again", "じゃあ、また明日。", 5*time.Hour),
 		word("w-eki", "駅", "えき", "station", "駅はどこですか。", 6*time.Hour),
 		word("w-kawa", "川", "かわ", "river", "川がきれいですね。", 7*time.Hour),
-		sync.Record{Kind: sync.KindPosition, ID: "f2", Film: "f2", Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(372_000)}}},
-	)
-	d.Offer("123456")
-	return d
+	}
 }
 
 // storeKeep puts the talk from d on the phone in dir, downloaded with its poster and left at at, and days of watching behind it.
@@ -170,4 +174,45 @@ func storeCloseRecap(p *phone) {
 	p.app.WaitForGone("id:player-recap", wait)
 	// The sheet slides away over its transition.
 	p.app.Advance(600 * time.Millisecond)
+}
+
+// storeLearnPhone starts the phone with the talk kept and paired with the store's computer, whose words saved from the talk have the three saved first due for review and the others due in days, at Learn.
+func storeLearnPhone(t *testing.T) *phone {
+	t.Helper()
+	d := storeDesktop(t)
+	words := storeWords(now().Add(-time.Hour))
+	for i := range words[3:] {
+		words[3+i].Fields[sync.FieldReview] = field(sync.Review{Box: 2, Due: now().Add(time.Duration(2+i) * 24 * time.Hour)})
+	}
+	d.SetState("lib", now().Add(-30*time.Minute), words...)
+	dir := t.TempDir()
+	f := storeKeep(t, d, dir, 3500*time.Millisecond)
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDueWords(3) })
+	return p
+}
+
+// Learn's review card over the week's watching, and the review's card turned over.
+func TestScreenshotsStoreLearn(t *testing.T) {
+	shot := screenshots(t)
+	p := storeLearnPhone(t)
+	shot(p, "store-learn")
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:review-card", wait)
+	p.app.Press("id:review-show")
+	p.app.WaitFor("id:review-answer", wait)
+	// The card turns over in half a second.
+	p.app.Advance(600 * time.Millisecond)
+	shot(p, "store-review")
+}
+
+// The words saved from the talk, with those due for review marked.
+func TestScreenshotsStoreWords(t *testing.T) {
+	shot := screenshots(t)
+	p := storeLearnPhone(t)
+	p.app.WaitFor("id:learn-word-w-kawa", wait)
+	p.learnScrollTo("id:learn-vocabulary-section")
+	shot(p, "store-words")
 }

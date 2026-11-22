@@ -93,7 +93,7 @@ func newDesktop(t *testing.T) *synctest.Desktop {
 	return d
 }
 
-// openTab shows tab i (filmsTab, jobsTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, on an iOS target, it reports the change as the platform would, which nsgotest allows headless only: there it skips the test, so a screenshot scene must not depend on it.
+// openTab shows tab i (filmsTab, jobsTab, learnTab, settingsTab), named name, pressing the drawn bar's tab, which headless always shows. Where the system's bar shows in its place, as on an iOS or Android target, it selects the tab there, as a tap does.
 func (p *phone) openTab(i int, name string) {
 	p.t.Helper()
 	// The system's bar is mounted but takes no room in the tree, so WaitFor, which sees only visible views, would never find it.
@@ -102,8 +102,7 @@ func (p *phone) openTab(i int, name string) {
 		p.app.Press("id:tab-bar >> label:" + name)
 		return
 	}
-	// TODO(nsgo#1275): nsgotest cannot select a tab of the system's bar on a target (Emit skips the test there, nsgotest/model.go:235-237), so every scene behind Jobs, Learn or Settings is skipped on the iOS simulator and the App Store screenshots stop at the Library and the player; select the tab with the step nsgotest gains, and shoot those tabs for the store (screenshot_store_test.go), once it has one https://github.com/nsgo-dev/nsgo/issues/1275
-	p.app.Emit("id:tab-bar", "change", float64(i))
+	p.app.SelectTab("id:tab-bar", i)
 }
 
 // openComputers opens Settings › Processing Computer, which lists the paired computers and unpairs the one it shows.
