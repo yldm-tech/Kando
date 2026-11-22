@@ -1,8 +1,10 @@
 package browse
 
 import (
+	"encoding/json"
 	"runtime"
 	"slices"
+	"strings"
 
 	kcore "kando/packages/core"
 )
@@ -23,19 +25,29 @@ func ScriptWith(extra []kcore.VideoSite) string {
 	return buttonsScriptOf(webViewBridge, sitesJSON(sites))
 }
 
-// QuietScript quiets the page's videos and sounds while another page of the window shows (quiet), or lets them be heard again once the browser's shows. Quieting pauses what plays, so a hidden video stops downloading and decoding and the site's autoplay does not move on to the next one, and mutes what is not muted, marking it, as a page may start playing again by itself. Letting them be heard unmutes what it marked, so what the page muted itself stays muted, and leaves what it paused paused, for the learner to play again.
-func QuietScript(quiet bool) string {
-	if quiet {
-		return `for (const m of document.querySelectorAll("video, audio")) { m.pause(); if (!m.muted) { m.muted = true; m.dataset.kandoMuted = "1"; } }`
-	}
-	return `for (const m of document.querySelectorAll("[data-kando-muted]")) { m.muted = false; delete m.dataset.kandoMuted; }`
-}
+// PauseScript pauses the page's videos and sounds while another page of the window shows, so a hidden video stops downloading and decoding and the site's autoplay does not move on to the next one. The web view's own switch keeps the page quiet meanwhile, frames and what starts later included (the app's BrowseMuted); once the browser's page shows again, what this paused stays paused, for the learner to play again.
+const PauseScript = `for (const m of document.querySelectorAll("video, audio")) m.pause();`
 
-// UserAgent is the pages' user agent: on macOS WKWebView's own, which names no browser, with Safari's version after it, as sites serve such a user agent older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers and keep their own ("").
-func UserAgent() string {
+// UserAgentSuffix is what the pages' user agent ends with after the platform's own: on macOS Safari's version, as sites serve WKWebView's, which names no browser, older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers ("").
+func UserAgentSuffix() string {
 	if runtime.GOOS == "darwin" {
-		// TODO(nsgo#114): append Safari's version to the platform's own user agent, as MyGo's PageOptions.UserAgentSuffix did, rather than replacing it with WKWebView's as macOS writes it today https://github.com/nsgo-dev/nsgo/issues/114
-		return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+		return "Version/26.0 Safari/605.1.15"
 	}
 	return ""
+}
+
+// AgentQuestion is what the app asks a page for the pages' user agent, which a download sends with their cookies; PageAgent reads its answer, raw, the JSON the page gave.
+const AgentQuestion = "navigator.userAgent"
+
+// PageAgent reads the user agent a page gave for AgentQuestion: a header's value of printable ASCII, ending in UserAgentSuffix, as a page's script can say what it likes there. It reports false for any other answer.
+func PageAgent(raw string) (string, bool) {
+	var ua string
+	if json.Unmarshal([]byte(raw), &ua) != nil {
+		return "", false
+	}
+	ua = strings.TrimSpace(ua)
+	if ua == "" || len(ua) > 512 || !strings.HasSuffix(ua, UserAgentSuffix()) || strings.ContainsFunc(ua, func(r rune) bool { return r < 0x20 || r > 0x7e }) {
+		return "", false
+	}
+	return ua, true
 }

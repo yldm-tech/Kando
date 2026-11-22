@@ -37,7 +37,7 @@ func (a *app) BrowseSource() string { return a.browse.source }
 
 func (a *app) BrowseWeb() *core.Ref { return a.browse.view }
 
-func (a *app) BrowseUserAgent() string { return a.browse.agent.get() }
+func (a *app) BrowseMuted() bool { return a.browse.quiet }
 
 // BrowseScript is the script the browser's pages run before their own, whose buttons know Kando's sites and those of the site packs the user allowed (browseSitesChanged).
 func (a *app) BrowseScript() string { return a.browse.script }

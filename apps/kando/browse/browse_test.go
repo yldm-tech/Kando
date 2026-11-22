@@ -29,7 +29,7 @@ type fakeApp struct {
 	state      State
 	source     string
 	web        core.Ref
-	agent      string
+	muted      bool
 	script     string
 	address    string
 	focus      bool
@@ -49,7 +49,7 @@ func (f *fakeApp) call(name string) { f.calls = append(f.calls, name) }
 func (f *fakeApp) BrowseState() State                     { return f.state }
 func (f *fakeApp) BrowseSource() string                   { return f.source }
 func (f *fakeApp) BrowseWeb() *core.Ref                   { return &f.web }
-func (f *fakeApp) BrowseUserAgent() string                { return f.agent }
+func (f *fakeApp) BrowseMuted() bool                      { return f.muted }
 func (f *fakeApp) BrowseScript() string                   { return f.script }
 func (f *fakeApp) BrowseNavigated(nav core.WebNavigation) { f.navs = append(f.navs, nav) }
 func (f *fakeApp) BrowseOpenWindow(req core.WebWindowRequest) {
@@ -135,13 +135,13 @@ func TestStartShowsBeforeAPage(t *testing.T) {
 	}
 }
 
-// Once a page is asked for, the web view shows it, held to the web, with the app's user agent and script; what it reports reaches the app. After home the start shows over the web view, which keeps its page.
+// Once a page is asked for, the web view shows it, held to the web, with the platform's user agent and Safari's version after it where the pages add it, and the app's script; what it reports reaches the app, and it keeps its pages quiet while the app says so. After home the start shows over the web view, which keeps its page.
 func TestPageShowsTheWebView(t *testing.T) {
-	a := &fakeApp{agent: "Kando-Test", script: "window.kando = 1"}
+	a := &fakeApp{script: "window.kando = 1"}
 	app := show(t, a)
 	change(app, a, func() { onPage(a, "https://example.com/") })
 	web := app.Find("id:browse-page")
-	if web.Web.Source.Src != "https://example.com/" || web.Web.UserAgent != "Kando-Test" || web.Web.InjectedJavaScriptBeforeContent != "window.kando = 1" {
+	if web.Web.Source.Src != "https://example.com/" || web.Web.UserAgent != "" || web.Web.UserAgentSuffix != UserAgentSuffix() || web.Web.Muted || web.Web.InjectedJavaScriptBeforeContent != "window.kando = 1" {
 		t.Fatalf("web view %+v", web.Web)
 	}
 	if !web.Web.Restricted || web.Web.Hosts != "*" || web.Web.Navigable("file:///etc/passwd") || web.Web.Navigable("kando://open") || !web.Web.Navigable("https://www.bilibili.com/video/BV1") {
@@ -168,6 +168,14 @@ func TestPageShowsTheWebView(t *testing.T) {
 	}
 	if len(a.windows) != 1 || a.windows[0] != (core.WebWindowRequest{URL: "https://example.com/popup", UserInitiated: true}) {
 		t.Fatalf("windows %+v", a.windows)
+	}
+	change(app, a, func() { a.muted = true })
+	if !app.Find("id:browse-page").Web.Muted {
+		t.Fatal("the web view is not muted")
+	}
+	change(app, a, func() { a.muted = false })
+	if app.Find("id:browse-page").Web.Muted {
+		t.Fatal("the web view stayed muted")
 	}
 	change(app, a, func() { a.state.Page = false })
 	if !app.Exists(whole(testlocale.Messages().BrowseEmptyTitle())) || len(app.QueryMounted("id:browse-page")) != 1 {
@@ -391,14 +399,30 @@ func TestStartOpensSites(t *testing.T) {
 	}
 }
 
-// While another page shows, the page's videos pause as well as go silent, so they stop downloading and autoplay does not move on; coming back turns on only the sound the browser turned off, and plays nothing.
-func TestQuietScriptPausesWithoutResuming(t *testing.T) {
-	quiet, heard := QuietScript(true), QuietScript(false)
-	if !strings.Contains(quiet, "m.pause()") || !strings.Contains(quiet, "m.muted = true") || !strings.Contains(quiet, "kandoMuted") {
-		t.Fatalf("quieting does not pause and mute: %s", quiet)
+// While another page shows, the page's videos pause, so they stop downloading and autoplay does not move on, and nothing plays them again; the web view's own switch keeps the sound off (BrowseMuted).
+func TestPauseScriptOnlyPauses(t *testing.T) {
+	if !strings.Contains(PauseScript, "m.pause()") || strings.Contains(PauseScript, "play(") || strings.Contains(PauseScript, "muted") {
+		t.Fatalf("the pause script does more than pause: %s", PauseScript)
 	}
-	if strings.Contains(heard, "play(") || strings.Contains(heard, "pause") || !strings.Contains(heard, "[data-kando-muted]") {
-		t.Fatalf("coming back does more than unmute what it muted: %s", heard)
+}
+
+// The pages' user agent is read from a page only as a header's value that ends in Safari's version where the pages add it, whatever else a page's script says it is.
+func TestPageAgent(t *testing.T) {
+	ua := "Mozilla/5.0 (Kando Test) AppleWebKit/605.1.15 (KHTML, like Gecko)"
+	if suffix := UserAgentSuffix(); suffix != "" {
+		ua += " " + suffix
+	}
+	if got, ok := PageAgent(`"` + ua + `"`); !ok || got != ua {
+		t.Fatalf("PageAgent(%q) = %q, %v", ua, got, ok)
+	}
+	bad := []string{``, `""`, `42`, `"Mozilla/5.0\r\nCookie: x"`, `"` + strings.Repeat("a", 600) + `"`, `"Mozilla/5.0 ünicode"`}
+	if UserAgentSuffix() != "" {
+		bad = append(bad, `"Mozilla/5.0 (Kando Test)"`)
+	}
+	for _, raw := range bad {
+		if got, ok := PageAgent(raw); ok {
+			t.Errorf("PageAgent(%s) took %q", raw, got)
+		}
 	}
 }
 

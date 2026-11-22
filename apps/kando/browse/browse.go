@@ -59,9 +59,10 @@ type App interface {
 	BrowseSource() string
 	// BrowseWeb is the web view's Ref, which the app drives the page through: back, forward, reload, stop and the scripts it runs in the page.
 	BrowseWeb() *core.Ref
-	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts; when it changes, the web view loads its source again with it, in place of the page it shows, keeping its history (core.WebView.InjectedJavaScriptBeforeContentFunc).
-	BrowseUserAgent() string
+	// BrowseScript runs in each page before the page's own scripts; when it changes, the web view loads its source again with it, in place of the page it shows, keeping its history (core.WebView.InjectedJavaScriptBeforeContentFunc).
 	BrowseScript() string
+	// BrowseMuted is whether the web view keeps its pages quiet, as while another page of the window shows: Windows and Linux silence the whole view, frames and Web Audio included, and macOS suspends its media, both for what starts later too (core.WebView.Muted).
+	BrowseMuted() bool
 	// BrowseNavigated hears the page's address, title and history as it starts loading, finishes and navigates, within the document too, BrowseOpenWindow a window the page asks to open, which the platform never opens itself, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo, with the page's origin.
 	BrowseNavigated(nav core.WebNavigation)
 	BrowseOpenWindow(req core.WebWindowRequest)

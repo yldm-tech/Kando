@@ -30,12 +30,15 @@ import (
 // browsePage is the selector of the browser's web view.
 const browsePage = "id:browse-page"
 
-// browseApp is a test app on the browser's page, its pages' data cleared by a counter.
+// browseApp is a test app on the browser's page, its pages' data cleared in nsgotest's store (core.Scope.ClearWebsiteData, as browseHooks' ready gives it) and counted.
 func browseApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func(), *int) {
 	t.Helper()
 	a, tt, updates := newTestApp(t, p)
 	cleared := 0
-	a.browse.clear = func() error { cleared++; return nil }
+	a.browse.clear = func(done func(error)) {
+		cleared++
+		a.cx.ClearWebsiteData(done)
+	}
 	a.Select(pageBrowse)
 	refresh(tt, a)
 	return a, tt, updates, &cleared
@@ -46,12 +49,19 @@ func browseReport(tt *nsgotest.App, nav ns.WebNavigation) {
 	tt.Navigate(browsePage, nav)
 }
 
-// browseOpen loads rawURL as the address field would and lets the page finish loading it.
+// browseTestAgent is the user agent a test's pages give when the app asks them for it (browseReadAgent), the platform's own with what the pages add after it.
+var browseTestAgent = strings.TrimSpace("Mozilla/5.0 (Kando Test) AppleWebKit/605.1.15 (KHTML, like Gecko) " + browse.UserAgentSuffix())
+
+// browseOpen loads rawURL as the address field would and lets the page finish loading it; the first page to load is asked for the pages' user agent, which it answers (browseTestAgent).
 func browseOpen(t *testing.T, a *app, tt *nsgotest.App, rawURL string) {
 	t.Helper()
 	a.browseLoad(rawURL)
 	refresh(tt, a)
 	browseReport(tt, ns.WebNavigation{URL: rawURL, CanGoBack: a.browse.canBack, CanGoForward: a.browse.canForward})
+	if a.browse.agentAsked {
+		tt.AnswerScript(browsePage, `"`+browseTestAgent+`"`, "")
+		tt.Settle()
+	}
 	if got := tt.FindMounted(browsePage).Web.Source.Src; a.browse.url != rawURL || (got != rawURL && len(browseCommands(tt, nsgotest.WebLoad)) == 0) {
 		t.Fatalf("page at %q loading %q, want %q", a.browse.url, got, rawURL)
 	}
@@ -490,8 +500,9 @@ func TestBrowseDownloadSaysWhatBecameOfTheVideo(t *testing.T) {
 func TestBrowseDownloadShortcut(t *testing.T) {
 	a, tt, updates, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://www.youtube.com/results?search_query=french")
+	before := len(browseCommands(tt, nsgotest.WebInjectJavaScript))
 	tt.Key("mod+d")
-	if len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != 0 {
+	if len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != before {
 		t.Fatal("⌘D asked a page of videos for its address")
 	}
 	video := "https://www.youtube.com/watch?v=TRWgBxVAb1M"
@@ -560,10 +571,11 @@ func TestBrowseDownloadSaysWhatIsMissing(t *testing.T) {
 	wantSettings(t, a, settings.SectionGeneral)
 }
 
-// 清除登录信息… asks first, holding the window's modal flag while it does; only 清除 clears, and the page shown loads again.
+// 清除登录信息… asks first, holding the window's modal flag while it does; only 清除 clears the pages' store, cookies and all, and the page shown loads again.
 func TestBrowseClearAsksFirst(t *testing.T) {
 	a, tt, updates, cleared := browseApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
+	tt.WebCookies = []ns.WebCookie{{Name: "SID", Value: "v", Domain: ".example.com", Path: "/"}}
 	tt.Press(whole(msgs.BrowseClearData()))
 	if !a.browse.clearOpen || !a.modalOpen() || *cleared != 0 {
 		t.Fatalf("open %v, modal %v, cleared %d", a.browse.clearOpen, a.modalOpen(), *cleared)
@@ -582,14 +594,14 @@ func TestBrowseClearAsksFirst(t *testing.T) {
 	refresh(tt, a)
 	tt.Press(whole(msgs.BrowseClearConfirm()))
 	waitUntil(t, tt, a, updates, func() bool { return !a.browse.clearing })
-	if *cleared != 1 || len(browseCommands(tt, nsgotest.WebReload)) != 1 || !hasText(tt, msgs.BrowseCleared()) || a.modalOpen() {
-		t.Fatalf("cleared %d, modal %v, texts %q", *cleared, a.modalOpen(), tt.Texts())
+	if *cleared != 1 || tt.WebsiteDataClears != 1 || len(tt.WebCookies) != 0 || len(browseCommands(tt, nsgotest.WebReload)) != 1 || !hasText(tt, msgs.BrowseCleared()) || a.modalOpen() {
+		t.Fatalf("cleared %d (store %d, cookies %d), modal %v, texts %q", *cleared, tt.WebsiteDataClears, len(tt.WebCookies), a.modalOpen(), tt.Texts())
 	}
 }
 
 func TestBrowseClearSaysWhyItFailed(t *testing.T) {
 	a, tt, updates, _ := browseApp(t, &fakePipeline{})
-	a.browse.clear = func() error { return errors.New("the web engine did not answer") }
+	a.browse.clear = func(done func(error)) { done(errors.New("the web engine did not answer")) }
 	a.BrowseAskClear()
 	refresh(tt, a)
 	tt.Press(whole(testlocale.Messages().BrowseClearConfirm()))
@@ -599,7 +611,7 @@ func TestBrowseClearSaysWhyItFailed(t *testing.T) {
 	}
 }
 
-// Where the pages' sign-ins cannot be cleared, as NSGo's web view cannot yet, 清除登录信息… shows neither on the start nor in the File menu.
+// Before the window is ready, where the pages' store cannot be cleared yet, 清除登录信息… shows neither on the start nor in the File menu.
 func TestBrowseClearOnlyWhereItCan(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	a.browse.clear = nil
@@ -754,15 +766,31 @@ func TestBrowseKeepsTheWebAddressOverAPageOfItsOwn(t *testing.T) {
 	}
 }
 
-// The pages' user agent is kept for the downloads: on macOS WKWebView's own with Safari's version, which the web view sends.
+// The pages keep the platform's user agent, with Safari's version after it on macOS (browse.UserAgentSuffix), and the first page that loads is asked for it once, for the downloads to send; an answer that is not such a user agent is not taken, and the next page is asked again.
 func TestBrowseKeepsTheUserAgent(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, "https://example.com/")
-	if got := a.browse.agent.get(); got != browse.UserAgent() || tt.Find(browsePage).Web.UserAgent != got {
-		t.Fatalf("user agent %q, the web view's %q", got, tt.Find(browsePage).Web.UserAgent)
+	a.browseLoad("https://example.com/")
+	refresh(tt, a)
+	if web := tt.Find(browsePage).Web; web.UserAgent != "" || web.UserAgentSuffix != browse.UserAgentSuffix() {
+		t.Fatalf("user agent %q, suffix %q", web.UserAgent, web.UserAgentSuffix)
 	}
-	if runtime.GOOS == "darwin" && !strings.HasSuffix(a.browse.agent.get(), "Version/26.0 Safari/605.1.15") {
-		t.Fatalf("user agent %q names no Safari", a.browse.agent.get())
+	if runtime.GOOS == "darwin" && browse.UserAgentSuffix() != "Version/26.0 Safari/605.1.15" {
+		t.Fatalf("the pages name no Safari: %q", browse.UserAgentSuffix())
+	}
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/"})
+	tt.AnswerScript(browsePage, `"Mozilla/5.0\r\nCookie: x"`, "")
+	tt.Settle()
+	if a.browse.agent.get() != "" || a.browse.agentAsked {
+		t.Fatalf("took %q", a.browse.agent.get())
+	}
+	asked := len(browseCommands(tt, nsgotest.WebInjectJavaScript))
+	browseOpen(t, a, tt, "https://example.com/a")
+	if got := a.browse.agent.get(); got != browseTestAgent || len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != asked+1 {
+		t.Fatalf("user agent %q", got)
+	}
+	browseOpen(t, a, tt, "https://example.com/b")
+	if len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != asked+1 {
+		t.Fatal("the pages were asked for the user agent again")
 	}
 }
 
@@ -794,26 +822,43 @@ func TestSidebarBrowseRow(t *testing.T) {
 	}
 }
 
-// The web view, kept while another page shows, would play on a video in it: its videos pause and its sound goes off while another page shows, and the sound comes back with the browser's page without the videos playing again. A web view that went with its column plays nothing.
+// The web view, kept while another page shows, would play on a video in it: its videos pause and the web view is muted while another page shows, frames and what starts later included, and the sound comes back with the browser's page without the videos playing again. A web view that went with its column plays nothing.
 func TestBrowseQuietWhileAnotherPageShows(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=x")
-	if len(browseScripts(tt)) != 0 {
+	if len(browseScripts(tt)) != 0 || tt.Find(browsePage).Web.Muted {
 		t.Fatalf("quieted on its own page: %q", browseScripts(tt))
 	}
 	tt.Press("id:source-" + sidebar.SourceAll)
 	if !a.browse.quiet {
 		t.Fatal("the page's videos played on")
 	}
-	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browse.QuietScript(true)}) {
-		t.Fatalf("on the library: scripts %q", browseScripts(tt))
+	kept := len(tt.QueryMounted(browsePage)) == 1
+	if kept && (!slices.Equal(browseScripts(tt), []string{browse.PauseScript}) || !tt.FindMounted(browsePage).Web.Muted) {
+		t.Fatalf("on the library: scripts %q, muted %v", browseScripts(tt), tt.FindMounted(browsePage).Web.Muted)
 	}
 	tt.Press("id:source-" + sidebar.PageBrowse)
-	if a.browse.quiet {
+	if a.browse.quiet || tt.Find(browsePage).Web.Muted {
 		t.Fatal("the page's sound stayed off on its own page")
 	}
-	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browse.QuietScript(false) {
-		t.Fatalf("back on the browser: scripts %q", scripts)
+	if kept && !slices.Equal(browseScripts(tt), []string{browse.PauseScript}) {
+		t.Fatalf("back on the browser: scripts %q", browseScripts(tt))
+	}
+}
+
+// Once the window is ready, 清除登录信息… clears the store every page shares (core.Scope.ClearWebsiteData), and the pages hold no browser's sign-in any more.
+func TestBrowseReadyClearsTheStore(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.browseHooks().ready()
+	tt.WebCookies = []ns.WebCookie{{Name: "SID", Value: "v", Domain: ".example.com", Path: "/"}}
+	a.browse.signin.signedIn = "chrome"
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	tt.Press(whole(testlocale.Messages().BrowseClearData()))
+	tt.Press(whole(testlocale.Messages().BrowseClearConfirm()))
+	waitUntil(t, tt, a, updates, func() bool { return !a.browse.clearing })
+	if tt.WebsiteDataClears != 1 || len(tt.WebCookies) != 0 || a.browse.signin.signedIn != "" || !hasText(tt, testlocale.Messages().BrowseCleared()) {
+		t.Fatalf("store cleared %d times, cookies %d, signed in %q, texts %q", tt.WebsiteDataClears, len(tt.WebCookies), a.browse.signin.signedIn, tt.Texts())
 	}
 }
 
