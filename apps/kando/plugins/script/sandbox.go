@@ -65,6 +65,7 @@ func probeSandbox(partition string) tsx.Sandbox {
 }
 
 // Load runs the plugin v under cx with what grant allows, through its own host, which must be no other plugin's (Sandbox), for a Runner to call, and checks that it exports every function its contributions call (Manifest.ExportsNeeded), which Probe did not for a package that signed its manifest: plugins.ErrTampered otherwise. It notes what the Go heap held before, which the watchdog measures the plugin's growth from. The Runner that holds the plugin (Runner.Hold) hears when tsx stops its runtime. Call it on the engine's goroutine; it runs the plugin's entry module, a second at most.
+// TODO(nsgo#1877): what the plugin's timers and promise jobs throw outside a call, or a slice of them cut at Limits.Call, panics to the nearest core.Catch, and a plugin has none above it, so it reaches the app's report as "the app failed" and never the breaker (Plugin.count); count it against the plugin once tsx hands it to the sandbox's host (or a scope can take a catch) https://github.com/nsgo-dev/nsgo/issues/1877
 func Load(cx *core.Scope, v Verified, grant plugins.Grant, host *core.Host) (*Plugin, error) {
 	heap := HeapBytes()
 	pl := &Plugin{ID: v.ID, Hash: v.Hash, heap: heap}
