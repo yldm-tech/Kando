@@ -23,23 +23,21 @@ func (o online) Render(cx *core.Scope) core.Node {
 			a.SetPlatformSubtitles(on)
 			a.Save()
 		})}
-	quality := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		options := []ui.Option[kcore.Quality]{
-			{Value: kcore.QualityBest, Label: locales.SettingsGeneralQualityBest(cx)},
-			{Value: kcore.Quality720, Label: locales.SettingsGeneralQuality720(cx)},
-			{Value: kcore.QualitySubtitles, Label: locales.SettingsGeneralQualitySubtitles(cx)},
-		}
-		return ui.Select[kcore.Quality]{Options: options, Label: locales.SettingsGeneralQuality(cx), TestID: "settings-download-quality",
-			Value: live.Func(a, a.DownloadQuality),
-			OnChange: live.On(a, func(q kcore.Quality) {
-				if q != a.DownloadQuality() {
-					a.SetDownloadQuality(q)
-					a.Save()
-				}
-			}),
-			Style: core.Style{Width: core.Pt(140)}}
-	})
+	quality := ui.Select[kcore.Quality]{
+		Options: []ui.Option[kcore.Quality]{
+			{Value: kcore.QualityBest, LabelFunc: func() string { return locales.SettingsGeneralQualityBest(cx) }},
+			{Value: kcore.Quality720, LabelFunc: func() string { return locales.SettingsGeneralQuality720(cx) }},
+			{Value: kcore.QualitySubtitles, LabelFunc: func() string { return locales.SettingsGeneralQualitySubtitles(cx) }},
+		},
+		LabelFunc: func() string { return locales.SettingsGeneralQuality(cx) }, TestID: "settings-download-quality",
+		Value: live.Func(a, a.DownloadQuality),
+		OnChange: live.On(a, func(q kcore.Quality) {
+			if q != a.DownloadQuality() {
+				a.SetDownloadQuality(q)
+				a.Save()
+			}
+		}),
+		Style: core.Style{Width: core.Pt(140)}}
 	chapters := form.SwitchRow{Title: locales.SettingsGeneralChapters(cx), Subtitle: locales.SettingsGeneralChaptersHint(cx), TestID: "settings-import-chapters",
 		On: live.Func(a, a.ImportChapters),
 		OnChange: live.On(a, func(on bool) {

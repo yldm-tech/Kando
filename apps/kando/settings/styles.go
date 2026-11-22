@@ -42,20 +42,17 @@ func (s Styles) Render(cx *core.Scope) core.Node {
 		return strings.Join(out, "\x01")
 	}))
 	return core.Show{When: func() bool { return packs.Get() != "" }, Then: func(cx *core.Scope) core.Node {
-		// The options are bound, so a style pack turned on or off updates the drop-down in place and keeps its focus.
-		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
-		choose := core.Dynamic(func(cx *core.Scope) core.Node {
-			options := func() []ui.Option[string] {
-				options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateStyleNone(cx)}}
-				for _, item := range strings.Split(packs.Get(), "\x01") {
-					id, name, _ := strings.Cut(item, "\x00")
-					options = append(options, ui.Option[string]{Value: id, Label: name})
-				}
-				return options
+		// The options and the name are bound, so a style pack turned on or off, or another language, updates the drop-down in place and keeps its focus.
+		options := func() []ui.Option[string] {
+			options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateStyleNone(cx)}}
+			for _, item := range strings.Split(packs.Get(), "\x01") {
+				id, name, _ := strings.Cut(item, "\x00")
+				options = append(options, ui.Option[string]{Value: id, Label: name})
 			}
-			return ui.Select[string]{OptionsFunc: options, Label: locales.SettingsTranslateStyle(cx), TestID: "settings-translate-style",
-				Value: live.Func(a, a.TranslateStyle), OnChange: live.On(a, a.SetTranslateStyle), Style: core.Style{Width: core.Pt(180)}}
-		})
+			return options
+		}
+		choose := ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SettingsTranslateStyle(cx) }, TestID: "settings-translate-style",
+			Value: live.Func(a, a.TranslateStyle), OnChange: live.On(a, a.SetTranslateStyle), Style: core.Style{Width: core.Pt(180)}}
 		return core.Group{
 			form.Row{Title: locales.SettingsTranslateStyle(cx), Subtitle: locales.SettingsTranslateStyleHint(cx), Trailing: []core.Node{choose}},
 			form.Separator(true),

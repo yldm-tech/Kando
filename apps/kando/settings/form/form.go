@@ -1,6 +1,6 @@
 // Package form draws the pieces the settings window's pages are laid out with, as the prototype's settings sheet draws them: section labels, cards of rows on the window's ground, separators and footnotes. The controls inside the rows are NSGo's (package ui). The settings pages and the 账号与上传 page in package account both use it, so it imports neither.
 //
-// A page is built once and again when the interface's language or its category changes (settings.Window), so the words a piece takes as a plain string are read as it is built; what changes with the app's state between those builds, such as a version or a path, the pieces take as a func, which a binding reads.
+// A page is built once and again when the interface's language or its category changes (settings.Window), so the words a piece takes as a plain string are read as it is built; what changes with the app's state between those builds, such as a version or a path, the pieces take as a func, which a binding reads. A row shown outside the settings window, which nothing builds again for another language, takes its words as funcs too (Row.TitleFunc, SwitchRow.TitleFunc and their SubtitleFunc).
 package form
 
 import (
@@ -62,9 +62,10 @@ func Line(cx *core.Scope) func() core.Color {
 	return func() core.Color { return k.Shade(0.08) }
 }
 
-// Row is a row of a card: the title over the subtitle on the left, Trailing at the right end. It is 40 points high with one line and 46 with a subtitle. Assistive technology sees a group named by the title and described by the subtitle. Subtitle is a subtitle that stays while the page shows; SubtitleFunc one that changes with the app's state, which shows while it is not "".
+// Row is a row of a card: the title over the subtitle on the left, Trailing at the right end. It is 40 points high with one line and 46 with a subtitle. Assistive technology sees a group named by the title and described by the subtitle. Title and Subtitle stay while the page shows; TitleFunc and SubtitleFunc, when set, replace them with words that change, with the app's state or the interface language, without building the row again, and the subtitle shows while it is not "".
 type Row struct {
 	Title, Subtitle string
+	TitleFunc       func() string
 	SubtitleFunc    func() string
 	Trailing        []core.Node
 	// NoGroup leaves the row unnamed, for a row whose control assistive technology already reads by the title.
@@ -74,29 +75,34 @@ type Row struct {
 
 // Render implements core.Node.
 func (r Row) Render(*core.Scope) core.Node {
-	children := []core.Node{Titles{Title: r.Title, Subtitle: r.Subtitle, SubtitleFunc: r.SubtitleFunc}}
+	children := []core.Node{Titles{Title: r.Title, TitleFunc: r.TitleFunc, Subtitle: r.Subtitle, SubtitleFunc: r.SubtitleFunc}}
 	if len(r.Trailing) > 0 {
 		children = append(children, core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, AlignItems: core.AlignCenter, Gap: 8}, Children: r.Trailing})
 	}
 	row := core.View{TestID: r.TestID, Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(40), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter},
 		Children: children}
 	if !r.NoGroup {
-		// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so a row whose subtitle changes with the app's state (SubtitleFunc) is described by it as it changes, as MyGo's Description was each frame; until then assistive technology reads that subtitle as the row's text only https://github.com/nsgo-dev/nsgo/issues/145
-		row.Role, row.Label, row.AccessibilityDescription = core.RoleGroup, r.Title, r.Subtitle
+		row.Role, row.Label, row.LabelFunc = core.RoleGroup, r.Title, r.TitleFunc
+		if r.SubtitleFunc != nil {
+			row.AccessibilityDescriptionFunc = r.SubtitleFunc
+		} else {
+			row.AccessibilityDescription = r.Subtitle
+		}
 	}
 	return row
 }
 
-// Titles is a row's title over its subtitle, taking the room the row leaves.
+// Titles is a row's title over its subtitle, taking the room the row leaves; TitleFunc and SubtitleFunc, when set, replace Title and Subtitle as a Row's do.
 type Titles struct {
 	Title, Subtitle string
+	TitleFunc       func() string
 	SubtitleFunc    func() string
 }
 
 // Render implements core.Node.
 func (t Titles) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
-	children := []core.Node{core.Text{Content: t.Title, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)}}
+	children := []core.Node{core.Text{Content: t.Title, ContentFunc: t.TitleFunc, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)}}
 	subtitle := func(text func() string) core.Node {
 		return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)}
 	}
@@ -145,9 +151,11 @@ func Badge(text string) core.Node {
 	})
 }
 
-// SwitchRow is a row of a card with a switch at its end: the title over the subtitle, padded 8 points above and below and 12 before the switch. The switch is named by the title, and a press on the title or the subtitle turns it too, as on a label of a check box. On reads the switch's state and OnChange hears it turned.
+// SwitchRow is a row of a card with a switch at its end: the title over the subtitle, padded 8 points above and below and 12 before the switch. The switch is named by the title, and a press on the title or the subtitle turns it too, as on a label of a check box. On reads the switch's state and OnChange hears it turned. TitleFunc and SubtitleFunc, when set, replace Title and Subtitle as a Row's do, so the words change without building the switch again, which would take the keyboard focus off it.
 type SwitchRow struct {
 	Title, Subtitle string
+	TitleFunc       func() string
+	SubtitleFunc    func() string
 	On              func() bool
 	OnChange        func(on bool)
 	TestID          string
@@ -156,14 +164,20 @@ type SwitchRow struct {
 // Render implements core.Node.
 func (r SwitchRow) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
-	texts := []core.Node{core.Text{Content: r.Title, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)}}
-	if r.Subtitle != "" {
-		texts = append(texts, core.Text{Content: r.Subtitle, Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)})
+	texts := []core.Node{core.Text{Content: r.Title, ContentFunc: r.TitleFunc, Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)}}
+	subtitle := func(text func() string) core.Node {
+		return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)}
+	}
+	switch {
+	case r.SubtitleFunc != nil:
+		texts = append(texts, core.Show{When: func() bool { return r.SubtitleFunc() != "" }, Then: func(*core.Scope) core.Node { return subtitle(r.SubtitleFunc) }})
+	case r.Subtitle != "":
+		texts = append(texts, subtitle(func() string { return r.Subtitle }))
 	}
 	// The labels are pressed with the pointer only: the switch is the control the keyboard reaches and assistive technology reads.
 	labels := core.View{NoFocus: true, OnPress: func(core.PressEvent) { r.OnChange(!r.On()) },
 		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: texts}
-	toggle := ui.Switch{Checked: r.On, OnChange: r.OnChange, Label: r.Title, TestID: r.TestID}
+	toggle := ui.Switch{Checked: r.On, OnChange: r.OnChange, Label: r.Title, LabelFunc: r.TitleFunc, TestID: r.TestID}
 	return core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(48), Padding: core.Symmetric(8, 14), Gap: 12, AlignItems: core.AlignCenter},
 		Children: []core.Node{labels, toggle}}
 }
@@ -179,14 +193,6 @@ type Button struct {
 }
 
 // Render implements core.Node.
-func (b Button) Render(cx *core.Scope) core.Node {
-	button := func(text string) ui.Button {
-		return ui.Button{Text: text, Label: b.Label, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, Disabled: b.Disabled, OnPress: b.OnPress, TestID: b.TestID}
-	}
-	if b.TextFunc == nil {
-		return button(b.Text)
-	}
-	text := core.NewMemo(cx, b.TextFunc)
-	// TODO(nsgo#145): give ui.Button a TextFunc twin, so a label that changes with the app's state, as 拷贝配置 turning to 已拷贝, does not build the button again, which takes the keyboard focus off it https://github.com/nsgo-dev/nsgo/issues/145
-	return core.Dynamic(func(*core.Scope) core.Node { return button(text.Get()) })
+func (b Button) Render(*core.Scope) core.Node {
+	return ui.Button{Text: b.Text, TextFunc: b.TextFunc, Label: b.Label, Variant: ui.ButtonSecondary, Size: ui.SizeSmall, Disabled: b.Disabled, OnPress: b.OnPress, TestID: b.TestID}
 }

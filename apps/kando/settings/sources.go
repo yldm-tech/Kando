@@ -44,22 +44,19 @@ func (s Sources) Render(cx *core.Scope) core.Node {
 	}))
 	shown := live.Func(a, func() bool { return sources.Get() != "" || a.TranslateSourceGone() != "" })
 	return core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
-		// The options are bound, so a plugin's source added or gone updates the drop-down in place and keeps its focus.
-		// TODO(nsgo#145): give ui.Select a LabelFunc twin for its name, so it follows the interface language without building the drop-down again, then drop this Dynamic, which reads only the language https://github.com/nsgo-dev/nsgo/issues/145
-		choose := core.Dynamic(func(cx *core.Scope) core.Node {
-			options := func() []ui.Option[string] {
-				options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateSourceAI(cx)}}
-				if all := sources.Get(); all != "" {
-					for _, item := range strings.Split(all, "\x01") {
-						value, name, _ := strings.Cut(item, "\x00")
-						options = append(options, ui.Option[string]{Value: value, Label: name})
-					}
+		// The options and the name are bound, so a plugin's source added or gone, or another language, updates the drop-down in place and keeps its focus.
+		options := func() []ui.Option[string] {
+			options := []ui.Option[string]{{Value: "", Label: locales.SettingsTranslateSourceAI(cx)}}
+			if all := sources.Get(); all != "" {
+				for _, item := range strings.Split(all, "\x01") {
+					value, name, _ := strings.Cut(item, "\x00")
+					options = append(options, ui.Option[string]{Value: value, Label: name})
 				}
-				return options
 			}
-			return ui.Select[string]{OptionsFunc: options, Label: locales.SettingsTranslateSource(cx), TestID: "settings-translate-source",
-				Value: live.Func(a, a.TranslateSource), OnChange: live.On(a, a.SetTranslateSource), Style: core.Style{Width: core.Pt(180)}}
-		})
+			return options
+		}
+		choose := ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SettingsTranslateSource(cx) }, TestID: "settings-translate-source",
+			Value: live.Func(a, a.TranslateSource), OnChange: live.On(a, a.SetTranslateSource), Style: core.Style{Width: core.Pt(180)}}
 		subtitle := live.Func(a, func() string {
 			if gone := a.TranslateSourceGone(); gone != "" {
 				return locales.SettingsTranslateSourceGone(cx, gone)

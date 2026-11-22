@@ -207,32 +207,31 @@ func (d trashDialog) Render(cx *core.Scope) core.Node {
 	cancel := live.Do(a, a.CloseTrashSpeechModel)
 	return core.Show{When: live.Func(a, func() bool { open, _ := a.TrashingSpeechModel(); return open }), Then: func(cx *core.Scope) core.Node {
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
-		// The dialog's words are set as it is built, so it is built again for another model.
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			id := model.Get()
-			info, _ := media.SpeechModelByID(id)
-			// TODO(nsgo#145): give ui.Dialog TitleFunc and DescriptionFunc twins so the words follow the model asked about without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Dialog{
-				TestID:                 "settings-trash-confirm",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  locales.SettingsSpeechTrashConfirm(cx, SpeechModelName(cx, id)),
-				Description:            locales.SettingsSpeechTrashMessage(cx, info.SizeLabel),
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.SettingsSpeechCancel(cx), Variant: ui.ButtonSecondary, TestID: "settings-trash-cancel", OnPress: cancel},
-					ui.Button{Text: locales.SettingsSpeechTrashButton(cx), Color: colors.Danger, TestID: "settings-trash-ok", OnPress: live.Do(a, func() {
-						a.CloseTrashSpeechModel()
-						a.TrashSpeechModel(id)
-					})},
-				},
-			}
-		})
+		// The words follow the model asked about and the language through their bindings.
+		return ui.Dialog{
+			TestID:                 "settings-trash-confirm",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              func() string { return locales.SettingsSpeechTrashConfirm(cx, SpeechModelName(cx, model.Get())) },
+			DescriptionFunc: func() string {
+				info, _ := media.SpeechModelByID(model.Get())
+				return locales.SettingsSpeechTrashMessage(cx, info.SizeLabel)
+			},
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.SettingsSpeechCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "settings-trash-cancel", OnPress: cancel},
+				ui.Button{TextFunc: func() string { return locales.SettingsSpeechTrashButton(cx) }, Color: colors.Danger, TestID: "settings-trash-ok", OnPress: live.Do(a, func() {
+					id := model.Get()
+					a.CloseTrashSpeechModel()
+					a.TrashSpeechModel(id)
+				})},
+			},
+		}
 	}}
 }
 

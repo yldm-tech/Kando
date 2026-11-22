@@ -35,7 +35,7 @@ func startPluginRow(t *testing.T, state interface{ Attach(*core.Scope) }, node c
 	return app, root
 }
 
-// TestSourcesDropDownKeepsItsFocus checks that the 翻译来源 drop-down is not built again as the plugins' sources change: a source added and one gone update it in place, it keeps the keyboard focus, and its open list offers the AI service and the sources as they are.
+// TestSourcesDropDownKeepsItsFocus checks that the 翻译来源 drop-down is not built again as the plugins' sources change: a source added and one gone update it in place, it keeps the keyboard focus, and its open list offers the AI service and the sources as they are; another interface language renames it and its options in place too.
 func TestSourcesDropDownKeepsItsFocus(t *testing.T) {
 	a := &fakeSources{sources: []TranslateSource{{Value: "plugin:a:deepl", Name: "DeepL"}}}
 	app, root := startPluginRow(t, a, Sources{App: a})
@@ -66,7 +66,7 @@ func TestSourcesDropDownKeepsItsFocus(t *testing.T) {
 	if a.chosen != "plugin:b:local" {
 		t.Fatalf("chose %q", a.chosen)
 	}
-	// ui.Select's Label is read once, so the Dynamic around it (TODO(nsgo#145)) is what makes its spoken name follow a switch of the interface language; the options follow it through their binding.
+	// The drop-down's spoken name (LabelFunc) and its options follow a switch of the interface language through their bindings.
 	root.SetLocale("en")
 	app.Settle()
 	en := locales.In("en")
@@ -76,6 +76,9 @@ func TestSourcesDropDownKeepsItsFocus(t *testing.T) {
 	}
 	if got.Props.Label != en.SettingsTranslateSource() {
 		t.Fatalf("in English the drop-down is named %q, want %q", got.Props.Label, en.SettingsTranslateSource())
+	}
+	if got.ID != pick.ID {
+		t.Fatalf("the drop-down was built again for another language: view %d, was %d", got.ID, pick.ID)
 	}
 	app.Press("id:settings-translate-source")
 	if !app.Exists("role:option " + en.SettingsTranslateSourceAI()) {

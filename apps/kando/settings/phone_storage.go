@@ -218,22 +218,28 @@ func moveRow(cx *core.Scope, a App) core.Node {
 		return PhoneStore{}
 	}
 	busy := live.Func(a, func() bool { return storage().Moving })
-	// TODO(nsgo#145): give ui.Select LabelFunc twins for its options' labels, so the storages' names follow the list without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-	choose := core.Dynamic(func(cx *core.Scope) core.Node {
+	options := func() []ui.Option[string] {
 		list := targets.Get()
-		if len(list) == 0 {
-			return core.Text{TestID: "settings-phone-storage-no-target", Content: locales.SettingsPhoneStorageNoTarget(cx), Style: core.Style{FontSize: 12, LineHeight: 17, MaxWidth: core.Pt(220)}, StyleFunc: ui.Colored(colors.Muted)}
-		}
 		options := make([]ui.Option[string], len(list))
 		for i, s := range list {
 			options[i] = ui.Option[string]{Value: s.Kind, Label: s.Name}
 		}
-		return core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
-			ui.Select[string]{Options: options, Label: locales.SettingsPhoneStorageMoveTo(cx), TestID: "settings-phone-storage-move-to",
-				Value: func() string { return target().Kind }, OnChange: func(kind string) { picked.Set(kind) }, Style: core.Style{Width: core.Pt(130)}},
-			ui.Button{Text: locales.SettingsPhoneStorageMoveButton(cx), Size: ui.SizeSmall, TestID: "settings-phone-storage-move", Disabled: busy, OnPress: func() { asking.Set(true) }},
-		}}
-	})
+		return options
+	}
+	// The drop-down follows the storages offered in place, keeping its focus; it gives way to a note while none is.
+	choose := core.Show{
+		When: func() bool { return len(targets.Get()) > 0 },
+		Then: func(cx *core.Scope) core.Node {
+			return core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{
+				ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SettingsPhoneStorageMoveTo(cx) }, TestID: "settings-phone-storage-move-to",
+					Value: func() string { return target().Kind }, OnChange: func(kind string) { picked.Set(kind) }, Style: core.Style{Width: core.Pt(130)}},
+				ui.Button{TextFunc: func() string { return locales.SettingsPhoneStorageMoveButton(cx) }, Size: ui.SizeSmall, TestID: "settings-phone-storage-move", Disabled: busy, OnPress: func() { asking.Set(true) }},
+			}}
+		},
+		Else: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "settings-phone-storage-no-target", ContentFunc: func() string { return locales.SettingsPhoneStorageNoTarget(cx) }, Style: core.Style{FontSize: 12, LineHeight: 17, MaxWidth: core.Pt(220)}, StyleFunc: ui.Colored(colors.Muted)}
+		},
+	}
 	row := form.Row{Title: locales.SettingsPhoneStorageMove(cx), Subtitle: locales.SettingsPhoneStorageMoveHint(cx), NoGroup: true, Trailing: []core.Node{choose}}
 	ask := core.Show{When: func() bool { return asking.Get() && target().Kind != "" }, Then: func(cx *core.Scope) core.Node {
 		k := theme.Of(cx)
@@ -278,8 +284,7 @@ func moveRow(cx *core.Scope, a App) core.Node {
 				return core.Style{Color: colors.Muted()}
 			})}}
 		children = append(children, core.Show{When: busy, Then: func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): ui.Progress.Label is a string only, so the bar's spoken name keeps the language it was built in; pass a LabelFunc once Progress has one https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Progress{TestID: "settings-phone-storage-move-progress", Label: locales.SettingsPhoneStorageMove(cx), Value: live.Func(a, func() float32 {
+			return ui.Progress{TestID: "settings-phone-storage-move-progress", LabelFunc: func() string { return locales.SettingsPhoneStorageMove(cx) }, Value: live.Func(a, func() float32 {
 				st := storage()
 				if st.Total <= 0 {
 					return 0

@@ -27,24 +27,25 @@ type translate struct {
 // Render implements core.Node.
 func (p translate) Render(cx *core.Scope) core.Node {
 	a := p.s.a
-	// choices is the target languages offered, joined, so the drop-down is built again only when a language typed into an older version leaves the list.
+	// choices is the target languages offered, joined, so the options are read again only when a language typed into an older version leaves the list; the drop-down follows them in place.
 	choices := core.NewMemo(cx, live.Func(a, func() string { return strings.Join(LanguageChoices(*a.Language()), "\n") }))
-	target := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+	options := func() []ui.Option[string] {
 		values := strings.Split(choices.Get(), "\n")
 		options := make([]ui.Option[string], len(values))
 		for i, value := range values {
-			options[i] = ui.Option[string]{Value: value, Label: LanguageName(cx, value)}
+			options[i] = ui.Option[string]{Value: value, LabelFunc: func() string { return LanguageName(cx, value) }}
 		}
-		return ui.Select[string]{Options: options, Label: locales.SettingsTranslateTarget(cx), TestID: "settings-translate-language",
-			Searchable: true, SearchPlaceholder: locales.SettingsLanguagesSearch(cx),
-			Value: live.Func(a, func() string { return *a.Language() }),
-			OnChange: live.On(a, func(value string) {
-				*a.Language() = value
-				a.Save()
-			}),
-			Style: core.Style{Width: core.Pt(160)}}
-	})
+		return options
+	}
+	// TODO(nsgo): give ui.Select a SearchPlaceholderFunc twin, so the search field's placeholder follows the interface language as the name and the options do; it is read once here and follows the language only because the window is built again for another (Window)
+	target := ui.Select[string]{OptionsFunc: options, LabelFunc: func() string { return locales.SettingsTranslateTarget(cx) }, TestID: "settings-translate-language",
+		Searchable: true, SearchPlaceholder: locales.SettingsLanguagesSearch(cx),
+		Value: live.Func(a, func() string { return *a.Language() }),
+		OnChange: live.On(a, func(value string) {
+			*a.Language() = value
+			a.Save()
+		}),
+		Style: core.Style{Width: core.Pt(160)}}
 	context := form.SwitchRow{Title: locales.SettingsTranslateContext(cx), Subtitle: locales.SettingsTranslateContextHint(cx), TestID: "settings-translate-context",
 		On: live.Func(a, func() bool { return *a.TranslateContext() }),
 		OnChange: live.On(a, func(on bool) {
