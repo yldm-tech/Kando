@@ -24,6 +24,11 @@ android:
   permissions: [CAMERA, POST_NOTIFICATIONS]
   target_sdk: 35
 
+# Kando's own modules of go.work, which nsgo build checks as third-party dependencies when it collects the license notices; core passes only because it embeds a third-party license file (the segmenter's dictionary).
+# TODO(nsgo#1814): nsgo build counts a go.work module (Module.Main) as a third-party dependency, so one with no recognized license file stops the build; drop this list once it counts them as the app's own https://github.com/nsgo-dev/nsgo/issues/1814
+licenses:
+  allow: [kando/packages/study, kando/packages/sync]
+
 # The widgets of iPhones and iPads (package widgets, yldm-tech/Kando#225): the streak with what is due for review, on the Home Screen and as a ring on the Lock Screen, and the film to go on with. Android has none of NSGo's yet (nsgo#657).
 # TODO(nsgo#744): a kind's name and description, which the system's gallery of widgets shows, are one string each (cmd/nsgo/widgets.go:108-118, Kinds.swift's Text(verbatim:)), so they are in English whatever the phone's language; say them in the catalog's languages once nsgo.yaml can take them from the app's locales https://github.com/nsgo-dev/nsgo/issues/744
 widgets:
