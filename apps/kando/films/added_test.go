@@ -27,7 +27,7 @@ func TestAddedVideosAreListedWhereTheyWereAdded(t *testing.T) {
 		{ID: "held", Stage: core.StageComplete, LibraryDir: root, CompletedAt: noon.Add(-time.Hour), VideoPath: held, Source: core.FileURL(held)},
 		{ID: "done-early", Stage: core.StageComplete, LibraryDir: root, VideoPath: filepath.Join(root, "y", "video.mp4")},
 	}
-	videos := AddedVideos(jobs, nil, map[string]time.Time{newer: noon.Add(time.Hour), older: noon.Add(-90 * time.Minute), held: noon})
+	videos := AddedVideos(root, jobs, nil, map[string]time.Time{newer: noon.Add(time.Hour), older: noon.Add(-90 * time.Minute), held: noon})
 	videos = append(videos, media.Video{Path: filepath.Join(root, "found.mp4"), Name: "found.mp4"})
 	name := func(core.Job) string { return "" }
 	items := List(root, jobs, videos, nil, name, name)
@@ -50,5 +50,24 @@ func TestAddedVideosAreListedWhereTheyWereAdded(t *testing.T) {
 	reversed := Sorted(items, Order{By: SortAdded, Reversed: true}, "en", nil, nil)
 	if reversed[len(reversed)-1].Key != filepath.Join(root, "found.mp4") || reversed[0].Key != "done-early" {
 		t.Fatalf("reversed %v", reversed)
+	}
+}
+
+// A video added to one library stays on its shelf when another library has a job for the same video: that job is listed on the other library's shelf, so hiding the entry here would leave the video on neither shelf of this library.
+func TestAddedVideoIsNotHiddenByAnotherLibrarysJob(t *testing.T) {
+	root, other, outside := filepath.Join(t.TempDir(), "a.kando"), filepath.Join(t.TempDir(), "b.kando"), t.TempDir()
+	video := filepath.Join(outside, "talk.mp4")
+	jobs := []core.Job{{ID: "other", Stage: core.StageComplete, LibraryDir: other, VideoPath: video, Source: core.FileURL(video)}}
+	added := map[string]time.Time{video: time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)}
+	name := func(core.Job) string { return "" }
+
+	items := List(root, jobs, AddedVideos(root, jobs, nil, added), nil, name, name)
+	if len(items) != 1 || items[0].Key != video || items[0].JobID != "" {
+		t.Fatalf("library a lists %+v, want the added video alone", items)
+	}
+	// The library the job was started in lists the job, once.
+	items = List(other, jobs, AddedVideos(other, jobs, nil, added), nil, name, name)
+	if len(items) != 1 || items[0].JobID != "other" {
+		t.Fatalf("library b lists %+v, want its job alone", items)
 	}
 }

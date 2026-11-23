@@ -138,17 +138,17 @@ func Videos(root string, jobs []core.Job, moved []string, added map[string]time.
 	if err != nil {
 		return nil, err
 	}
-	return AddedVideos(jobs, MovedVideos(root, jobs, videos, moved), added), nil
+	return AddedVideos(root, jobs, MovedVideos(root, jobs, videos, moved), added), nil
 }
 
-// AddedVideos is videos and then the videos of added, those added to the library without a job, by path with when each was added (shelf.Library.Added), that neither a job nor videos holds, the newest first. Each shows the bilingual subtitles beside it, as a video of the folder does, and is named after its file, or after its folder for a video.<ext>. One whose file is not there now is listed all the same, as its drive may be taken out; the shelf marks it (Film.Missing).
-func AddedVideos(jobs []core.Job, videos []media.Video, added map[string]time.Time) []media.Video {
+// AddedVideos is videos and then the videos of added, those added to the library at root without a job, by path with when each was added (shelf.Library.Added), that neither a job of that library (InLibrary) nor videos holds, the newest first. A job of another library for the same video does not hide it, as that job is on the other library's shelf, not this one. Each shows the bilingual subtitles beside it, as a video of the folder does, and is named after its file, or after its folder for a video.<ext>. One whose file is not there now is listed all the same, as its drive may be taken out; the shelf marks it (Film.Missing).
+func AddedVideos(root string, jobs []core.Job, videos []media.Video, added map[string]time.Time) []media.Video {
 	if len(added) == 0 {
 		return videos
 	}
 	held := map[string]bool{}
 	for _, job := range jobs {
-		if job.VideoPath != "" {
+		if job.VideoPath != "" && InLibrary(root, job) {
 			held[filepath.Clean(job.VideoPath)] = true
 		}
 	}
