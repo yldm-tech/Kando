@@ -186,7 +186,7 @@ if (host.params.panel === "big") mount(Big)
 // testPanelWatch is a panel's watchdog on the scale of a test: windows of 300 ms.
 var testPanelWatch = PanelWatch{Window: 300 * time.Millisecond, Share: 0.6, Windows: 3, Probe: 300 * time.Millisecond, Idle: 0.3, Retries: 3}
 
-// showPanel shows the panel i of watchFixture on an engine of its own, under a runner with watch and a heap threshold of heap, and returns the engine and what the runner reports it stopped the plugin for. The panel failing fails the test.
+// showPanel shows the panel i of watchFixture on an engine of its own, under a runner with watch, a heap threshold of heap and no background watchdog, and returns the engine and what the runner reports it stopped the plugin for. The panel failing fails the test.
 func showPanel(t *testing.T, i int, heap uint64, watch PanelWatch) (*engine, <-chan string) {
 	t.Helper()
 	return showPanelFailing(t, i, heap, watch, func(err error) { t.Errorf("the panel failed: %v", err) })
@@ -206,6 +206,8 @@ func showPanelFailing(t *testing.T, i int, heap uint64, watch PanelWatch, failed
 	stopped := make(chan string, 1)
 	w := DefaultWatch
 	w.Heap = heap
+	// The panel's own watchdog is what these tests are about. The background one counts a view's JS too (background.go) and, with DefaultWatch, stops a plugin that keeps the engine busy all the time in about 5 s, as a panel making its strings does under the race detector, before the heap check this panel waits for; TestScriptBackgroundSparesACallBehindAPanel tests it on a panel.
+	w.BgBeat = 0
 	r := &Runner{Post: e.post, Watch: w, PanelWatch: watch, Stopped: func(_, _, reason string) { stopped <- reason }}
 	e.do(func() {
 		pl, err := Load(e.root, v, plugins.Grant{}, core.NewHost())
