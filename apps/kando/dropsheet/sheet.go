@@ -63,72 +63,64 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 		}
 	}
 	return core.Show{When: s.Open, Then: func(cx *core.Scope) core.Node {
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			l := look.Get()
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the drop and the language without building the sheet again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			title := locales.DropTitleSeveral(cx)
-			if l.Folder != "" {
-				title = locales.DropTitle(cx, l.Folder)
-			}
-			children := []core.Node{s.summary(cx, l), s.choice(cx)}
-			if l.Categories && s.Category != nil {
-				children = append(children, ui.Checkbox{Text: locales.DropCategory(cx, l.Folder), TestID: "drop-category", Checked: s.Category, OnChange: s.OnCategory})
-			}
-			if l.Disguised > 0 {
-				children = append(children, disguised(cx, l))
-			}
-			return ui.Dialog{
-				TestID:                 "drop-sheet",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  title,
-				Children:               children,
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.DropCancel(cx), Variant: ui.ButtonSecondary, TestID: "drop-cancel", OnPress: cancel},
-					s.addButton(cx, l),
-				},
-			}
-		})
+		return ui.Dialog{
+			TestID:                 "drop-sheet",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc: func() string {
+				if folder := look.Get().Folder; folder != "" {
+					return locales.DropTitle(cx, folder)
+				}
+				return locales.DropTitleSeveral(cx)
+			},
+			Children: []core.Node{
+				summary(cx, look.Get),
+				s.choice(),
+				core.Show{When: func() bool { return look.Get().Categories && s.Category != nil }, Then: func(cx *core.Scope) core.Node {
+					return ui.Checkbox{TextFunc: func() string { return locales.DropCategory(cx, look.Get().Folder) }, TestID: "drop-category", Checked: s.Category, OnChange: s.OnCategory}
+				}},
+				core.Show{When: func() bool { return look.Get().Disguised > 0 }, Then: func(cx *core.Scope) core.Node { return disguised(cx, look.Get) }},
+			},
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				ui.Button{TextFunc: func() string { return locales.DropCancel(cx) }, Variant: ui.ButtonSecondary, TestID: "drop-cancel", OnPress: cancel},
+				s.addButton(cx, look.Get),
+			},
+		}
 	}}
 }
 
-// addButton is Add, which says how many films it adds, or makes the subtitles of, as the choice changes, dimmed when that is none.
-func (s Sheet) addButton(cx *core.Scope, l Look) core.Node {
-	n := core.NewMemo(cx, func() int { return l.Adds(s.Generate()) })
-	// TODO(nsgo#145): give ui.Button a TextFunc twin, so its label follows the number without building the button again https://github.com/nsgo-dev/nsgo/issues/145
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		count := n.Get()
-		return ui.Button{Text: locales.DropAdd(cx, count), TestID: "drop-add", OnPress: s.OnAdd, Disabled: func() bool { return count == 0 }}
-	})
+// addButton is Add, which says how many films it adds, or makes the subtitles of, as the choice and the drop change, dimmed when that is none.
+func (s Sheet) addButton(cx *core.Scope, look func() Look) core.Node {
+	n := core.NewMemo(cx, func() int { return look().Adds(s.Generate()) })
+	return ui.Button{TextFunc: func() string { return locales.DropAdd(cx, n.Get()) }, TestID: "drop-add", OnPress: s.OnAdd, Disabled: func() bool { return n.Get() == 0 }}
 }
 
 // summary is what the sheet says under its title: how many films were found and the room they take, that those past the limit were left out, how many of them the library has, and how many files were not videos.
-func (s Sheet) summary(cx *core.Scope, l Look) core.Node {
+func summary(cx *core.Scope, look func() Look) core.Node {
 	colors := ui.ColorsOf(cx)
-	line := func(text, id string) core.Node {
-		return core.Text{Content: text, TestID: id, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
+	line := func(id string, text func() string) core.Node {
+		return core.Text{ContentFunc: text, TestID: id, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)}
 	}
-	lines := []core.Node{line(locales.DropFound(cx, l.Videos, byteSize(l.Size)), "drop-found")}
-	if l.Cut {
-		lines = append(lines, line(locales.DropCut(cx, l.Videos), "drop-cut"))
+	// A line shown while when is true.
+	shown := func(when func() bool, id string, text func() string) core.Node {
+		return core.Show{When: when, Then: func(*core.Scope) core.Node { return line(id, text) }}
 	}
-	if have := l.have(); have > 0 {
-		lines = append(lines, line(locales.DropHave(cx, have), "drop-have"))
-	}
-	if l.Skipped > 0 {
-		lines = append(lines, line(locales.DropSkipped(cx, l.Skipped), "drop-skipped"))
-	}
-	return core.View{Style: core.Style{Gap: 4}, Children: lines}
+	return core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
+		line("drop-found", func() string { l := look(); return locales.DropFound(cx, l.Videos, byteSize(l.Size)) }),
+		shown(func() bool { return look().Cut }, "drop-cut", func() string { return locales.DropCut(cx, look().Videos) }),
+		shown(func() bool { return look().have() > 0 }, "drop-have", func() string { return locales.DropHave(cx, look().have()) }),
+		shown(func() bool { return look().Skipped > 0 }, "drop-skipped", func() string { return locales.DropSkipped(cx, look().Skipped) }),
+	}}
 }
 
 // choice is how the films are added: only into the library, which it starts at, or all into the queue.
-func (s Sheet) choice(cx *core.Scope) core.Node {
+func (s Sheet) choice() core.Node {
 	set := func(on bool) func(bool) {
 		return func(checked bool) {
 			if checked && s.OnGenerate != nil {
@@ -136,6 +128,14 @@ func (s Sheet) choice(cx *core.Scope) core.Node {
 			}
 		}
 	}
+	// TODO(nsgo#2237): ui.Radio and ui.RadioGroup take their words and accessible names as strings only, so the group is built again as the language changes; pass TextFunc, LabelFunc and HintFunc and drop this Dynamic once they have them https://github.com/nsgo-dev/nsgo/issues/2237
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		return s.choiceGroup(cx, set)
+	})
+}
+
+// choiceGroup is choice's radio group in the language the app shows now, set(on) choosing whether Add queues the films.
+func (s Sheet) choiceGroup(cx *core.Scope, set func(on bool) func(bool)) core.Node {
 	colors := ui.ColorsOf(cx)
 	// A choice's title over its hint, which wraps within the sheet.
 	hint := func(title, text string) []core.Node {
@@ -153,13 +153,16 @@ func (s Sheet) choice(cx *core.Scope) core.Node {
 }
 
 // disguised is the warning that names the programs found named as videos are, at most the first two, which are not added and are best left unopened.
-func disguised(cx *core.Scope, l Look) core.Node {
+func disguised(cx *core.Scope, look func() Look) core.Node {
 	colors := ui.ColorsOf(cx)
-	text := locales.DropDisguised(cx, l.Disguised, l.Named[0])
-	if l.Disguised > 1 && l.Named[1] != "" {
-		text = locales.DropDisguisedMany(cx, l.Disguised, l.Named[0], l.Named[1])
+	text := func() string {
+		l := look()
+		if l.Disguised > 1 && l.Named[1] != "" {
+			return locales.DropDisguisedMany(cx, l.Disguised, l.Named[0], l.Named[1])
+		}
+		return locales.DropDisguised(cx, l.Disguised, l.Named[0])
 	}
-	return core.Text{Content: text, TestID: "drop-disguised", Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Danger)}
+	return core.Text{ContentFunc: text, TestID: "drop-disguised", Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Danger)}
 }
 
 // byteSize writes n bytes as the size a person reads, in MB or GB, as Settings › 隐私 writes what it freed.

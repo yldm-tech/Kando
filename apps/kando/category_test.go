@@ -9,6 +9,7 @@ import (
 
 	"kando/apps/kando/category"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -217,4 +218,48 @@ func TestCategoriesFollowGatheredVideos(t *testing.T) {
 	if a.cats.filter != category.All || len(a.Categories()) != 0 {
 		t.Fatalf("another library: filter %q, categories %+v", a.cats.filter, a.Categories())
 	}
+}
+
+// TestCategoryDialogsFollowTheLanguageInPlace switches the language while each of the category dialogs is open: the naming one keeps the field the user types in, focused and holding the text, and its buttons, as the same views, and the deleting one's title, message and buttons say the new language's words, its buttons not built again.
+func TestCategoryDialogsFollowTheLanguageInPlace(t *testing.T) {
+	a, tt, _, episode := categoryLibrary(t)
+	en := locales.In("en")
+
+	apply(tt, a, func() { a.AskNewCategory(episode) })
+	tt.Type("id:category-name-field", "动漫")
+	field, save := tt.Find("id:category-name-field"), tt.Find("id:category-name-save")
+	a.cx.SetLocale("en")
+	refresh(tt, a)
+	if got := tt.Find("id:category-name-field"); got.ID != field.ID || !got.Focused || got.Text != "动漫" || got.Props.Label != en.CategoryNameField() {
+		t.Fatalf("in English the field is view %d (was %d), focused %v, holds %q, named %q", got.ID, field.ID, got.Focused, got.Text, got.Props.Label)
+	}
+	if got := tt.Find("id:category-name-save"); got.ID != save.ID || !hasText(tt, en.CategoryCreate()) {
+		t.Fatalf("in English 创建 is view %d (was %d), the dialog says %q", got.ID, save.ID, tt.Texts())
+	}
+	apply(tt, a, a.SubmitCategoryName)
+	var anime string
+	for _, c := range a.Categories() {
+		if c.Name == "动漫" {
+			anime = c.ID
+		}
+	}
+
+	a.cx.SetLocale("zh-Hans")
+	refresh(tt, a)
+	apply(tt, a, func() { a.AskDeleteCategory(anime) })
+	confirm, cancel := tt.Find("id:category-delete-confirm"), tt.Find("id:category-delete-cancel")
+	a.cx.SetLocale("en")
+	refresh(tt, a)
+	if got := tt.Find("id:category-delete-confirm"); got.ID != confirm.ID {
+		t.Errorf("in English the delete button is view %d, was %d: built again", got.ID, confirm.ID)
+	}
+	if got := tt.Find("id:category-delete-cancel"); got.ID != cancel.ID {
+		t.Errorf("in English the cancel button is view %d, was %d: built again", got.ID, cancel.ID)
+	}
+	for _, want := range []string{en.CategoryDeleteConfirm("动漫"), en.CategoryDeleteMessage(), en.CategoryDeleteButton(), en.CategoryCancel()} {
+		if !hasText(tt, want) {
+			t.Errorf("the delete dialog does not say %q in English: %q", want, tt.Texts())
+		}
+	}
+	apply(tt, a, a.CloseDeleteCategory)
 }

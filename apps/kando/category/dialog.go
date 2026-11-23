@@ -62,10 +62,9 @@ func (n nameBody) Render(cx *core.Scope) core.Node {
 		}
 		return ""
 	})
-	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once, as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	field := ui.Input{
 		TestID:          "category-name-field",
-		Label:           locales.CategoryNameField(cx),
+		LabelFunc:       func() string { return locales.CategoryNameField(cx) },
 		AutoFocus:       true,
 		Value:           live.Func(a, func() string { return a.CategoryNaming().Name }),
 		PlaceholderFunc: func() string { return locales.CategoryNamePlaceholder(cx) },
@@ -116,34 +115,30 @@ func (d deleteDialog) Render(cx *core.Scope) core.Node {
 	return core.Show{When: open, Then: func(cx *core.Scope) core.Node {
 		// Enter answers 取消, the default answer, wherever the keyboard focus is in the dialog; the binding goes when the dialog does.
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
-		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the category and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-			return ui.Dialog{
-				TestID:                 "category-delete",
-				Role:                   core.RoleAlertDialog,
-				NoCloseOnBackdropPress: true,
-				Open:                   func() bool { return true },
-				Title:                  locales.CategoryDeleteConfirm(cx, name()),
-				Description:            locales.CategoryDeleteMessage(cx),
-				OnOpenChange: func(open bool, _ base.Reason) {
-					if !open {
-						cancel()
-					}
-				},
-				Footer: []core.Node{
-					ui.Button{Text: locales.CategoryCancel(cx), Variant: ui.ButtonSecondary, TestID: "category-delete-cancel", OnPress: cancel},
-					ui.Button{Text: locales.CategoryDeleteButton(cx), Color: colors.Danger, TestID: "category-delete-confirm", OnPress: remove},
-				},
-			}
-		})
+		return ui.Dialog{
+			TestID:                 "category-delete",
+			Role:                   core.RoleAlertDialog,
+			NoCloseOnBackdropPress: true,
+			Open:                   func() bool { return true },
+			TitleFunc:              func() string { return locales.CategoryDeleteConfirm(cx, name()) },
+			DescriptionFunc:        func() string { return locales.CategoryDeleteMessage(cx) },
+			OnOpenChange: func(open bool, _ base.Reason) {
+				if !open {
+					cancel()
+				}
+			},
+			Footer: []core.Node{
+				textButton(locales.CategoryCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "category-delete-cancel", OnPress: cancel}),
+				textButton(locales.CategoryDeleteButton, ui.Button{Color: colors.Danger, TestID: "category-delete-confirm", OnPress: remove}),
+			},
+		}
 	}}
 }
 
-// textButton is b saying text in the language the app shows: ui.Button takes its text once, as it is built, so the button is built again when the language changes, and only then, as text reads nothing else.
+// textButton is b saying text in the language the app shows: text is read in the button's binding, so it follows the language without building the button again, which would take the keyboard focus off it.
 func textButton(text func(cx *core.Scope) string, b ui.Button) core.Node {
-	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		b.Text = text(cx)
+	return core.Func(func(cx *core.Scope) core.Node {
+		b.TextFunc = func() string { return text(cx) }
 		return b
 	})
 }

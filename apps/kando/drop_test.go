@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 
@@ -228,4 +229,33 @@ func TestAFolderReadAsAnotherLibraryOpensAddsNothing(t *testing.T) {
 	if a.drop.open || len(a.library.Added) != 0 || len(a.library.Jobs) != 0 {
 		t.Fatalf("sheet %v, added %v", a.drop.open, a.library.Added)
 	}
+}
+
+// TestTheDropSheetFollowsTheLanguageInPlace switches the language while the sheet is open: its title, its lines, the category it offers and its buttons say the new language's words, and the buttons, the lines and the checkbox are the same views as before, not built again, so the keyboard focus on them stays.
+func TestTheDropSheetFollowsTheLanguageInPlace(t *testing.T) {
+	a, tt, updates, show, _ := dropFixture(t, 25)
+	tt.DropFiles("id:main-column", fileURLs(show)...)
+	dropRead(t, tt, a, updates)
+	if !a.drop.open {
+		t.Fatal("25 videos dropped did not ask first")
+	}
+	ids := []string{"id:drop-add", "id:drop-cancel", "id:drop-found", "id:drop-category", "id:drop-disguised"}
+	before := map[string]*nsgotest.View{}
+	for _, id := range ids {
+		before[id] = tt.Find(id)
+	}
+	a.cx.SetLocale("en")
+	refresh(tt, a)
+	en := locales.In("en")
+	for _, id := range ids {
+		if got := tt.Find(id); got.ID != before[id].ID {
+			t.Errorf("%s is view %d after the switch, was %d: built again", id, got.ID, before[id].ID)
+		}
+	}
+	for _, want := range []string{en.DropTitle("动漫"), en.DropAdd(25), en.DropCancel(), en.DropFound(25, "1 MB"), en.DropCategory("动漫"), en.DropOnlyAdd(), en.DropGenerate()} {
+		if !hasText(tt, want) {
+			t.Errorf("the sheet does not say %q in English: %q", want, tt.Texts())
+		}
+	}
+	apply(tt, a, a.dropClose)
 }
