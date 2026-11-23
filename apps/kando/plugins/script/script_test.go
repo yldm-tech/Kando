@@ -861,8 +861,8 @@ func testOwnBgWatch() Watch {
 	return w
 }
 
-// bgHog is the code of a plugin whose timers keep the engine busy in pieces of 400 ms, each set going from the last by setTimeout(0), from as soon as hog runs: the entry module runs it when it ends in "hog()".
-const bgHog = `function hog() { setTimeout(function spin() { const t = Date.now(); while (Date.now() - t < 400) {} setTimeout(spin, 0) }, 0) }
+// bgHog is the code of a plugin whose timers keep the engine busy in pieces of 265 ms, each set going from the last by setTimeout(0), from as soon as hog runs: the entry module runs it when it ends in "hog()". The pieces are TestScriptWatchdogStopsASlicedLoop's, for its reasons: well under tsx's budget of half a second of wall time, which a loaded runner holding a piece past cuts, ending a call under way with ErrBudget rather than ErrStopped (pieces of 400 ms once ended TestScriptBackgroundCountsAPausedCall so on a macOS runner), and long enough that a heartbeat of TestScriptBackgroundSparesACallBehindAnotherPlugin's posted a Beat into one waits past its Stall.
+const bgHog = `function hog() { setTimeout(function spin() { const t = Date.now(); while (Date.now() - t < 265) {} setTimeout(spin, 0) }, 0) }
 `
 
 // stoppedPlugin is a plugin the runner stopped, and why.
@@ -946,7 +946,7 @@ func TestScriptBackgroundStopsAHogAfterItsCall(t *testing.T) {
 	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
 }
 
-// TestScriptBackgroundSparesACallBehindAnotherPlugin checks that a call whose heartbeats wait behind another plugin's JS in the background is not stopped for it: the wait other plugins' JS took is not the call's. The call succeeds, and the only plugin stopped is the one that kept the engine busy. The call watchdog is at TestScriptWatchdogStopsASlicedLoop's scale, where three heartbeats behind the hog's pieces of 400 ms would stop the call in about 1.2 s, and the hog's bucket holds 2 s, so it is stopped well after.
+// TestScriptBackgroundSparesACallBehindAnotherPlugin checks that a call whose heartbeats wait behind another plugin's JS in the background is not stopped for it: the wait other plugins' JS took is not the call's. The call succeeds, and the only plugin stopped is the one that kept the engine busy. The call watchdog is at TestScriptWatchdogStopsASlicedLoop's scale, where three heartbeats behind the hog's pieces of 265 ms would stop the call in about 0.8 s, and the hog's bucket holds 2 s, so it is stopped well after.
 func TestScriptBackgroundSparesACallBehindAnotherPlugin(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")
 	roots := s.roots()
