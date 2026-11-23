@@ -780,13 +780,21 @@ func TestALinkIsMadeFromItsSoundWhileItsVideoDownloads(t *testing.T) {
 	var reports []core.Job
 	var mu sync.Mutex
 	var release sync.Once
-	shownBefore := false
+	// playedBefore is whether the film was shown, with its sound to play, before its video came; a report naming no video and no sound with subtitles is shown with nothing to play.
+	playedBefore, bare := false, false
+	sound := filepath.Join(dir, ".video.sound.m4a")
 	done := Make(context.Background(), f, job, "简体中文", "mac", nil, func(j core.Job) {
 		mu.Lock()
 		defer mu.Unlock()
 		reports = append(reports, j)
-		// Every cell made and its video still to come, the film is not shown yet; then the video comes.
-		shownBefore = shownBefore || j.VideoPath == "" && j.SubtitlePath != ""
+		// Every cell made and its video still to come, the film is shown with its sound; then the video comes.
+		if j.VideoPath == "" && j.SubtitlePath != "" {
+			playedBefore = playedBefore || j.SoundPath == sound
+			bare = bare || j.SoundPath == ""
+		}
+		if j.VideoPath != "" && j.SoundPath != "" {
+			t.Errorf("a report names the video %q and the sound %q", j.VideoPath, j.SoundPath)
+		}
 		if j.Stage == core.StageDownloading && len(reports) > 2 {
 			release.Do(func() { close(f.videoGate) })
 		}
@@ -803,16 +811,19 @@ func TestALinkIsMadeFromItsSoundWhileItsVideoDownloads(t *testing.T) {
 		t.Fatalf("stages = %v, want %v", stages, want)
 	}
 	video := filepath.Join(dir, "video.mp4")
-	if done.VideoPath != video || done.SubtitlePath != filepath.Join(dir, "video.bilingual.srt") || shownBefore {
-		t.Fatalf("job shows %q with %q (shown before its video: %v)", done.VideoPath, done.SubtitlePath, shownBefore)
+	if done.VideoPath != video || done.SubtitlePath != filepath.Join(dir, "video.bilingual.srt") || done.SoundPath != "" || !playedBefore || bare {
+		t.Fatalf("job shows %q with %q, sound %q (shown with its sound before its video: %v, with nothing: %v)", done.VideoPath, done.SubtitlePath, done.SoundPath, playedBefore, bare)
+	}
+	if got := SoundVideo(sound); got != filepath.Join(dir, "video.m4a") {
+		t.Fatalf("the film goes by %q while its sound plays", got)
 	}
 	// The sound is heard from hidden, so the library does not take it for a video, and goes once the video is there.
 	for _, from := range f.heardFrom {
-		if from != ".video.sound" {
+		if from != ".video.sound.m4a" {
 			t.Fatalf("heard from %v, want the sound alone, hidden", f.heardFrom)
 		}
 	}
-	for _, name := range []string{"video.m4a", ".video.sound"} {
+	for _, name := range []string{"video.m4a", ".video.sound.m4a"} {
 		if _, err := os.Stat(filepath.Join(dir, name)); !os.IsNotExist(err) {
 			t.Fatalf("%s is left beside the video: %v", name, err)
 		}

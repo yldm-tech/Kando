@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -213,5 +214,34 @@ func TestFilmMoveCopyStopped(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(film, "video.mp4")); err != nil {
 		t.Fatalf("a failed copy took the source: %v", err)
+	}
+}
+
+// The sound a link's subtitles are made from goes with its film: named after the sound's extension, whatever the video's is, or without one as an older version named it; another film's beside it does not.
+func TestCompanionsHoldTheSoundOfTheFilm(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Talk [x].mp4")
+	for _, name := range []string{"Talk [x].mp4", ".Talk [x].sound.m4a", ".Talk [x].sound", ".Talk [x].sound.m4a.part.x", ".Talk [y].sound.m4a"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("s"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var sounds []string
+	for _, path := range Companions(video) {
+		if strings.Contains(filepath.Base(path), ".sound") {
+			sounds = append(sounds, filepath.Base(path))
+		}
+	}
+	slices.Sort(sounds)
+	if want := []string{".Talk [x].sound", ".Talk [x].sound.m4a"}; !slices.Equal(sounds, want) {
+		t.Fatalf("sounds %q, want %q", sounds, want)
+	}
+	if got := SoundVideo(filepath.Join(dir, ".Talk [x].sound.m4a")); got != filepath.Join(dir, "Talk [x].m4a") {
+		t.Fatalf("the film goes by %q", got)
+	}
+	for _, name := range []string{".Talk [x].sound", "Talk [x].m4a", ".sound.m4a"} {
+		if got := SoundVideo(filepath.Join(dir, name)); got != "" {
+			t.Fatalf("%s goes by %q, want none", name, got)
+		}
 	}
 }

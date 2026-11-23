@@ -42,6 +42,9 @@ const (
 	ErrStoredUnplayable  = "stored-unplayable"
 )
 
+// ErrVideoMissing is PlayErr's ID for a film whose video is not on disk now: kept outside the library where it was picked and moved, renamed or deleted in Finder since, or on a drive that is not connected. The page says so and offers nothing to open, as there is no file to show; the film's lines can still be studied.
+const ErrVideoMissing = "video-missing"
+
 // GStreamerInstall is the command that installs GTK 4's GStreamer media backend and the GStreamer plug-ins that play the videos Kando downloads, on Debian and Ubuntu, as the README gives it.
 const GStreamerInstall = "sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav"
 

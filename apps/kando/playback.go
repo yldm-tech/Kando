@@ -24,6 +24,8 @@ type filmPlay struct {
 	path   string
 	source string
 	stream bool
+	// standIn is the sound of a link whose video has not come, which source plays, or a copy of it, until the video does (playerStandIn); path then names no file.
+	standIn string
 	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored); storedURL is the proxy's address of it, which the copy the system's player can open is made from (playerRemux), revoked once the page moves on from the video (dropPlayback).
 	stored    bool
 	storedURL string
@@ -107,7 +109,15 @@ func (a *app) startPlayback(path string) {
 		}
 	}
 	a.playerNowPlayingClear()
+	// A link whose video has not come plays its sound (playback_coming.go).
+	if !opens && a.playerStandIn(path, at, jump) {
+		return
+	}
 	if !opens && a.playerStored(path, at, jump) {
+		return
+	}
+	if !opens && a.playerMissing(path) {
+		a.player.playErr = playerErrVideoMissing
 		return
 	}
 	if !opens {
@@ -116,6 +126,12 @@ func (a *app) startPlayback(path string) {
 		return
 	}
 	a.playerOpen(path, path, at, jump)
+}
+
+// playerMissing reports whether path is the video of the open film and that film should have it on disk: a done film, or a video no job processed, that keeps its video (not core.Job.SubtitlesOnly). Its file is not there, so the page says it cannot be found (playerErrVideoMissing) rather than show nothing. A film still being made has no video yet, and one moved to a storage location is opened from there (playerStored).
+func (a *app) playerMissing(path string) bool {
+	item, ok := a.openFilm()
+	return ok && path != "" && item.VideoPath == path && !item.SubtitlesOnly && (item.JobID == "" || item.Stage.Done())
 }
 
 // playerOpen opens source in the system's player as the open film's video at path, held at at, or playing from there when jump (startPlayback), and returns it.
@@ -258,8 +274,11 @@ func (a *app) playerFailed(err error) {
 func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	ffmpeg := a.ffmpegPath()
 	src := p.path
-	if p.stored {
+	switch {
+	case p.stored:
 		src = p.storedURL
+	case p.standIn != "":
+		src = p.standIn
 	}
 	if ffmpeg == "" || a.update == nil || src == "" {
 		return false
@@ -333,6 +352,9 @@ func (a *app) playerRemuxPath(dir string, p *filmPlay, step film.RemuxStep) (str
 	if s, ok := a.storedOf(p.path); ok && p.stored {
 		id := strings.Join([]string{s.Location, s.Path, strconv.FormatInt(s.Size, 10), strconv.FormatInt(s.Moved.UnixNano(), 10)}, "\x00")
 		return film.RemuxPathOf(dir, id, step), nil
+	}
+	if p.standIn != "" {
+		return film.RemuxPath(dir, p.standIn, step)
 	}
 	return film.RemuxPath(dir, p.path, step)
 }

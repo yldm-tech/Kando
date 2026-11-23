@@ -21,7 +21,7 @@ const (
 	ExportParam = "export"
 )
 
-// PanelWatch is when the watchdog of a panel's view stops it. A view stays open for as long as the user keeps it, its JS running in pieces on the engine's goroutine between the window's own work. The watchdog reads, in each window of Window, how long the view's own JS ran (tsx.ViewRuntime.JSTime), and what the engine as a whole does: heartbeats posted through the window and whether each waited, which says how busy the engine was (share), and the Go heap. When the view's own JS took more than Share of each of Windows windows in a row, the load is the view's, and the watchdog interrupts it at once (tsx.ViewRuntime.Interrupt), which cuts the piece running and drops its timers, and stops the plugin as slow. The engine's load and the heap are not the view's alone, so they only make it suspect the view: when the engine was busy more than Share of each of Windows windows in a row while the view's JS was not, or the live heap grew by more than Runner.Watch.Heap since the view was built, it takes the view down for Probe, which stops its timers and lets what it holds go, and stops the plugin only when that took the load away: the engine busy less than Idle of the probe, or the live heap back under the threshold. Otherwise the load was the app's, or another plugin's, and the view is built again with the counts started afresh; a view suspected Retries times in a row in vain is left alone, but for its own JS, until it is built again, so an app busy for long does not take it down over and over.
+// PanelWatch is when the watchdog of a panel's view stops it. A view stays open for as long as the user keeps it, its JS running in pieces on the engine's goroutine between the window's own work. The watchdog reads, in each window of Window, how long the view's own JS ran (tsx.ViewRuntime.JSTime), and what the engine as a whole does: heartbeats posted through the window and whether each waited, which says how busy the engine was, less what other plugins' JS ran meanwhile (share), and the Go heap. When the view's own JS took more than Share of each of Windows windows in a row, the load is the view's, and the watchdog interrupts it at once (tsx.ViewRuntime.Interrupt), which cuts the piece running and drops its timers, and stops the plugin as slow. The engine's load and the heap are not the view's alone, so they only make it suspect the view: when the engine was busy more than Share of each of Windows windows in a row while the view's JS was not, or the live heap grew by more than Runner.Watch.Heap since the view was built, it takes the view down for Probe, which stops its timers and lets what it holds go, and stops the plugin only when that took the load away: the engine busy less than Idle of the probe, or the live heap back under the threshold. Otherwise the load was the app's, or another plugin's outside its JS, and the view is built again with the counts started afresh; a view suspected Retries times in a row in vain is left alone, but for its own JS, until it is built again, so an app busy for long does not take it down over and over.
 //
 // TODO(nsgo#1838): JSTime leaves out the engine's time a view's runtime takes outside its JS entries, in the Go functions it calls (tsx/view.go ViewRuntime.JSTime, tsx/classes.go callGo) and in committing and laying out what it renders, so a view that keeps the engine busy there is only suspected from the whole engine's load and confirmed by taking it down; measure it by the runtime once tsx reports the engine time it takes. https://github.com/nsgo-dev/nsgo/issues/1838
 // TODO(nsgo#1060): tsx's Limits.Memory counts only what the built-ins that allocate by a size hold, so the live heap, the whole app's, stays the bound of a view's memory, confirmed by taking the view down; stop it at its quota alone once tsx bounds a runtime's whole heap https://github.com/nsgo-dev/nsgo/issues/1060
@@ -59,7 +59,12 @@ func (pv panelView) Render(cx *core.Scope) core.Node {
 	r, p := pv.r, pv.p
 	down := core.NewSignal(cx, false)
 	w := &panelWatchdog{r: r, p: p, watch: r.panelWatch(), down: down.Set, stop: make(chan struct{}), heap: HeapBytes()}
-	cx.Cleanup(w.end)
+	// The view's JS is its plugin's, which the background watchdog adds up with its functions'.
+	r.bgPanel(p, w, true)
+	cx.Cleanup(func() {
+		w.end()
+		r.bgPanel(p, w, false)
+	})
 	// The watchdog starts once the view is built: no goroutine starts in a build.
 	r.Post(w.start)
 	return core.Show{When: func() bool { return !down.Get() }, Then: func(*core.Scope) core.Node { return pv.catch(w) }, Else: func(*core.Scope) core.Node { return core.View{} }}
@@ -277,9 +282,10 @@ const (
 	panelWaited  = 4 * time.Millisecond
 )
 
-// share posts heartbeats for d, one at a time, panelSamples of them spread over it, and returns how busy the engine was over it: each heartbeat that waited more than panelWaited counts the time from its post to the next as busy, as the engine was at work when it was posted, so the share is about how much of d the engine was busy. It is false when the view went meanwhile.
+// share posts heartbeats for d, one at a time, panelSamples of them spread over it, and returns how busy the engine was over it: each heartbeat that waited more than panelWaited counts the time from its post to the next as busy, as the engine was at work when it was posted, so the share is about how much of d the engine was busy. What other plugins' JS ran meanwhile (Runner.othersJS) is taken out of it, as that load is not the view's, nor the app's, whichever the watchdog is to tell. It is false when the view went meanwhile.
 func (w *panelWatchdog) share(d time.Duration) (float64, bool) {
 	every := max(d/panelSamples, time.Millisecond)
+	others := w.r.othersJS(w.p)
 	start := time.Now()
 	var busy time.Duration
 	done := make(chan time.Duration, 1)
@@ -303,7 +309,9 @@ func (w *panelWatchdog) share(d time.Duration) (float64, bool) {
 			busy += time.Since(posted)
 		}
 	}
-	return float64(busy) / float64(time.Since(start)), true
+	elapsed := time.Since(start)
+	busy -= w.r.othersJS(w.p) - others
+	return min(max(float64(busy)/float64(elapsed), 0), 1), true
 }
 
 // over reports whether the live heap is more than Heap over what it was as the view was built: the heap first, a collection only once it looks over.

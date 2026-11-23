@@ -2,6 +2,7 @@ package film
 
 import (
 	"math"
+	"slices"
 	"strconv"
 
 	"kando/apps/kando/live"
@@ -21,7 +22,7 @@ func RateTextIn(m locales.Messages, rate float64) string {
 	return m.FilmSpeedRate(strconv.FormatFloat(rate, 'f', -1, 64))
 }
 
-// speedMenu is the transport's speed button, named for the speed the film plays at, and the menu it opens above it, as the subtitle button's: the speeds from slowest to fastest, the one playing checked.
+// speedMenu is the transport's speed button, named for the speed the film plays at, and the menu it opens above it, as the subtitle button's: the speeds fastest at the top, the one playing checked. A menu that rises from the transport reads as an axis, higher is faster, as the players that open theirs above the button list them, and ↑ in it goes faster.
 func (s *screen) speedMenu(cx *core.Scope) core.Node {
 	a := s.a
 	rate := live.Func(a, func() string { return RateText(cx, a.Rate()) })
@@ -37,7 +38,7 @@ func (s *screen) speedMenu(cx *core.Scope) core.Node {
 	trigger := []core.Node{core.Text{ContentFunc: rate, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FontVariant: core.FontTabularNums, Color: onGlass}}}
 	rows := func(cx *core.Scope) []core.Node {
 		out := []core.Node{menuHeading(func() string { return locales.FilmSpeed(cx) })}
-		for _, r := range Rates {
+		for _, r := range slices.Backward(Rates[:]) {
 			out = append(out, s.speedRow(cx, r))
 		}
 		return []core.Node{core.View{Style: core.Style{Width: core.Pt(168)}, Children: out}}

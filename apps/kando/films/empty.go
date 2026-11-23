@@ -1,6 +1,7 @@
 package films
 
 import (
+	"kando/apps/kando/category"
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
@@ -21,6 +22,20 @@ func (n noLibrary) Render(cx *core.Scope) core.Node {
 	return statusPage(cx, core.SVGView{SVG: libraryArt, Style: core.Style{FlexShrink: 0}}, locales.FilmsNoLibraryTitle, func(cx *core.Scope) string { return locales.FilmsNoLibraryDescription(cx, desktop.Platform(cx)) },
 		textButton(locales.FilmsNewLibraryEllipsis, ui.Button{TestID: "empty-new", OnPress: live.Do(a, a.BeginNew)}),
 		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
+	)
+}
+
+// missingLibrary is the page of a library whose folder is not on disk now: its drive is not connected, or the folder was moved, renamed or deleted. It says where the library was and that it comes back by itself once its folder is there, and offers 打开已有资料库…, to pick it where it went, and 新建资料库…. Nothing is made in its place.
+type missingLibrary struct{ a App }
+
+// Render implements core.Node.
+func (n missingLibrary) Render(cx *core.Scope) core.Node {
+	a := n.a
+	dir := live.Func(a, a.LibraryDir)
+	return statusPage(cx, core.SVGView{SVG: libraryArt, Style: core.Style{FlexShrink: 0}}, locales.FilmsLibraryGoneTitle,
+		func(cx *core.Scope) string { return locales.FilmsLibraryGoneDescription(cx, dir()) },
+		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{TestID: "missing-open", OnPress: live.Do(a, a.PickLibrary)}),
+		textButton(locales.FilmsNewLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "missing-new", OnPress: live.Do(a, a.BeginNew)}),
 	)
 }
 
@@ -82,6 +97,28 @@ func (e emptyWatch) Render(cx *core.Scope) core.Node {
 	return core.View{TestID: "films-watch-empty", Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
 		core.Text{ContentFunc: say, Style: ui.TypeBody.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
 		textButton(locales.FilmsWatchShowAll, ui.Button{Variant: ui.ButtonSecondary, TestID: "films-watch-all", OnPress: live.Do(a, func() { a.SetWatchFilter(sidebar.WatchAll) })}),
+	}}
+}
+
+// emptyCategory is what the grid shows when the row of the sidebar's 分类 section chosen, id, holds none of the films of the source: how to put a film in the category, or that every film is in one for 未分类, with 显示全部, which chooses 全部.
+type emptyCategory struct {
+	a  App
+	id func() string
+}
+
+// Render implements core.Node.
+func (e emptyCategory) Render(cx *core.Scope) core.Node {
+	a := e.a
+	colors := ui.ColorsOf(cx)
+	say := live.Func(a, func() string {
+		if id := e.id(); id != category.None {
+			return locales.CategoryEmptyPage(cx, a.CategoryName(id))
+		}
+		return locales.CategoryNoneEmptyPage(cx)
+	})
+	return core.View{TestID: "films-category-empty", Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
+		core.Text{ContentFunc: say, Style: ui.TypeBody.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+		textButton(locales.CategoryShowAll, ui.Button{Variant: ui.ButtonSecondary, TestID: "films-category-all", OnPress: live.Do(a, func() { a.SetCategoryFilter(category.All) })}),
 	}}
 }
 

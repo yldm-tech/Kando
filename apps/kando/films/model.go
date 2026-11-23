@@ -52,6 +52,8 @@ type Film struct {
 	// SubtitlesOnly is true for a film that keeps no video, which streams from its site when watched (core.Job.SubtitlesOnly); VideoComing is true while its job waits to download the video, or downloads it (core.RedoVideo).
 	SubtitlesOnly bool
 	VideoComing   bool
+	// SoundPath is the sound a link's job downloaded first, which the film plays until its video comes (core.Job.SoundPath).
+	SoundPath string
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
 	// Failure is the step a failed job failed at and why (media.StageError), which the card reads its reason from; nil for a job that did not fail, or one whose error names no step.
@@ -70,6 +72,8 @@ type Film struct {
 	PausedBy string
 	// Stored is the ID of the storage location the film's video was moved to (shelf.Library.Stored), empty for a video in the library's folder. Its subtitles and the other files beside the video stay in the folder.
 	Stored string
+	// Missing is true for a done film whose video, kept outside the library's folder where it was picked, is not on disk now: moved or renamed in Finder, deleted, or on a drive that is not connected. The film stays on the shelf with its place, its title and its lines, marked, and plays again once its video is back.
+	Missing bool
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
@@ -164,7 +168,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr, TranslationSource: job.TranslationSource, SameLanguage: job.SameLanguage,
 		Stopped: errors.Is(job.Err, context.Canceled), Failure: jobfailure.Of(job), Target: jobTarget(job), Device: job.Device, PausedBy: job.PausedBy,
 		PlatformSubtitles: job.PlatformSubtitles, LocalLines: job.LocalLines,
-		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(),
+		SubtitlesOnly: job.SubtitlesOnly, VideoComing: job.Redo == core.RedoVideo && !job.Stage.Done(), SoundPath: job.SoundPath,
 		List: job.List, ListIndex: job.ListIndex,
 	}
 }

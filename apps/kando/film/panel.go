@@ -319,7 +319,8 @@ func (s *screen) heldLine(cx *ns.Scope, cues func() []core.Segment, ready func()
 		if p := a.Play(); p == nil || p.Playing() || !ready() {
 			return -1
 		}
-		return s.playingCue(cues())
+		// The line the film is held on, not the one a drag of the scrubber passes over, so the card stays put under the list as it does.
+		return s.heldCue(cues())
 	}).Get
 	return ns.Show{When: func() bool { return index() >= 0 }, Then: func(cx *ns.Scope) ns.Node {
 		lines := live.Func(a, func() cueLines {
@@ -551,7 +552,7 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 		if a.Play() == nil || current() >= 0 {
 			return -1
 		}
-		return gapAt(gaps(), s.playhead()-a.Delay())
+		return gapAt(gaps(), s.shownHead()-a.Delay())
 	}).Get
 	rows := ns.NewMemoFunc(cx, func() []listRow { return listRows(cues(), shown(), gaps()) }, slices.Equal[[]listRow]).Get
 	clockWidth := cueClockWidth(cx, a, cues)
@@ -580,26 +581,42 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 	follow := func(k cueKey) {
 		for row, r := range ns.Untracked(cx, rows) {
 			if keyOf(r) == k {
-				list.ScrollToIndex(row, true)
+				// While the scrubber drags the list along, it keeps up with the pointer rather than animate behind it.
+				list.ScrollToIndex(row, !ns.Untracked(cx, s.held.Get))
 				anchor = k
 				away.Set(false)
 				return
 			}
 		}
 	}
+	// upcoming is the row of the first line in the list after at, the zero cueKey for none.
+	upcoming := func(at time.Duration) cueKey {
+		list := ns.Untracked(cx, cues)
+		for _, r := range ns.Untracked(cx, rows) {
+			if r.cue >= 0 && list[r.cue].Start > at {
+				return keyOf(r)
+			}
+		}
+		return cueKey{}
+	}
 	jumps := live.Memo(cx, a, a.Jumps)
-	// The list follows the playing row as it changes, or as the user moves the picture (Jumps), not as it is scrolled by hand, narrowed by the search, or as lines come in before it.
+	// The list follows the playing row as it changes, or as the user moves the picture (Jumps) or drags the scrubber, to the line coming next for a move to between two lines, not as it is scrolled by hand, narrowed by the search, or as lines come in before it.
 	followed, started, jumped := cueKey{}, false, ns.Untracked(cx, jumps)
 	cx.Effect(func() {
 		k, j := target(), jumps()
 		rows()
-		moved := j != jumped
+		moved := j != jumped || ns.Untracked(cx, s.held.Get)
 		jumped = j
 		if started && k == followed && !moved {
 			return
 		}
 		followed, started = k, true
 		switch {
+		case !k.ok && moved:
+			// Moved to between two lines: the list goes to the line coming next, lit once the film reaches it.
+			if next := upcoming(ns.Untracked(cx, s.shownHead) - a.Delay()); next.ok {
+				follow(next)
+			}
 		case !k.ok:
 		case moved || !anchor.ok || inView(anchor):
 			follow(k)
@@ -998,14 +1015,14 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 // clipTiles are the colors of the 片段's tiles, the prototype's stand-ins for a frame of each.
 var clipTiles = []ns.Color{ns.RGB(0x3E6A5B), ns.RGB(0x6A8EA1), ns.RGB(0x4B7A8C), ns.RGB(0x5D7F63), ns.RGB(0x7C8F6B), ns.RGB(0x2E5B6E)}
 
-// chapterRow is a 片段 of the clips tab: a tile with a frame of it, once read, and its start; the span it covers, and the line it is named after. Its times are the cues', so it plays from its start moved by the subtitle delay, where the picture shows its first line, as a line of the subtitle list does, and is lit while the playhead, moved back by the delay, is in it.
+// chapterRow is a 片段 of the clips tab: a tile with a frame of it, once read, and its start; the span it covers, and the line it is named after. Its times are the cues', so it plays from its start moved by the subtitle delay, where the picture shows its first line, as a line of the subtitle list does, and is lit while the moment shown (shownHead), moved back by the delay, is in it.
 func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) ns.Node {
 	a := s.a
 	active := func() bool {
 		if a.Play() == nil {
 			return false
 		}
-		at, c := s.playhead()-a.Delay(), ch()
+		at, c := s.shownHead()-a.Delay(), ch()
 		return at >= c.Start && (c.End <= c.Start || at < c.End)
 	}
 	frame := live.Func(a, func() ns.ImageSource {

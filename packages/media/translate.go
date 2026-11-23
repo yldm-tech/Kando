@@ -153,18 +153,20 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		if n := t.contextLines(); n > 0 {
 			contextSoFar = earlier[max(0, len(earlier)-n):]
 		}
-		lines, err := t.translateTexts(ctx, endpoint, texts, language, title, contextSoFar, progress)
+		batchCtx := withLogSpan(ctx, batch)
+		lines, err := t.translateTexts(batchCtx, endpoint, texts, language, title, contextSoFar, progress)
 		var status *statusError
 		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
 			renewed = true
 			if endpoint, err = t.Credential(ctx, true); err != nil {
 				return nil, err
 			}
-			lines, err = t.translateTexts(ctx, endpoint, texts, language, title, contextSoFar, progress)
+			lines, err = t.translateTexts(batchCtx, endpoint, texts, language, title, contextSoFar, progress)
 		}
 		var unfinished *unfinishedError
 		if errors.As(err, &unfinished) {
 			// Sent again in halves, part of the batch came back: its lines are kept and those of the part that failed left untranslated.
+			logf(batchCtx, "translate: %d lines left untranslated, a half of batch %d of %d failed: %v", unfinished.lines, start/size+1, batches, unfinished.err)
 			untranslated += unfinished.lines
 			lastErr, err = unfinished.err, nil
 		}
@@ -175,13 +177,21 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			// A rejected key, model or address fails every batch the same way, as do batches that fail one after another; one batch that fails after its retries is left untranslated and the rest of the film goes on.
 			failedRun++
 			if !skippableBatch(err) || failedRun >= maxFailedBatches {
+				logf(batchCtx, "translate: stopped at batch %d of %d, %d failed in a row: %v", start/size+1, batches, failedRun, err)
 				return nil, err
 			}
+			logf(batchCtx, "translate: batch %d of %d left untranslated: %v", start/size+1, batches, err)
 			lastErr = err
 			untranslated += len(batch)
 			lines = make([]string, len(batch))
 		} else {
 			failedRun = 0
+			if empty := emptyReplies(texts, lines); empty > 0 {
+				logf(batchCtx, "translate: the reply of batch %d of %d left %d lines empty", start/size+1, batches, empty)
+			}
+			if sentBack(texts, lines, language) {
+				logf(batchCtx, "translate: batch %d of %d kept with most of its lines sent back in their own language", start/size+1, batches)
+			}
 		}
 		for i, s := range batch {
 			earlier = append(earlier, Earlier{Line: s.Text, Translation: strings.TrimSpace(lines[i])})
@@ -197,6 +207,17 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		return out, &UntranslatedError{Lines: untranslated, Total: len(segments), Err: lastErr}
 	}
 	return out, nil
+}
+
+// emptyReplies is how many of the translations of texts, lines, are empty where their line is not: a reply of the batch's length the model left lines of blank in, which stay untranslated.
+func emptyReplies(texts, lines []string) int {
+	n := 0
+	for i, text := range texts {
+		if strings.TrimSpace(lines[i]) == "" && strings.TrimSpace(text) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // transient reports whether err is a request that failed as a service does for a while: a rate limit that does not say the account is out of credit, a server error or a timeout the API answered with, or a request that timed out or lost its connection. A reply that could not be read, a key, model or address the API rejects and a source of the user's own (Tools.Engine) are not, nor lines left untranslated or unproofread while the rest came back (UntranslatedError, UnproofreadError), which are kept as they are.
@@ -480,6 +501,7 @@ func (t ChatTranslator) translateBatch(ctx context.Context, endpoint Endpoint, t
 		lines, err := replyLines(reply, texts)
 		// A reply that sends most of its lines back in the language they are in is sent again, saying so; the last one is taken as it is, as a line the model keeps so, as a name, is not one it cannot translate.
 		if err == nil && send < maxBatchSends && ctx.Err() == nil && sentBack(texts, lines, language) {
+			logf(ctx, "translate: reply %d of %d sent most lines back in their own language, sending it again", send, maxBatchSends)
 			if body, err = request(system + "\n\n" + fmt.Sprintf(sentBackAgain, language)); err != nil {
 				return nil, err
 			}
@@ -490,6 +512,7 @@ func (t ChatTranslator) translateBatch(ctx context.Context, endpoint Endpoint, t
 		}
 		// A reply that stopped before its end, at the model's token limit or where a gateway ended it, is the batch sent again in halves at once: each half's reply is half as long, and the same batch sent whole is most often cut off again. One cut off before it wrote a line, as a reasoning model's that spent its whole budget thinking, says nothing of a shorter reply fitting: it is sent again whole like any other reply that is not the batch's lines, so such a model fails the batch after maxBatchSends sends rather than be sent its every line alone.
 		if len(texts) > 1 && ctx.Err() == nil && cutOff(reply) && cutOffLines(reply) > 0 {
+			logf(ctx, "translate: the reply for %d lines was cut off after %d of them (finish reason %q); sending it again in halves", len(texts), cutOffLines(reply), finishReason(reply))
 			return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
 		}
 		if send == maxBatchSends || ctx.Err() != nil {
@@ -498,15 +521,26 @@ func (t ChatTranslator) translateBatch(ctx context.Context, endpoint Endpoint, t
 			// not discard an otherwise usable translation.
 			var countErr *lineCountError
 			if errors.As(err, &countErr) && recoverableLineCount(countErr.got, countErr.want) {
+				logf(ctx, "translate: %v after %d sends; sending it again in halves", err, send)
 				return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
 			}
 			// Any other reply that set out to be the batch's lines and is not, as an array a model wrote wrong or with two lines merged into one, is the batch sent once in halves, each a shorter reply the model may write right. A reply that is no array at all, as a refusal, is the model's answer to any batch, and is not.
 			if !half && len(texts) > 1 && ctx.Err() == nil && len(reply.Choices) > 0 && strings.HasPrefix(stripCodeFence(reply.Choices[0].Message.Content), "[") {
+				logf(ctx, "translate: %v after %d sends; sending it again in halves", err, send)
 				return t.translateHalves(ctx, endpoint, texts, language, title, earlier, progress)
 			}
 			return lines, err
 		}
+		logf(ctx, "translate: reply %d of %d was not the batch's lines (finish reason %q), sending it again: %v", send, maxBatchSends, finishReason(reply), err)
 	}
+}
+
+// finishReason is why the model said reply ended ("stop", "length", "content_filter"), "" when it said nothing.
+func finishReason(reply chatResponse) string {
+	if len(reply.Choices) == 0 {
+		return ""
+	}
+	return reply.Choices[0].FinishReason
 }
 
 // translateHalves translates texts as two batches, its first half then its second, which takes the first half's translations as context, as the batches before it would. A half that fails as a batch may (skippableBatch) is left untranslated while the other is kept, which it says with an *unfinishedError; both failing is the batch failing.
@@ -680,11 +714,30 @@ func replyLines(reply chatResponse, texts []string) ([]string, error) {
 		}
 		var parts []string
 		if err := json.Unmarshal(element, &parts); err != nil || len(parts) > 1 && strings.TrimSpace(parts[0]) == strings.TrimSpace(texts[i]) {
-			return nil, fmt.Errorf("translation is not a JSON array of strings: line %d is %s", i+1, element)
+			return nil, fmt.Errorf("translation is not a JSON array of strings: line %d is %s", i+1, jsonKind(element))
 		}
 		lines[i] = joinParts(parts)
 	}
 	return lines, nil
+}
+
+// jsonKind is what element, the reply for a line that is not a string, is, as an error says it without its words, which the log does not keep: an array that starts with its line (the [line, translation] of an earlier line copied), or a JSON value of another kind than a string.
+func jsonKind(element json.RawMessage) string {
+	var parts []string
+	if json.Unmarshal(element, &parts) == nil {
+		return fmt.Sprintf("an array of %d strings that starts with its line", len(parts))
+	}
+	switch strings.TrimSpace(string(element))[:1] {
+	case "[":
+		return "an array"
+	case "{":
+		return "an object"
+	case "n":
+		return "null"
+	case "t", "f":
+		return "a boolean"
+	}
+	return "a number"
 }
 
 type lineCountError struct {
@@ -865,6 +918,7 @@ func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, bod
 			wait = min(retryAfter, maxRetryAfter)
 		}
 		delay *= 2
+		logf(ctx, "AI request failed, retry %d of %d in %v: %v", attempt, t.attempts()-1, wait, err)
 		waiting := progress
 		waiting.RetryIn, waiting.Attempt, waiting.Attempts = wait, attempt, t.attempts()-1
 		waiting.Unanswered = !errors.As(err, &status)

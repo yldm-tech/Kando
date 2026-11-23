@@ -94,7 +94,7 @@ func (s *screen) subtitles() core.Node {
 		}
 		// The reference layer's line, while it shows, goes above the film's own, or alone where they have none.
 		if a.ShowReference() {
-			if line, ok := referenceLine(a.Cue(), reference(), s.playhead()-a.Delay()); ok {
+			if line, ok := referenceLine(a.Cue(), reference(), s.shownHead()-a.Delay()); ok {
 				out = append([]styledLine{line}, out...)
 			}
 		}

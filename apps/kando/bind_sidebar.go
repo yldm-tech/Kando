@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"kando/apps/kando/category"
 	"kando/apps/kando/films"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/subscribe"
@@ -17,6 +18,9 @@ import (
 // The sidebar's reads and clicks (sidebar.App). Several of these also serve films.App, film.App and settings.App. The sidebar reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
 func (a *app) LibraryDir() string { return a.snap().LibraryDir }
+
+// LibraryGone reports whether the open library's folder is not on disk now (session.LibraryGone).
+func (a *app) LibraryGone() bool { return a.snap().LibraryGone }
 
 func (a *app) KnownLibraries() []string { return a.knownLibraries() }
 
@@ -132,9 +136,9 @@ func (a *app) SetWatchFilter(state string) {
 	a.side.watch = state
 }
 
-// WatchCounts is how many done films are in each watch state among those the library page shows for the source, the language and the search chosen (films.Shown), so a row's count is how many films choosing it shows.
+// WatchCounts is how many done films are in each watch state among those the library page shows for the source, the language, the category and the search chosen (films.Shown, InCategories), so a row's count is how many films choosing it shows.
 func (a *app) WatchCounts() sidebar.WatchCounts {
-	return films.WatchCounts(films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), sidebar.WatchAll, a.side.query), a)
+	return films.WatchCounts(a.InCategories(films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), sidebar.WatchAll, a.side.query)), a)
 }
 
 func (a *app) Query() *string { return &a.side.query }
@@ -158,7 +162,7 @@ func (a *app) SubmitQuery() {
 	if query == "" {
 		return
 	}
-	found := films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), a.side.watch, query)
+	found := a.InCategories(films.Shown(a.films(), a, a.side.filter, a.SpokenFilter(), a.side.watch, query))
 	if len(found) > 1 && a.page == pageFilms && a.LibraryView() == films.ViewGrid {
 		a.side.posterFocus = true
 	}
@@ -218,7 +222,7 @@ func (a *app) sidebarShown() bool { return !a.filmFillsWindow() }
 
 // sidebarColumn is the sidebar at the window's left. The top row of its card holds the traffic lights and drags the window, so it needs no drag band over it.
 func (a *app) sidebarColumn() core.Node {
-	return sidebar.View{App: a, Subscriptions: subscribe.List{App: a}}
+	return sidebar.View{App: a, Categories: category.List{App: a}, Subscriptions: subscribe.List{App: a}}
 }
 
 // contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being the height the content keeps clear of (chrome.Covered). On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. On Windows and Linux the app's own bar (package chrome) takes the title bar's room above the content, so titleBar is 0 and there is no band.

@@ -681,3 +681,54 @@ func TestMakeGoesOnPastAMissingBatchThatFails(t *testing.T) {
 		t.Fatalf("with every batch failing: %s", final.Stage)
 	}
 }
+
+// movingWatch is a Watcher whose playhead a test moves.
+type movingWatch struct{ at time.Duration }
+
+func (w *movingWatch) Playhead() time.Duration { return w.at }
+func (*movingWatch) Jumped() <-chan struct{}   { return nil }
+
+// batchesRecorded is a redoPipeline that records the first line of each batch it is given and the lines given before it as context, and moves watch to jumpTo once it has translated the first batch.
+type batchesRecorded struct {
+	*redoPipeline
+	watch   *movingWatch
+	jumpTo  time.Duration
+	firsts  []string
+	earlier [][]Earlier
+}
+
+func (p *batchesRecorded) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	p.firsts = append(p.firsts, segments[0].Text)
+	p.earlier = append(p.earlier, earlierOf(ctx))
+	if len(p.firsts) == 1 {
+		p.watch.at = p.jumpTo
+	}
+	return p.redoPipeline.Translate(ctx, segments, language)
+}
+
+// The missing lines are translated nearest where the film is watched first: from the playhead to the end, then from the film's start, a jump of the playhead followed at the next batch. Each line is sent once, and a batch goes on from the translations the batches before it wrote.
+func TestFillingMissingLinesFollowsThePlayhead(t *testing.T) {
+	job := manyMissing(t, 2*DefaultBatchSize+20)
+	watch := &movingWatch{at: 50*time.Second + 500*time.Millisecond}
+	p := &batchesRecorded{redoPipeline: &redoPipeline{t: t}, watch: watch, jumpTo: 10 * time.Second}
+	final := Make(context.Background(), p, job, "简体中文", "mac", watch, func(core.Job) {})
+	if final.Stage != core.StageComplete || final.Untranslated != 0 {
+		t.Fatalf("final %s %v, untranslated %d", final.Stage, final.Err, final.Untranslated)
+	}
+	// The line on screen at 50.5 s first; after the jump to 10 s, the line on screen there, then the lines left after it, then the film's start.
+	if want := []string{"line 50", "line 10", "line 90", "line 0"}; !reflect.DeepEqual(p.firsts, want) {
+		t.Fatalf("batches began at %q, want %q", p.firsts, want)
+	}
+	seen := map[string]int{}
+	for _, text := range p.sent {
+		seen[text]++
+	}
+	if len(p.sent) != 2*DefaultBatchSize+20 || len(seen) != len(p.sent) {
+		t.Fatalf("sent %d lines, %d of them different", len(p.sent), len(seen))
+	}
+	// The batch from line 90 has lines 50 to 89, which the first batch translated, before it with their translations.
+	before := p.earlier[2]
+	if last := before[len(before)-1]; last.Line != "line 89" || last.Translation != "简体中文:line 89" {
+		t.Fatalf("the line before line 90 went as %+v", last)
+	}
+}

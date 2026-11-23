@@ -737,6 +737,43 @@ func TestScrubberSeeksOnRelease(t *testing.T) {
 	}
 }
 
+// TestScrubbingFollowsTheLines holds the scrubber at 0:04, in the line "Bye.", without letting go: the film has not seeked yet, but the picture's lines and the subtitle list's lit row are that line, as they are once it lets go and the film plays from there.
+func TestScrubbingFollowsTheLines(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	lit := func() []string {
+		var rows []string
+		for _, v := range tt.Query("id:film-cues >> role:button") {
+			if v.Props.Selected {
+				rows = append(rows, v.Props.Label)
+			}
+		}
+		return rows
+	}
+	onPicture := func(s string) bool { return tt.Exists("id:film-subtitle-lines >> text:" + s) }
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	if rows := lit(); len(rows) != 1 || !strings.Contains(rows[0], "Hello.") || !onPicture("Hello.") {
+		t.Fatalf("at 0:01.5 the list lights %q", rows)
+	}
+	bar := tt.Find("id:film-scrubber")
+	w, y := bar.Frame.Size.Width, bar.Frame.Size.Height/2
+	finger := tt.Touch("id:film-scrubber", ns.Point{X: w * 4.2 / 12, Y: y})
+	refresh(tt, a)
+	if got := playerSeeks(tt); len(got) != 0 {
+		t.Fatalf("holding the scrubber seeked to %v", got)
+	}
+	if rows := lit(); len(rows) != 1 || !strings.Contains(rows[0], "Bye.") || !onPicture("Bye.") || onPicture("Hello.") {
+		t.Fatalf("with the scrubber held at 0:04 the list lights %q", rows)
+	}
+	finger.Lift()
+	refresh(tt, a)
+	if got := playerSeeks(tt); len(got) != 1 || got[0] != 4*time.Second {
+		t.Fatalf("letting go seeked to %v, want 4s", got)
+	}
+	if rows := lit(); len(rows) != 1 || !strings.Contains(rows[0], "Bye.") || !onPicture("Bye.") {
+		t.Fatalf("after letting go at 0:04 the list lights %q", rows)
+	}
+}
+
 // TestOpeningAFilmKeepsWhereItStopped opens a film that stopped at 0:06 last time from its poster, which holds it there, and goes back without playing it: the film still continues from 0:06, in the app and in library.json.
 func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)

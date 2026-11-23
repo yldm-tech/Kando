@@ -25,12 +25,14 @@ var (
 // scrubberHeight is the scrubber's: the track 7 down, 5 high, and the strip of the cues 15 down, 3 high.
 const scrubberHeight ns.Points = 22
 
-// scrubber is the film's progress bar: a white fill over the track, behind it a band over the span looped, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段, each where the picture plays it, the subtitle delay counted. Dragging it moves the time shown and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
+// scrubber is the film's progress bar: a white fill over the track, behind it a band over the span looped, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段, each where the picture plays it, the subtitle delay counted. Dragging it moves the moment shown (shownHead), the lines on the picture and the subtitle list with it, and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
 func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 	a := s.a
 	length := live.Func(a, func() float64 { return max(a.PlayLength().Seconds(), 1) })
 	cues := filmCues(cx, a)
 	loop := func() (time.Duration, time.Duration, bool) { a.Track(); return a.LoopSpan() }
+	// A scrubber gone in the middle of a drag, as the transport goes when the film fails, hears no release; the moment shown goes back to the playhead with it.
+	cx.Cleanup(func() { s.held.Set(false) })
 	width := ns.NewSignal(cx, ns.Points(0))
 	hover := ns.NewSignal(cx, ns.Points(-1))
 	draw := func(d *ns.Drawing, size ns.Size) {

@@ -33,7 +33,11 @@ type session struct {
 	LibraryParent string
 	MakingLibrary bool
 	Videos        []media.Video
-	Inodes        map[string]media.DirID
+	// Gone is the videos of the open library's done films kept outside its folder whose files are not on disk now: moved or renamed in Finder, deleted, or on a drive that is not connected (refreshLibrary). Their films stay on the shelf, marked (films.Film.Missing), as a video of the user's is the user's to take off the shelf.
+	Gone map[string]bool
+	// LibraryGone is set while the open library's folder is not on disk, as when its drive is not connected or the folder was moved away. The shelf says so rather than make an empty folder in its place (applyLibrary), and shows the library again once the folder is back (restartLibraryWatch).
+	LibraryGone bool
+	Inodes      map[string]media.DirID
 	// Renamed is the libraries restoreShelf followed to a new path before library.json was read, oldest first. openLibrary points the jobs, and what is kept by video path, at the new paths once it has read the shelf, then empties it.
 	Renamed []libraryRename
 }
@@ -46,6 +50,7 @@ func newSessionStore() *nodra.Store[session] {
 func cloneSession(s session) session {
 	s.Libraries = slices.Clone(s.Libraries)
 	s.Videos = slices.Clone(s.Videos)
+	s.Gone = maps.Clone(s.Gone)
 	s.Inodes = maps.Clone(s.Inodes)
 	s.Renamed = slices.Clone(s.Renamed)
 	return s

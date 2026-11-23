@@ -63,6 +63,9 @@ type App interface {
 	Play() Player
 	// PlaySound reports whether what the system's player has loaded is sound alone, as a podcast's mp3: the stage shows the film's poster in place of a picture (soundCover).
 	PlaySound() bool
+	// PictureComing reports whether what plays is a link's sound until its video comes, which the stage says (stageNoteState.coming); ComingCover is the thumbnail its site gives it, which the stage shows meanwhile, as it has no poster of its own yet (soundCover).
+	PictureComing() bool
+	ComingCover() ns.ImageSource
 	PlayPath() string
 	PlayErr() string
 	// OpeningText is what the stage says while the video opens, in the language the interface shows under cx: how far the copy the system's player can open has got, for a video it cannot play as it is, "" while it is not known, when the stage says the video opens.
@@ -396,13 +399,20 @@ func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 	return cues[i], true
 }
 
-// playingCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1.
+// playingCue is the index of the cue the picture shows at the moment shown (shownHead): the line at the pointer while the scrubber is held, else the line playing (heldCue), or -1.
 func (s *screen) playingCue(list []core.Segment) int {
-	at := s.playhead() - s.a.Delay()
+	if s.held.Get() {
+		return cueIndex(list, s.shownHead()-s.a.Delay())
+	}
+	return s.heldCue(list)
+}
+
+// heldCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1, whatever the scrubber shows.
+func (s *screen) heldCue(list []core.Segment) int {
 	if i := s.a.HeldLine(); i >= 0 && i < len(list) {
 		return i
 	}
-	return cueIndex(list, at)
+	return cueIndex(list, s.playhead()-s.a.Delay())
 }
 
 // cueIndex is the index of the line CueAt finds, or -1.

@@ -873,11 +873,11 @@ func (a *app) remoteShow(ctx context.Context, p remote.ShowParams) (remote.ShowR
 			case films.InQueue(item) && !films.Watchable(item):
 				a.Select(pageFilms)
 				res.Reason = remote.ShowInQueue
-			case item.VideoPath == "":
+			case films.PlayPath(item) == "":
 				a.Select(pageFilms)
 				res.Reason = remote.ShowNoVideo
 			case p.AtMS != nil:
-				delay := a.player.delays[item.VideoPath]
+				delay := a.player.delays[films.PlayPath(item)]
 				if open {
 					delay = a.player.film.delay
 				} else {

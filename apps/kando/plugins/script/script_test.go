@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -843,5 +844,406 @@ func TestScriptIndexKeyIsItsOwn(t *testing.T) {
 	}
 	if pkg.KeyID(index) == pkg.KeyID(officialRoot) {
 		t.Fatal("IndexKey has the official root's key ID")
+	}
+}
+
+// testBgWatch is DefaultWatch with its background watchdog at a quarter of its scale: a reading every 50 ms and buckets of 1 s, the same Drain and TotalDrain, so a plugin that keeps the engine busy all the time is stopped in about 1.25 s and a burst of 0.75 s at full load, DefaultWatch's 3 s, fills its bucket to 0.6 s. The call watchdog is DefaultWatch's.
+func testBgWatch() Watch {
+	w := DefaultWatch
+	w.BgBeat, w.Burst, w.TotalBurst = 50*time.Millisecond, time.Second, time.Second
+	return w
+}
+
+// testOwnBgWatch is testBgWatch without the bucket of all plugins, for a test of a plugin's own bucket, which a plugin alone past TotalDrain would otherwise fill too.
+func testOwnBgWatch() Watch {
+	w := testBgWatch()
+	w.TotalBurst = 0
+	return w
+}
+
+// bgHog is the code of a plugin whose timers keep the engine busy in pieces of 400 ms, each set going from the last by setTimeout(0), from as soon as hog runs: the entry module runs it when it ends in "hog()".
+const bgHog = `function hog() { setTimeout(function spin() { const t = Date.now(); while (Date.now() - t < 400) {} setTimeout(spin, 0) }, 0) }
+`
+
+// stoppedPlugin is a plugin the runner stopped, and why.
+type stoppedPlugin struct{ id, reason string }
+
+// bgRunner is a runner on e with watch that reports each plugin it stops on the channel it returns, and holds plugins, as the app does as it loads them.
+func bgRunner(e *engine, watch Watch, plugins ...*Plugin) (*Runner, chan stoppedPlugin) {
+	stopped := make(chan stoppedPlugin, 16)
+	r := &Runner{Post: e.post, Watch: watch, Stopped: func(id, _, reason string) { stopped <- stoppedPlugin{id, reason} }}
+	e.do(func() {
+		for _, p := range plugins {
+			r.Hold(p)
+		}
+	})
+	return r, stopped
+}
+
+// wantStopped waits up to limit for the runner to stop a plugin, and fails t unless it is id, stopped as slow.
+func wantStopped(t *testing.T, stopped <-chan stoppedPlugin, limit time.Duration, id string) {
+	t.Helper()
+	select {
+	case got := <-stopped:
+		if got.id != id || got.reason != plugins.ReasonSlow {
+			t.Fatalf("stopped %s as %s, want %s as slow", got.id, got.reason, id)
+		}
+	case <-time.After(limit):
+		t.Fatalf("%s was not stopped within %v", id, limit)
+	}
+}
+
+// wantNoStop fails t if the runner stops a plugin within d.
+func wantNoStop(t *testing.T, stopped <-chan stoppedPlugin, d time.Duration) {
+	t.Helper()
+	select {
+	case got := <-stopped:
+		t.Fatalf("stopped %s as %s", got.id, got.reason)
+	case <-time.After(d):
+	}
+}
+
+// wantResponsive fails t if a heartbeat posted to e waits more than 50 ms, as it would behind a plugin's piece of JS still running.
+func wantResponsive(t *testing.T, e *engine) {
+	t.Helper()
+	for range 10 {
+		posted := time.Now()
+		e.do(func() {})
+		if waited := time.Since(posted); waited > 50*time.Millisecond {
+			t.Fatalf("a heartbeat waited %v after the plugin was stopped: its JS still runs", waited)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// TestScriptBackgroundStopsAHog checks the background watchdog: a plugin never called, whose entry module set timers going that keep the engine busy, is stopped as slow, once, its runtime interrupted so the engine answers again at once, and closed.
+func TestScriptBackgroundStopsAHog(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "hog()"}), plugins.Grant{})
+	_, stopped := bgRunner(e, testOwnBgWatch(), pl)
+	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
+	wantResponsive(t, e)
+	wantNoStop(t, stopped, 300*time.Millisecond)
+	var closed bool
+	e.do(func() { closed = pl.Closed() })
+	if !closed {
+		t.Error("not closed")
+	}
+}
+
+// TestScriptBackgroundStopsAHogAfterItsCall checks that a plugin whose call sets its timers going and returns is not stopped by the call, which succeeds, but by the background watchdog after it.
+func TestScriptBackgroundStopsAHogAfterItsCall(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "export function start() { hog(); return 1 }"}), plugins.Grant{})
+	r, stopped := bgRunner(e, testOwnBgWatch(), pl)
+	if got := wait(t, e.call(r, pl, "start"), time.Second); got.err != nil || got.v != int64(1) {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
+}
+
+// TestScriptBackgroundSparesACallBehindAnotherPlugin checks that a call whose heartbeats wait behind another plugin's JS in the background is not stopped for it: the wait other plugins' JS took is not the call's. The call succeeds, and the only plugin stopped is the one that kept the engine busy. The call watchdog is at TestScriptWatchdogStopsASlicedLoop's scale, where three heartbeats behind the hog's pieces of 400 ms would stop the call in about 1.2 s, and the hog's bucket holds 2 s, so it is stopped well after.
+func TestScriptBackgroundSparesACallBehindAnotherPlugin(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	hog := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "hog()"}), plugins.Grant{})
+	work := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.work", code: `export async function work() { for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 50)); return 1 }`}), plugins.Grant{})
+	w := testBgWatch()
+	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
+	w.Burst = 2 * time.Second
+	r, stopped := bgRunner(e, w, hog, work)
+	if got := wait(t, e.call(r, work, "work"), slow(20*time.Second)); got.err != nil {
+		t.Fatalf("the call behind the hog ended with %v", got.err)
+	}
+	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
+	wantNoStop(t, stopped, 300*time.Millisecond)
+}
+
+// TestScriptBackgroundCountsAPausedCall checks that while the app waits on a call's behalf (PauseFor), the plugin's own timers that keep the engine busy are the background watchdog's: the call watchdog, which counts no heartbeat while paused (and none here at all), does not stop it, the background watchdog does.
+func TestScriptBackgroundCountsAPausedCall(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	pl := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "export function ask() { hog(); return new Promise(() => {}) }"}), plugins.Grant{})
+	w := testOwnBgWatch()
+	w.Stall = time.Hour
+	r, stopped := bgRunner(e, w, pl)
+	done := e.call(r, pl, "ask")
+	var resume func()
+	e.do(func() { resume = r.PauseFor(pl) })
+	defer resume()
+	wantStopped(t, stopped, slow(5*time.Second), "acme.hog")
+	if got := wait(t, done, time.Second); !errors.Is(got.err, ErrStopped) {
+		t.Errorf("the paused call ended with %v", got.err)
+	}
+}
+
+// TestScriptBackgroundSparesLightWork checks what the background watchdog leaves alone: a plugin that works 5 ms of every 100 from a timer, a burst of 0.75 s at full load, which DefaultWatch's 3 s are at testBgWatch's scale, as a plugin indexing a film as it opens, and a call running pieces of 200 ms for 3 s, which is the call watchdog's to judge (its heartbeats count nothing here). Each runs on an engine of its own, side by side.
+func TestScriptBackgroundSparesLightWork(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	cases := []struct {
+		id, code, call string
+	}{
+		{"acme.light", `setInterval(() => { const t = Date.now(); while (Date.now() - t < 5) {} }, 100)`, ""},
+		{"acme.burst", `export function index() {
+  const end = Date.now() + 750
+  setTimeout(function piece() { const t = Date.now(); while (Date.now() - t < 150) {} if (Date.now() < end) setTimeout(piece, 0) }, 0)
+  return 1
+}`, "index"},
+		{"acme.sliced", `export async function slices() {
+  const end = Date.now() + 3000
+  while (Date.now() < end) { const t = Date.now(); while (Date.now() - t < 200) {} await new Promise(r => setTimeout(r, 0)) }
+  return 1
+}`, "slices"},
+	}
+	w := testBgWatch()
+	w.Stall = time.Hour
+	done := make(chan error, len(cases))
+	for _, c := range cases {
+		e := newEngine(t)
+		pl := e.load(t, trust, roots, s.pack(t, fixture{id: c.id, code: c.code}), plugins.Grant{})
+		r, stopped := bgRunner(e, w, pl)
+		go func() {
+			if c.call != "" {
+				select {
+				case got := <-e.call(r, pl, c.call):
+					if got.err != nil {
+						done <- fmt.Errorf("%s: the call ended with %v", c.id, got.err)
+						return
+					}
+				case <-time.After(slow(10 * time.Second)):
+					done <- fmt.Errorf("%s: the call did not end", c.id)
+					return
+				}
+			}
+			select {
+			case got := <-stopped:
+				done <- fmt.Errorf("%s: stopped as %s", got.id, got.reason)
+			case <-time.After(3 * time.Second):
+				done <- nil
+			}
+		}()
+	}
+	for range cases {
+		if err := <-done; err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// bgPanelFixture is a plugin with a panel whose timer keeps the engine busy in pieces of 300 ms, longer than a heartbeat may wait at TestScriptWatchdogStopsASlicedLoop's scale, and one that does nothing.
+var bgPanelFixture = fixture{id: "acme.board", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}]}`,
+	code: `import { View } from "nsgo"
+export function Busy() { setInterval(() => { const t = Date.now(); while (Date.now() - t < 300) {} }, 10); return <View /> }
+export function Quiet() { return <View /> }
+`}
+
+// bgShowPanel loads the plugin f on e and shows its panel i under r, counting the builds of its view in builds.
+func bgShowPanel(t *testing.T, e *engine, r *Runner, s signer, f fixture, i int, builds *atomic.Int32) *Plugin {
+	t.Helper()
+	roots := s.roots()
+	p := s.pack(t, f)
+	v, err := Verify(trustOf(t, roots), roots, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pl *Plugin
+	e.do(func() {
+		pl, err = Load(e.root, v, plugins.Grant{}, core.NewHost())
+		if err != nil {
+			return
+		}
+		e.tree.Mount(func(cx *core.Scope) core.Node {
+			return r.Panel(pl, v, plugins.Grant{}, p.Contributes.Panels[i], func() *core.Host {
+				if builds != nil {
+					builds.Add(1)
+				}
+				return core.NewHost()
+			}, func(cx *core.Scope, err error, _ func()) core.Node {
+				t.Errorf("the panel failed: %v", err)
+				return core.View{}
+			})
+		})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pl
+}
+
+// TestScriptBackgroundSparesACallBehindAPanel checks that a call whose heartbeats wait behind another plugin's panel is not stopped for it, the panel's JS being its plugin's (Runner.othersJS), and that the plugin of the busy panel, which no call of its own watches, is stopped by the background watchdog, its view's runtime interrupted so the engine answers again. Its panel's own watchdog is kept from stopping it first.
+func TestScriptBackgroundSparesACallBehindAPanel(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	work := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.work", code: `export async function work() { for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 50)); return 1 }`}), plugins.Grant{})
+	w := testBgWatch()
+	w.Beat, w.Stall = 50*time.Millisecond, 125*time.Millisecond
+	w.Burst = 2 * time.Second
+	r, stopped := bgRunner(e, w, work)
+	r.PanelWatch = testPanelWatch
+	r.PanelWatch.Windows = 1000
+	bgShowPanel(t, e, r, s, bgPanelFixture, 0, nil)
+	if got := wait(t, e.call(r, work, "work"), slow(20*time.Second)); got.err != nil {
+		t.Fatalf("the call behind the panel ended with %v", got.err)
+	}
+	wantStopped(t, stopped, slow(5*time.Second), "acme.board")
+	wantResponsive(t, e)
+}
+
+// TestScriptPanelSparesAQuietPanelBehindAnotherPlugin checks that a quiet panel is not suspected while another plugin keeps the engine busy in the background: what the other plugin's JS took of the engine is taken out of the engine's load the panel's watchdog measures, so the view is never taken down for a probe and stays its first build. The other plugin's bucket is kept from stopping it meanwhile.
+func TestScriptPanelSparesAQuietPanelBehindAnotherPlugin(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	hog := e.load(t, trustOf(t, roots), roots, s.pack(t, fixture{id: "acme.hog", code: bgHog + "hog()"}), plugins.Grant{})
+	w := testBgWatch()
+	w.Burst, w.TotalBurst = 0, 0
+	r, stopped := bgRunner(e, w, hog)
+	r.PanelWatch = testPanelWatch
+	var builds atomic.Int32
+	bgShowPanel(t, e, r, s, bgPanelFixture, 1, &builds)
+	// Three windows of 300 ms suspect a view, and a probe of 300 ms takes it down and builds it again: 3 s hold a few.
+	wantNoStop(t, stopped, slow(3*time.Second))
+	if n := builds.Load(); n != 1 {
+		t.Errorf("the quiet panel was built %d times: it was taken down for the other plugin's load", n)
+	}
+}
+
+// TestScriptBackgroundStopsTheLargestOfMany checks the bucket of all plugins: three plugins that each work 16 ms of every 100, under Drain, together over TotalDrain, have one of them stopped, after which the other two, together back under TotalDrain, are left alone; and with a plugin that works 3 ms of every 100 and two of 16, over a TotalDrain of 0.3, the one stopped is one of the two, never the light one, which is under totalShare.
+func TestScriptBackgroundStopsTheLargestOfMany(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	worker := func(ms int) string {
+		return fmt.Sprintf(`setInterval(() => { const t = Date.now(); while (Date.now() - t < %d) {} }, 100)`, ms)
+	}
+	for _, c := range []struct {
+		name       string
+		ms         []int
+		totalDrain float64
+	}{
+		{"three of 16%", []int{16, 16, 16}, 0.4},
+		{"one of 3% and two of 16%", []int{3, 16, 16}, 0.3},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := newEngine(t)
+			var pls []*Plugin
+			heavy := map[string]bool{}
+			for i, ms := range c.ms {
+				id := fmt.Sprintf("acme.w%d", i)
+				pls = append(pls, e.load(t, trust, roots, s.pack(t, fixture{id: id, code: worker(ms)}), plugins.Grant{}))
+				heavy[id] = ms > 10
+			}
+			w := testBgWatch()
+			w.TotalDrain, w.TotalBurst = c.totalDrain, 200*time.Millisecond
+			_, stopped := bgRunner(e, w, pls...)
+			var got stoppedPlugin
+			select {
+			case got = <-stopped:
+			case <-time.After(slow(20 * time.Second)):
+				t.Fatal("no plugin was stopped")
+			}
+			if !heavy[got.id] || got.reason != plugins.ReasonSlow {
+				t.Fatalf("stopped %s as %s", got.id, got.reason)
+			}
+			wantNoStop(t, stopped, 3*time.Second)
+			e.do(func() {
+				for _, p := range pls {
+					if p.Closed() != (p.ID == got.id) {
+						t.Errorf("%s closed %t", p.ID, p.Closed())
+					}
+				}
+			})
+		})
+	}
+}
+
+// TestScriptBackgroundEndsWithThePlugins checks that the background watchdog's goroutine runs while a plugin is held, and ends once every plugin held was closed, and starts again for a plugin held after.
+func TestScriptBackgroundEndsWithThePlugins(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	a := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.a"}), plugins.Grant{})
+	b := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.b"}), plugins.Grant{})
+	r, _ := bgRunner(e, testBgWatch(), a, b)
+	exited := func() <-chan struct{} {
+		var ch chan struct{}
+		e.do(func() {
+			r.bg.mu.Lock()
+			defer r.bg.mu.Unlock()
+			if r.bg.running {
+				ch = r.bg.exited
+			}
+		})
+		return ch
+	}
+	// The goroutine starts from a post, which bgRunner's do ran before it returned.
+	running := exited()
+	if running == nil {
+		t.Fatal("no background watchdog while two plugins are held")
+	}
+	e.do(func() { r.Close(a) })
+	select {
+	case <-running:
+		t.Fatal("the background watchdog ended while a plugin is held")
+	case <-time.After(200 * time.Millisecond):
+	}
+	e.do(func() { r.Close(b) })
+	select {
+	case <-running:
+	case <-time.After(time.Second):
+		t.Fatal("the background watchdog runs on with no plugin held")
+	}
+	if exited() != nil {
+		t.Fatal("the runner says its background watchdog runs")
+	}
+	c := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.c"}), plugins.Grant{})
+	e.do(func() { r.Hold(c) })
+	again := exited()
+	if again == nil {
+		t.Fatal("no background watchdog for a plugin held after")
+	}
+	e.do(func() { r.Close(c) })
+	select {
+	case <-again:
+	case <-time.After(time.Second):
+		t.Fatal("the background watchdog runs on with no plugin held")
+	}
+}
+
+// TestScriptOthersJSCountsFromWhenAPluginJoins checks that what other plugins ran, which spares a call or a panel the engine's time they took, moves only by what they run while it is measured: a plugin that ran 300 ms of JS as it loaded adds nothing as it joins the registry in the middle of a measure, and one that leaves takes nothing it ran away.
+func TestScriptOthersJSCountsFromWhenAPluginJoins(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	trust := trustOf(t, roots)
+	e := newEngine(t)
+	quiet := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.quiet", code: `export function work() { return 1 }`}), plugins.Grant{})
+	busy := e.load(t, trust, roots, s.pack(t, fixture{id: "acme.busy", code: `const t = Date.now(); while (Date.now() - t < 300) {}
+export function work() { return 1 }`}), plugins.Grant{})
+	if ran, _ := busy.p.JSTime(); ran < 250*time.Millisecond {
+		t.Fatalf("the busy plugin ran %v as it loaded, want 300 ms", ran)
+	}
+	w := testBgWatch()
+	w.BgBeat = 0
+	r, _ := bgRunner(e, w, quiet)
+	before := r.othersJS(quiet)
+	e.do(func() { r.Hold(busy) })
+	joined := r.othersJS(quiet)
+	if d := joined - before; d > 50*time.Millisecond {
+		t.Errorf("a plugin joining added %v of what it ran before it joined", d)
+	}
+	e.do(func() { r.Close(busy) })
+	if left := r.othersJS(quiet); left < joined {
+		t.Errorf("a plugin leaving took %v away", joined-left)
 	}
 }

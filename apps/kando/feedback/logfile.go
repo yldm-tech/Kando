@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,7 +20,7 @@ const (
 	logKeep = 2
 )
 
-// LogFile is the app's log file. The standard logger writes through it once the window is ready (the app's logsOpen, state_logs.go): each line goes to echo, stderr in the app, as before, and to the file, with whatever is shaped like a key or token written as *** (Scrubber.NoSecrets). Once the file would grow past limit, it is moved aside and a new one starts (rotate). A crash's panic and stacks go to the file as well (debug.SetCrashOutput), as an app opened from Finder or the Dock has no terminal to show its stderr. Its methods are safe to call from any goroutine.
+// LogFile is the app's log file. The standard logger writes through it once the window is ready (the app's logsOpen, state_logs.go): each line goes to echo, stderr in the app, as before, and to the file, with the credentials the app holds (SetSecrets) and whatever is shaped like a key or token written as *** (Scrubber.NoSecrets). Once the file would grow past limit, it is moved aside and a new one starts (rotate). A crash's panic and stacks go to the file as well (debug.SetCrashOutput), as an app opened from Finder or the Dock has no terminal to show its stderr. Its methods are safe to call from any goroutine.
 type LogFile struct {
 	mu    sync.Mutex
 	path  string
@@ -29,6 +30,8 @@ type LogFile struct {
 	f      *os.File
 	size   int64
 	closed bool
+	// secrets are the credentials the app holds, as SetSecrets last gave them, which Write writes as *** wherever a line has them.
+	secrets []string
 }
 
 // OpenLogFile opens the log at path for appending, making its folder, after moving a file already at its limit aside first.
@@ -85,11 +88,18 @@ func (w *LogFile) older(n int) string {
 	return strings.TrimSuffix(w.path, ".log") + "." + strconv.Itoa(n) + ".log"
 }
 
-// Write writes one entry of the logger, scrubbed, to echo and to the file, starting a new file first when the entry would take this one past its limit. It reports p written whatever happens to the file, as the logger has nowhere to say it failed.
-func (w *LogFile) Write(p []byte) (int, error) {
-	line := []byte(Scrubber{}.NoSecrets(string(p)))
+// SetSecrets has Write write each of secrets, the credentials the app holds now, as *** in every line from then on, as a line logged from a job's goroutine may hold one of them in an error, as a storage key or the AI service's address that is shaped like no key.
+func (w *LogFile) SetSecrets(secrets []string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.secrets = slices.Clone(secrets)
+}
+
+// Write writes one entry of the logger, scrubbed, to echo and to the file, starting a new file first when the entry would take this one past its limit. It reports p written whatever happens to the file, as the logger has nowhere to say it failed.
+func (w *LogFile) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	line := []byte(Scrubber{Secrets: w.secrets}.NoSecrets(string(p)))
 	if w.echo != nil {
 		_, _ = w.echo.Write(line)
 	}

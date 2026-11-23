@@ -50,7 +50,7 @@ type jobQueue struct {
 	done   chan struct{}
 	// watch is where the film the running job makes is watched (queuePlaying), nil while none runs.
 	watch *queueWatch
-	// preferred is the film last opened whose job was put first (queuePreferOpen).
+	// preferred is the film last opened whose job was put first (queuePreferOpen); queueAdd forgets it when that job is queued again.
 	preferred string
 	// cancelled is set once the running job was asked to stop for good (stopActive with context.Canceled: Cancel, Withdraw, removing it), and cleared as the next one starts. A job the queue's pause stopped first then ends cancelled rather than going back to the queue (queuePausedJob), as the context keeps only the first cause it was stopped with.
 	cancelled bool
@@ -792,6 +792,10 @@ func (a *app) queueAdd(job core.Job) {
 		job.LibraryDir = a.snap().LibraryDir
 	}
 	a.queue.order = append(a.queue.order, job.ID)
+	// A job queued again, as a film translated again from the player while it is open, goes first again once queuePreferOpen sees it.
+	if a.queue.preferred == job.ID {
+		a.queue.preferred = ""
+	}
 	a.show(job)
 	a.pump()
 }
@@ -1087,6 +1091,12 @@ func (a *app) show(job core.Job) {
 	if was.SubtitlesOnly && !job.SubtitlesOnly && was.VideoPath != "" && job.VideoPath != "" && was.VideoPath != job.VideoPath {
 		from, to := was.VideoPath, job.VideoPath
 		a.moveVideos(func(path string) (string, bool) { return to, path == from })
+	}
+	// A link that played its sound until its video came (core.Job.SoundPath) is watched from the video now: what was kept by the path it went by meanwhile (films.PlayPath) follows the video, once, as the job's report says it came.
+	if was.VideoPath == "" && was.SoundPath != "" && job.VideoPath != "" && job.SoundPath == "" {
+		if from, to := media.SoundVideo(was.SoundPath), job.VideoPath; from != "" && from != to {
+			a.moveVideos(func(path string) (string, bool) { return to, path == from })
+		}
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {

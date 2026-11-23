@@ -66,7 +66,7 @@ func (s *screen) playhead() time.Duration {
 	return s.a.PlayHead()
 }
 
-// shownHead is the playhead, or while the scrubber is held where it would seek.
+// shownHead is the moment the screen shows: the playhead, or while the scrubber is held where it would seek, so the time, the lines on the picture, the subtitle list and the 片段 follow the pointer as it drags, as the picture does once it lets go.
 func (s *screen) shownHead() time.Duration {
 	if s.held.Get() {
 		return seconds(s.scrub.Get())
@@ -198,6 +198,8 @@ func (s *screen) stage() core.Node {
 			return stageNoteState{err: a.PlayErr()}
 		case a.PlayPath() != "" && a.Play() == nil:
 			return stageNoteState{opening: true}
+		case a.PictureComing():
+			return stageNoteState{coming: true}
 		case a.PlayPath() == "" && item.VideoPath == "" && item.Detail != "":
 			return stageNoteState{detail: item.Detail}
 		}
@@ -245,6 +247,8 @@ func (s *screen) stage() core.Node {
 									return text
 								}
 								return locales.FilmOpeningVideo(cx)
+							case n.coming:
+								return locales.FilmPictureComing(cx)
 							}
 							return n.detail
 						},
@@ -290,7 +294,9 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 // unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file. A video moved to a storage location is not on this computer: the page offers the settings, where the location is, when the location is gone, cannot be reached or lost the video, and nothing when not even the copy made of it from there plays, as moving it back, still in the film's menu, would play the same file.
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
-	return core.Show{When: func() bool { return note().err != "" && note().err != ErrStoredUnplayable && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
+	return core.Show{When: func() bool {
+		return note().err != "" && note().err != ErrStoredUnplayable && note().err != ErrVideoMissing && a.PlayPath() != ""
+	}, Then: func(cx *core.Scope) core.Node {
 		stored := core.NewMemo(cx, func() bool {
 			switch note().err {
 			case ErrStoredGone, ErrStoredUnreachable, ErrStoredMissing:
@@ -308,10 +314,11 @@ func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	}}
 }
 
-// stageNoteState is what the stage says in place of the picture: why it would not play, that it opens, or how far the film's job is.
+// stageNoteState is what the stage says in place of the picture: why it would not play, that it opens, that its picture follows the sound playing (coming), or how far the film's job is.
 type stageNoteState struct {
 	err     string
 	opening bool
+	coming  bool
 	detail  string
 }
 
@@ -371,6 +378,8 @@ func (s *screen) soundCover(cx *core.Scope) core.Node {
 			core.Show{When: func() bool { return poster() != "" }, Then: func(*core.Scope) core.Node {
 				return core.Image{TestID: "film-sound-poster", ResizeMode: core.Contain, Style: fillStyle,
 					SourceFunc: func() core.ImageSource { return core.ImageSource{URI: fileURL(poster())} }}
+			}, Else: func(*core.Scope) core.Node {
+				return core.Image{TestID: "film-sound-cover", ResizeMode: core.Contain, Style: fillStyle, SourceFunc: live.Func(a, a.ComingCover)}
 			}},
 		}}
 }

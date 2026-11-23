@@ -1,7 +1,6 @@
 package media
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -149,17 +148,17 @@ func TestRunFollowingKeepsTheErrorLines(t *testing.T) {
 	}
 }
 
-// captureLog sends the standard logger's output to a buffer until t ends.
-func captureLog(t *testing.T) *bytes.Buffer {
+// captureLog sends the standard logger's output to a buffer until t ends. The making logs from its goroutines, so the buffer is read and written under a lock.
+func captureLog(t *testing.T) *logged {
 	t.Helper()
-	var buf bytes.Buffer
+	buf := &logged{}
 	out, flags := log.Writer(), log.Flags()
-	log.SetOutput(&buf)
+	log.SetOutput(buf)
 	t.Cleanup(func() {
 		log.SetOutput(out)
 		log.SetFlags(flags)
 	})
-	return &buf
+	return buf
 }
 
 // A failed tool's error keeps only the end of its stderr, so the log gets the whole of it: the warnings before the error say what led to it.

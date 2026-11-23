@@ -95,6 +95,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	if watch == nil {
 		watch = From(job.ResumeAt)
 	}
+	ctx = withLogJob(ctx, job.ID)
 	if device == "" && job.Redo != core.RedoVideo {
 		job.Err, job.Stage = failedAt(StageCheck, track.ErrDevice), core.StageFailed
 		report(job)
@@ -147,7 +148,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		return translateAgain(ctx, p, &job, language, device, watch, report)
 	}
 	if job.Redo == core.RedoMissing {
-		return fillMissing(ctx, p, &job, language, device, report)
+		return fillMissing(ctx, p, &job, language, device, watch, report)
 	}
 	// A redo needs the translator as well as the tools that hear the film, as it would otherwise replace the film's translated subtitles with fewer.
 	check := p.Check
@@ -203,6 +204,10 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 		}
 		if soundOnly {
 			break
+		}
+		// The film plays its sound until its video comes (core.Job.SoundPath), named as the video will be (SoundVideo); a sound left at its own name, which the library would list as a film of its own until it goes, is not played.
+		if hearFrom != downloadedSound {
+			job.SoundPath = hearFrom
 		}
 		coming = make(chan downloaded, 1)
 		videoCtx, cancelVideo := context.WithCancel(WithTrace(ctx, &Trace{}))
@@ -276,7 +281,42 @@ func chats(p Pipeline) bool {
 }
 
 // soundPath is where the sound of the link whose video is to be at video is kept while it is made from it: a hidden file beside it, as ".video.sound", which moves with the video (Companions) and goes once the video is there.
-func soundPath(video string) string { return hiddenBeside(video, ".sound") }
+func soundPath(video string) string { return hiddenBeside(video, soundSuffix) + filepath.Ext(video) }
+
+// soundSuffix ends the hidden name of a link's sound (soundPath) before the sound's own extension, which the system's player opens it by.
+const soundSuffix = ".sound"
+
+// SoundVideo is the path the film whose sound is at sound (core.Job.SoundPath) goes by until its video comes: its documents, its subtitles and the files kept beside it are named after it, as the video will be but for its extension, and the player keeps the film's place by it. It is "" for a path no sound of a film is at (soundPath).
+func SoundVideo(sound string) string {
+	base := filepath.Base(sound)
+	ext := filepath.Ext(base)
+	stem, suffixed := strings.CutSuffix(strings.TrimSuffix(base, ext), soundSuffix)
+	name, hidden := strings.CutPrefix(stem, ".")
+	if ext == "" || !suffixed || !hidden || name == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(sound), name+ext)
+}
+
+// soundPaths are the sounds of the film at video beside it, those that exist: the one soundPath names after the extension its sound had, whatever the video's is, and one an older version named without it.
+func soundPaths(video string) []string {
+	prefix := filepath.Base(hiddenBeside(video, soundSuffix))
+	entries, err := os.ReadDir(filepath.Dir(video))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		name := e.Name()
+		if !e.Type().IsRegular() || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		if rest := strings.TrimPrefix(name, prefix); rest == "" || (filepath.Ext(rest) == rest && len(rest) > 1) {
+			out = append(out, filepath.Join(filepath.Dir(video), name))
+		}
+	}
+	return out
+}
 
 // MakesAPartAtATime reports whether Make makes job a part at a time, so stopping it loses no more than the work it was doing: any job but one downloading the video of a film that keeps none (core.RedoVideo), which stopping sets back to the start of its download.
 func MakesAPartAtATime(job core.Job) bool {
@@ -607,7 +647,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				// A run that failed before it heard anything, as one whose model cannot load, fails every run: the job fails, as the transcription failing does.
 				return m.fail(StageTranscribe, d.err)
 			case d.err != nil:
-				m.append(track.Unit{Work: track.WorkHear, Gen: gen, Cell: m.firstUnheard(gen, plan.Hearing, hearCells), Key: plan.Hearing}.Failed(d.err.Error()))
+				unit := track.Unit{Work: track.WorkHear, Gen: gen, Cell: m.firstUnheard(gen, plan.Hearing, hearCells), Key: plan.Hearing}
+				logf(m.ctx, "hear: the run hearing %s failed at %s: %v", cellsText(hearCells), unitsText([]track.Unit{unit}), d.err)
+				m.append(unit.Failed(d.err.Error()))
 			case hearing == "":
 				// The first run heard the language: the cells it heard are kept as heard in it, and every cell after is heard in it.
 				hearing = cmpOr(d.language, "auto")
@@ -643,6 +685,13 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				refusing = false
 				m.served.Store(true)
 			}
+			work := "draft"
+			if d.in.final {
+				work = "final proofread"
+			}
+			if d.err != nil && m.ctx.Err() == nil {
+				logf(m.ctx, "%s of %s failed: %v", work, unitsText(d.in.units), d.err)
+			}
 			switch {
 			case d.err == nil && d.in.final:
 				m.commitFinal(d)
@@ -653,6 +702,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			case m.ctx.Err() != nil:
 			case d.in.final && (errors.Is(d.err, ErrOffline) || given):
 				// The service is gone, or fails block after block: the film stays a draft where it is not proofread yet, as one done with blocks the final proofread did not get to.
+				logf(m.ctx, "final proofread: given up for the blocks left")
 				finals = false
 				relanguage()
 			case (errors.Is(d.err, ErrOffline) || given) && m.redo:
@@ -660,10 +710,12 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				return m.fail(StageTranslate, d.err)
 			case (errors.Is(d.err, ErrOffline) || given) && !d.in.final && d.language == "":
 				// The service is not there, or fails cell after cell: the film, in its own language, is made with the lines of the cells left as heard. It is not translated, so it has no translation that failed (TranslationErr).
+				logf(m.ctx, "draft: proofreading given up for the cells left, their lines stay as heard")
 				proofreadOff = true
 				relanguage()
 			case errors.Is(d.err, ErrOffline) || given:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
+				logf(m.ctx, "draft: translation given up for the cells left, %d to draft and %d to hear, which stay untranslated", len(p.Draft), len(p.Hear))
 				notTranslated = d.err.Error()
 				notTranslatedBy, _ = EngineOf(d.err)
 				relanguage()
@@ -685,6 +737,9 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	// A making stopped as its last work ended, as the fetch of the site's captions, is stopped, not done.
 	if err := m.ctx.Err(); err != nil {
 		return m.fail(StageTranscribe, err)
+	}
+	for _, u := range last.GivenUp {
+		logf(m.ctx, "%s of %s given up after %d attempts", u.Work, unitsText([]track.Unit{u}), track.Attempts)
 	}
 	// A redo that gave up hearing or drafting a part of the film would replace the film with one that lacks it: it fails, leaving the film as it was.
 	if m.redo {
@@ -756,6 +811,13 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 				untranslated++
 			}
 		}
+	}
+	if untranslated > 0 {
+		givenUp := ""
+		if notTranslated != "" {
+			givenUp = ", the translation given up: " + notTranslated
+		}
+		logf(m.ctx, "made with %d of %d lines untranslated%s: %s", untranslated, len(lines), givenUp, gapsText(track.Originals(lines), func(i int) bool { return lines[i].Translation.Text == "" }))
 	}
 	// The chapters' titles are translated as the lines are; a film not translated has their earlier translations cleared (translateChapters).
 	if notTranslated == "" {
@@ -1111,8 +1173,8 @@ func translateAgain(ctx context.Context, p Pipeline, job *core.Job, language, de
 	return m.run(length, language, watch)
 }
 
-// fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time, with the lines said before each as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: a batch that fails is left untranslated and the batches after it are translated, until maxFailedBatches fail in a row or the service refuses one as it would every one, as a key or an account out of credit; one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.
-func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, device string, report func(core.Job)) core.Job {
+// fillMissing translates the lines of job's film that the film shows without a translation (core.RedoMissing) into language, a batch at a time nearest where watch says the film is watched first (nextBatch), with the lines said before each, and their translations, as context, and keeps the rest as they are. It writes each batch into the lines the film shows and out beside the video as it is translated, as filling in what is missing cannot make the film worse: a batch that fails is left untranslated and the batches after it are translated, until maxFailedBatches fail in a row or the service refuses one as it would every one, as a key or an account out of credit; one that fails or is stopped keeps the lines it filled, and job.Untranslated says how many are left. It neither downloads nor hears the film. A film whose subtitles were edited outside Kando so they no longer match its transcript line for line fails with ErrSubtitlesChanged, sending nothing, as which lines are missing cannot be told; one whose bilingual subtitles are gone has every line its document does not translate translated.
+func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, device string, watch Watcher, report func(core.Job)) core.Job {
 	failed := func(step Stage, err error) core.Job {
 		job.Err, job.Stage, job.Progress = failedAt(step, err), core.StageFailed, core.Progress{}
 		report(*job)
@@ -1184,15 +1246,25 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	// failedRun is how many batches in a row failed, and lastErr why the last of them did: a batch that fails is left untranslated and the batches after it go on, as one batch failing is more often its reply than the service, until maxFailedBatches fail in a row.
 	failedRun := 0
 	var lastErr error
-	for at := 0; at < len(missing); at += DefaultBatchSize {
-		batch := missing[at:min(at+DefaultBatchSize, len(missing))]
+	// untried is the missing lines not sent yet. A line is sent once: a batch that failed, or a reply that left a line of it empty, is not sent again, as the next batch is taken from what is left.
+	untried := slices.Clone(missing)
+	// filled is the translations this run wrote, by line: they go as context with the batches after, as they translate the lines as they read now, though a line taken in from a file holds its original at a layer above a draft (earlierOfLine).
+	filled := map[int]string{}
+	for len(untried) > 0 {
+		from := nextBatch(lines, untried, watch.Playhead())
+		batch := slices.Clone(untried[from:min(from+DefaultBatchSize, len(untried))])
+		untried = slices.Delete(untried, from, from+len(batch))
 		segments := make([]core.Segment, len(batch))
 		for k, i := range batch {
 			segments[k] = core.Segment{Start: lines[i].Start, End: lines[i].End, Text: lines[i].Original.Text}
 		}
 		var earlier []Earlier
-		for _, l := range lines[max(batch[0]-draftContext, 0):batch[0]] {
-			earlier = append(earlier, earlierOfLine(l))
+		for i := max(batch[0]-draftContext, 0); i < batch[0]; i++ {
+			e := earlierOfLine(lines[i])
+			if text, ok := filled[i]; ok {
+				e.Translation = text
+			}
+			earlier = append(earlier, e)
 		}
 		translated, err := p.Translate(WithTitle(WithEarlier(ctx, earlier), filmTitle(*job)), segments, language)
 		var partial *UntranslatedError
@@ -1206,6 +1278,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			if ctx.Err() != nil || errors.Is(err, ErrOffline) || !skippableBatch(err) || failedRun+1 >= maxFailedBatches {
 				return failed(StageTranslate, err)
 			}
+			logf(withLogSpan(ctx, segments), "fill missing: batch left untranslated: %v", err)
 			failedRun, lastErr = failedRun+1, err
 			continue
 		}
@@ -1218,6 +1291,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			}
 			// A line taken in from a file may hold an empty translation at the final layer, which a draft would not show over.
 			revs = append(revs, track.Event{Kind: track.KindRev, Line: lines[i].ID, Side: track.Translation, Layer: max(lines[i].Translation.Layer, track.LayerDraft), Text: text, Source: makeSource})
+			filled[i] = text
 			left--
 		}
 		written, err := track.Append(video, device, revs...)
@@ -1229,10 +1303,14 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			return failed(StageExport, err)
 		}
 		job.Untranslated = left
-		progress := core.Fraction(float64(at+len(batch)) / float64(len(missing)))
+		progress := core.Fraction(float64(len(missing)-len(untried)) / float64(len(missing)))
 		progress.Started = started
 		job.Progress = progress
 		report(*job)
+	}
+	if left > 0 {
+		now := doc.Lines(gen)
+		logf(ctx, "fill missing: %d of %d untranslated lines are still untranslated%s: %s", left, len(missing), because(lastErr), gapsText(track.Originals(now), func(i int) bool { return strings.TrimSpace(now[i].Translation.Text) == "" }))
 	}
 	// Lines left only by batches that failed, every one of them, are a translation that failed.
 	if lastErr != nil && left == len(missing) {
@@ -1253,6 +1331,14 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 	job.Stage, job.Progress = core.StageComplete, core.Progress{}
 	report(*job)
 	return *job
+}
+
+// nextBatch is where in untried, the missing lines of lines not sent yet in the film's order, the next batch of them begins: at the first one not over by playhead, the line on screen among them, so the lines about to be watched are translated first, as Make makes a film; with none left after it, at the film's start, before the playhead.
+func nextBatch(lines []track.Line, untried []int, playhead time.Duration) int {
+	if at := slices.IndexFunc(untried, func(i int) bool { return lines[i].End > playhead }); at >= 0 {
+		return at
+	}
+	return 0
 }
 
 // copyHearing is how the cells of a film translated again are heard (track.Making.Hearing): not at all, their lines copied from the film as it shows them.
@@ -1567,6 +1653,9 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 		case err == nil, errors.As(err, &partly) && len(fixed) == len(heard):
 			heard = fixed
 		}
+		if err != nil {
+			logf(withLogSpan(ctx, in.lines), "draft: proofreading failed, its translation goes on with the lines it left as heard: %v", err)
+		}
 		fixes = ObservedFixes(heardOnlyOf(in.lines, at), heard)
 	}
 	for k, i := range at {
@@ -1585,11 +1674,20 @@ func (m *making) draft(ctx context.Context, in draftInput, language string, out 
 	if errors.As(err, &partial) && len(translated) == len(lines) {
 		m.translateLeft(ctx, in, lines, translated, language)
 		err = nil
+	} else if err == nil && len(translated) == len(lines) {
+		if gaps := gapsText(lines, func(i int) bool { return untranslatedLine(lines[i], translated[i]) }); gaps != "" {
+			logf(withLogSpan(ctx, in.lines), "draft: the translation left lines empty without an error (%s)", gaps)
+		}
 	}
 	if err == nil && len(translated) != len(lines) {
 		err = fmt.Errorf("%d translated lines for %d lines", len(translated), len(lines))
 	}
 	out <- drafted{in: in, language: language, original: lines, translated: translated, fixes: fixes, err: err}
+}
+
+// untranslatedLine reports whether translation, of line, is empty where line is not.
+func untranslatedLine(line, translation core.Segment) bool {
+	return strings.TrimSpace(translation.Text) == "" && strings.TrimSpace(line.Text) != ""
 }
 
 // translateLeft translates again, once, the lines of a draft its translation left untranslated, translated (a batch of them failed after its retries, UntranslatedError), with the lines of the draft before the first of them and their translations as context, as one batch failing alone is more often the reply than the service; what it translates goes into translated. Lines it leaves untranslated again stay so: the draft is made with them, as the user can translate the lines left (core.RedoMissing).
@@ -1611,15 +1709,21 @@ func (m *making) translateLeft(ctx context.Context, in draftInput, lines, transl
 	for k, i := range left {
 		segments[k] = lines[i]
 	}
+	logCtx := withLogSpan(ctx, in.lines)
+	logf(logCtx, "draft: %d lines left untranslated (%s), translating them again", len(left), gapsText(lines, func(i int) bool { return strings.TrimSpace(translated[i].Text) == "" }))
 	again, err := m.p.Translate(WithTitle(WithEarlier(ctx, earlier), in.title), segments, language)
 	var partial *UntranslatedError
 	if (err != nil && !errors.As(err, &partial)) || len(again) != len(segments) {
+		logf(logCtx, "draft: translating the %d lines left again failed, they stay untranslated: %v", len(left), err)
 		return
 	}
 	for k, i := range left {
 		if text := strings.TrimSpace(again[k].Text); text != "" {
 			translated[i].Text = text
 		}
+	}
+	if still := gapsText(lines, func(i int) bool { return strings.TrimSpace(translated[i].Text) == "" }); still != "" {
+		logf(logCtx, "draft: lines stay untranslated after they were translated again (%s)%s", still, because(err))
 	}
 }
 
@@ -1635,6 +1739,7 @@ func (m *making) patiently(ctx context.Context, ask func() error) error {
 	err := ask()
 	start, wait := time.Now(), patienceFirst
 	for transient(err) && m.served.Load() && time.Since(start)+wait <= patience {
+		logf(ctx, "AI service failing for %v, trying again in %v: %v", time.Since(start).Round(time.Second), wait, err)
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -1644,6 +1749,9 @@ func (m *making) patiently(ctx context.Context, ask func() error) error {
 		}
 		wait = min(wait*2, patienceMost)
 		err = ask()
+	}
+	if transient(err) && m.served.Load() {
+		logf(ctx, "AI service still failing after %v, given up waiting: %v", time.Since(start).Round(time.Second), err)
 	}
 	return err
 }
@@ -1982,7 +2090,7 @@ func (m *making) videoCame(d downloaded) {
 		m.videoErr = d.err
 		return
 	}
-	m.job.VideoPath = d.path
+	m.job.VideoPath, m.job.SoundPath = d.path, ""
 	m.report(*m.job)
 }
 
@@ -2004,7 +2112,7 @@ func (m *making) project(gen string) {
 	m.projected = time.Now()
 	_ = m.append(events...)
 	// A film is shown with its subtitles once there is a video to show them on.
-	if m.job.VideoPath != "" && m.job.SubtitlePath != m.bilingual {
+	if (m.job.VideoPath != "" || m.job.SoundPath != "") && m.job.SubtitlePath != m.bilingual {
 		m.job.SubtitlePath = m.bilingual
 		m.report(*m.job)
 	}

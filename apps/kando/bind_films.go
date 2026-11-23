@@ -176,12 +176,15 @@ func (a *app) Open(item films.Film) {
 	// Jumping to a line of the open film plays it from there as a seek does, keeping its state; opening any film, the one that just closed included, starts it afresh.
 	a.player.playSame = a.player.playJump && item.Key != "" && item.Key == a.openKey
 	// A film opened without a point picked for it (OpenAt), as from its poster, the hero, the notice or the menu bar, opens held where it stopped last time, as 继续 would play it, so playing it on keeps that place rather than starting over and saving a new one in its place.
+	// A link whose video has not come plays its sound, by the path the video will have (films.PlayPath).
+	play := item
+	play.VideoPath = films.PlayPath(item)
 	if !a.player.playJump {
-		a.player.playFrom, _ = films.ResumeFrom(a, item)
+		a.player.playFrom, _ = films.ResumeFrom(a, play)
 	}
 	a.openKey = item.Key
-	a.loadSubtitles(item.Key, item.VideoPath, item.SubtitlePath)
-	a.startPlayback(item.VideoPath)
+	a.loadSubtitles(item.Key, play.VideoPath, item.SubtitlePath)
+	a.startPlayback(play.VideoPath)
 }
 
 // OpenAt opens a film playing from at, as the hero's 播放, 从 X 继续 and 从头看 do. It keeps the film's state as a seek does, so the player's line loop is told (playerLoopOpening).
@@ -503,7 +506,20 @@ func (a *app) films() []films.Film {
 		return nil
 	}
 	shot := a.snap()
-	return storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored)
+	return goneMark(storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored), shot.Gone)
+}
+
+// goneMark sets Missing on each of items whose video is one of gone, the videos kept outside the library that are not on disk now (session.Gone).
+func goneMark(items []films.Film, gone map[string]bool) []films.Film {
+	if len(gone) == 0 {
+		return items
+	}
+	for i := range items {
+		if items[i].VideoPath != "" && gone[items[i].VideoPath] {
+			items[i].Missing = true
+		}
+	}
+	return items
 }
 
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.

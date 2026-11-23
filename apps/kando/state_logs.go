@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/feedback"
@@ -20,6 +21,8 @@ type logsUI struct {
 	// file is the log file once the window is ready; nil before, in tests that do not open one, and when the logs folder could not be written.
 	file   *feedback.LogFile
 	stages map[string]core.Stage
+	// secrets are the credentials the log file was last given (logsKnowSecrets).
+	secrets []string
 }
 
 func newLogsUI() logsUI { return logsUI{} }
@@ -59,7 +62,20 @@ func (a *app) logsHooks() areaHooks {
 		quitting:     a.logsQuitting,
 		shelfLoaded:  func() { a.logsJobs(false) },
 		shelfChanged: func() { a.logsJobs(true) },
+		afterChange:  a.logsKnowSecrets,
 	}
+}
+
+// logsKnowSecrets gives the log file the credentials the app holds now (feedbackSecrets), so a line a job logs from its own goroutine, which cannot read them, has them written as ***: after each change, as a setting changed is one, and before the queue starts a job, as the log's area runs first. It changes nothing the window shows.
+func (a *app) logsKnowSecrets() bool {
+	if a.logs.file == nil {
+		return false
+	}
+	if secrets := a.feedbackSecrets(); !slices.Equal(secrets, a.logs.secrets) {
+		a.logs.secrets = secrets
+		a.logs.file.SetSecrets(secrets)
+	}
+	return false
 }
 
 // logsKeys are the log's rows of the shortcut table: 显示日志文件 in the 帮助 menu, without a key, while there is a log file.
@@ -89,6 +105,7 @@ func (a *app) logsOpen() {
 		return
 	}
 	a.logs.file = file
+	a.logsKnowSecrets()
 	log.SetOutput(file)
 	log.Printf("Kando %s started on %s/%s", appVersion, runtime.GOOS, runtime.GOARCH)
 	if moved != nil {

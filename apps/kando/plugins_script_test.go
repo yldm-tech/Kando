@@ -357,6 +357,36 @@ func TestPluginScriptHungIsTurnedOff(t *testing.T) {
 	wantText(t, tt, testlocale.Messages().SettingsPluginsStoppedHung())
 }
 
+// TestPluginScriptBackgroundHogIsTurnedOff checks that a plugin whose timers keep the window busy outside its calls, which no call's watchdog watches, is turned off by the runner's background watchdog as slow: it no longer runs, health.json records why, which keeps it from loading again, and the audit log has a line for it. The test's clock stands still but for what the test lets go by, which runs the plugin's interval once a millisecond, each run a loop well under tsx's budget, so the window is busy with it nearly all the time the test runs.
+func TestPluginScriptBackgroundHogIsTurnedOff(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates, root := scriptsApp(t, key, pluginScriptFolder(t, key, "acme.anki", "1.0.0", pluginAnkiFields, pluginAnkiCode+"\nsetInterval(() => { let x = 0; for (let i = 0; i < 200000; i++) x += i }, 1)\n"))
+	w := script.DefaultWatch
+	w.Stall = time.Minute
+	w.BgBeat, w.Burst, w.TotalBurst = 50*time.Millisecond, time.Second, 0
+	a.plugins.script.watch = w
+	scriptsGrant(t, a, tt, updates, "acme.anki")
+	p := a.pluginsScriptPacks()[0]
+	for deadline := time.Now().Add(20 * time.Second); a.plugins.script.loaded["acme.anki"] != nil; {
+		if time.Now().After(deadline) {
+			t.Fatal("the plugin keeping the window busy still runs")
+		}
+		tt.Advance(20 * time.Millisecond)
+	}
+	if h, ok := plugins.HealthOf(a.plugins.script.health, p.ID, p.Hash); !ok || h.Reason != plugins.ReasonSlow {
+		t.Fatalf("health %+v", a.plugins.script.health)
+	}
+	if a.plugins.state.Enabled(p.ID) {
+		t.Error("its switch is still on")
+	}
+	pluginsAuditHas(t, a, tt, updates, root, plugins.AuditStopped+" acme.anki "+plugins.ReasonSlow)
+	scriptsSettle(t, a, tt, updates, func() bool {
+		hs, _ := plugins.LoadHealth(root)
+		h, ok := plugins.HealthOf(hs, p.ID, p.Hash)
+		return ok && h.Reason == plugins.ReasonSlow
+	})
+}
+
 // pluginsSignerOf is the ID of the release key that signed the plugin p, as Kando verifies it.
 func pluginsSignerOf(t *testing.T, key pluginsKey, root string, p plugins.Pack) string {
 	t.Helper()
