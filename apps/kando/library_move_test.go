@@ -91,6 +91,13 @@ func newMoveFixture(t *testing.T) *moveFixture {
 	return &moveFixture{a: a, tt: tt, updates: updates, from: from, to: to, video: video}
 }
 
+// moved applies the background updates until the move going on has ended: a film that could not be renamed, as on Windows while something still holds its files, is copied off the UI thread instead (libraryMoveUnitStart), and is where it went only once that copy is whole.
+func (f *moveFixture) moved(t *testing.T) {
+	t.Helper()
+	a := f.a
+	waitUntil(t, f.tt, a, f.updates, func() bool { return a.lib.move.run == nil && a.lib.move.copying == nil })
+}
+
 // wantKept checks that everything Kando keeps of the film by its video's path is kept by video, and nothing by the path it had.
 func (f *moveFixture) wantKept(t *testing.T, video string) {
 	t.Helper()
@@ -169,7 +176,7 @@ func TestMoveFilmToAnotherLibrary(t *testing.T) {
 	}
 
 	tt.Press("id:notice-undo")
-	refresh(tt, a)
+	f.moved(t)
 	if _, err := os.Stat(f.video); err != nil {
 		t.Fatalf("Undo did not bring the video back: %v", err)
 	}

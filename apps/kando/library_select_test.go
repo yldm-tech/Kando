@@ -49,11 +49,11 @@ func newSeriesFixture(t *testing.T) (f *moveFixture, ep1, ep2 string) {
 // TestMoveSeveralFilmsAtOnce checks 移到资料库 for several films selected, within one volume: a series whose every episode is selected moves with its folder, the notes in it too, rather than an episode a folder; the film beside it moves too; the message bar says once how many moved and offers Undo, which brings them all back.
 func TestMoveSeveralFilmsAtOnce(t *testing.T) {
 	f, ep1, ep2 := newSeriesFixture(t)
-	a, tt := f.a, f.tt
+	a := f.a
 	m := testlocale.Messages()
 	items := []films.Film{must(films.Find(a.films(), ep1)), must(films.Find(a.films(), ep2)), must(films.Find(a.films(), "film"))}
 	a.MoveFilms(items, f.to)
-	refresh(tt, a)
+	f.moved(t)
 	for _, path := range []string{filepath.Join(f.to, "Course", "ep1.mp4"), filepath.Join(f.to, "Course", "ep2.mp4"), filepath.Join(f.to, "Course", "notes.txt"), filepath.Join(f.to, "Talk", "video.mp4")} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("not moved: %v", err)
@@ -70,7 +70,7 @@ func TestMoveSeveralFilmsAtOnce(t *testing.T) {
 	}
 	f.wantKept(t, filepath.Join(f.to, "Talk", "video.mp4"))
 	a.UndoMove()
-	refresh(tt, a)
+	f.moved(t)
 	for _, path := range []string{ep1, ep2, filepath.Join(f.from, "Course", "notes.txt"), f.video} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("Undo did not bring it back: %v", err)
@@ -84,6 +84,7 @@ func TestMoveSeveralFilmsAtOnce(t *testing.T) {
 
 	// Of a series, an episode moves on its own and its folder stays, with the other.
 	a.MoveFilms([]films.Film{must(films.Find(a.films(), ep2))}, f.to)
+	f.moved(t)
 	// The folder keeps the other episode, which the library then files as the folder's video (media.GatherVideos).
 	if entries, _ := os.ReadDir(filepath.Join(f.from, "Course")); len(entries) != 3 || len(a.films()) != 2 {
 		t.Fatalf("the episode left behind went too: the folder holds %v and the shelf %d films", entries, len(a.films()))

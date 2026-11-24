@@ -79,13 +79,13 @@ func (m FilmMove) Path(path string) (string, bool) {
 	return "", false
 }
 
-// Rename moves the sources to Dest with os.Rename, which works within one volume. When a rename fails it puts back what it had moved and returns the error, so the caller can copy them instead (Copy).
+// Rename moves the sources to Dest with os.Rename, which works within one volume, trying again for a moment while Windows says something holds them (renameHeld). When a rename fails it puts back what it had moved and returns the error, so the caller can copy them instead (Copy).
 func (m FilmMove) Rename() error {
 	if _, err := os.Lstat(m.Dest); err == nil {
 		return fmt.Errorf("%s: %w", m.Dest, fs.ErrExist)
 	}
 	if m.Folder {
-		return os.Rename(m.Sources[0], m.Dest)
+		return renameHeld(m.Sources[0], m.Dest)
 	}
 	if err := os.Mkdir(m.Dest, 0o755); err != nil {
 		return err
@@ -93,10 +93,10 @@ func (m FilmMove) Rename() error {
 	var done []string
 	for _, source := range m.Sources {
 		next, _ := m.Path(source)
-		if err := os.Rename(source, next); err != nil {
+		if err := renameHeld(source, next); err != nil {
 			for _, back := range done {
 				moved, _ := m.Path(back)
-				os.Rename(moved, back)
+				renameHeld(moved, back)
 			}
 			os.Remove(m.Dest)
 			return err
