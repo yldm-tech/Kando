@@ -50,6 +50,17 @@ type MediaSourcesApp interface {
 	MediaSourceRemoving() MediaSourceRemoval
 	// AnswerRemoveMediaSource answers it: yes removes the source and forgets its secrets; no leaves it.
 	AnswerRemoveMediaSource(yes bool)
+
+	// MediaSourceTrust is the question open about the certificate of a source's server, which the system does not trust, Open false when none is.
+	MediaSourceTrust() MediaSourceTrust
+	// AnswerTrustMediaSource answers it: yes trusts the certificate offered for that server, in place of the one trusted before when there was one.
+	AnswerTrustMediaSource(yes bool)
+}
+
+// MediaSourceTrust is the question about the certificate of the server Host, whose fingerprint is Fingerprint: whether to trust it, or, when Trusted is the fingerprint trusted before, whether to replace that one.
+type MediaSourceTrust struct {
+	Open                       bool
+	Host, Fingerprint, Trusted string
 }
 
 // MediaSource is a source as the page lists it: its name, and its kind and where it is (Summary), as "SMB · nas.local/media".
@@ -104,6 +115,7 @@ func (p MediaSources) Render(cx *core.Scope) core.Node {
 		form.Note(func() string { return locales.SettingsSourcesNote(cx) }, 0),
 		mediaSourceDialog{a},
 		mediaSourceRemove{a},
+		mediaSourceTrustAlert{a},
 	)
 }
 
@@ -325,6 +337,45 @@ func (d mediaSourceRemove) Render(cx *core.Scope) core.Node {
 			Actions: []ui.AlertAction{
 				{Text: locales.AccountLocationCancel(cx), Variant: ui.ButtonSecondary, Role: core.AlertCancel, Default: true, OnPress: no, TestID: "media-source-remove-cancel"},
 				{Text: locales.AccountLocationRemoveButton(cx), Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "media-source-remove-ok"},
+			},
+		}
+	}}
+}
+
+// mediaSourceTrustAlert asks whether to trust the certificate of a source's server the system does not trust, as a NAS's own, by its fingerprint; or, when it is not the one trusted before, warns so and offers only a destructive Replace besides Cancel (docs/media-sources.md 12.2, 17.5).
+type mediaSourceTrustAlert struct{ a MediaSourcesApp }
+
+// Render implements core.Node.
+func (d mediaSourceTrustAlert) Render(cx *core.Scope) core.Node {
+	a := d.a
+	trust := core.NewMemo(cx, live.Func(a, a.MediaSourceTrust))
+	yes := live.Do(a, func() { a.AnswerTrustMediaSource(true) })
+	no := live.Do(a, func() { a.AnswerTrustMediaSource(false) })
+	return core.Show{When: func() bool { return trust.Get().Open }, Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		changed := core.Untracked(cx, trust.Get).Trusted != ""
+		accept := ui.AlertAction{Text: locales.AccountLocationTrust(cx), OnPress: yes, TestID: "media-source-trust-ok"}
+		if changed {
+			accept = ui.AlertAction{Text: locales.SettingsSourcesReplaceCert(cx), Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "media-source-trust-ok"}
+		}
+		return ui.AlertDialog{
+			TestID: "media-source-trust",
+			Open:   func() bool { return true },
+			TitleFunc: func() string {
+				if t := trust.Get(); t.Trusted != "" {
+					return locales.SettingsSourcesCertChangedTitle(cx, t.Host)
+				}
+				return locales.AccountLocationTrustTitle(cx, trust.Get().Host)
+			},
+			DescriptionFunc: func() string {
+				if t := trust.Get(); t.Trusted != "" {
+					return locales.SettingsSourcesCertChangedMessage(cx, t.Trusted, t.Fingerprint)
+				}
+				return locales.SettingsSourcesCertTrustMessage(cx, trust.Get().Fingerprint)
+			},
+			Actions: []ui.AlertAction{
+				{Text: locales.AccountLocationCancel(cx), Variant: ui.ButtonSecondary, Role: core.AlertCancel, Default: true, OnPress: no, TestID: "media-source-trust-cancel"},
+				accept,
 			},
 		}
 	}}

@@ -35,6 +35,9 @@ type mediaSourceUI struct {
 	saveGen       int
 	editRelease   func()
 	removeRelease func()
+	// trust is the question about a server's certificate a Test of a plugin's source was refused for, and trustRelease gives back the modal flag it holds (state_mediasource_plugin.go).
+	trust        mediaSourceTrust
+	trustRelease func()
 	// secretsHeld is held by whoever is changing the sources' secrets in the secure store, from a save's first write until settings.json took the save or its secrets were put back as they were (mediaSourceSecretWrite), and by a removal's forgetting, so a save started after another that was abandoned reads the secrets that one put back, and nothing puts back a secret a removal forgot.
 	secretsHeld chan struct{}
 	open        func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
@@ -110,9 +113,12 @@ func (s *savedMediaSources) clean() {
 	s.MediaSources = kept
 }
 
-// mediaSourceConfig is values kept to the fields of k that are not secret, each trimmed, without the empty ones; nil for none.
+// mediaSourceConfig is values kept to the fields of k that are not secret, each trimmed, without the empty ones, and for a plugin's kind the fingerprint of the certificate trusted for its endpoint (mediasource.PinKey); nil for none.
 func mediaSourceConfig(k mediasource.Kind, values map[string]string) map[string]string {
 	var out map[string]string
+	if pin := values[mediasource.PinKey]; pin != "" && !k.Origin.Builtin() {
+		out = map[string]string{mediasource.PinKey: pin}
+	}
 	for _, f := range k.Fields {
 		v := strings.TrimSpace(values[f.Key])
 		if f.Type == mediasource.FieldSecret || v == "" {
@@ -149,6 +155,15 @@ func (m mediaSourceUI) mediaSourceSecrets() []string {
 	var out []string
 	for _, s := range m.list {
 		c := s.Config
+		if s.Kind != mediasource.KindSMB {
+			// A plugin's source's values are its server's address, a user and the like, all of them where it is.
+			for _, key := range slices.Sorted(maps.Keys(c)) {
+				if key != mediasource.PinKey {
+					out = append(out, c[key], mediasource.Host(s))
+				}
+			}
+			continue
+		}
 		out = append(out, c[mediasource.SMBHost], c[mediasource.SMBShare], c[mediasource.SMBRoot], c[mediasource.SMBUser], c[mediasource.SMBDomain])
 	}
 	for _, key := range slices.Sorted(maps.Keys(m.draft.Values)) {
@@ -177,8 +192,8 @@ func (a *app) mediaSourceHooks() areaHooks {
 func (a *app) mediaSourceModals() bool {
 	m := &a.sources
 	changed := false
-	if (m.editing || m.removing != "") && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
-		m.editing, m.removing, m.saving = false, "", false
+	if (m.editing || m.removing != "" || m.trust.open) && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
+		m.editing, m.removing, m.saving, m.trust = false, "", false, mediaSourceTrust{}
 		m.saveGen++
 		changed = true
 	}
@@ -190,6 +205,16 @@ func (a *app) mediaSourceModals() bool {
 	if m.removing == "" && m.removeRelease != nil {
 		m.removeRelease()
 		m.removeRelease = nil
+		changed = true
+	}
+	// The question about the draft's certificate goes with the dialog.
+	if m.trust.open && m.trust.target == "" && !m.editing {
+		m.trust = mediaSourceTrust{}
+		changed = true
+	}
+	if !m.trust.open && m.trustRelease != nil {
+		m.trustRelease()
+		m.trustRelease = nil
 		changed = true
 	}
 	return changed
@@ -267,6 +292,9 @@ func (a *app) mediaSourceDraftSource() (mediasource.Source, mediasource.Kind, ma
 
 // mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved, nil when nothing does: an SMB source needs a server, a port that is a number, a share of one name, a share for a folder, and a user (guest for a share open to anyone).
 func mediaSourceProblem(k mediasource.Kind, s mediasource.Source) func(locales.Messages) string {
+	if !k.Origin.Builtin() {
+		return mediaSourcePluginProblem(s)
+	}
 	if k.ID != mediasource.KindSMB {
 		return nil
 	}
@@ -579,6 +607,14 @@ func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, pa
 	r := mediasource.SMBRemote(s, password)
 	// The row says what to do in the interface's language; the whole error goes to the log file, without the secrets and addresses the app holds.
 	log.Printf("media source: %s test failed: %s", s.Kind, feedback.Scrubber{Secrets: append(a.feedbackSecrets(), password)}.NoSecrets(err.Error()))
+	if k, ok := m.kinds.Kind(s.Kind); ok && !k.Origin.Builtin() {
+		m.tests[target] = mediaSourceTest{err: func(msg locales.Messages) string { return a.mediaSourcePluginFailure(msg, k, err) }}
+		// A certificate the system does not trust, as a NAS's own, is asked about at once.
+		if cert := (*mediasource.CertError)(nil); errors.As(err, &cert) {
+			a.mediaSourceAskTrust(target, s, cert)
+		}
+		return
+	}
 	m.tests[target] = mediaSourceTest{err: func(msg locales.Messages) string { return mediaSourceFailure(msg, r, err) }}
 }
 
@@ -593,6 +629,9 @@ func mediaSourceFailure(m locales.Messages, r storage.Remote, err error) string 
 // mediaSourceWarnings are what the dialog says under the fields of the draft: that SMB cannot prove which server it reached, and while the draft does without signing, what that risks.
 func (a *app) mediaSourceWarnings() []string {
 	m := &a.sources
+	if k, ok := m.kinds.Kind(m.draft.Kind); m.editing && ok && !k.Origin.Builtin() {
+		return mediaSourcePluginWarnings(a.messages(), m.draft.Values)
+	}
 	if !m.editing || m.draft.Kind != mediasource.KindSMB {
 		return nil
 	}
@@ -608,10 +647,16 @@ func (a *app) mediaSourceWarnings() []string {
 func (a *app) mediaSourceSummary(s mediasource.Source) string {
 	msg := a.messages()
 	kind := s.Kind
-	if k, ok := a.sources.kinds.Kind(s.Kind); ok {
+	k, ok := a.sources.kinds.Kind(s.Kind)
+	if ok {
 		kind = k.Title(a.prefs.interfaceLanguage)
 	}
 	place := s.Config[mediasource.SMBHost]
+	if ok && !k.Origin.Builtin() {
+		if u, err := mediasource.ParseEndpoint(s.Config[mediasource.EndpointKey]); err == nil {
+			place = u.Host + strings.TrimSuffix(u.Path, "/")
+		}
+	}
 	if s.Kind == mediasource.KindSMB {
 		r := mediasource.SMBRemote(s, "")
 		if r.Share != "" {

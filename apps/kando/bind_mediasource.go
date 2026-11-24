@@ -56,7 +56,7 @@ func (a *app) MediaSourceIsNew() bool { return a.sources.editID == "" }
 func (a *app) MediaSourceKinds() []settings.MediaSourceKind {
 	var out []settings.MediaSourceKind
 	for _, k := range a.sources.kinds.Kinds() {
-		out = append(out, settings.MediaSourceKind{ID: k.ID, Title: k.Title(a.prefs.interfaceLanguage)})
+		out = append(out, settings.MediaSourceKind{ID: k.ID, Title: a.mediaSourceKindTitle(k)})
 	}
 	return out
 }
@@ -116,6 +116,10 @@ func (a *app) MediaSourceRemoving() settings.MediaSourceRemoval {
 }
 
 func (a *app) AnswerRemoveMediaSource(yes bool) { a.answerRemoveMediaSource(yes) }
+
+func (a *app) MediaSourceTrust() settings.MediaSourceTrust { return a.mediaSourceTrustShown() }
+
+func (a *app) AnswerTrustMediaSource(yes bool) { a.mediaSourceAnswerTrust(yes) }
 
 // The 媒体来源 page's reads and writes (sourcebrowser.App), and the sidebar's row of it. The state and what the actions do are in state_mediasource_browse.go.
 
