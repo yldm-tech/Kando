@@ -158,37 +158,52 @@ func (m *RelayPairMailbox) Remove(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Serve publishes the box and reads the ask every every, 0 for RelayPairEvery, until ctx ends: it answers the first ask with what pair answers it, and then reads no more, as the mailbox answers one. It leaves the mailbox in the bucket for the caller to Remove. What failed of the store is tried again at the next turn; logf, when not nil, logs it.
+// Serve publishes the box and reads the ask every every, 0 for RelayPairEvery, until ctx ends: it answers the first ask with what pair answers it, writing that answer again until the store takes it, and then reads no more, as the mailbox answers one. It leaves the mailbox in the bucket for the caller to Remove. What failed of the store is tried again at the next turn; logf, when not nil, logs it.
 func (m *RelayPairMailbox) Serve(ctx context.Context, every time.Duration, pair func(context.Context, PairRequest) RelayPairAnswer, logf func(string, ...any)) {
 	if every <= 0 {
 		every = RelayPairEvery
 	}
 	published, answered := false, false
+	var answer *RelayPairAnswer
+	// failing is what failed last, logged once until a turn goes through, so a store that refuses the desktop does not fill the log every turn for the code's whole life.
+	failing := ""
+	fail := func(what string, err error) {
+		if err != nil && ctx.Err() == nil && what != failing {
+			failing = what
+			if logf != nil {
+				logf("relay: pairing mailbox: %s: %v", what, err)
+			}
+		}
+	}
 	tick := time.NewTicker(every)
 	defer tick.Stop()
 	for {
 		switch {
 		case !published:
 			if err := m.Publish(ctx); err != nil {
-				if logf != nil && ctx.Err() == nil {
-					logf("relay: pairing mailbox: publish: %v", err)
-				}
+				fail("publish", err)
 			} else {
-				published = true
+				published, failing = true, ""
+			}
+		case !answered && answer != nil:
+			// An answer the store did not take is written again as it was: the ask was paired once, and a second pairing of it would find the code used.
+			if err := m.Answer(ctx, *answer); err != nil {
+				fail("answer", err)
+			} else {
+				answered, failing = true, ""
 			}
 		case !answered:
 			req, ok, err := m.Ask(ctx)
-			if err != nil && logf != nil && ctx.Err() == nil {
-				logf("relay: pairing mailbox: ask: %v", err)
+			if err != nil {
+				fail("ask", err)
 			}
 			if ok {
 				a := pair(ctx, req)
+				answer = &a
 				if err := m.Answer(ctx, a); err != nil {
-					if logf != nil && ctx.Err() == nil {
-						logf("relay: pairing mailbox: answer: %v", err)
-					}
+					fail("answer", err)
 				} else {
-					answered = true
+					answered, failing = true, ""
 				}
 			}
 		}

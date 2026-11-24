@@ -40,6 +40,15 @@ func newLinkedBucket(t *testing.T) *linkedBucket {
 	return b
 }
 
+// List lists the objects as written now: memBucket keeps no times, and the relay's sweep takes an object of no time for one long left behind.
+func (b *linkedBucket) List(ctx context.Context, prefix string) ([]psync.RelayObject, error) {
+	objects, err := b.memBucket.List(ctx, prefix)
+	for i := range objects {
+		objects[i].Modified = time.Now()
+	}
+	return objects, err
+}
+
 func (b *linkedBucket) PresignGet(_ context.Context, key string, _ time.Duration) (string, error) {
 	return b.srv.URL + "/" + key, nil
 }
