@@ -58,7 +58,7 @@ func (a *app) MediaSourceIsNew() bool { return a.sources.editID == "" }
 func (a *app) MediaSourceKinds() []settings.MediaSourceKind {
 	var out []settings.MediaSourceKind
 	for _, k := range a.sources.kinds.Kinds() {
-		out = append(out, settings.MediaSourceKind{ID: k.ID, Title: k.Title(a.prefs.interfaceLanguage)})
+		out = append(out, settings.MediaSourceKind{ID: k.ID, Title: a.mediaSourceKindTitle(k)})
 	}
 	return out
 }

@@ -49,7 +49,7 @@ type MediaSourcesApp interface {
 
 	// MediaSourceHostKey is the fingerprint of the server's key the draft trusts, "" before the first Test asked about it.
 	MediaSourceHostKey() string
-	// MediaSourceAlert is the question a Test asks about a server's key, of the draft or of a source saved, Kind account.AlertNone when none is open; AnswerMediaSourceAlert answers it: yes trusts or replaces the key and tests again, no leaves the source as it was.
+	// MediaSourceAlert is the question a Test asks about a server's key, or about the certificate of a plugin's source's server the system does not trust (Certificate), of the draft or of a source saved, Kind account.AlertNone when none is open; AnswerMediaSourceAlert answers it: yes trusts or replaces the key or certificate and tests again, no leaves the source as it was.
 	MediaSourceAlert() account.Alert
 	AnswerMediaSourceAlert(yes bool)
 

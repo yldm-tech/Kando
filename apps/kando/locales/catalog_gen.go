@@ -1208,6 +1208,12 @@ var Parameters = map[string][]string{
 	"FilmNextIn":                               {"seconds"},
 	"SettingsSourcesShares":                    {"names"},
 	"SettingsSourcesRemoveConfirm":             {"count"},
+	"SettingsSourcesKindPlugin":                {"kind", "plugin"},
+	"SettingsSourcesCertTrustMessage":          {"fingerprint"},
+	"SettingsSourcesCertChangedTitle":          {"host"},
+	"SettingsSourcesCertChangedMessage":        {"trusted", "offered"},
+	"SettingsSourcesFailPluginOff":             {"plugin"},
+	"SettingsSourcesFailPlugin":                {"plugin"},
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
 	"MediaSourceImportTitle":                   {"count", "source"},
@@ -1977,6 +1983,12 @@ type Translation struct {
 	FilmNextIn                               func(seconds int) string
 	SettingsSourcesShares                    func(names string) string
 	SettingsSourcesRemoveConfirm             func(count int) string
+	SettingsSourcesKindPlugin                func(kind string, plugin string) string
+	SettingsSourcesCertTrustMessage          func(fingerprint string) string
+	SettingsSourcesCertChangedTitle          func(host string) string
+	SettingsSourcesCertChangedMessage        func(trusted string, offered string) string
+	SettingsSourcesFailPluginOff             func(plugin string) string
+	SettingsSourcesFailPlugin                func(plugin string) string
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
 	MediaSourceImportTitle                   func(count int, source string) string
@@ -3871,6 +3883,11 @@ const (
 	textSettingsSourcesSaving
 	textSettingsSourcesFailSigning
 	textSettingsSourcesNeedsShare
+	textSettingsSourcesNeedsEndpoint
+	textSettingsSourcesReplaceCert
+	textSettingsSourcesFailCert
+	textSettingsSourcesFailAuth
+	textSettingsSourcesFailUnreachable
 	textMediaSourceSidebar
 	textMediaSourceBrowse
 	textMediaSourceNone
@@ -5772,6 +5789,11 @@ var keyOfText = [numTexts]string{
 	"settingsSourcesSaving",
 	"settingsSourcesFailSigning",
 	"settingsSourcesNeedsShare",
+	"settingsSourcesNeedsEndpoint",
+	"settingsSourcesReplaceCert",
+	"settingsSourcesFailCert",
+	"settingsSourcesFailAuth",
+	"settingsSourcesFailUnreachable",
 	"mediaSourceSidebar",
 	"mediaSourceBrowse",
 	"mediaSourceNone",
@@ -7671,6 +7693,11 @@ var textsEn = i18n.NewTexts(""+
 	"Saving…"+
 	"The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."+
 	"A folder is inside a share: fill in the share, or leave the folder empty."+
+	"Enter the server's https address. A server on your local network can use http."+
+	"Replace Certificate"+
+	"Kando does not trust the server's certificate. Test this source in Settings › Media Sources to see it and trust it."+
+	"The server did not accept the user name or password."+
+	"Kando could not reach the server. Check its address and that it is on."+
 	"Media Sources"+
 	"Browse Media Sources"+
 	"Add a NAS share or a server in Settings to browse its videos here."+
@@ -9567,6 +9594,11 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		169,
 		73,
+		78,
+		19,
+		117,
+		52,
+		70,
 		13,
 		20,
 		66,
@@ -11466,6 +11498,11 @@ var textsJa = i18n.NewTexts(""+
 	"保存中…"+
 	"サーバーがメッセージに署名しませんでしたが、Kando は署名を必要とします。この NAS が署名に対応していない場合や、共有がゲストに公開されている場合は「この NAS は署名に対応していない」をオンにしてください。"+
 	"フォルダは共有の中にあります。共有を入力するか、フォルダを空欄にしてください。"+
+	"サーバーの https アドレスを入力してください。ローカルネットワークのサーバーは http も使えます。"+
+	"証明書を置き換える"+
+	"Kando はサーバーの証明書を信頼していません。「設定 › メディアソース」でこのソースをテストすると、証明書を確認して信頼できます。"+
+	"サーバーがユーザー名またはパスワードを受け付けませんでした。"+
+	"サーバーに接続できませんでした。アドレスと電源を確認してください。"+
 	"メディアソース"+
 	"メディアソースを表示"+
 	"設定で NAS の共有やサーバーを追加すると、ここで動画を表示できます。"+
@@ -13362,6 +13399,11 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		295,
 		117,
+		136,
+		27,
+		188,
+		90,
+		99,
 		21,
 		30,
 		98,
@@ -15261,6 +15303,11 @@ var textsKo = i18n.NewTexts(""+
 	"저장하는 중…"+
 	"서버가 메시지에 서명하지 않았지만 Kando는 서명을 요구합니다. 이 NAS가 서명을 지원하지 않거나 공유가 게스트에게 열려 있다면 '이 NAS는 서명을 지원하지 않음'을 켜세요."+
 	"폴더는 공유 안에 있습니다. 공유를 입력하거나 폴더를 비워 두세요."+
+	"서버의 https 주소를 입력하세요. 로컬 네트워크의 서버는 http도 쓸 수 있습니다."+
+	"인증서 바꾸기"+
+	"Kando가 서버의 인증서를 신뢰하지 않습니다. 「설정 › 미디어 소스」에서 이 소스를 테스트하면 인증서를 확인하고 신뢰할 수 있습니다."+
+	"서버가 사용자 이름 또는 비밀번호를 받아들이지 않았습니다."+
+	"서버에 연결할 수 없습니다. 주소와 전원을 확인하세요."+
 	"미디어 소스"+
 	"미디어 소스 둘러보기"+
 	"설정에서 NAS 공유나 서버를 추가하면 여기서 동영상을 둘러볼 수 있습니다."+
@@ -17157,6 +17204,11 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		228,
 		91,
+		105,
+		19,
+		182,
+		82,
+		74,
 		16,
 		29,
 		100,
@@ -19056,6 +19108,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在保存…"+
 	"服务器没有给消息签名，而看懂要求签名。如果这台 NAS 不支持签名，或者共享对访客开放，请打开「这台 NAS 不支持签名」。"+
 	"文件夹在共享里面：请填写共享，或者把文件夹留空。"+
+	"填写服务器的 https 地址。局域网里的服务器也可以用 http。"+
+	"替换证书"+
+	"看懂不信任服务器的证书。在「设置 › 媒体来源」里测试这个来源，即可查看并信任它。"+
+	"服务器不接受这个用户名或密码。"+
+	"连不上服务器。请检查地址，并确认它已开机。"+
 	"媒体来源"+
 	"浏览媒体来源"+
 	"在设置里添加 NAS 共享或服务器后，就能在这里浏览它的视频。"+
@@ -20952,6 +21009,11 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		166,
 		72,
+		78,
+		12,
+		119,
+		45,
+		63,
 		12,
 		18,
 		83,
@@ -22851,6 +22913,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在儲存…"+
 	"伺服器沒有為訊息簽署，而看懂要求簽署。如果這台 NAS 不支援簽署，或者共用資料夾對訪客開放，請開啟「這台 NAS 不支援簽署」。"+
 	"資料夾在共用資料夾裡面：請填寫共用資料夾，或者把資料夾留空。"+
+	"填寫伺服器的 https 位址。區域網路裡的伺服器也可以用 http。"+
+	"替換憑證"+
+	"看懂不信任伺服器的憑證。在「設定 › 媒體來源」裡測試這個來源，即可查看並信任它。"+
+	"伺服器不接受這個使用者名稱或密碼。"+
+	"連不上伺服器。請檢查位址，並確認它已開機。"+
 	"媒體來源"+
 	"瀏覽媒體來源"+
 	"在設定裡新增 NAS 共用資料夾或伺服器後，就能在這裡瀏覽它的影片。"+
@@ -24747,6 +24814,11 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		175,
 		90,
+		81,
+		12,
+		119,
+		51,
+		63,
 		12,
 		18,
 		92,
@@ -27064,6 +27136,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSourcesRemoveConfirm != nil {
 		s.SettingsSourcesRemoveConfirm = t.SettingsSourcesRemoveConfirm
+	}
+	if t.SettingsSourcesKindPlugin != nil {
+		s.SettingsSourcesKindPlugin = t.SettingsSourcesKindPlugin
+	}
+	if t.SettingsSourcesCertTrustMessage != nil {
+		s.SettingsSourcesCertTrustMessage = t.SettingsSourcesCertTrustMessage
+	}
+	if t.SettingsSourcesCertChangedTitle != nil {
+		s.SettingsSourcesCertChangedTitle = t.SettingsSourcesCertChangedTitle
+	}
+	if t.SettingsSourcesCertChangedMessage != nil {
+		s.SettingsSourcesCertChangedMessage = t.SettingsSourcesCertChangedMessage
+	}
+	if t.SettingsSourcesFailPluginOff != nil {
+		s.SettingsSourcesFailPluginOff = t.SettingsSourcesFailPluginOff
+	}
+	if t.SettingsSourcesFailPlugin != nil {
+		s.SettingsSourcesFailPlugin = t.SettingsSourcesFailPlugin
 	}
 	if t.MediaSourceSelect != nil {
 		s.MediaSourceSelect = t.MediaSourceSelect
@@ -72099,6 +72189,253 @@ func SettingsSourcesNeedsShare(cx *core.Scope) string { return For(cx).SettingsS
 // SettingsSourcesNeedsShare is the package's SettingsSourcesNeedsShare in the language of msgs.
 func (msgs Messages) SettingsSourcesNeedsShare() string {
 	return msgs.text(textSettingsSourcesNeedsShare)
+}
+
+// SettingsSourcesKindPlugin says "{kind} · plugin “{plugin}”"
+// in the language the app shows under cx.
+//
+// Media source dialog: a kind of source a script plugin adds, in the kind drop-down, with the plugin's name.
+func SettingsSourcesKindPlugin(cx *core.Scope, kind string, plugin string) string {
+	return For(cx).SettingsSourcesKindPlugin(kind, plugin)
+}
+
+// SettingsSourcesKindPlugin is the package's SettingsSourcesKindPlugin in the language of msgs.
+func (msgs Messages) SettingsSourcesKindPlugin(kind string, plugin string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesKindPlugin(kind, plugin))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesKindPlugin; f != nil {
+			return f(kind, plugin)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(kind) + " · plugin “" + msgs.arg(plugin) + "”"
+		case "ja":
+			return kind + " · プラグイン「" + plugin + "」"
+		case "ko":
+			return kind + " · 플러그인 「" + plugin + "」"
+		case "zh-Hans":
+			return kind + " · 插件「" + plugin + "」"
+		case "zh-Hant":
+			return kind + " · 外掛「" + plugin + "」"
+		}
+	}
+}
+
+// SettingsSourcesNeedsEndpoint says "Enter the server's https address. A server on your local network can use http."
+// in the language the app shows under cx.
+//
+// Shown in the media source dialog when a plugin's source has no address, or one Kando does not send to.
+func SettingsSourcesNeedsEndpoint(cx *core.Scope) string {
+	return For(cx).SettingsSourcesNeedsEndpoint()
+}
+
+// SettingsSourcesNeedsEndpoint is the package's SettingsSourcesNeedsEndpoint in the language of msgs.
+func (msgs Messages) SettingsSourcesNeedsEndpoint() string {
+	return msgs.text(textSettingsSourcesNeedsEndpoint)
+}
+
+// SettingsSourcesCertTrustMessage says "Your system does not trust its certificate, as is usual for a NAS's own. Its fingerprint is {fingerprint}. Trust it only if it matches the one the server's settings show."
+// in the language the app shows under cx.
+//
+// Message of the alert asking whether to trust the certificate of a media source's server. The fingerprint looks like SHA256 AB:CD:…
+func SettingsSourcesCertTrustMessage(cx *core.Scope, fingerprint string) string {
+	return For(cx).SettingsSourcesCertTrustMessage(fingerprint)
+}
+
+// SettingsSourcesCertTrustMessage is the package's SettingsSourcesCertTrustMessage in the language of msgs.
+func (msgs Messages) SettingsSourcesCertTrustMessage(fingerprint string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesCertTrustMessage(fingerprint))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesCertTrustMessage; f != nil {
+			return f(fingerprint)
+		}
+		switch lang {
+		case "", "en":
+			return "Your system does not trust its certificate, as is usual for a NAS's own. Its fingerprint is " + msgs.arg(fingerprint) + ". Trust it only if it matches the one the server's settings show."
+		case "ja":
+			return "システムはこの証明書を信頼していません（NAS 独自の証明書ではよくあることです）。フィンガープリントは " + fingerprint + " です。サーバーの設定に表示されるものと一致する場合だけ信頼してください。"
+		case "ko":
+			return "시스템이 이 인증서를 신뢰하지 않습니다(NAS 자체 인증서는 흔히 그렇습니다). 지문은 " + fingerprint + "입니다. 서버 설정에 표시된 것과 같을 때만 신뢰하세요."
+		case "zh-Hans":
+			return "系统不信任它的证书，NAS 自带的证书通常如此。它的指纹是 " + fingerprint + "。只有和服务器设置里显示的一致时才信任。"
+		case "zh-Hant":
+			return "系統不信任它的憑證，NAS 自帶的憑證通常如此。它的指紋是 " + fingerprint + "。只有和伺服器設定裡顯示的一致時才信任。"
+		}
+	}
+}
+
+// SettingsSourcesCertChangedTitle says "The certificate of {host} has changed"
+// in the language the app shows under cx.
+//
+// Title of the warning shown when a media source's server offers another certificate than the one trusted before.
+func SettingsSourcesCertChangedTitle(cx *core.Scope, host string) string {
+	return For(cx).SettingsSourcesCertChangedTitle(host)
+}
+
+// SettingsSourcesCertChangedTitle is the package's SettingsSourcesCertChangedTitle in the language of msgs.
+func (msgs Messages) SettingsSourcesCertChangedTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesCertChangedTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesCertChangedTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "The certificate of " + msgs.arg(host) + " has changed"
+		case "ja":
+			return host + " の証明書が変わりました"
+		case "ko":
+			return host + "의 인증서가 바뀌었습니다"
+		case "zh-Hans":
+			return host + " 的证书变了"
+		case "zh-Hant":
+			return host + " 的憑證變了"
+		}
+	}
+}
+
+// SettingsSourcesCertChangedMessage says "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace it only if you know why it changed."
+// in the language the app shows under cx.
+//
+// Message of the warning shown when a media source's server offers another certificate than the one trusted before.
+func SettingsSourcesCertChangedMessage(cx *core.Scope, trusted string, offered string) string {
+	return For(cx).SettingsSourcesCertChangedMessage(trusted, offered)
+}
+
+// SettingsSourcesCertChangedMessage is the package's SettingsSourcesCertChangedMessage in the language of msgs.
+func (msgs Messages) SettingsSourcesCertChangedMessage(trusted string, offered string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesCertChangedMessage(trusted, offered))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesCertChangedMessage; f != nil {
+			return f(trusted, offered)
+		}
+		switch lang {
+		case "", "en":
+			return "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: " + msgs.arg(trusted) + ". Offered now: " + msgs.arg(offered) + ". Replace it only if you know why it changed."
+		case "ja":
+			return "サーバーが以前に信頼したものと違う証明書を示しました。証明書が更新されたか、別のマシンがなりすましている可能性があります。信頼済み：" + trusted + "。今回：" + offered + "。理由が分かる場合だけ置き換えてください。"
+		case "ko":
+			return "서버가 이전에 신뢰한 것과 다른 인증서를 제시했습니다. 인증서가 갱신되었거나 다른 기기가 대신 응답하고 있을 수 있습니다. 신뢰한 것: " + trusted + ". 지금 제시한 것: " + offered + ". 이유를 알 때만 바꾸세요."
+		case "zh-Hans":
+			return "服务器给出的证书和之前信任的不同。可能是证书续期了，也可能是另一台机器在冒充它。之前信任的：" + trusted + "。现在给出的：" + offered + "。只有清楚原因时才替换。"
+		case "zh-Hant":
+			return "伺服器給出的憑證和之前信任的不同。可能是憑證續期了，也可能是另一台機器在冒充它。之前信任的：" + trusted + "。現在給出的：" + offered + "。只有清楚原因時才替換。"
+		}
+	}
+}
+
+// SettingsSourcesReplaceCert says "Replace Certificate"
+// in the language the app shows under cx.
+//
+// Destructive button of the changed-certificate warning: trust the server's new certificate in place of the old one.
+func SettingsSourcesReplaceCert(cx *core.Scope) string { return For(cx).SettingsSourcesReplaceCert() }
+
+// SettingsSourcesReplaceCert is the package's SettingsSourcesReplaceCert in the language of msgs.
+func (msgs Messages) SettingsSourcesReplaceCert() string {
+	return msgs.text(textSettingsSourcesReplaceCert)
+}
+
+// SettingsSourcesFailCert says "Kando does not trust the server's certificate. Test this source in Settings › Media Sources to see it and trust it."
+// in the language the app shows under cx.
+//
+// Why a plugin's media source could not be read: its server's certificate is not trusted.
+func SettingsSourcesFailCert(cx *core.Scope) string { return For(cx).SettingsSourcesFailCert() }
+
+// SettingsSourcesFailCert is the package's SettingsSourcesFailCert in the language of msgs.
+func (msgs Messages) SettingsSourcesFailCert() string { return msgs.text(textSettingsSourcesFailCert) }
+
+// SettingsSourcesFailAuth says "The server did not accept the user name or password."
+// in the language the app shows under cx.
+//
+// Why a plugin's media source could not be read: its server refused the source's credentials.
+func SettingsSourcesFailAuth(cx *core.Scope) string { return For(cx).SettingsSourcesFailAuth() }
+
+// SettingsSourcesFailAuth is the package's SettingsSourcesFailAuth in the language of msgs.
+func (msgs Messages) SettingsSourcesFailAuth() string { return msgs.text(textSettingsSourcesFailAuth) }
+
+// SettingsSourcesFailUnreachable says "Kando could not reach the server. Check its address and that it is on."
+// in the language the app shows under cx.
+//
+// Why a plugin's media source could not be read: its server did not answer.
+func SettingsSourcesFailUnreachable(cx *core.Scope) string {
+	return For(cx).SettingsSourcesFailUnreachable()
+}
+
+// SettingsSourcesFailUnreachable is the package's SettingsSourcesFailUnreachable in the language of msgs.
+func (msgs Messages) SettingsSourcesFailUnreachable() string {
+	return msgs.text(textSettingsSourcesFailUnreachable)
+}
+
+// SettingsSourcesFailPluginOff says "The plugin “{plugin}” is not running. Turn it on in Settings › Plugins."
+// in the language the app shows under cx.
+//
+// Why a plugin's media source could not be read: the plugin that adds its kind is off.
+func SettingsSourcesFailPluginOff(cx *core.Scope, plugin string) string {
+	return For(cx).SettingsSourcesFailPluginOff(plugin)
+}
+
+// SettingsSourcesFailPluginOff is the package's SettingsSourcesFailPluginOff in the language of msgs.
+func (msgs Messages) SettingsSourcesFailPluginOff(plugin string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesFailPluginOff(plugin))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesFailPluginOff; f != nil {
+			return f(plugin)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin “" + msgs.arg(plugin) + "” is not running. Turn it on in Settings › Plugins."
+		case "ja":
+			return "プラグイン「" + plugin + "」が動いていません。「設定 › プラグイン」でオンにしてください。"
+		case "ko":
+			return "플러그인 「" + plugin + "」이 실행 중이 아닙니다. 「설정 › 플러그인」에서 켜세요."
+		case "zh-Hans":
+			return "插件「" + plugin + "」没有在运行。请在「设置 › 插件」里打开它。"
+		case "zh-Hant":
+			return "外掛「" + plugin + "」沒有在執行。請在「設定 › 外掛」裡開啟它。"
+		}
+	}
+}
+
+// SettingsSourcesFailPlugin says "The plugin “{plugin}” could not read this source."
+// in the language the app shows under cx.
+//
+// Why a plugin's media source could not be read, for any other failure of the plugin.
+func SettingsSourcesFailPlugin(cx *core.Scope, plugin string) string {
+	return For(cx).SettingsSourcesFailPlugin(plugin)
+}
+
+// SettingsSourcesFailPlugin is the package's SettingsSourcesFailPlugin in the language of msgs.
+func (msgs Messages) SettingsSourcesFailPlugin(plugin string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesFailPlugin(plugin))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesFailPlugin; f != nil {
+			return f(plugin)
+		}
+		switch lang {
+		case "", "en":
+			return "The plugin “" + msgs.arg(plugin) + "” could not read this source."
+		case "ja":
+			return "プラグイン「" + plugin + "」はこのソースを読み取れませんでした。"
+		case "ko":
+			return "플러그인 「" + plugin + "」이 이 소스를 읽지 못했습니다."
+		case "zh-Hans":
+			return "插件「" + plugin + "」没能读取这个来源。"
+		case "zh-Hant":
+			return "外掛「" + plugin + "」沒能讀取這個來源。"
+		}
+	}
 }
 
 // MediaSourceSidebar says "Media Sources"

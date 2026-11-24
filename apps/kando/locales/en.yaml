@@ -9551,6 +9551,53 @@ settingsSourcesFailSigning:
 settingsSourcesNeedsShare:
   message: "A folder is inside a share: fill in the share, or leave the folder empty."
   description: "Shown in the media source dialog when a folder is filled in without a share."
+settingsSourcesKindPlugin:
+  message: "{kind} · plugin “{plugin}”"
+  description: "Media source dialog: a kind of source a script plugin adds, in the kind drop-down, with the plugin's name."
+  placeholders:
+    kind: { type: "String", example: "WebDAV" }
+    plugin: { type: "String", example: "NAS Browser" }
+settingsSourcesNeedsEndpoint:
+  message: "Enter the server's https address. A server on your local network can use http."
+  description: "Shown in the media source dialog when a plugin's source has no address, or one Kando does not send to."
+settingsSourcesCertTrustMessage:
+  message: "Your system does not trust its certificate, as is usual for a NAS's own. Its fingerprint is {fingerprint}. Trust it only if it matches the one the server's settings show."
+  description: "Message of the alert asking whether to trust the certificate of a media source's server. The fingerprint looks like SHA256 AB:CD:…"
+  placeholders:
+    fingerprint: { type: "String", example: "SHA256 AB:CD:EF" }
+settingsSourcesCertChangedTitle:
+  message: "The certificate of {host} has changed"
+  description: "Title of the warning shown when a media source's server offers another certificate than the one trusted before."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+settingsSourcesCertChangedMessage:
+  message: "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace it only if you know why it changed."
+  description: "Message of the warning shown when a media source's server offers another certificate than the one trusted before."
+  placeholders:
+    trusted: { type: "String", example: "SHA256 AB:CD" }
+    offered: { type: "String", example: "SHA256 12:34" }
+settingsSourcesReplaceCert:
+  message: "Replace Certificate"
+  description: "Destructive button of the changed-certificate warning: trust the server's new certificate in place of the old one."
+settingsSourcesFailCert:
+  message: "Kando does not trust the server's certificate. Test this source in Settings › Media Sources to see it and trust it."
+  description: "Why a plugin's media source could not be read: its server's certificate is not trusted."
+settingsSourcesFailAuth:
+  message: "The server did not accept the user name or password."
+  description: "Why a plugin's media source could not be read: its server refused the source's credentials."
+settingsSourcesFailUnreachable:
+  message: "Kando could not reach the server. Check its address and that it is on."
+  description: "Why a plugin's media source could not be read: its server did not answer."
+settingsSourcesFailPluginOff:
+  message: "The plugin “{plugin}” is not running. Turn it on in Settings › Plugins."
+  description: "Why a plugin's media source could not be read: the plugin that adds its kind is off."
+  placeholders:
+    plugin: { type: "String", example: "NAS Browser" }
+settingsSourcesFailPlugin:
+  message: "The plugin “{plugin}” could not read this source."
+  description: "Why a plugin's media source could not be read, for any other failure of the plugin."
+  placeholders:
+    plugin: { type: "String", example: "NAS Browser" }
 mediaSourceSidebar:
   message: "Media Sources"
   description: "Row of the sidebar, and title of its page, where the user browses the NAS shares and servers added in Settings › Media Sources and imports videos from them. Also how the library names where such a film came from."

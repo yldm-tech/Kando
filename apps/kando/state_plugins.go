@@ -63,6 +63,8 @@ type pluginsUI struct {
 	// sites are the site packs turned on with the domains the user allowed, which the browser's 下载视频 knows (state_plugins_sites.go).
 	sites  []pluginsSite
 	script pluginsScripts
+	// sources are the media sources the plugins add (state_plugins_sources.go).
+	sources pluginsSources
 	// task is the run of a task pack the side panel shows, taskGen counts the runs, so the reply of one left is dropped, and taskCancel stops the one on its way; usage is what the task packs spent today, read from usage.json with the first read of the folder (usageRead) and the app's own from then on (state_plugins_tasks.go).
 	task       pluginsTask
 	taskGen    int
@@ -194,6 +196,7 @@ func (a *app) pluginsHooks() areaHooks {
 			a.pluginsPanelsLine()
 			a.pluginsGrantsFollow()
 			changed = a.pluginsTranslateFollow() || changed
+			changed = a.pluginsSourcesFollow() || changed
 			// A task's run goes once its film is not the one open (pluginsTaskFollow).
 			return a.pluginsTaskFollow() || changed
 		},

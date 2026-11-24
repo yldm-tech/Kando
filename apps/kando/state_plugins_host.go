@@ -90,6 +90,7 @@ func (a *app) pluginsHost(id string, host *ns.Host) {
 		plugins.PermGlossarySuggest: a.pluginsGlossarySuggest,
 		plugins.PermLLMChat:         a.pluginsLLMChat,
 		plugins.PermCredFetch:       a.pluginsCredentialFetch,
+		plugins.PermSourceFetch:     a.pluginsSourceFetch,
 		plugins.PermToast:           a.pluginsToastCall,
 		plugins.PermOpenURL:         a.pluginsOpenURLCall,
 		plugins.PermSettingsGet:     a.pluginsSettingsGet,

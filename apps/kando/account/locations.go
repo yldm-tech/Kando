@@ -364,15 +364,34 @@ func hostKeyQuestion(cx *core.Scope, dialog *ui.AlertDialog, kind AlertKind, ale
 	if kind == AlertTrust {
 		dialog.TestID = test + "-trust"
 		dialog.TitleFunc = func() string { return locales.AccountLocationTrustTitle(cx, alert().Host) }
-		dialog.DescriptionFunc = func() string { return locales.AccountLocationTrustMessage(cx, alert().Fingerprint) }
+		dialog.DescriptionFunc = func() string {
+			if alert().Certificate {
+				return locales.SettingsSourcesCertTrustMessage(cx, alert().Fingerprint)
+			}
+			return locales.AccountLocationTrustMessage(cx, alert().Fingerprint)
+		}
 		dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationTrust(cx) }, OnPress: yes, TestID: test + "-alert-trust"}}
 		return
 	}
 	colors := ui.ColorsOf(cx)
 	dialog.TestID = test + "-key-changed"
-	dialog.TitleFunc = func() string { return locales.AccountLocationKeyChangedTitle(cx, alert().Host) }
+	dialog.TitleFunc = func() string {
+		if alert().Certificate {
+			return locales.SettingsSourcesCertChangedTitle(cx, alert().Host)
+		}
+		return locales.AccountLocationKeyChangedTitle(cx, alert().Host)
+	}
 	dialog.DescriptionFunc = func() string {
+		if alert().Certificate {
+			return locales.SettingsSourcesCertChangedMessage(cx, alert().Trusted, alert().Fingerprint)
+		}
 		return locales.AccountLocationKeyChangedMessage(cx, alert().Trusted, alert().Fingerprint)
 	}
-	dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationReplaceKey(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: test + "-alert-replace"}}
+	replace := func() string {
+		if alert().Certificate {
+			return locales.SettingsSourcesReplaceCert(cx)
+		}
+		return locales.AccountLocationReplaceKey(cx)
+	}
+	dialog.Actions = []ui.AlertAction{cancel, {TextFunc: replace, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: test + "-alert-replace"}}
 }

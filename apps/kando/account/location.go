@@ -45,6 +45,8 @@ type Alert struct {
 	Host        string
 	Fingerprint string
 	Trusted     string
+	// Certificate makes the host-key questions about the server's TLS certificate, as a media source's NAS has its own, rather than its SSH key.
+	Certificate bool
 }
 
 // Draft is a location as its dialog edits it, every field as typed: Kind is one of the storage.Kind values, Port is "" for the protocol's own.
