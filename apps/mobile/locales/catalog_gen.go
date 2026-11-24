@@ -602,6 +602,7 @@ var Parameters = map[string][]string{
 	"OnboardingPaired":               {"name"},
 	"OnboardingPairedFilms":          {"count"},
 	"OnboardingStep":                 {"step", "count"},
+	"PairErrLocalNetwork":            {"address"},
 	"PairErrUnreachable":             {"address"},
 	"PlayerAsking":                   {"computer"},
 	"PlayerCardPlace":                {"index", "count", "time_"},
@@ -819,6 +820,7 @@ type Translation struct {
 	OnboardingPaired               func(name string) string
 	OnboardingPairedFilms          func(count int) string
 	OnboardingStep                 func(step int, count int) string
+	PairErrLocalNetwork            func(address string) string
 	PairErrUnreachable             func(address string) string
 	PlayerAsking                   func(computer string) string
 	PlayerCardPlace                func(index int, count int, time_ string) string
@@ -7936,6 +7938,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.OnboardingStep != nil {
 		s.OnboardingStep = t.OnboardingStep
+	}
+	if t.PairErrLocalNetwork != nil {
+		s.PairErrLocalNetwork = t.PairErrLocalNetwork
 	}
 	if t.PairErrUnreachable != nil {
 		s.PairErrUnreachable = t.PairErrUnreachable
@@ -15654,6 +15659,38 @@ func PairErrFingerprint(cx *core.Scope) string { return For(cx).PairErrFingerpri
 
 // PairErrFingerprint is the package's PairErrFingerprint in the language of msgs.
 func (msgs Messages) PairErrFingerprint() string { return msgs.text(textPairErrFingerprint) }
+
+// PairErrLocalNetwork says "Can't reach the computer at {address}. Turn on Local Network for Kando in Settings › Kando, and check that the phone is on the same Wi-Fi as the computer."
+// in the language the app shows under cx.
+//
+// Error on the pairing page on iPhone: the system refused the connection, most likely because the app may not use the local network. 'Settings › Kando' is the iPhone's Settings app, the page of this app; 'Local Network' is the name of the switch there.
+func PairErrLocalNetwork(cx *core.Scope, address string) string {
+	return For(cx).PairErrLocalNetwork(address)
+}
+
+// PairErrLocalNetwork is the package's PairErrLocalNetwork in the language of msgs.
+func (msgs Messages) PairErrLocalNetwork(address string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PairErrLocalNetwork(address))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PairErrLocalNetwork; f != nil {
+			return f(address)
+		}
+		switch lang {
+		case "", "en":
+			return "Can't reach the computer at " + msgs.arg(address) + ". Turn on Local Network for Kando in Settings › Kando, and check that the phone is on the same Wi-Fi as the computer."
+		case "ja":
+			return address + " のコンピュータに接続できません。「設定 › Kando」で「ローカルネットワーク」をオンにし、スマートフォンがコンピュータと同じ Wi-Fi に接続されているか確認してください。"
+		case "ko":
+			return address + "의 컴퓨터에 연결할 수 없습니다. '설정 › Kando'에서 '로컬 네트워크'를 켜고, 휴대폰이 컴퓨터와 같은 Wi-Fi에 연결되어 있는지 확인하세요."
+		case "zh-Hans":
+			return "连不上 " + address + " 的电脑。请在 iPhone 的“设置 › 看懂”中打开“本地网络”，并确认手机和电脑连着同一个 Wi-Fi。"
+		case "zh-Hant":
+			return "連不上 " + address + " 的電腦。請在 iPhone 的「設定 › 看懂」中開啟「區域網路」，並確認手機和電腦連著同一個 Wi-Fi。"
+		}
+	}
+}
 
 // PairErrNoCode says "Open Settings › Phone Sync on your computer: it takes a code only while that page is open."
 // in the language the app shows under cx.

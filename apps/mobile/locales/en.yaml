@@ -1593,6 +1593,11 @@ pairErrFailed:
 pairErrFingerprint:
   message: "This computer's certificate isn't the one in the pairing link."
   description: "Error on the pairing page: a pasted kando://pair link names another certificate than the computer's."
+pairErrLocalNetwork:
+  message: "Can't reach the computer at {address}. Turn on Local Network for Kando in Settings › Kando, and check that the phone is on the same Wi-Fi as the computer."
+  description: "Error on the pairing page on iPhone: the system refused the connection, most likely because the app may not use the local network. 'Settings › Kando' is the iPhone's Settings app, the page of this app; 'Local Network' is the name of the switch there."
+  placeholders:
+    address: { type: "String", example: "192.168.1.20:47123" }
 pairErrNoCode:
   message: "Open Settings › Phone Sync on your computer: it takes a code only while that page is open."
   description: "Error on the pairing page: the computer offers no code because its Phone Sync settings are not open."

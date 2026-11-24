@@ -426,6 +426,7 @@ pairErrCodeExpired: "这个配对码已过期，请在电脑上换一个新的�
 pairErrCodeUsed: "这个配对码已经用过了，请在电脑上换一个新的。"
 pairErrFailed: "配对没有完成，请重试。"
 pairErrFingerprint: "这台电脑的证书与配对链接中的不一致。"
+pairErrLocalNetwork: "连不上 {address} 的电脑。请在 iPhone 的“设置 › 看懂”中打开“本地网络”，并确认手机和电脑连着同一个 Wi-Fi。"
 pairErrNoCode: "请在电脑上打开“设置 › 手机同步”：只有这一页开着时才能配对。"
 pairErrNoQR: "照片里没找到二维码。请靠近一点，把整个二维码拍进去。"
 pairErrNotPairQR: "这不是看懂的配对二维码。"

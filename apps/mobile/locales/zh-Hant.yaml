@@ -427,6 +427,7 @@ pairErrCodeExpired: "這個配對碼已過期，請在電腦上換一個新的�
 pairErrCodeUsed: "這個配對碼已經用過了，請在電腦上換一個新的。"
 pairErrFailed: "配對沒有完成，請重試。"
 pairErrFingerprint: "這台電腦的憑證與配對連結中的不一致。"
+pairErrLocalNetwork: "連不上 {address} 的電腦。請在 iPhone 的「設定 › 看懂」中開啟「區域網路」，並確認手機和電腦連著同一個 Wi-Fi。"
 pairErrNoCode: "請在電腦上開啟「設定 › 手機同步」：只有這一頁開著時才能配對。"
 pairErrNoQR: "照片中找不到 QR 碼。請靠近一點，把整個 QR 碼拍進去。"
 pairErrNotPairQR: "這不是看懂的配對 QR 碼。"

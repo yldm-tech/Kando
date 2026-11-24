@@ -67,10 +67,10 @@ func pickAddrs(found []candidate) []netip.Addr {
 	return vpn
 }
 
-// vpnName reports whether an interface's name is a VPN's: utun, tun, tap, wg, ppp, ipsec and zt on Unix, and on Windows, where interfaces have names people gave them, one that says VPN, Tailscale, WireGuard or ZeroTier.
+// vpnName reports whether an interface's name is a VPN's: utun, tun, tap, wg, ppp, ipsec and zt on Unix, feth for ZeroTier on macOS, and on Windows, where interfaces have names people gave them, one that says VPN, Tailscale, WireGuard or ZeroTier.
 func vpnName(name string) bool {
 	n := strings.ToLower(name)
-	for _, prefix := range []string{"utun", "tun", "tap", "wg", "ppp", "ipsec", "zt"} {
+	for _, prefix := range []string{"utun", "tun", "tap", "wg", "ppp", "ipsec", "zt", "feth"} {
 		if strings.HasPrefix(n, prefix) {
 			return true
 		}

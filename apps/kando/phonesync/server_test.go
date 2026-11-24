@@ -361,7 +361,7 @@ func TestPickAddrsKeepsTheLocalNetwork(t *testing.T) {
 	if want := []netip.Addr{a("100.101.102.103"), a("10.8.0.2")}; !equalAddrs(got, want) {
 		t.Fatalf("addresses %v, want %v", got, want)
 	}
-	for _, name := range []string{"utun3", "Tailscale", "wg0", "ProtonVPN"} {
+	for _, name := range []string{"utun3", "Tailscale", "wg0", "ProtonVPN", "feth4449"} {
 		if !vpnName(name) {
 			t.Errorf("%s is not taken for a VPN", name)
 		}

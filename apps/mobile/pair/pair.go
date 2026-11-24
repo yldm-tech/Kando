@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"kando/apps/mobile/locales"
@@ -127,7 +128,7 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 			cx.Post(func() {
 				switch {
 				case err != nil:
-					problem.Set(locales.PairErrUnreachable(cx, target.Addrs[0].String()))
+					problem.Set(unreachable(cx, s, target, err))
 					at.Set(editing)
 				case target.Expected != nil && !bytes.Equal(target.Expected, f.fingerprint):
 					problem.Set(locales.PairErrFingerprint(cx))
@@ -327,19 +328,68 @@ type found struct {
 	fingerprint []byte
 }
 
-// reach tries each address in turn for the computer's certificate, and returns the first that answers.
+// reach tries every address at once for the computer's certificate, and returns the first that answers. An address the phone is not let reach yet (blocked) is tried again until reachFor is up, as iOS refuses a connection to the local network while it asks the user whether the app may make one: the pairing goes on once they allow it, without their pressing Continue again. The error is of an address that failed for another reason when there is one, so blocked is true of it only when every address was blocked.
 func reach(ctx context.Context, addrs []netip.AddrPort) (found, error) {
-	var err error
+	ctx, cancel := context.WithTimeout(ctx, reachFor)
+	defer cancel()
+	type result struct {
+		found found
+		err   error
+	}
+	results := make(chan result, len(addrs))
 	for _, a := range addrs {
-		tctx, cancel := context.WithTimeout(ctx, connectTimeout)
-		var fp []byte
-		fp, err = sync.FetchFingerprint(tctx, a)
-		cancel()
-		if err == nil {
-			return found{a, fp}, nil
+		go func() {
+			fp, err := fetchUntil(ctx, a)
+			results <- result{found{a, fp}, err}
+		}()
+	}
+	var err error
+	for range addrs {
+		r := <-results
+		if r.err == nil {
+			return r.found, nil
+		}
+		if err == nil || blocked(err) {
+			err = r.err
 		}
 	}
 	return found{}, err
+}
+
+// TODO(nsgo#2347): NSGo cannot ask for iOS's local network access before the first connection or say whether it was given, so reach waits out the question and unreachable guesses a refusal from the error; ask ahead and read the answer once NSGo can https://github.com/nsgo-dev/nsgo/issues/2347
+// reachFor is how long reach keeps trying an address the phone is not let reach: long enough to read iOS's question about the local network and answer it.
+const reachFor = 30 * time.Second
+
+// fetchUntil fetches the certificate's fingerprint at a, again while the connection is blocked and ctx lasts, a little later each time.
+func fetchUntil(ctx context.Context, a netip.AddrPort) ([]byte, error) {
+	pause := 250 * time.Millisecond
+	for {
+		tctx, cancel := context.WithTimeout(ctx, connectTimeout)
+		fp, err := sync.FetchFingerprint(tctx, a)
+		cancel()
+		if err == nil || !blocked(err) {
+			return fp, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, err
+		case <-time.After(pause):
+		}
+		pause = min(2*pause, 2*time.Second)
+	}
+}
+
+// blocked reports whether err is a connection the system refused to make rather than one nothing answered: no route to the host or its network, or not permitted, as iOS fails a connection to the local network while the app may not make one (Apple's TN3179).
+func blocked(err error) bool {
+	return errors.Is(err, syscall.EHOSTUNREACH) || errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES)
+}
+
+// unreachable is what the page says when no address of target answered with err: on iOS, a connection the system refused is most likely the local network access the user did not allow, which Settings turns on.
+func unreachable(cx *core.Scope, s *session.Session, target Target, err error) string {
+	if s.Platform() == sync.PlatformIOS && blocked(err) {
+		return locales.PairErrLocalNetwork(cx, target.Addrs[0].String())
+	}
+	return locales.PairErrUnreachable(cx, target.Addrs[0].String())
 }
 
 // pairProblem is what the page says when pairing with the computer at addr failed for err.

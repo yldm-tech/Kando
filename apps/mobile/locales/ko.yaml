@@ -427,6 +427,7 @@ pairErrCodeExpired: "만료된 코드입니다. 컴퓨터에서 새 코드를 �
 pairErrCodeUsed: "이미 사용된 코드입니다. 컴퓨터에서 새 코드를 표시하세요."
 pairErrFailed: "페어링을 완료하지 못했습니다. 다시 시도하세요."
 pairErrFingerprint: "이 컴퓨터의 인증서가 페어링 링크의 인증서와 다릅니다."
+pairErrLocalNetwork: "{address}의 컴퓨터에 연결할 수 없습니다. '설정 › Kando'에서 '로컬 네트워크'를 켜고, 휴대폰이 컴퓨터와 같은 Wi-Fi에 연결되어 있는지 확인하세요."
 pairErrNoCode: "컴퓨터에서 ‘설정 › 휴대폰 동기화’를 여세요. 이 페이지가 열려 있을 때만 페어링할 수 있습니다."
 pairErrNoQR: "사진에서 QR 코드를 찾을 수 없습니다. 코드 전체가 보이도록 더 가까이에서 찍어 주세요."
 pairErrNotPairQR: "Kando 페어링 QR 코드가 아닙니다."
