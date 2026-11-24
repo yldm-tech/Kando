@@ -146,7 +146,7 @@ func writeFakeClip(t *testing.T, path string, seconds int, top, bottom string) {
 
 // readFakeClip reads a placeholder writeFakeClip or writeFakeScene wrote; ok is false for any other file.
 func readFakeClip(path string) (clip fakeClip, ok bool) {
-	data, err := os.ReadFile(path)
+	data, err := fakeInput(path)
 	if err != nil {
 		return clip, false
 	}
@@ -612,4 +612,20 @@ func scenePicture(scene string, width, height int) (*image.RGBA, error) {
 		}
 	}
 	return img, nil
+}
+
+// fakeInput is what the fake ffmpeg reads at input: a file, or an http address read as ffmpeg reads one, as an indexed film's video served by the media sources' loopback server.
+func fakeInput(input string) ([]byte, error) {
+	if !strings.HasPrefix(input, "http://") && !strings.HasPrefix(input, "https://") {
+		return os.ReadFile(input)
+	}
+	resp, err := http.Get(input)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s: Server returned %d", input, resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }

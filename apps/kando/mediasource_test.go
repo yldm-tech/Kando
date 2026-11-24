@@ -24,6 +24,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/mediasource"
+	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/storage"
@@ -1148,6 +1149,7 @@ func TestTrashOneOfTwoIndexedFilmsKeepsTheOther(t *testing.T) {
 	a.mediaSourceOpenPage()
 	refresh(tt, a)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.queue.stopped = true
 	a.mediaSourceLink([]string{"Movies/Heat.mkv", "Movies/Ronin.mkv"})
 	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 2 })
 	dir := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "Movies")
@@ -1162,7 +1164,7 @@ func TestTrashOneOfTwoIndexedFilmsKeepsTheOther(t *testing.T) {
 		done(os.RemoveAll(path))
 	}
 	t.Cleanup(func() { trashItem = prev })
-	item := must(films.Find(a.films(), heat))
+	item := filmOfVideo(t, a, heat)
 	a.AskRemove(item)
 	if _, _, folder := a.Removing(); folder {
 		t.Fatal("the confirmation says the folder goes, the other film's subtitles in it")
@@ -1191,11 +1193,12 @@ func TestIndexedFilmOffline(t *testing.T) {
 	a.mediaSourceOpenPage()
 	refresh(tt, a)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.queue.stopped = true
 	a.mediaSourceLink([]string{"talk.mp4"})
 	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 1 })
 	a.refreshLibrary()
 	path := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
-	item := must(films.Find(a.films(), path))
+	item := filmOfVideo(t, a, path)
 	apply(tt, a, func() { a.privacySetOffline(true) })
 	a.sources.localHost = func(context.Context, string) (bool, error) { return false, nil }
 	a.page = pageFilms
@@ -1292,4 +1295,83 @@ func TestMediaSourceIndexedFilmProcessedAgainAndCopied(t *testing.T) {
 	if got, _ := films.Find(a.films(), job.ID); got.Linked != "" {
 		t.Fatalf("the film is still marked: %+v", got)
 	}
+}
+
+// A line saved from a film indexed from a media source keeps its sound, cut from where its source is served, as a line of a film on disk does, so the review plays it, and keeps playing it once the source cannot be read.
+func TestASavedLineOfAnIndexedFilmKeepsItsSound(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates := newTestApp(t, tools)
+	a.queue.stopped = true
+	_, src := browseSource(a, map[string]fakeSourceFile{"talk.mp4": {data: "kando fake clip 12 102030 405060\n"}})
+	a.mediaSourceOpenPage()
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.mediaSourceLink([]string{"talk.mp4"})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 1 })
+	placeholder := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
+	if _, ok := a.library.Linked[placeholder]; !ok {
+		t.Fatalf("records %+v", a.library.Linked)
+	}
+	rel, err := filepath.Rel(a.saved.book.Dir(), placeholder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.saved.book.Toggle(saved.Line{Video: filepath.ToSlash(rel), Start: 2 * time.Second, End: 3 * time.Second, Original: "おはよう", Film: "talk"})
+	l := a.saved.book.Lines[0]
+	a.savedKeepSound(l)
+	waitUntil(t, tt, a, updates, func() bool { return len(a.saved.keeping) == 0 })
+	kept := saved.StoredSound(a.saved.book, l.ID)
+	if !saved.HasSound(kept) {
+		t.Fatalf("no sound kept at %s", kept)
+	}
+	src.mu.Lock()
+	src.unreachable = errors.New("dial tcp: connection refused")
+	src.mu.Unlock()
+	a.sources.pool.Forget(a.sources.list[0].ID)
+	if from := a.savedSoundSource(placeholder); from == nil {
+		t.Fatal("an indexed film has nothing to cut its sound from")
+	}
+}
+
+// A job making the lines of an indexed film that was copied into the library meanwhile reports itself as the indexed film's still, the pipeline holding the job as it was queued: the library keeps the film as one of its own, so it is made again from the copy, not from the source.
+func TestAJobOfAFilmCopiedMeanwhileStaysCopied(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	video := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
+	job := core.Job{ID: "talk", Source: mediasource.Ref{Source: "0123456789abcdef", Path: "talk.mp4"}.String(), VideoPath: video, Linked: true, Stage: core.StageTranscribing, LibraryDir: a.snap().LibraryDir}
+	a.library.Upsert(job)
+	// linkedCopied, as the copy ends: the library's job is the library's own.
+	copied := job
+	copied.Linked = false
+	a.library.Upsert(copied)
+	done := job
+	done.Stage = core.StageComplete
+	a.show(done)
+	if got, _ := a.library.Find("talk"); got.Linked || got.Stage != core.StageComplete {
+		t.Fatalf("the job is kept as %+v", got)
+	}
+}
+
+// Taking an indexed film off the shelf while its video is being copied into the library stops the copy, which would otherwise leave a video there that no film has.
+func TestForgettingAnIndexedFilmStopsItsCopy(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	video := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
+	a.library.Linked = map[string]shelf.Linked{video: {Source: "0123456789abcdef", Path: "talk.mp4"}}
+	stopped := false
+	a.sources.copying = map[string]context.CancelFunc{video: func() { stopped = true }}
+	a.libraryForget(a.snap().LibraryDir, []films.Film{{Key: video, VideoPath: video, Linked: "0123456789abcdef"}})
+	if !stopped || len(a.library.Linked) != 0 {
+		t.Fatalf("stopped %v, records %+v", stopped, a.library.Linked)
+	}
+}
+
+// filmOfVideo is the film of the open library whose video is at video, as its key is the job's ID once a job holds it.
+func filmOfVideo(t *testing.T, a *app, video string) films.Film {
+	t.Helper()
+	for _, item := range a.films() {
+		if item.VideoPath == video {
+			return item
+		}
+	}
+	t.Fatalf("no film of %s among %q", video, films.Keys(a.films()))
+	return films.Film{}
 }

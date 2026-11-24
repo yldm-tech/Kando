@@ -220,10 +220,13 @@ func (a *app) LinkedMark(_ locales.Messages, item films.Film) (place string, gon
 	return a.sources.list[i].Name, false
 }
 
-// linkedForget forgets where the video of item, a film taken off the shelf (libraryForget), is on its media source. Nothing on the source is touched.
+// linkedForget forgets where the video of item, a film taken off the shelf (libraryForget), is on its media source, and stops a copy of it into the library going on (CopyLinked), which would leave a video no film has. Nothing on the source is touched.
 func (a *app) linkedForget(item films.Film) {
 	if !a.linkedHas(item.VideoPath) {
 		return
+	}
+	if cancel := a.sources.copying[item.VideoPath]; cancel != nil {
+		cancel()
 	}
 	delete(a.library.Linked, item.VideoPath)
 	if err := a.library.Save(); err != nil {

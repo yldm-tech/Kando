@@ -136,7 +136,9 @@ func (a *app) savedReviewCut() {
 			continue
 		}
 		video := a.saved.book.Abs(l)
-		if _, err := os.Stat(video); err != nil || ffmpeg == "" || l.Video == "" || update == nil {
+		// A film indexed from a media source is cut from where its source is served (savedSoundSource).
+		from := a.savedSoundSource(video)
+		if from == nil || ffmpeg == "" || l.Video == "" || update == nil {
 			r.clips[id] = ""
 			continue
 		}
@@ -150,11 +152,11 @@ func (a *app) savedReviewCut() {
 			out := cmp.Or(kept, own)
 			err := errors.New("nowhere to keep the sound")
 			if out != "" {
-				err = saved.KeepSound(ctx, ffmpeg, video, l, delay, out)
+				err = savedKeepSoundFrom(ctx, ffmpeg, from, video, l, delay, out)
 			}
 			if err != nil && ctx.Err() == nil && out == kept && own != "" {
 				out = own
-				err = saved.KeepSound(ctx, ffmpeg, video, l, delay, out)
+				err = savedKeepSoundFrom(ctx, ffmpeg, from, video, l, delay, out)
 			}
 			update(func() {
 				if ctx.Err() != nil || !a.saved.review.open {

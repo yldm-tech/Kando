@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
+	"time"
 
 	"kando/apps/kando/saved"
 )
 
 // The sound of each saved line and each word of the vocabulary is cut out of its video as it is saved and kept in the library (saved.StoredSound), so the review and the export have it once the video is gone, as when the film was deleted to make room or streams from its site.
 
-// savedKeepSound cuts the sound of l, a line just saved or the line of a word just added (saved.WordLine), with ffmpeg off the engine's goroutine, into the library, unless it is kept already, is being cut, or its video is not on this computer or ffmpeg is not at hand. The review, open by then, plays it once it is cut (savedSoundKept).
+// savedKeepSound cuts the sound of l, a line just saved or the line of a word just added (saved.WordLine), with ffmpeg off the engine's goroutine, into the library, unless it is kept already, is being cut, or its video is neither on this computer nor on the media source it was indexed from (savedSoundSource) or ffmpeg is not at hand. The review, open by then, plays it once it is cut (savedSoundKept).
 func (a *app) savedKeepSound(l saved.Line) {
 	out := saved.StoredSound(a.saved.book, l.ID)
 	ffmpeg, update := a.ffmpegPath(), a.update
@@ -18,14 +20,15 @@ func (a *app) savedKeepSound(l saved.Line) {
 		return
 	}
 	video := a.saved.book.Abs(l)
-	if info, err := os.Stat(video); err != nil || info.IsDir() {
+	from := a.savedSoundSource(video)
+	if from == nil {
 		return
 	}
 	delay := a.player.delays[video]
 	id := l.ID
 	a.saved.keeping[id] = true
 	go func() {
-		err := saved.KeepSound(context.Background(), ffmpeg, video, l, delay, out)
+		err := savedKeepSoundFrom(context.Background(), ffmpeg, from, video, l, delay, out)
 		update(func() {
 			delete(a.saved.keeping, id)
 			if err != nil {
@@ -80,4 +83,30 @@ func (a *app) savedDropSound(id string) {
 	if path := saved.StoredSound(a.saved.book, id); path != "" {
 		_ = os.Remove(path)
 	}
+}
+
+// savedSoundSource is what ffmpeg cuts the sound of a line of the film whose video is at video from, off the engine's goroutine: the file, when it is on this computer; for a film indexed from a media source, the address the sources' pool serves it at until the context ends (linkedStreams), "" when the source cannot be read then; nil when there is neither, as for a video moved to a storage location or gone.
+func (a *app) savedSoundSource(video string) func(ctx context.Context) string {
+	if info, err := os.Stat(video); err == nil && !info.IsDir() {
+		return func(context.Context) string { return video }
+	}
+	if !a.linkedHas(video) {
+		return nil
+	}
+	streams := a.linkedStreams()
+	return func(ctx context.Context) string { return streams(ctx, video) }
+}
+
+// errSoundUnread is savedKeepSoundFrom's error once its source gave nothing to cut from, as a media source that cannot be read now.
+var errSoundUnread = errors.New("the video could not be read to cut its sound")
+
+// savedKeepSoundFrom keeps the sound of l (saved.KeepSound) cut from what from gives, the video at video or the address it is served at, which is given back once the sound is cut.
+func savedKeepSoundFrom(ctx context.Context, ffmpeg string, from func(ctx context.Context) string, video string, l saved.Line, delay time.Duration, out string) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	at := from(ctx)
+	if at == "" {
+		return errSoundUnread
+	}
+	return saved.KeepSound(ctx, ffmpeg, at, l, delay, out)
 }
