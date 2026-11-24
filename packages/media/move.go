@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"kando/packages/track"
 )
@@ -79,13 +80,16 @@ func (m FilmMove) Path(path string) (string, bool) {
 	return "", false
 }
 
-// Rename moves the sources to Dest with os.Rename, which works within one volume, trying again for a moment while Windows says something holds them (renameHeld). When a rename fails it puts back what it had moved and returns the error, so the caller can copy them instead (Copy).
+// renameFor is how long Rename waits on Windows for whoever holds a file of what it moves to let go: Kando counting a library's films just after a move (films.Videos) or an antivirus scanning the files just moved hold them so for a moment, and the move back that Undo makes right then would otherwise turn into a copy of the whole film. Rename runs on the UI thread and falls back to a copy (Copy) when it fails, so this stays short.
+const renameFor = 500 * time.Millisecond
+
+// Rename moves the sources to Dest with os.Rename, which works within one volume, trying again for up to renameFor while Windows says something holds them (renameWithin). When a rename fails it puts back what it had moved and returns the error, so the caller can copy them instead (Copy).
 func (m FilmMove) Rename() error {
 	if _, err := os.Lstat(m.Dest); err == nil {
 		return fmt.Errorf("%s: %w", m.Dest, fs.ErrExist)
 	}
 	if m.Folder {
-		return renameHeld(m.Sources[0], m.Dest)
+		return renameWithin(m.Sources[0], m.Dest, renameFor)
 	}
 	if err := os.Mkdir(m.Dest, 0o755); err != nil {
 		return err
@@ -93,10 +97,10 @@ func (m FilmMove) Rename() error {
 	var done []string
 	for _, source := range m.Sources {
 		next, _ := m.Path(source)
-		if err := renameHeld(source, next); err != nil {
+		if err := renameWithin(source, next, renameFor); err != nil {
 			for _, back := range done {
 				moved, _ := m.Path(back)
-				renameHeld(moved, back)
+				renameWithin(moved, back, renameFor)
 			}
 			os.Remove(m.Dest)
 			return err

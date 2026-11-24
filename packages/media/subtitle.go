@@ -100,7 +100,10 @@ func saveTranscript(path string, segments []core.Segment) error {
 	return writeFileAtomic(path, []byte(formatSRT(segments)))
 }
 
-// writeFileAtomic writes data to path through a hidden file beside it, renamed over it once written (replace, which on Windows waits for a reader of path to let go of it), so path holds either what it held before or all of data.
+// replaceFor is how long writeFileAtomic waits on Windows for a reader of the file it replaces to let go: a film's subtitles are read by the player that shows the film while it is made, and by Phone Sync, each only while it reads them, and a write that failed would fail the film's job.
+const replaceFor = 2 * time.Second
+
+// writeFileAtomic writes data to path through a hidden file beside it, renamed over it once written (renameWithin, which on Windows waits up to replaceFor for a reader of path to let go of it), so path holds either what it held before or all of data.
 func writeFileAtomic(path string, data []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
 	if err != nil {
@@ -114,7 +117,7 @@ func writeFileAtomic(path string, data []byte) error {
 		err = os.Chmod(tmp.Name(), 0o644)
 	}
 	if err == nil {
-		err = replace(tmp.Name(), path)
+		err = renameWithin(tmp.Name(), path, replaceFor)
 	}
 	if err != nil {
 		_ = os.Remove(tmp.Name())
