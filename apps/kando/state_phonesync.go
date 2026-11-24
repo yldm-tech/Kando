@@ -291,7 +291,7 @@ func (a *app) phoneSyncQR() {
 		a.phone.qr, a.phone.qrModules, a.phone.qrText = nil, 0, ""
 		return
 	}
-	text := psync.PairURL{Addrs: a.phone.addrs, Code: a.phone.offer.Code, Fingerprint: a.phone.fingerprint, Name: a.phone.name}.String()
+	text := psync.PairURL{Addrs: a.phone.addrs, Code: a.phone.offer.Code, Fingerprint: a.phone.fingerprint, Name: a.phone.name, Relay: a.phone.offer.Relay}.String()
 	if text == a.phone.qrText {
 		return
 	}
@@ -316,6 +316,7 @@ func (a *app) phoneSyncStatus() settings.PhoneSync {
 	}
 	if o := a.phone.offer; o.State != phonesync.OfferNone {
 		st.Code, st.Used, st.Expired = o.Code, o.State == phonesync.OfferUsed, o.State == phonesync.OfferExpired
+		st.PairAway = o.Relay != nil
 	}
 	now := a.phoneStateNow()
 	for _, dev := range a.phone.devices {

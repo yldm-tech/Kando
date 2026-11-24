@@ -29,6 +29,8 @@ type Offer struct {
 	Code    string
 	Expires time.Time
 	State   OfferState
+	// Relay is the code's pairing mailbox in the relay's bucket (relay_pair.go), which the QR code carries so a phone away from the computer's network pairs too; nil while the relay is off.
+	Relay *psync.PairRelay
 }
 
 // offer is the code on offer and how often it was tried wrongly. The server's mu guards it.
@@ -39,6 +41,14 @@ type offer struct {
 	used    bool
 	// timer tells the app the code expired, so the settings say so.
 	timer *time.Timer
+	// mailbox is the code's pairing mailbox while the relay is on, nil while it is off; stopMailbox ends its serving, which deletes it.
+	mailbox     *psync.PairRelay
+	stopMailbox func()
+}
+
+// public is the offer as the settings show it, at now.
+func (o *offer) public(now time.Time) Offer {
+	return Offer{Code: o.code, Expires: o.expires, State: o.state(now), Relay: o.mailbox}
 }
 
 func (o *offer) state(now time.Time) OfferState {

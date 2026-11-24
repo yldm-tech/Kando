@@ -1,15 +1,20 @@
 package main
 
 import (
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"kando/apps/mobile/pair"
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
 	"kando/packages/sync/synctest"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // The computer's storage relay ticks every relayTurn in the tests, so what the phone leaves there is answered within a step's wait.
@@ -163,5 +168,57 @@ func TestALinkLeftInTheStorageGoesDirectlyOnceHome(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return len(bucket.Keys(folder+"inbox/")) == 0 })
 	if jobs := d.Jobs(); len(jobs) != 1 {
 		t.Fatalf("the computer made %d jobs of the link", len(jobs))
+	}
+}
+
+// A phone that cannot reach the computer on its network pairs through the mailbox the QR code carries in the computer's storage, joined to its relay as it pairs: the Library lists the computer's films from the storage, and the Jobs page follows the computer through it.
+func TestScanningTheQRCodeAwayFromTheComputerPairsThroughItsStorage(t *testing.T) {
+	every := pair.RelayEvery
+	pair.RelayEvery = relayTurn
+	t.Cleanup(func() { pair.RelayEvery = every })
+	d := newDesktop(t)
+	d.StartRelay(t, synctest.NewBucket(t, now), now, relayTurn)
+	d.ShareFilms(true)
+	mailbox := d.OfferRelay(t, "123456", relayTurn)
+	d.SetOff(true)
+	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio", Relay: &mailbox}.String()
+	p := startScanningPhone(t, func(nsgotest.CodeScan) (*core.ScannedCode, error) {
+		return &core.ScannedCode{Kind: core.CodeQR, Text: link}, nil
+	})
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	p.app.WaitUntil(reconnect, func() bool { return p.app.Exists("id:onboarding-paired") })
+	if d.Paired() != 1 || d.RelayJoins() != 1 {
+		t.Fatalf("%d devices paired and %d joins, want 1 and 1", d.Paired(), d.RelayJoins())
+	}
+	id := store.DesktopID(d.Fingerprint)
+	p.waitRelayJoined(id)
+	p.app.Press("id:onboarding-start")
+	p.app.WaitUntil(reconnect, func() bool { return p.app.Exists(talkRow(id)) })
+	p.openJobs()
+	p.app.WaitUntil(reconnect, func() bool { return p.reach(id) == msgs.JobsViaStorage() })
+}
+
+// Through the storage, a code the computer no longer offers says so as on its network, and pairs nothing.
+func TestPairingThroughTheStorageWithAnOldCodeSaysSo(t *testing.T) {
+	every := pair.RelayEvery
+	pair.RelayEvery = relayTurn
+	t.Cleanup(func() { pair.RelayEvery = every })
+	d := newDesktop(t)
+	d.StartRelay(t, synctest.NewBucket(t, now), now, relayTurn)
+	mailbox := d.OfferRelay(t, "123456", relayTurn)
+	d.SetOff(true)
+	d.Offer("654321")
+	link := sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio", Relay: &mailbox}.String()
+	p := startScanningPhone(t, func(nsgotest.CodeScan) (*core.ScannedCode, error) {
+		return &core.ScannedCode{Kind: core.CodeQR, Text: link}, nil
+	})
+	p.app.WaitFor("id:pair-scan", wait)
+	p.app.Press("id:pair-scan")
+	if got, want := p.app.WaitFor("id:pair-problem", reconnect).Text, msgs.PairErrWrongCode(); got != want {
+		t.Fatalf("problem %q, want %q", got, want)
+	}
+	if d.Paired() != 0 {
+		t.Fatal("a code the computer no longer offers paired")
 	}
 }

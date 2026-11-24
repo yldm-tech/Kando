@@ -305,10 +305,7 @@ func (s *Server) Close() error {
 		return nil
 	}
 	s.closed = true
-	if s.offer != nil && s.offer.timer != nil {
-		s.offer.timer.Stop()
-	}
-	s.offer = nil
+	s.dropOffer()
 	for addr, l := range s.listeners {
 		l.Close()
 		delete(s.listeners, addr)
@@ -358,7 +355,8 @@ func (s *Server) NewOffer() Offer {
 	o := &offer{code: newCode(), expires: s.cfg.Now().Add(psync.CodeLifetime)}
 	o.timer = time.AfterFunc(psync.CodeLifetime, s.cfg.Changed)
 	s.offer = o
-	return Offer{Code: o.code, Expires: o.expires, State: OfferLive}
+	s.offerRelay(o)
+	return o.public(s.cfg.Now())
 }
 
 // ClearOffer takes the code on offer back, as when Phone Sync's settings close.
@@ -373,6 +371,9 @@ func (s *Server) dropOffer() {
 	if s.offer != nil && s.offer.timer != nil {
 		s.offer.timer.Stop()
 	}
+	if s.offer != nil && s.offer.stopMailbox != nil {
+		s.offer.stopMailbox()
+	}
 	s.offer = nil
 }
 
@@ -383,7 +384,7 @@ func (s *Server) Offer() Offer {
 	if s.offer == nil {
 		return Offer{}
 	}
-	return Offer{Code: s.offer.code, Expires: s.offer.expires, State: s.offer.state(s.cfg.Now())}
+	return s.offer.public(s.cfg.Now())
 }
 
 // Devices are the paired phones, the latest paired first.
@@ -490,7 +491,7 @@ func (s *Server) pair(w http.ResponseWriter, r *http.Request) {
 	lw := &logged{ResponseWriter: w}
 	var req psync.PairRequest
 	err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&req)
-	code, changed := s.tryPair(req.Code, err == nil)
+	code, changed := s.tryPair(req.Code, err == nil, nil)
 	if changed && code != "" {
 		// The last try the code had went wrong: the settings say it expired.
 		s.cfg.Changed()
@@ -518,8 +519,8 @@ func (s *Server) pair(w http.ResponseWriter, r *http.Request) {
 	s.cfg.Logf("phonesync: %s %s %d from %s", r.Method, r.URL.Path, lw.status, remoteIP(r))
 }
 
-// tryPair counts a pairing against the limit and checks its code: "" when it pairs, else the protocol's error code. A request that could not be read counts too. changed reports whether the code on offer is used or ended by it.
-func (s *Server) tryPair(code string, read bool) (result string, changed bool) {
+// tryPair counts a pairing against the limit and checks its code: "" when it pairs, else the protocol's error code. A request that could not be read counts too. changed reports whether the code on offer is used or ended by it. want, when not nil, is the code it must be on offer, as the one whose pairing mailbox the request came through: another on offer in its place is one that ended for it.
+func (s *Server) tryPair(code string, read bool, want *offer) (result string, changed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := s.cfg.Now()
@@ -530,12 +531,20 @@ func (s *Server) tryPair(code string, read bool) (result string, changed bool) {
 		return psync.CodeInvalid, false
 	}
 	o := s.offer
-	if o == nil {
+	if o == nil && want == nil {
 		return psync.CodeNoCode, false
+	}
+	if want != nil && o != want {
+		return psync.CodeCodeExpired, false
 	}
 	before := o.state(now)
 	result = o.try(strings.TrimSpace(code), now)
-	return result, o.state(now) != before
+	after := o.state(now)
+	if want == nil && after != OfferLive && o.stopMailbox != nil {
+		// A code used or ended on the local network pairs nothing through its mailbox from then on. One used through the mailbox keeps it until the code ends, so the phone reads the answer there.
+		o.stopMailbox()
+	}
+	return result, after != before
 }
 
 // sourceContext is the context a request asks the app under.

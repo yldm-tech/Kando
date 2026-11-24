@@ -26,7 +26,7 @@ func ShortFingerprint(fingerprint []byte) string {
 	return s[0:4] + " " + s[4:8] + " " + s[8:12] + " " + s[12:16]
 }
 
-// PairURL is what the desktop's pairing QR code holds: kando://pair?a=<ip:port>[,<ip:port>…]&c=<code>&fp=<fingerprint, base64url>&n=<desktop name>.
+// PairURL is what the desktop's pairing QR code holds: kando://pair?a=<ip:port>[,<ip:port>…]&c=<code>&fp=<fingerprint, base64url>&n=<desktop name>[&r=<box link>&k=<key, base64url>], r and k the pairing mailbox of the relay (relay_pair.go) while the desktop's relay is on. A phone of before them skips r and k.
 type PairURL struct {
 	// Addrs are where the desktop listens, each an IP address and a port.
 	Addrs []netip.AddrPort
@@ -36,6 +36,8 @@ type PairURL struct {
 	Fingerprint []byte
 	// Name is the desktop's name.
 	Name string
+	// Relay is the pairing mailbox through the desktop's relay, nil while its relay is off.
+	Relay *PairRelay
 }
 
 // The pairing URL's scheme and host.
@@ -54,13 +56,16 @@ func (p PairURL) String() string {
 		"&c=" + url.QueryEscape(p.Code) +
 		"&fp=" + base64.RawURLEncoding.EncodeToString(p.Fingerprint) +
 		"&n=" + url.QueryEscape(p.Name)
+	if p.Relay != nil {
+		query += "&r=" + url.QueryEscape(p.Relay.Box) + "&k=" + base64.RawURLEncoding.EncodeToString(p.Relay.Key)
+	}
 	return PairScheme + "://" + PairHost + "?" + query
 }
 
 // ErrNotPairURL is ParsePairURL's error for text that is not a kando://pair URL.
 var ErrNotPairURL = errors.New("not a Kando pairing URL")
 
-// ParsePairURL reads a pairing URL as String writes it. Every address must be an IP address with a port, the code CodeDigits digits and the fingerprint a SHA-256 in base64url; the name may be empty.
+// ParsePairURL reads a pairing URL as String writes it. Every address must be an IP address with a port, the code CodeDigits digits and the fingerprint a SHA-256 in base64url; the name may be empty. A mailbox (r and k) needs both: an http or https link and a key of RelayKeySize bytes in base64url.
 func ParsePairURL(s string) (PairURL, error) {
 	u, err := url.Parse(strings.TrimSpace(s))
 	if err != nil || u.Scheme != PairScheme || u.Host != PairHost {
@@ -84,6 +89,17 @@ func ParsePairURL(s string) (PairURL, error) {
 		return PairURL{}, fmt.Errorf("%w: fingerprint %q", ErrNotPairURL, q.Get("fp"))
 	}
 	p.Name = q.Get("n")
+	if q.Has("r") || q.Has("k") {
+		box, err := url.Parse(q.Get("r"))
+		if err != nil || (box.Scheme != "https" && box.Scheme != "http") || box.Host == "" {
+			return PairURL{}, fmt.Errorf("%w: mailbox link %q", ErrNotPairURL, q.Get("r"))
+		}
+		key, err := base64.RawURLEncoding.DecodeString(q.Get("k"))
+		if err != nil || len(key) != RelayKeySize {
+			return PairURL{}, fmt.Errorf("%w: mailbox key", ErrNotPairURL)
+		}
+		p.Relay = &PairRelay{Box: q.Get("r"), Key: key}
+	}
 	return p, nil
 }
 

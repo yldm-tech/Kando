@@ -3249,6 +3249,8 @@ const (
 	textSettingsPhoneNoNetwork
 	textSettingsPhonePair
 	textSettingsPhonePairHint
+	textSettingsPhonePairAway
+	textSettingsPhonePairLANOnly
 	textSettingsPhoneReceive
 	textSettingsPhoneReceiveAsk
 	textSettingsPhoneReceiveHint
@@ -5155,6 +5157,8 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneNoNetwork",
 	"settingsPhonePair",
 	"settingsPhonePairHint",
+	"settingsPhonePairAway",
+	"settingsPhonePairLANOnly",
 	"settingsPhoneReceive",
 	"settingsPhoneReceiveAsk",
 	"settingsPhoneReceiveHint",
@@ -7059,6 +7063,8 @@ var textsEn = i18n.NewTexts(""+
 	"This computer isn't on a local network."+
 	"Pair a Phone"+
 	"In Kando on your phone, scan this code, or enter the address and code."+
+	"Phones on another network can scan it too: they pair through your storage."+
+	"To pair a phone on another network, turn on Sync through your storage below."+
 	"Receive Links from Phones"+
 	"Ask Me First"+
 	"Share a video's link to Kando on a paired phone to process it on this computer."+
@@ -8960,6 +8966,8 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		12,
 		70,
+		74,
+		76,
 		25,
 		12,
 		79,
@@ -10864,6 +10872,8 @@ var textsJa = i18n.NewTexts(""+
 	"このコンピュータはローカルネットワークに接続されていません。"+
 	"スマートフォンをペアリング"+
 	"スマートフォンの Kando でこのコードを読み取るか、アドレスとコードを入力してください。"+
+	"別のネットワークにあるスマートフォンも読み取れます：ストレージを経由してペアリングします。"+
+	"別のネットワークにあるスマートフォンとペアリングするには、下の「ストレージ経由で同期」をオンにしてください。"+
 	"スマートフォンからリンクを受け取る"+
 	"先に確認する"+
 	"ペアリングしたスマートフォンで動画のリンクを Kando に共有すると、このコンピュータで処理します。"+
@@ -12765,6 +12775,8 @@ var textsJa = i18n.NewTexts(""+
 		90,
 		39,
 		124,
+		135,
+		162,
 		51,
 		18,
 		139,
@@ -14669,6 +14681,8 @@ var textsKo = i18n.NewTexts(""+
 	"이 컴퓨터는 로컬 네트워크에 연결되어 있지 않습니다."+
 	"휴대폰 페어링"+
 	"휴대폰의 Kando에서 이 코드를 스캔하거나 주소와 코드를 입력하세요."+
+	"다른 네트워크의 휴대폰도 스캔할 수 있습니다. 스토리지를 거쳐 페어링합니다."+
+	"다른 네트워크의 휴대폰을 페어링하려면 아래의 ‘내 스토리지를 거쳐 동기화’를 켜세요."+
 	"휴대폰에서 보낸 링크 받기"+
 	"먼저 묻기"+
 	"페어링된 휴대폰에서 동영상 링크를 Kando로 공유하면 이 컴퓨터에서 처리합니다."+
@@ -16570,6 +16584,8 @@ var textsKo = i18n.NewTexts(""+
 		73,
 		19,
 		91,
+		106,
+		121,
 		36,
 		13,
 		107,
@@ -18474,6 +18490,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"这台电脑未连接局域网。"+
 	"配对手机"+
 	"在手机上的看懂里扫描此二维码，或输入地址和配对码。"+
+	"不在这个网络的手机也能扫码：经你的存储配对。"+
+	"要让不在这个网络的手机配对，请先打开下面的「经你的存储同步」。"+
 	"接收手机发来的链接"+
 	"先问我"+
 	"在配对的手机上把视频链接分享给看懂，就会在这台电脑上处理。"+
@@ -20375,6 +20393,8 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		12,
 		75,
+		66,
+		93,
 		27,
 		9,
 		87,
@@ -22279,6 +22299,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"這台電腦未連上區域網路。"+
 	"配對手機"+
 	"在手機上的看懂中掃描此 QR 碼，或輸入位址和配對碼。"+
+	"不在這個網路的手機也能掃碼：經你的儲存空間配對。"+
+	"要讓不在這個網路的手機配對，請先開啟下方的「經你的儲存空間同步」。"+
 	"接收手機傳來的連結"+
 	"先問我"+
 	"在配對的手機上把影片連結分享給看懂，就會在這台電腦上處理。"+
@@ -24180,6 +24202,8 @@ var textsZhHant = i18n.NewTexts(""+
 		36,
 		12,
 		73,
+		72,
+		99,
 		27,
 		9,
 		87,
@@ -54046,6 +54070,26 @@ func SettingsPhonePairHint(cx *core.Scope) string { return For(cx).SettingsPhone
 
 // SettingsPhonePairHint is the package's SettingsPhonePairHint in the language of msgs.
 func (msgs Messages) SettingsPhonePairHint() string { return msgs.text(textSettingsPhonePairHint) }
+
+// SettingsPhonePairAway says "Phones on another network can scan it too: they pair through your storage."
+// in the language the app shows under cx.
+//
+// Line under the pairing hint on the Phone Sync settings page while the storage relay is on, so the QR code also pairs a phone that is not on this computer's network.
+func SettingsPhonePairAway(cx *core.Scope) string { return For(cx).SettingsPhonePairAway() }
+
+// SettingsPhonePairAway is the package's SettingsPhonePairAway in the language of msgs.
+func (msgs Messages) SettingsPhonePairAway() string { return msgs.text(textSettingsPhonePairAway) }
+
+// SettingsPhonePairLANOnly says "To pair a phone on another network, turn on Sync through your storage below."
+// in the language the app shows under cx.
+//
+// Line under the pairing hint on the Phone Sync settings page while the storage relay is off: only a phone on this computer's network can pair.
+func SettingsPhonePairLANOnly(cx *core.Scope) string { return For(cx).SettingsPhonePairLANOnly() }
+
+// SettingsPhonePairLANOnly is the package's SettingsPhonePairLANOnly in the language of msgs.
+func (msgs Messages) SettingsPhonePairLANOnly() string {
+	return msgs.text(textSettingsPhonePairLANOnly)
+}
 
 // SettingsPhoneReceive says "Receive Links from Phones"
 // in the language the app shows under cx.

@@ -1175,6 +1175,7 @@ const (
 	textPairCompareTitle
 	textPairConfirm
 	textPairConnecting
+	textPairConnectingRelay
 	textPairContinue
 	textPairErrAddress
 	textPairErrCamera
@@ -1185,6 +1186,7 @@ const (
 	textPairErrNoCode
 	textPairErrNoQR
 	textPairErrNotPairQR
+	textPairErrRelay
 	textPairErrTooMany
 	textPairErrWrongCode
 	textPairScan
@@ -1725,6 +1727,7 @@ var keyOfText = [numTexts]string{
 	"pairCompareTitle",
 	"pairConfirm",
 	"pairConnecting",
+	"pairConnectingRelay",
 	"pairContinue",
 	"pairErrAddress",
 	"pairErrCamera",
@@ -1735,6 +1738,7 @@ var keyOfText = [numTexts]string{
 	"pairErrNoCode",
 	"pairErrNoQR",
 	"pairErrNotPairQR",
+	"pairErrRelay",
 	"pairErrTooMany",
 	"pairErrWrongCode",
 	"pairScan",
@@ -2273,6 +2277,7 @@ var textsEn = i18n.NewTexts(""+
 	"Does your computer show these letters?"+
 	"Pair"+
 	"Connecting…"+
+	"Not on the computer's network. Pairing through your storage…"+
 	"Continue"+
 	"Enter the address as your computer shows it, such as 192.168.1.20:47123."+
 	"Can't open the camera. Allow Kando to use it in Settings, or enter the address and code."+
@@ -2283,6 +2288,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open Settings › Phone Sync on your computer: it takes a code only while that page is open."+
 	"Couldn't find a QR code in that photo. Take it closer, with the whole code in view."+
 	"That QR code isn't a Kando pairing code."+
+	"Couldn't pair through your storage. Check that Kando is open on the computer and its storage works, then try again with a new code."+
 	"Too many tries. Wait a minute, then try again."+
 	"That isn't the code your computer shows."+
 	"Scan QR Code"+
@@ -2818,6 +2824,7 @@ var textsEn = i18n.NewTexts(""+
 		38,
 		4,
 		13,
+		62,
 		8,
 		72,
 		88,
@@ -2828,6 +2835,7 @@ var textsEn = i18n.NewTexts(""+
 		92,
 		83,
 		40,
+		131,
 		46,
 		40,
 		12,
@@ -3366,6 +3374,7 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータに同じ文字が表示されていますか？"+
 	"ペアリング"+
 	"接続しています…"+
+	"コンピュータと同じネットワークにありません。ストレージ経由でペアリングしています…"+
 	"続ける"+
 	"コンピュータに表示されたとおりにアドレスを入力してください（例: 192.168.1.20:47123）。"+
 	"カメラを開けません。「設定」で Kando にカメラの使用を許可するか、アドレスとコードを入力してください。"+
@@ -3376,6 +3385,7 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータで「設定 › スマートフォン同期」を開いてください。このページを開いている間だけペアリングできます。"+
 	"写真に QR コードが見つかりません。コード全体が写るように近づいて撮影してください。"+
 	"この QR コードは Kando のペアリングコードではありません。"+
+	"ストレージ経由でペアリングできませんでした。コンピュータで Kando が開いていてストレージが使えることを確認し、新しいコードでもう一度お試しください。"+
 	"試行回数が多すぎます。1 分ほど待ってからもう一度お試しください。"+
 	"コンピュータに表示されているコードと違います。"+
 	"QR コードをスキャン"+
@@ -3911,6 +3921,7 @@ var textsJa = i18n.NewTexts(""+
 		66,
 		15,
 		24,
+		123,
 		9,
 		119,
 		148,
@@ -3921,6 +3932,7 @@ var textsJa = i18n.NewTexts(""+
 		164,
 		121,
 		80,
+		217,
 		95,
 		69,
 		27,
@@ -4459,6 +4471,7 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 같은 문자가 표시되나요?"+
 	"페어링"+
 	"연결 중…"+
+	"컴퓨터와 같은 네트워크에 있지 않습니다. 스토리지를 거쳐 페어링하는 중…"+
 	"계속"+
 	"컴퓨터에 표시된 대로 주소를 입력하세요(예: 192.168.1.20:47123)."+
 	"카메라를 열 수 없습니다. 설정에서 Kando의 카메라 사용을 허용하거나 주소와 코드를 입력하세요."+
@@ -4469,6 +4482,7 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에서 ‘설정 › 휴대폰 동기화’를 여세요. 이 페이지가 열려 있을 때만 페어링할 수 있습니다."+
 	"사진에서 QR 코드를 찾을 수 없습니다. 코드 전체가 보이도록 더 가까이에서 찍어 주세요."+
 	"Kando 페어링 QR 코드가 아닙니다."+
+	"스토리지를 거쳐 페어링하지 못했습니다. 컴퓨터에서 Kando가 열려 있고 스토리지가 작동하는지 확인한 뒤 새 코드로 다시 시도하세요."+
 	"시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요."+
 	"컴퓨터에 표시된 코드가 아닙니다."+
 	"QR 코드 스캔"+
@@ -5004,6 +5018,7 @@ var textsKo = i18n.NewTexts(""+
 		46,
 		9,
 		13,
+		102,
 		6,
 		81,
 		129,
@@ -5014,6 +5029,7 @@ var textsKo = i18n.NewTexts(""+
 		135,
 		118,
 		42,
+		178,
 		73,
 		46,
 		16,
@@ -5552,6 +5568,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"电脑上显示的是这些字母吗？"+
 	"配对"+
 	"正在连接…"+
+	"不在电脑所在的网络，正在经你的存储配对…"+
 	"继续"+
 	"请按电脑上显示的格式输入地址，例如 192.168.1.20:47123。"+
 	"无法打开相机。请在“设置”中允许看懂使用相机，或手动输入地址和配对码。"+
@@ -5562,6 +5579,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"请在电脑上打开“设置 › 手机同步”：只有这一页开着时才能配对。"+
 	"照片里没找到二维码。请靠近一点，把整个二维码拍进去。"+
 	"这不是看懂的配对二维码。"+
+	"没能经你的存储配对。请确认电脑上的看懂开着、存储能用，再换一个新代码重试。"+
 	"尝试次数太多，请稍等一分钟再试。"+
 	"这不是电脑上显示的配对码。"+
 	"扫描二维码"+
@@ -6097,6 +6115,7 @@ var textsZhHans = i18n.NewTexts(""+
 		39,
 		6,
 		15,
+		60,
 		6,
 		73,
 		105,
@@ -6107,6 +6126,7 @@ var textsZhHans = i18n.NewTexts(""+
 		92,
 		78,
 		36,
+		111,
 		48,
 		39,
 		15,
@@ -6645,6 +6665,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"電腦上顯示的是這些字母嗎？"+
 	"配對"+
 	"正在連線…"+
+	"不在電腦所在的網路，正在經你的儲存空間配對…"+
 	"繼續"+
 	"請依電腦上顯示的格式輸入位址，例如 192.168.1.20:47123。"+
 	"無法開啟相機。請在「設定」中允許看懂使用相機，或手動輸入位址和配對碼。"+
@@ -6655,6 +6676,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"請在電腦上開啟「設定 › 手機同步」：只有這一頁開著時才能配對。"+
 	"照片中找不到 QR 碼。請靠近一點，把整個 QR 碼拍進去。"+
 	"這不是看懂的配對 QR 碼。"+
+	"無法經你的儲存空間配對。請確認電腦上的看懂已開啟、儲存空間可用，再換一個新代碼重試。"+
 	"嘗試次數太多，請稍等一分鐘再試。"+
 	"這不是電腦上顯示的配對碼。"+
 	"掃描 QR 碼"+
@@ -7190,6 +7212,7 @@ var textsZhHant = i18n.NewTexts(""+
 		39,
 		6,
 		15,
+		66,
 		6,
 		73,
 		105,
@@ -7200,6 +7223,7 @@ var textsZhHant = i18n.NewTexts(""+
 		92,
 		74,
 		34,
+		126,
 		48,
 		39,
 		13,
@@ -15597,6 +15621,15 @@ func PairConnecting(cx *core.Scope) string { return For(cx).PairConnecting() }
 // PairConnecting is the package's PairConnecting in the language of msgs.
 func (msgs Messages) PairConnecting() string { return msgs.text(textPairConnecting) }
 
+// PairConnectingRelay says "Not on the computer's network. Pairing through your storage…"
+// in the language the app shows under cx.
+//
+// Card on the pairing page while the phone, which could not reach the computer on its network, pairs through the storage the computer's Phone Sync relays through; it can take up to a minute.
+func PairConnectingRelay(cx *core.Scope) string { return For(cx).PairConnectingRelay() }
+
+// PairConnectingRelay is the package's PairConnectingRelay in the language of msgs.
+func (msgs Messages) PairConnectingRelay() string { return msgs.text(textPairConnectingRelay) }
+
 // PairContinue says "Continue"
 // in the language the app shows under cx.
 //
@@ -15718,6 +15751,15 @@ func PairErrNotPairQR(cx *core.Scope) string { return For(cx).PairErrNotPairQR()
 
 // PairErrNotPairQR is the package's PairErrNotPairQR in the language of msgs.
 func (msgs Messages) PairErrNotPairQR() string { return msgs.text(textPairErrNotPairQR) }
+
+// PairErrRelay says "Couldn't pair through your storage. Check that Kando is open on the computer and its storage works, then try again with a new code."
+// in the language the app shows under cx.
+//
+// Error on the pairing page when pairing through the computer's storage relay got no answer.
+func PairErrRelay(cx *core.Scope) string { return For(cx).PairErrRelay() }
+
+// PairErrRelay is the package's PairErrRelay in the language of msgs.
+func (msgs Messages) PairErrRelay() string { return msgs.text(textPairErrRelay) }
 
 // PairErrTooMany says "Too many tries. Wait a minute, then try again."
 // in the language the app shows under cx.

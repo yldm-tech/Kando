@@ -1572,6 +1572,9 @@ pairConfirm:
 pairConnecting:
   message: "Connecting…"
   description: "Spoken name of the pairing page's button while the phone reaches the computer, which shows a spinner meanwhile."
+pairConnectingRelay:
+  message: "Not on the computer's network. Pairing through your storage…"
+  description: "Card on the pairing page while the phone, which could not reach the computer on its network, pairs through the storage the computer's Phone Sync relays through; it can take up to a minute."
 pairContinue:
   message: "Continue"
   description: "Button under the address and code that reaches the computer."
@@ -1607,6 +1610,9 @@ pairErrNoQR:
 pairErrNotPairQR:
   message: "That QR code isn't a Kando pairing code."
   description: "Error on the pairing page: the QR code scanned is not the one the computer's Phone Sync settings show."
+pairErrRelay:
+  message: "Couldn't pair through your storage. Check that Kando is open on the computer and its storage works, then try again with a new code."
+  description: "Error on the pairing page when pairing through the computer's storage relay got no answer."
 pairErrTooMany:
   message: "Too many tries. Wait a minute, then try again."
   description: "Error on the pairing page: the computer refuses pairings for a while after many."

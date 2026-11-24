@@ -32,7 +32,9 @@ type PhoneSync struct {
 	// QR is the pairing URL's QR code as a PNG, QRModules how many modules it is across; nil while no code pairs. The app keeps one slice per code, so the picture is not loaded again at each read.
 	QR        []byte
 	QRModules int
-	Devices   []PhoneDevice
+	// PairAway is a QR code that carries the code's pairing mailbox in the storage relay, so a phone on another network pairs by scanning it too.
+	PairAway bool
+	Devices  []PhoneDevice
 	// RevokeErr is why the last revocation failed, ReadOnlyErr why the last change of a phone's read-only switch could not be kept, and ResolveErr why the last conflict could not be settled.
 	RevokeErr, ReadOnlyErr, ResolveErr string
 	// Stats is how much of the open library's learning state the phones were told, Conflicts its sync conflicts left for the user to settle, the oldest first, and Activity what the phones did lately, the latest first (phone_learning.go).
@@ -163,6 +165,12 @@ func (p pairing) Render(cx *core.Scope) core.Node {
 	addrs := live.Func(a, func() []string { return a.PhoneSync().Addrs })
 	texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 12}, Children: []core.Node{
 		core.Text{Content: locales.SettingsPhonePairHint(cx), Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)},
+		core.Text{TestID: "settings-phone-pair-away", ContentFunc: live.Func(a, func() string {
+			if a.PhoneSync().PairAway {
+				return locales.SettingsPhonePairAway(cx)
+			}
+			return locales.SettingsPhonePairLANOnly(cx)
+		}), Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 		field(func() string { return locales.SettingsPhoneAddress(cx, len(addrs())) }, func() string { return strings.Join(addrs(), "\n") }, "settings-phone-address", 13),
 		field(func() string { return locales.SettingsPhoneCode(cx) }, live.Func(a, func() string {
 			if st := a.PhoneSync(); st.live() && len(st.Addrs) > 0 {

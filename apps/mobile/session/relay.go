@@ -127,8 +127,13 @@ func (s *Session) relayJoin(ctx context.Context, desktop, device string, c *sync
 	if err := c.Call(ctx, sync.OpRelayJoin, nil, &joined); err != nil || len(joined.Key) != sync.RelayKeySize {
 		return
 	}
+	rl.adopt(s, desktop, device, joined)
+}
+
+// adopt keeps joined as the phone's relay to desktop, for its pairing device, the key in the secure store. rl.mu is held.
+func (rl *relayLink) adopt(s *Session, desktop, device string, joined sync.RelayJoin) error {
 	if err := s.secrets.Set(store.RelayKeyAccount(desktop), base64.StdEncoding.EncodeToString(joined.Key)); err != nil {
-		return
+		return err
 	}
 	p := &sync.RelayPhone{Device: device, Key: joined.Key, Grant: joined.Grant, Now: s.cfg.Now}
 	// The messages are numbered on from the last, and the replies to calls already sent are still read by their slots' links.
@@ -137,6 +142,17 @@ func (s *Session) relayJoin(ctx context.Context, desktop, device string, c *sync
 	}
 	rl.phone, rl.lapsed, rl.failure = p, false, sync.RelayNoFailure
 	rl.save(s, desktop)
+	return nil
+}
+
+// AdoptRelay keeps joined, which a pairing through the computer's relay brought (sync.PairThroughRelay), as the phone's relay to desktop for its pairing device, before AddDesktop keeps the computer, so the phone follows it through the relay from the start. Engine goroutine only.
+func (s *Session) AdoptRelay(desktop, device string, joined sync.RelayJoin) error {
+	rl := s.relayOf(desktop)
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	// What the store kept of an earlier pairing is not read over the new one.
+	rl.loaded = true
+	return rl.adopt(s, desktop, device, joined)
 }
 
 // forget deletes what the phone keeps of desktop's relay. rl.mu is held.

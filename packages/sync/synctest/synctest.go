@@ -335,22 +335,28 @@ func (d *Desktop) pair(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	resp, code := d.tryPair(req)
+	if code != "" {
+		fail(w, sync.StatusOf(code), code)
+		return
+	}
+	writeJSON(w, resp)
+}
+
+// tryPair pairs the device of req with the code on offer, good for one pairing and sync.CodeTries wrong tries: its token, or the protocol's error code.
+func (d *Desktop) tryPair(req sync.PairRequest) (sync.PairResponse, string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	switch {
 	case d.code == "":
-		fail(w, http.StatusForbidden, sync.CodeNoCode)
-		return
+		return sync.PairResponse{}, sync.CodeNoCode
 	case d.used:
-		fail(w, http.StatusForbidden, sync.CodeCodeUsed)
-		return
+		return sync.PairResponse{}, sync.CodeCodeUsed
 	case d.tries >= sync.CodeTries:
-		fail(w, http.StatusForbidden, sync.CodeCodeExpired)
-		return
+		return sync.PairResponse{}, sync.CodeCodeExpired
 	case req.Code != d.code:
 		d.tries++
-		fail(w, http.StatusForbidden, sync.CodeWrongCode)
-		return
+		return sync.PairResponse{}, sync.CodeWrongCode
 	}
 	d.used = true
 	b := make([]byte, 16)
@@ -358,7 +364,7 @@ func (d *Desktop) pair(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 	d.tokens[token] = true
 	d.names[token] = req.Device
-	writeJSON(w, sync.PairResponse{Token: token, DeviceID: "dev-" + token[:6], Desktop: d.Name})
+	return sync.PairResponse{Token: token, DeviceID: "dev-" + token[:6], Desktop: d.Name}, ""
 }
 
 func (d *Desktop) authed(next http.HandlerFunc) http.HandlerFunc {

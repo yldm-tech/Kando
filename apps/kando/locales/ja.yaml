@@ -1665,6 +1665,8 @@ settingsPhoneNoDevices: "ペアリングしたスマートフォンはありま�
 settingsPhoneNoNetwork: "このコンピュータはローカルネットワークに接続されていません。"
 settingsPhonePair: "スマートフォンをペアリング"
 settingsPhonePairHint: "スマートフォンの Kando でこのコードを読み取るか、アドレスとコードを入力してください。"
+settingsPhonePairAway: "別のネットワークにあるスマートフォンも読み取れます：ストレージを経由してペアリングします。"
+settingsPhonePairLANOnly: "別のネットワークにあるスマートフォンとペアリングするには、下の「ストレージ経由で同期」をオンにしてください。"
 settingsPhoneReceive: "スマートフォンからリンクを受け取る"
 settingsPhoneReceiveAsk: "先に確認する"
 settingsPhoneReceiveHint: "ペアリングしたスマートフォンで動画のリンクを Kando に共有すると、このコンピュータで処理します。"

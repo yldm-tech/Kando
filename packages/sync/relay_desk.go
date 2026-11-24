@@ -362,7 +362,7 @@ func (r *Relay) Forget(ctx context.Context, device string) error {
 // RelaySweepEvery is how often Run sweeps the outboxes.
 const RelaySweepEvery = time.Hour
 
-// Sweep deletes the replies older than ReplyMemory, which a phone has read or given up on, and the inbox and outbox of any device that has not joined, as one unpaired while the relay was off.
+// Sweep deletes the replies older than ReplyMemory, which a phone has read or given up on, the inbox and outbox of any device that has not joined, as one unpaired while the relay was off, and the pairing mailboxes RelayPairKeep old.
 func (r *Relay) Sweep(ctx context.Context) error {
 	known := map[string]bool{}
 	for _, d := range r.Devices() {
@@ -382,6 +382,16 @@ func (r *Relay) Sweep(ctx context.Context) error {
 			if !known[device] || oldReply {
 				errs = append(errs, r.Bucket.Delete(ctx, o.Key))
 			}
+		}
+	}
+	// A pairing mailbox (relay_pair.go) is deleted once its code ends; one left behind, as when the desktop stopped first, goes once it is RelayPairKeep old.
+	mailboxes, err := r.Bucket.List(ctx, r.Prefix+relayPairFolder)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	for _, o := range mailboxes {
+		if now.Sub(o.Modified) >= RelayPairKeep {
+			errs = append(errs, r.Bucket.Delete(ctx, o.Key))
 		}
 	}
 	return errors.Join(errs...)

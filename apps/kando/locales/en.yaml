@@ -5976,6 +5976,12 @@ settingsPhonePair:
 settingsPhonePairHint:
   message: "In Kando on your phone, scan this code, or enter the address and code."
   description: "Line beside the pairing QR code saying how a phone pairs."
+settingsPhonePairAway:
+  message: "Phones on another network can scan it too: they pair through your storage."
+  description: "Line under the pairing hint on the Phone Sync settings page while the storage relay is on, so the QR code also pairs a phone that is not on this computer's network."
+settingsPhonePairLANOnly:
+  message: "To pair a phone on another network, turn on Sync through your storage below."
+  description: "Line under the pairing hint on the Phone Sync settings page while the storage relay is off: only a phone on this computer's network can pair."
 settingsPhoneReceive:
   message: "Receive Links from Phones"
   description: "Switch in Settings › Phone Sync: whether this computer takes the video links paired phones send it."

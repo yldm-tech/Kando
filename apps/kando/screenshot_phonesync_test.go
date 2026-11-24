@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -14,7 +15,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay), with what the films take there, a video going up, two watched ones to clean up and an S3 bucket to move to (settings-phone-storage). No server starts: the scenes set what a running server and the ledger of the open library would hold.
+// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), the pairing code with the storage relay on, its QR code carrying the code's pairing mailbox (settings-phone-pair-away), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay), with what the films take there, a video going up, two watched ones to clean up and an S3 bucket to move to (settings-phone-storage). No server starts: the scenes set what a running server and the ledger of the open library would hold.
 func TestScreenshotsPhoneSync(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "phone-handoff", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
@@ -41,6 +42,14 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-conflicts", shown, models, turbo, func(a *app) {
 		shotPhoneSync(a)
 		shotPhoneLinked(a, "")
+	})
+	// 配对 with the storage relay on: the QR code carries the code's pairing mailbox in an R2 bucket, so a phone on another network pairs by scanning it too.
+	shootSettings(t, f, settings.SectionPhone, "settings-phone-pair-away", shown, models, turbo, func(a *app) {
+		shotPhoneSync(a)
+		a.phone.relay, a.phone.relayOK = true, true
+		box := "https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/kando-films/kando-relay/5c1e0a77d2b3f4e1/pair/9f2b6c0d4e8a1b3c5d7e9f0a2b4c6d8e/box?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0123456789abcdef0123456789abcdef%2F20261125%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261125T094100Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=71e19abd75a8a05c71e9c630d2dc14b70100453847a8f2b1d313fe2956e1ed43"
+		a.phone.offer.Relay = &psync.PairRelay{Box: box, Key: bytes.Repeat([]byte{7}, psync.RelayKeySize)}
+		a.phoneSyncQR()
 	})
 	// 不在同一网络时 with the storage relay on, through an R2 bucket whose last turn went through.
 	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-relay", shown, models, turbo, func(a *app) {

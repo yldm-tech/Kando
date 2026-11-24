@@ -242,6 +242,38 @@ func (d *Desktop) ResumeRelay() {
 	}
 }
 
+// OfferRelay offers code for pairing as Offer does, and a pairing mailbox for it in the relay's bucket (package sync's relay_pair.go), served every every until the test ends, as Kando's desktop offers one with each code while its relay is on: a phone pairs through it as through the local network, with the same code, and is joined to the relay with it. It answers the mailbox the QR code carries. StartRelay comes first.
+func (d *Desktop) OfferRelay(t testing.TB, code string, every time.Duration) sync.PairRelay {
+	t.Helper()
+	d.Offer(code)
+	d.mu.Lock()
+	r := d.relay.relay
+	d.mu.Unlock()
+	m, err := sync.NewRelayPairMailbox(context.Background(), r.Bucket, r.Prefix, sync.CodeLifetime, r.Bucket.(relayBucket).b.now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		m.Serve(ctx, every, func(ctx context.Context, req sync.PairRequest) sync.RelayPairAnswer {
+			resp, code := d.tryPair(req)
+			if code != "" {
+				return sync.RelayPairAnswer{Error: &sync.ErrorBody{Code: code}}
+			}
+			join, err := relayJoiner{d}.Join(ctx, sync.Caller{DeviceID: resp.DeviceID, Name: req.Device})
+			if err != nil {
+				return sync.RelayPairAnswer{Error: &sync.ErrorBody{Code: sync.CodeFailed, Message: err.Error()}}
+			}
+			return sync.RelayPairAnswer{Pair: &resp, Join: &join}
+		}, nil)
+		_ = m.Remove(context.Background())
+	}()
+	t.Cleanup(func() { cancel(); <-done })
+	return m.Relay()
+}
+
 // RelayJoins is how many times phones joined the relay.
 func (d *Desktop) RelayJoins() int {
 	d.mu.Lock()

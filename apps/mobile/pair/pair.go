@@ -1,4 +1,4 @@
-// Package pair is the page that pairs the phone with Kando on a computer: the address and the one-time code Settings › Phone Sync shows there, then, for an address typed by hand, the certificate's fingerprint in short to compare with the computer's before the phone trusts it. A kando://pair link, scanned from the QR code the computer shows or pasted into the address field, brings its code and fingerprint, which the phone checks without asking.
+// Package pair is the page that pairs the phone with Kando on a computer: the address and the one-time code Settings › Phone Sync shows there, then, for an address typed by hand, the certificate's fingerprint in short to compare with the computer's before the phone trusts it. A kando://pair link, scanned from the QR code the computer shows or pasted into the address field, brings its code and fingerprint, which the phone checks without asking, and, while the computer's storage relay is on, the code's pairing mailbox there: a phone that cannot reach the computer on its network pairs through it (sync.PairThroughRelay, yldm-tech/Kando#468) and follows the computer through the relay from then on.
 package pair
 
 import (
@@ -40,18 +40,25 @@ const (
 // connectTimeout is how long the phone waits for a computer to answer.
 const connectTimeout = 8 * time.Second
 
-// Target is what the address field says to pair with: the addresses to try, the code, and the fingerprint a pasted link names, nil for an address typed by hand.
+// relayTimeout is how long the phone waits for a pairing through the computer's relay, which the computer reads every sync.RelayPairEvery while it runs.
+const relayTimeout = 2 * time.Minute
+
+// RelayEvery is how often the phone reads the answer to a pairing through the relay, 0 for sync.RelayPairEvery. Tests shorten it.
+var RelayEvery time.Duration
+
+// Target is what the address field says to pair with: the addresses to try, the code, and the fingerprint a pasted link names, nil for an address typed by hand; Relay is the link's pairing mailbox, nil for none.
 type Target struct {
 	Addrs    []netip.AddrPort
 	Code     string
 	Expected []byte
+	Relay    *sync.PairRelay
 }
 
 // ParseTarget reads the address field and the code: an IP address with its port, as 192.168.1.20:47123, or a kando://pair link, whose own code replaces code. ok is false for anything else.
 func ParseTarget(address, code string) (Target, bool) {
 	address = strings.TrimSpace(address)
 	if u, err := sync.ParsePairURL(address); err == nil {
-		return Target{Addrs: u.Addrs, Code: u.Code, Expected: u.Fingerprint}, true
+		return Target{Addrs: u.Addrs, Code: u.Code, Expected: u.Fingerprint, Relay: u.Relay}, true
 	}
 	addr, err := netip.ParseAddrPort(address)
 	if err != nil || addr.Port() == 0 {
@@ -89,6 +96,8 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 	confirmed := core.NewSignal(cx, false)
 	// page ends as the page goes, which stops a pairing under way. It is the page's own, read as the page is built: a handler's cx is the region of the button pressed, which the page's stages replace as a pairing goes on.
 	page := cx.Context()
+	// relaying is a pairing through the computer's relay under way.
+	relaying := core.NewSignal(cx, false)
 
 	ready := func() bool {
 		t, ok := ParseTarget(address.Get(), code.Get())
@@ -114,6 +123,32 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 			})
 		}()
 	}
+	// viaRelay pairs through the link's mailbox in the computer's relay, which a link brings with the fingerprint it names.
+	viaRelay := func(target Target) {
+		at.Set(pairing)
+		relaying.Set(true)
+		go func() {
+			ctx, cancel := context.WithTimeout(page, relayTimeout)
+			defer cancel()
+			resp, joined, err := sync.PairThroughRelay(ctx, nil, *target.Relay, sync.PairRequest{Code: target.Code, Device: s.Device(), Platform: s.Platform()}, RelayEvery)
+			cx.Post(func() {
+				relaying.Set(false)
+				if err != nil {
+					problem.Set(relayProblem(cx, err))
+					at.Set(editing)
+					return
+				}
+				d := store.Desktop{ID: store.DesktopID(target.Expected), Name: resp.Desktop, Addr: target.Addrs[0], Fingerprint: target.Expected, Token: resp.Token, DeviceID: resp.DeviceID}
+				if err := s.AdoptRelay(d.ID, resp.DeviceID, joined); err != nil {
+					problem.Set(locales.PairErrFailed(cx))
+					at.Set(editing)
+					return
+				}
+				s.AddDesktop(d)
+				done(d)
+			})
+		}()
+	}
 	check := func() {
 		target, ok := ParseTarget(address.Get(), code.Get())
 		if !ok {
@@ -127,6 +162,8 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 			f, err := reach(page, target.Addrs)
 			cx.Post(func() {
 				switch {
+				case err != nil && target.Relay != nil && target.Expected != nil:
+					viaRelay(target)
 				case err != nil:
 					problem.Set(unreachable(cx, s, target, err))
 					at.Set(editing)
@@ -216,7 +253,7 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		core.Show{When: func() bool { return problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "pair-problem", ContentFunc: problem.Get, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 		}},
-		core.Show{When: busy, Then: func(cx *core.Scope) core.Node { return connecting(cx, fill) }},
+		core.Show{When: busy, Then: func(cx *core.Scope) core.Node { return connecting(cx, fill, relaying.Get) }},
 	}}
 	form := core.Scroll{Ref: scroll, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{fields}}
 	compare := core.View{TestID: "pair-compare", Style: core.Style{FlexGrow: 1, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 20},
@@ -294,14 +331,19 @@ func Steps(cx *core.Scope, fill func() core.Color) core.Node {
 // CanScan is whether the phone can read the computer's QR code: from the camera's live picture (Scope.ScanCode), or else from a photo of it.
 func CanScan(cx *core.Scope) bool { return cx.Env().CanScanCode() || cx.Env().CanTakePhoto() }
 
-// connecting is the card in fill that says the phone is reaching the computer, while it does.
-func connecting(cx *core.Scope, fill func() core.Color) core.Node {
+// connecting is the card in fill that says the phone is reaching the computer, while it does, through the computer's relay while relaying.
+func connecting(cx *core.Scope, fill func() core.Color, relaying func() bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{TestID: "pair-connecting", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 14), CornerRadius: 16, BorderCurve: core.BorderCurveContinuous},
 		StyleFunc: ui.Filled(fill),
 		Children: []core.Node{
 			ui.Spinner{Size: 22, Tint: colors.Accent},
-			core.Text{ContentFunc: func() string { return locales.PairConnecting(cx) }, LiveRegion: core.LiveRegionPolite, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: func() string {
+				if relaying() {
+					return locales.PairConnectingRelay(cx)
+				}
+				return locales.PairConnecting(cx)
+			}, LiveRegion: core.LiveRegionPolite, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Text)},
 		}}
 }
 
@@ -417,4 +459,13 @@ func pairProblem(cx *core.Scope, err error, addr netip.AddrPort) string {
 		return locales.PairErrFingerprint(cx)
 	}
 	return locales.PairErrUnreachable(cx, addr.String())
+}
+
+// relayProblem is what the page says when pairing through the computer's relay failed for err: a code the computer did not take as on its network, else that it did not answer.
+func relayProblem(cx *core.Scope, err error) string {
+	var e *sync.Error
+	if errors.As(err, &e) {
+		return pairProblem(cx, err, netip.AddrPort{})
+	}
+	return locales.PairErrRelay(cx)
 }
