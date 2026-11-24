@@ -127,7 +127,7 @@ func (a *app) mediaSourceListed(gen int, s mediasource.Source, entries []mediaso
 	b.loading = false
 	if err != nil {
 		log.Printf("media source: %s listing failed: %s", s.Kind, feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(err.Error()))
-		r := mediasource.SMBRemote(s, "")
+		r, _ := mediasource.Remote(s, nil)
 		b.err = func(m locales.Messages) string {
 			if errors.Is(err, media.ErrOffline) {
 				return m.MediaSourceOffline()

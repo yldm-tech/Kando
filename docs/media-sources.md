@@ -100,7 +100,7 @@
 
 `Fields` 是声明式的表单，宿主统一画（`settings/form` 的组件），插件不画自己的连接界面：
 
-- `type`：`text`、`number`、`secret`、`bool`、`url`（只用于 `endpoint`）。
+- `type`：`text`、`number`、`secret`、`bool`、`url`（只用于 `endpoint`）、`hostKey`（只有内置种类有，最多一个：SFTP 信任的服务器密钥，表单上显示指纹，只经首次信任和「替换密钥」的对话框改，不能手填）。`text` 和 `secret` 可以标 `multiline`（私钥的 PEM 文本），多行显示所填内容，不遮挡。
 - `key` 匹配 `^[a-z][A-Za-z0-9]{0,31}$`；最多 12 个字段，`secret` 最多 3 个。
 - 每个 `secret` 字段声明它怎么用（`auth`），宿主据此注入，插件拿不到值：`{"basic": ["user", "password"]}`（HTTP Basic，用户名取另一个字段）、`{"header": "X-Emby-Token", "format": "{secret}"}`，或 `{"login": true}`（见 11.3：只在插件调登录接口时由宿主填进请求体）。
 

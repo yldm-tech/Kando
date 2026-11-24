@@ -3826,6 +3826,7 @@ const (
 	textSettingsSourcesAddTitle
 	textSettingsSourcesEditTitle
 	textSettingsSourcesKindSMB
+	textSettingsSourcesKindSFTP
 	textSettingsSourcesShareHint
 	textSettingsSourcesNoSigning
 	textSettingsSourcesNoSigningHint
@@ -5710,6 +5711,7 @@ var keyOfText = [numTexts]string{
 	"settingsSourcesAddTitle",
 	"settingsSourcesEditTitle",
 	"settingsSourcesKindSMB",
+	"settingsSourcesKindSFTP",
 	"settingsSourcesShareHint",
 	"settingsSourcesNoSigning",
 	"settingsSourcesNoSigningHint",
@@ -7592,6 +7594,7 @@ var textsEn = i18n.NewTexts(""+
 	"Add a Media Source"+
 	"Edit Media Source"+
 	"SMB"+
+	"SFTP"+
 	"Empty to choose among the server's shares"+
 	"This NAS doesn't support signing"+
 	"For an older NAS, or a share open to guests"+
@@ -9471,6 +9474,7 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		17,
 		3,
+		4,
 		41,
 		32,
 		43,
@@ -11353,6 +11357,7 @@ var textsJa = i18n.NewTexts(""+
 	"メディアソースを追加"+
 	"メディアソースを編集"+
 	"SMB"+
+	"SFTP"+
 	"空欄にするとサーバーの共有から選べます"+
 	"この NAS は署名に対応していない"+
 	"古い NAS や、ゲストに公開された共有向け"+
@@ -13232,6 +13237,7 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		30,
 		3,
+		4,
 		57,
 		44,
 		56,
@@ -15114,6 +15120,7 @@ var textsKo = i18n.NewTexts(""+
 	"미디어 소스 추가"+
 	"미디어 소스 편집"+
 	"SMB"+
+	"SFTP"+
 	"비워 두면 서버의 공유 중에서 고릅니다"+
 	"이 NAS는 서명을 지원하지 않음"+
 	"오래된 NAS나 게스트에게 열린 공유용"+
@@ -16993,6 +17000,7 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		23,
 		3,
+		4,
 		53,
 		40,
 		49,
@@ -18875,6 +18883,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"添加媒体来源"+
 	"编辑媒体来源"+
 	"SMB"+
+	"SFTP"+
 	"留空则从服务器的共享里选"+
 	"这台 NAS 不支持签名"+
 	"用于较老的 NAS，或对访客开放的共享"+
@@ -20754,6 +20763,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		18,
 		3,
+		4,
 		36,
 		26,
 		49,
@@ -22636,6 +22646,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"新增媒體來源"+
 	"編輯媒體來源"+
 	"SMB"+
+	"SFTP"+
 	"留空則從伺服器的共用資料夾裡選"+
 	"這台 NAS 不支援簽署"+
 	"用於較舊的 NAS，或對訪客開放的共用資料夾"+
@@ -24515,6 +24526,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		18,
 		3,
+		4,
 		45,
 		26,
 		58,
@@ -71465,6 +71477,15 @@ func SettingsSourcesKindSMB(cx *core.Scope) string { return For(cx).SettingsSour
 
 // SettingsSourcesKindSMB is the package's SettingsSourcesKindSMB in the language of msgs.
 func (msgs Messages) SettingsSourcesKindSMB() string { return msgs.text(textSettingsSourcesKindSMB) }
+
+// SettingsSourcesKindSFTP says "SFTP"
+// in the language the app shows under cx.
+//
+// Name of the kind of media source that is a folder of a server reached over SSH (SFTP). A protocol's name, which most languages keep.
+func SettingsSourcesKindSFTP(cx *core.Scope) string { return For(cx).SettingsSourcesKindSFTP() }
+
+// SettingsSourcesKindSFTP is the package's SettingsSourcesKindSFTP in the language of msgs.
+func (msgs Messages) SettingsSourcesKindSFTP() string { return msgs.text(textSettingsSourcesKindSFTP) }
 
 // SettingsSourcesShareHint says "Empty to choose among the server's shares"
 // in the language the app shows under cx.

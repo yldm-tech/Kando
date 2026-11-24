@@ -59,14 +59,6 @@ func msg(m func(locales.Messages) string) func(locale string) string {
 	return func(locale string) string { return m(locales.In(locale)) }
 }
 
-// Builtin is the built-in kind of ID id, whatever the Registry holds, reporting false for any other ID, as a plugin's or one this version does not know.
-func Builtin(id string) (Kind, bool) {
-	if id == KindSMB {
-		return SMB(), true
-	}
-	return Kind{}, false
-}
-
 // SMBRemote is how storage reaches the SMB source s with password: its fields as a storage.Remote, the port 445 when it names none or one that is not a number, and signing required unless its NoSigning field is "true".
 func SMBRemote(s Source, password string) storage.Remote {
 	c := s.Config

@@ -5,14 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/account"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/storage"
 	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsMediaSources renders 设置 › 媒体来源 and the dialog it opens: two SMB sources, a share whose Test connected and a whole server whose Test listed its shares (settings-sources), and the dialog adding an SMB source of a NAS without signing, with what that risks (settings-sources-add). The servers are names in the scene, never reached.
+// TestScreenshotsMediaSources renders 设置 › 媒体来源 and the dialog it opens: two SMB sources, a share whose Test connected and a whole server whose Test listed its shares, and an SFTP server (settings-sources); the dialog adding an SMB source of a NAS without signing, with what that risks (settings-sources-add); the dialog adding an SFTP source whose server's key the Test trusted (settings-sources-add-sftp); and the question the first Test of an SFTP source asks about its server's key (settings-sources-trust). The servers are names in the scene, never reached.
 func TestScreenshotsMediaSources(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
@@ -25,13 +27,31 @@ func TestScreenshotsMediaSources(t *testing.T) {
 		d.Values = map[string]string{mediasource.SMBHost: "192.168.1.20", mediasource.SMBShare: "video", mediasource.SMBUser: "guest", mediasource.SMBNoSigning: "true"}
 		a.sources.tests[""] = mediaSourceTest{ok: true}
 	})
+	sftp := func(a *app) {
+		shotMediaSources(a)
+		a.AddMediaSource()
+		a.SetMediaSourceKind(mediasource.KindSFTP)
+		d := a.MediaSourceDraft()
+		d.Name = "Backup Server"
+		d.Values = map[string]string{mediasource.SFTPHost: "backup.lan", mediasource.SFTPRoot: "/srv/video", mediasource.SFTPUser: "kando", mediasource.SFTPPassword: "secret"}
+	}
+	shootSettingsPressed(t, f, settings.SectionMediaSources, "settings-sources-add-sftp", shown, models, turbo, []string{"scroll-end:id:media-source-dialog-fields"}, func(a *app) {
+		sftp(a)
+		a.MediaSourceDraft().Values[mediasource.SFTPHostKey] = shotHostKey(7)
+		a.sources.tests[""] = mediaSourceTest{ok: true}
+	})
+	shootSettings(t, f, settings.SectionMediaSources, "settings-sources-trust", shown, models, turbo, func(a *app) {
+		sftp(a)
+		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &storage.HostKeyError{Host: "backup.lan", Key: shotHostKey(7), Fingerprint: storage.Fingerprint(shotHostKey(7))}})
+	})
 }
 
-// shotMediaSources sets up two SMB sources as their Tests left them: one share, and one whole server, which listed its shares.
+// shotMediaSources sets up three sources as their Tests left them: an SMB share, a whole SMB server, which listed its shares, and an SFTP server, whose key was trusted.
 func shotMediaSources(a *app) {
 	a.sources.list = []mediasource.Source{
 		{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "Living Room NAS", Config: map[string]string{mediasource.SMBHost: "nas.local", mediasource.SMBShare: "media", mediasource.SMBRoot: "Films", mediasource.SMBUser: "kando"}},
 		{ID: "fedcba9876543210", Kind: mediasource.KindSMB, Name: "Studio", Config: map[string]string{mediasource.SMBHost: "studio.lan", mediasource.SMBUser: "kando"}},
+		{ID: "00112233aabbccdd", Kind: mediasource.KindSFTP, Name: "Backup Server", Config: map[string]string{mediasource.SFTPHost: "backup.lan", mediasource.SFTPRoot: "/srv/video", mediasource.SFTPUser: "kando", mediasource.SFTPHostKey: shotHostKey(7)}},
 	}
 	a.sources.tests["0123456789abcdef"] = mediaSourceTest{ok: true}
 	a.sources.tests["fedcba9876543210"] = mediaSourceTest{ok: true, listed: true, shares: []string{"Anime", "Documentaries", "Movies"}}

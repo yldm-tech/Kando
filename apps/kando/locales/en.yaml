@@ -9479,6 +9479,9 @@ settingsSourcesEditTitle:
 settingsSourcesKindSMB:
   message: "SMB"
   description: "Name of the kind of media source that is a shared folder of a NAS or a Windows computer, reached over SMB. A protocol's name, which most languages keep."
+settingsSourcesKindSFTP:
+  message: "SFTP"
+  description: "Name of the kind of media source that is a folder of a server reached over SSH (SFTP). A protocol's name, which most languages keep."
 settingsSourcesShareHint:
   message: "Empty to choose among the server's shares"
   description: "Hint under the Share field of an SMB media source: left empty, the source is the whole server and browsing it starts with its shares."

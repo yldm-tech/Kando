@@ -9,15 +9,19 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"kando/apps/kando/account"
 	"kando/apps/kando/feedback"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/storage"
+	"kando/apps/kando/storage/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -700,5 +704,110 @@ func TestMediaSourceRemoveNotSavedKeepsThePassword(t *testing.T) {
 	mediaSourceSecretsSettle(t, tt, a, updates, func() bool { return true })
 	if got := mediaSourceStored(t, a, s.ID); got != "old" || len(a.sources.list) != 1 || a.SaveErr() != testlocale.Messages().SettingsSourcesSaveFailed() {
 		t.Fatalf("stored %q, list %+v, error %q", got, a.sources.list, a.SaveErr())
+	}
+}
+
+// An SFTP source connects only to a server whose key it trusts: the first Test asks whether to trust the key the server offers, which Cancel leaves untrusted and Trust keeps in the draft, saved with it in settings.json while its password goes to the secure store; a key that changed afterwards is replaced only by the destructive Replace Key, which saves the source at once.
+func TestMediaSourceSFTPTrustsTheServersKey(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	msgs := testlocale.Messages()
+	server := sftptest.New(t)
+	if err := os.Mkdir(filepath.Join(server.Home, "films"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	host, port := server.HostPort()
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	onEngine(a, func() { a.SetMediaSourceKind(mediasource.KindSFTP) })
+	refresh(tt, a)
+	wantText(t, tt, msgs.AccountLocationHostKeyNone())
+	wantNoText(t, tt, msgs.SettingsSourcesSMBWarning())
+	tt.Type("id:media-source-field-host", host)
+	tt.Type("id:media-source-field-port", strconv.Itoa(port))
+	tt.Type("id:media-source-field-root", "films")
+	tt.Type("id:media-source-field-user", sftptest.User)
+	tt.Press("id:media-source-dialog-save")
+	wantText(t, tt, msgs.AccountLocationNeedsSecret())
+	tt.Type("id:media-source-field-password", sftptest.Password)
+
+	ask := func(target, test string) {
+		t.Helper()
+		tt.Press(test)
+		waitUntil(t, tt, a, updates, func() bool { return a.sources.alert.kind != account.AlertNone || !a.sources.tests[target].busy })
+		refresh(tt, a)
+	}
+	ask("", "id:media-source-dialog-test")
+	if !tt.Exists("id:media-source-trust") || a.sources.alert.target != "" || a.MediaSourceAlert().Fingerprint != storage.Fingerprint(server.HostKey) {
+		t.Fatalf("no question about the key: %+v", a.MediaSourceAlert())
+	}
+	tt.Press("id:media-source-alert-cancel")
+	wantText(t, tt, msgs.AccountLocationNotTrusted())
+	if a.MediaSourceDraft().Values[mediasource.SFTPHostKey] != "" || !a.modalOpen() {
+		t.Fatal("Cancel trusted the key, or closed the dialog")
+	}
+	ask("", "id:media-source-dialog-test")
+	tt.Press("id:media-source-alert-trust")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[""].busy })
+	refresh(tt, a)
+	wantText(t, tt, msgs.AccountLocationConnected())
+	wantText(t, tt, storage.Fingerprint(server.HostKey))
+	if a.MediaSourceDraft().Values[mediasource.SFTPHostKey] != server.HostKey {
+		t.Fatalf("the draft trusts %q", a.MediaSourceDraft().Values[mediasource.SFTPHostKey])
+	}
+
+	tt.Press("id:media-source-dialog-save")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.editing })
+	if len(a.sources.list) != 1 || a.modalOpen() {
+		t.Fatalf("list %+v, modal %v", a.sources.list, a.modalOpen())
+	}
+	s := a.sources.list[0]
+	if s.Kind != mediasource.KindSFTP || s.Name != host || s.Config[mediasource.SFTPHostKey] != server.HostKey || s.Config[mediasource.SFTPPassword] != "" {
+		t.Fatalf("saved %+v", s)
+	}
+	wantText(t, tt, msgs.AccountLocationSummary("SFTP", host+"/films"))
+	raw, err := os.ReadFile(a.settingsPath)
+	if err != nil || strings.Contains(string(raw), sftptest.Password) || !strings.Contains(string(raw), `"hostKey"`) {
+		t.Fatalf("settings.json: %s, %v", raw, err)
+	}
+	if v := mediaSourceStored(t, a, s.ID); v != sftptest.Password {
+		t.Fatalf("secure store %q", v)
+	}
+
+	// The server's key changed: Test warns, and Replace Key trusts the new one and saves it at once.
+	_, other := sftptest.NewKey(t)
+	onEngine(a, func() { a.sources.list[0].Config[mediasource.SFTPHostKey] = sftptest.AuthorizedKey(other) })
+	ask(s.ID, "id:media-source-test-"+s.ID)
+	if !tt.Exists("id:media-source-key-changed") || a.MediaSourceAlert().Trusted != storage.Fingerprint(sftptest.AuthorizedKey(other)) {
+		t.Fatalf("no warning that the key changed: %+v", a.MediaSourceAlert())
+	}
+	tt.Press("id:media-source-alert-replace")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[s.ID].busy })
+	refresh(tt, a)
+	wantText(t, tt, msgs.AccountLocationConnected())
+	if got := loadSavedSettings(a.settingsPath).MediaSources; len(got) != 1 || got[0].Config[mediasource.SFTPHostKey] != server.HostKey {
+		t.Fatalf("saved %+v", got)
+	}
+	if a.modalOpen() {
+		t.Fatal("the question still holds the modal flag")
+	}
+}
+
+// The question about a server's key goes with the settings, and gives back its modal flag.
+func TestMediaSourceKeyQuestionClosesWithTheSettings(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	onEngine(a, func() {
+		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &storage.HostKeyError{Host: "nas", Key: "k", Fingerprint: "SHA256:x"}})
+	})
+	refresh(tt, a)
+	if !tt.Exists("id:media-source-trust") || !a.modalOpen() {
+		t.Fatal("no question")
+	}
+	onEngine(a, func() { a.prefs.open = false })
+	refresh(tt, a)
+	if a.sources.alert.kind != account.AlertNone || a.modalOpen() {
+		t.Fatalf("the question stayed: %+v, modal %v", a.sources.alert, a.modalOpen())
 	}
 }

@@ -47,19 +47,22 @@ const (
 	FieldBool   FieldType = "bool"
 	// FieldURL is the address of the server a plugin's source reaches, whose key is EndpointKey; no other field is one.
 	FieldURL FieldType = "url"
+	// FieldHostKey is the server's key a built-in kind trusts, as SFTP's: a line of authorized_keys, which the form shows as its fingerprint and which only the question asked at the first connection, or when the server offers another key, sets (storage.HostKeyError). It is not secret, so settings.json keeps it; a plugin's kind has none.
+	FieldHostKey FieldType = "hostKey"
 )
 
 // EndpointKey is the key of the one FieldURL field a plugin's kind has: the server the user fills in, the only one Kando sends the plugin's requests and secrets to.
 const EndpointKey = "endpoint"
 
-// Field is a field of a kind's form, which Kando draws the same for every kind. Key names its value in Source.Config, or in the secrets; Title is its label in a language, and Hint, when set, the line under it, as what an empty field means; Default is the value it stands for while it is empty, as 445 for an SMB port. Auth says, for a secret field of a plugin's kind, how Kando puts the secret into the plugin's requests, which never see its value; a built-in kind's secrets are used by Kando's own code and have none.
+// Field is a field of a kind's form, which Kando draws the same for every kind. Key names its value in Source.Config, or in the secrets; Title is its label in a language, and Hint, when set, the line under it, as what an empty field means; Default is the value it stands for while it is empty, as 445 for an SMB port. Multiline is a text or secret field of several lines, as a private key's PEM text, which shows what is typed in a small monospaced face rather than hiding it. Auth says, for a secret field of a plugin's kind, how Kando puts the secret into the plugin's requests, which never see its value; a built-in kind's secrets are used by Kando's own code and have none.
 type Field struct {
-	Key     string
-	Type    FieldType
-	Title   func(locale string) string
-	Hint    func(locale string) string
-	Default string
-	Auth    *Auth
+	Key       string
+	Type      FieldType
+	Title     func(locale string) string
+	Hint      func(locale string) string
+	Default   string
+	Multiline bool
+	Auth      *Auth
 }
 
 // Auth is how Kando puts a secret into the requests a plugin's source makes, set as one of: Basic, the keys of the user's field and of the secret, for HTTP Basic; Header, a header Kando writes the secret into, as Format with {secret} replaced, as X-Emby-Token; or Login, for a secret Kando writes into the body of the plugin's login request alone.
@@ -101,7 +104,7 @@ var headersRefused = []string{"host", "cookie", "content-length", "content-type"
 // ErrInvalidKind is the error of a Kind the Registry does not take, wrapped with why.
 var ErrInvalidKind = errors.New("mediasource: invalid kind")
 
-// Validate is nil for a kind the Registry can take, else ErrInvalidKind with why: an ID of the shape of its Origin (a built-in name, or PluginKindID of its plugin), a title, one of Icons, a way to open it, at most 12 fields, 3 of them secret, of known types and keys unique and of the shape ^[a-z][A-Za-z0-9]{0,31}$; a plugin's kind has exactly one FieldURL field, keyed EndpointKey, and says how each of its secrets is used (Auth); a built-in kind has neither, and no phone can reach a plugin's kind.
+// Validate is nil for a kind the Registry can take, else ErrInvalidKind with why: an ID of the shape of its Origin (a built-in name, or PluginKindID of its plugin), a title, one of Icons, a way to open it, at most 12 fields, 3 of them secret, of known types and keys unique and of the shape ^[a-z][A-Za-z0-9]{0,31}$; a plugin's kind has exactly one FieldURL field, keyed EndpointKey, and says how each of its secrets is used (Auth); a built-in kind has neither, but may have one FieldHostKey field, which a plugin's kind may not, and only a text or secret field is of several lines; no phone can reach a plugin's kind.
 func (k Kind) Validate() error {
 	fail := func(format string, args ...any) error {
 		return fmt.Errorf("%w %q: %s", ErrInvalidKind, k.ID, fmt.Sprintf(format, args...))
@@ -136,7 +139,7 @@ func (k Kind) Validate() error {
 		return fail("%d fields, at most %d", len(k.Fields), fieldsMax)
 	}
 	types := map[string]FieldType{}
-	secrets, endpoints := 0, 0
+	secrets, endpoints, hostKeys := 0, 0, 0
 	for _, f := range k.Fields {
 		if !keyPattern.MatchString(f.Key) {
 			return fail("field key %q", f.Key)
@@ -157,15 +160,23 @@ func (k Kind) Validate() error {
 				return fail("a url field is keyed %q", EndpointKey)
 			}
 			endpoints++
+		case FieldHostKey:
+			hostKeys++
 		default:
 			return fail("field %q of type %q", f.Key, f.Type)
 		}
 		if f.Auth != nil && f.Type != FieldSecret {
 			return fail("field %q is not secret but says how it is sent", f.Key)
 		}
+		if f.Multiline && f.Type != FieldText && f.Type != FieldSecret {
+			return fail("field %q of type %q is not of several lines", f.Key, f.Type)
+		}
 	}
 	if secrets > secretsMax {
 		return fail("%d secret fields, at most %d", secrets, secretsMax)
+	}
+	if hostKeys > 1 || hostKeys == 1 && !k.Origin.Builtin() {
+		return fail("%d host key fields, which only a built-in kind has, one at most", hostKeys)
 	}
 	if k.Origin.Builtin() {
 		if endpoints != 0 {

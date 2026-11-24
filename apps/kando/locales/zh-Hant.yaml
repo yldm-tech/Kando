@@ -2593,6 +2593,7 @@ settingsSourcesNote: "看懂只讀取你的媒體來源，從不在上面寫入�
 settingsSourcesAddTitle: "新增媒體來源"
 settingsSourcesEditTitle: "編輯媒體來源"
 settingsSourcesKindSMB: "SMB"
+settingsSourcesKindSFTP: "SFTP"
 settingsSourcesShareHint: "留空則從伺服器的共用資料夾裡選"
 settingsSourcesNoSigning: "這台 NAS 不支援簽署"
 settingsSourcesNoSigningHint: "用於較舊的 NAS，或對訪客開放的共用資料夾"

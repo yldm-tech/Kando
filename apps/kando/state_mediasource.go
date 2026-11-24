@@ -20,7 +20,7 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB alone for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped; saveGen numbers the saves the same way, apart from the Tests, so a Test pressed while Save keeps the secrets does not drop the save's answer and leave the dialog saving, and a save of a dialog that closed does not finish in the next one. editRelease and removeRelease give back the modal flags the dialog and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
+// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB and SFTP for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), the question a Test asks about an SFTP server's key (alert), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped; saveGen numbers the saves the same way, apart from the Tests, so a Test pressed while Save keeps the secrets does not drop the save's answer and leave the dialog saving, and a save of a dialog that closed does not finish in the next one. editRelease, alertRelease and removeRelease give back the modal flags the dialog, the question and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
 type mediaSourceUI struct {
 	kinds         *mediasource.Registry
 	list          []mediasource.Source
@@ -31,9 +31,11 @@ type mediaSourceUI struct {
 	saving        bool
 	tests         map[string]mediaSourceTest
 	removing      string
+	alert         mediaSourceAlert
 	gen           int
 	saveGen       int
 	editRelease   func()
+	alertRelease  func()
 	removeRelease func()
 	// secretsHeld is held by whoever is changing the sources' secrets in the secure store, from a save's first write until settings.json took the save or its secrets were put back as they were (mediaSourceSecretWrite), and by a removal's forgetting, so a save started after another that was abandoned reads the secrets that one put back, and nothing puts back a secret a removal forgot.
 	secretsHeld chan struct{}
@@ -54,10 +56,19 @@ type mediaSourceTest struct {
 	err    func(locales.Messages) string
 }
 
+// mediaSourceAlert is the question a Test asks about an SFTP server's key: kind (account.AlertTrust at the first connection, account.AlertKeyChanged once the key changed), the source it is about (target, "" for the dialog's draft) and the server's error, which holds the key it offered.
+type mediaSourceAlert struct {
+	kind   account.AlertKind
+	target string
+	hk     *storage.HostKeyError
+}
+
 func newMediaSourceUI() mediaSourceUI {
 	kinds := &mediasource.Registry{}
-	if err := kinds.Register(mediasource.SMB()); err != nil {
-		panic(err)
+	for _, k := range []mediasource.Kind{mediasource.SMB(), mediasource.SFTP()} {
+		if err := kinds.Register(k); err != nil {
+			panic(err)
+		}
 	}
 	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}, secretsHeld: make(chan struct{}, 1)}
 }
@@ -144,15 +155,34 @@ func (a *app) restoreMediaSources(saved savedSettings) {
 	}
 }
 
-// mediaSourceSecrets are what of the media sources must not leave the machine, as in the log or a feedback issue: each one's server, share, folder, user and domain, and what the dialog holds, its secrets among them. The secrets of the sources saved are in the system's secure store, never in the app, so they cannot leak from here.
+// mediaSourceSecrets are what of the media sources must not leave the machine, as in the log or a feedback issue: the values of each one's text fields, as its server, share, folder, user and domain, and what the dialog holds in its text and secret fields, its secrets among them. Ports, switches and a server's public key say nothing of where the source is or who signs in. The secrets of the sources saved are in the system's secure store, never in the app, so they cannot leak from here.
 func (m mediaSourceUI) mediaSourceSecrets() []string {
 	var out []string
 	for _, s := range m.list {
-		c := s.Config
-		out = append(out, c[mediasource.SMBHost], c[mediasource.SMBShare], c[mediasource.SMBRoot], c[mediasource.SMBUser], c[mediasource.SMBDomain])
+		k, ok := m.kinds.Kind(s.Kind)
+		if !ok {
+			// A kind not registered, as a plugin's that is not loaded, may hold anything in its values.
+			for _, key := range slices.Sorted(maps.Keys(s.Config)) {
+				out = append(out, s.Config[key])
+			}
+			continue
+		}
+		for _, f := range k.Fields {
+			if f.Type == mediasource.FieldText || f.Type == mediasource.FieldURL {
+				out = append(out, s.Config[f.Key])
+			}
+		}
+	}
+	types := map[string]mediasource.FieldType{}
+	if k, ok := m.kinds.Kind(m.draft.Kind); ok {
+		for _, f := range k.Fields {
+			types[f.Key] = f.Type
+		}
 	}
 	for _, key := range slices.Sorted(maps.Keys(m.draft.Values)) {
-		if key != mediasource.SMBPort && key != mediasource.SMBNoSigning {
+		switch types[key] {
+		case mediasource.FieldNumber, mediasource.FieldBool, mediasource.FieldHostKey:
+		default:
 			out = append(out, m.draft.Values[key])
 		}
 	}
@@ -177,9 +207,19 @@ func (a *app) mediaSourceHooks() areaHooks {
 func (a *app) mediaSourceModals() bool {
 	m := &a.sources
 	changed := false
-	if (m.editing || m.removing != "") && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
-		m.editing, m.removing, m.saving = false, "", false
+	if (m.editing || m.removing != "" || m.alert.kind != account.AlertNone) && (!a.prefs.open || a.SettingsSection() != settings.SectionMediaSources) {
+		m.editing, m.removing, m.saving, m.alert = false, "", false, mediaSourceAlert{}
 		m.saveGen++
+		changed = true
+	}
+	// A question about the draft's server goes with the dialog.
+	if m.alert.kind != account.AlertNone && m.alert.target == "" && !m.editing {
+		m.alert = mediaSourceAlert{}
+		changed = true
+	}
+	if m.alert.kind == account.AlertNone && m.alertRelease != nil {
+		m.alertRelease()
+		m.alertRelease = nil
 		changed = true
 	}
 	if !m.editing && m.editRelease != nil {
@@ -265,9 +305,9 @@ func (a *app) mediaSourceDraftSource() (mediasource.Source, mediasource.Kind, ma
 	return s, k, secrets, true
 }
 
-// mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved, nil when nothing does: an SMB source needs a server, a port that is a number, a share of one name, a share for a folder, and a user (guest for a share open to anyone).
-func mediaSourceProblem(k mediasource.Kind, s mediasource.Source) func(locales.Messages) string {
-	if k.ID != mediasource.KindSMB {
+// mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved with the secrets typed, nil when nothing does. Either built-in kind needs a server, a port that is a number and a user. An SMB source needs a share of one name, and a share for a folder; its user is guest for a share open to anyone. A new SFTP source needs a password, a private key or both, which one saved keeps in the secure store while its fields are left empty.
+func mediaSourceProblem(k mediasource.Kind, s mediasource.Source, typed map[string]string) func(locales.Messages) string {
+	if k.ID != mediasource.KindSMB && k.ID != mediasource.KindSFTP {
 		return nil
 	}
 	c := s.Config
@@ -278,6 +318,15 @@ func mediaSourceProblem(k mediasource.Kind, s mediasource.Source) func(locales.M
 		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
 			return locales.Messages.AccountLocationNeedsPort
 		}
+	}
+	if k.ID == mediasource.KindSFTP {
+		if c[mediasource.SFTPUser] == "" {
+			return locales.Messages.AccountLocationNeedsUser
+		}
+		if s.ID == "" && typed[mediasource.SFTPPassword] == "" && strings.TrimSpace(typed[mediasource.SFTPPrivateKey]) == "" {
+			return locales.Messages.AccountLocationNeedsSecret
+		}
+		return nil
 	}
 	share := strings.Trim(c[mediasource.SMBShare], `/\`)
 	if strings.ContainsAny(share, `/\`) {
@@ -302,7 +351,7 @@ func (a *app) saveMediaSourceDraft() {
 	if !ok {
 		return
 	}
-	if p := mediaSourceProblem(k, s); p != nil {
+	if p := mediaSourceProblem(k, s, secrets); p != nil {
 		m.problem = p
 		return
 	}
@@ -492,7 +541,7 @@ func (a *app) mediaSourceTestable(target string) (s mediasource.Source, k medias
 		if !ok {
 			return s, k, nil, nil, false
 		}
-		return s, k, typed, mediaSourceProblem(k, s), true
+		return s, k, typed, mediaSourceProblem(k, s, typed), true
 	}
 	i := a.mediaSourceIndex(target)
 	if i < 0 {
@@ -534,7 +583,7 @@ func (a *app) testMediaSource(target string) {
 			entries, err = d.List(ctx, "")
 			_ = d.Close()
 		}
-		update(func() { a.mediaSourceTested(target, gen, s, secrets[mediasource.SMBPassword], entries, err) })
+		update(func() { a.mediaSourceTested(target, gen, s, secrets, entries, err) })
 	}()
 }
 
@@ -555,8 +604,8 @@ func mediaSourceReadSecrets(store ns.Secrets, k mediasource.Kind, id string, typ
 	return secrets
 }
 
-// mediaSourceTested records how the Test gen of target went, unless another Test took its place or its source or dialog went away. A server without a share lists its shares, which the status names.
-func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, password string, entries []mediasource.Entry, err error) {
+// mediaSourceTested records how the Test gen of target went, made with secrets, unless another Test took its place or its source or dialog went away. A server without a share lists its shares, which the status names. An SFTP server whose key Kando does not trust opens the question about it: trust it at the first connection, or the warning that it changed.
+func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, secrets map[string]string, entries []mediasource.Entry, err error) {
 	m := &a.sources
 	if t := m.tests[target]; !t.busy || t.gen != gen {
 		return
@@ -576,9 +625,19 @@ func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, pa
 		m.tests[target] = t
 		return
 	}
-	r := mediasource.SMBRemote(s, password)
+	var hk *storage.HostKeyError
+	if errors.As(err, &hk) {
+		delete(m.tests, target)
+		kind := account.AlertTrust
+		if errors.Is(err, storage.ErrHostKeyMismatch) {
+			kind = account.AlertKeyChanged
+		}
+		a.mediaSourceAsk(mediaSourceAlert{kind: kind, target: target, hk: hk})
+		return
+	}
+	r, _ := mediasource.Remote(s, secrets)
 	// The row says what to do in the interface's language; the whole error goes to the log file, without the secrets and addresses the app holds.
-	log.Printf("media source: %s test failed: %s", s.Kind, feedback.Scrubber{Secrets: append(a.feedbackSecrets(), password)}.NoSecrets(err.Error()))
+	log.Printf("media source: %s test failed: %s", s.Kind, feedback.Scrubber{Secrets: append(a.feedbackSecrets(), slices.Collect(maps.Values(secrets))...)}.NoSecrets(err.Error()))
 	m.tests[target] = mediaSourceTest{err: func(msg locales.Messages) string { return mediaSourceFailure(msg, r, err) }}
 }
 
@@ -612,11 +671,72 @@ func (a *app) mediaSourceSummary(s mediasource.Source) string {
 		kind = k.Title(a.prefs.interfaceLanguage)
 	}
 	place := s.Config[mediasource.SMBHost]
-	if s.Kind == mediasource.KindSMB {
-		r := mediasource.SMBRemote(s, "")
-		if r.Share != "" {
-			place = account.Place(r)
-		}
+	// A whole SMB server, without a share, is its host alone.
+	if r, ok := mediasource.Remote(s, nil); ok && (r.Kind != storage.KindSMB || r.Share != "") {
+		place = account.Place(r)
 	}
 	return msg.AccountLocationSummary(kind, place)
+}
+
+// mediaSourceAsk opens the question q about a server's key over the page, holding the window's modal flag until it is answered (answerMediaSourceAlert).
+func (a *app) mediaSourceAsk(q mediaSourceAlert) {
+	a.sources.alert = q
+	if a.sources.alertRelease == nil {
+		a.sources.alertRelease = a.holdModal()
+	}
+}
+
+// answerMediaSourceAlert answers the question about a server's key and gives back its modal flag. yes trusts the key the server offered: the draft keeps it as its host key, saved with Save, and a source saved keeps it at once in settings.json; either is tested again. no leaves the source as it was and says where the Test's result shows that the key is not trusted.
+func (a *app) answerMediaSourceAlert(yes bool) {
+	m := &a.sources
+	q := m.alert
+	if q.kind == account.AlertNone {
+		return
+	}
+	m.alert = mediaSourceAlert{}
+	if m.alertRelease != nil {
+		m.alertRelease()
+		m.alertRelease = nil
+	}
+	if _, _, _, _, ok := a.mediaSourceTestable(q.target); !ok {
+		return
+	}
+	if !yes {
+		m.tests[q.target] = mediaSourceTest{err: locales.Messages.AccountLocationNotTrusted}
+		return
+	}
+	if q.target == "" {
+		if m.draft.Values == nil {
+			m.draft.Values = map[string]string{}
+		}
+		m.draft.Values[mediasource.SFTPHostKey] = q.hk.Key
+		a.testMediaSource("")
+		return
+	}
+	i := a.mediaSourceIndex(q.target)
+	before := m.list[i]
+	s := before
+	s.Config = maps.Clone(s.Config)
+	if s.Config == nil {
+		s.Config = map[string]string{}
+	}
+	s.Config[mediasource.SFTPHostKey] = q.hk.Key
+	m.list[i] = s
+	if err := a.saveSettings(); err != nil {
+		m.list[i] = before
+		a.saveErr = a.messages().SettingsSourcesSaveFailed()
+		return
+	}
+	// The pool connects again with the key now trusted.
+	a.mediaSourcePoolSync()
+	a.testMediaSource(q.target)
+}
+
+// mediaSourceAlertView is the question about a server's key as the page shows it.
+func (a *app) mediaSourceAlertView() account.Alert {
+	q := a.sources.alert
+	if q.kind == account.AlertNone {
+		return account.Alert{}
+	}
+	return account.Alert{Kind: q.kind, Host: q.hk.Host, Fingerprint: q.hk.Fingerprint, Trusted: storage.Fingerprint(q.hk.Trusted)}
 }

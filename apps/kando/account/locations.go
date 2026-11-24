@@ -318,20 +318,53 @@ func (d locationAlert) Render(cx *core.Scope) core.Node {
 					return locales.AccountLocationRemoveMessage(cx)
 				}
 				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationRemoveButton(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-remove"}}
-			case AlertTrust:
-				dialog.TestID = "location-trust"
-				dialog.TitleFunc = func() string { return locales.AccountLocationTrustTitle(cx, alert.Get().Host) }
-				dialog.DescriptionFunc = func() string { return locales.AccountLocationTrustMessage(cx, alert.Get().Fingerprint) }
-				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationTrust(cx) }, OnPress: yes, TestID: "location-alert-trust"}}
 			default:
-				dialog.TestID = "location-key-changed"
-				dialog.TitleFunc = func() string { return locales.AccountLocationKeyChangedTitle(cx, alert.Get().Host) }
-				dialog.DescriptionFunc = func() string {
-					return locales.AccountLocationKeyChangedMessage(cx, alert.Get().Trusted, alert.Get().Fingerprint)
-				}
-				dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationReplaceKey(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: "location-alert-replace"}}
+				hostKeyQuestion(cx, &dialog, kind.Get(), alert.Get, cancel, yes, "location")
 			}
 			return dialog
 		})
 	}}
+}
+
+// HostKeyAlert is the question asked over a page about an SFTP server's key, as the storage locations ask it: whether to trust the key at the first connection (AlertTrust), or the warning that the key changed (AlertKeyChanged), which only the destructive Replace Key answers yes. It shows nothing for another Kind. State is what Alert reads and Answer changes; TestID starts the test IDs of the alert and its actions, as "media-source" gives media-source-trust and media-source-alert-trust. Cancel is the default, so Return never trusts a key.
+type HostKeyAlert struct {
+	State  live.State
+	Alert  func() Alert
+	Answer func(yes bool)
+	TestID string
+}
+
+// Render implements core.Node.
+func (h HostKeyAlert) Render(cx *core.Scope) core.Node {
+	alert := core.NewMemo(cx, live.Func(h.State, h.Alert))
+	kind := core.NewMemo(cx, func() AlertKind { return alert.Get().Kind })
+	yes := live.Do(h.State, func() { h.Answer(true) })
+	no := live.Do(h.State, func() { h.Answer(false) })
+	return core.Show{When: func() bool { k := kind.Get(); return k == AlertTrust || k == AlertKeyChanged }, Then: func(cx *core.Scope) core.Node {
+		// Each question has its own actions, so the alert is built again for the other question; the words follow the language and the server asked about through their bindings.
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			cancel := ui.AlertAction{TextFunc: func() string { return locales.AccountLocationCancel(cx) }, Variant: ui.ButtonSecondary, Role: core.AlertCancel, Default: true, OnPress: no, TestID: h.TestID + "-alert-cancel"}
+			dialog := ui.AlertDialog{Open: func() bool { return true }}
+			hostKeyQuestion(cx, &dialog, kind.Get(), alert.Get, cancel, yes, h.TestID)
+			return dialog
+		})
+	}}
+}
+
+// hostKeyQuestion makes dialog the question of kind about the key the server offered (alert): trusting it at the first connection (AlertTrust), else the warning that it changed, answered yes by the destructive Replace Key alone; cancel answers no. test starts the dialog's and its actions' test IDs.
+func hostKeyQuestion(cx *core.Scope, dialog *ui.AlertDialog, kind AlertKind, alert func() Alert, cancel ui.AlertAction, yes func(), test string) {
+	if kind == AlertTrust {
+		dialog.TestID = test + "-trust"
+		dialog.TitleFunc = func() string { return locales.AccountLocationTrustTitle(cx, alert().Host) }
+		dialog.DescriptionFunc = func() string { return locales.AccountLocationTrustMessage(cx, alert().Fingerprint) }
+		dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationTrust(cx) }, OnPress: yes, TestID: test + "-alert-trust"}}
+		return
+	}
+	colors := ui.ColorsOf(cx)
+	dialog.TestID = test + "-key-changed"
+	dialog.TitleFunc = func() string { return locales.AccountLocationKeyChangedTitle(cx, alert().Host) }
+	dialog.DescriptionFunc = func() string {
+		return locales.AccountLocationKeyChangedMessage(cx, alert().Trusted, alert().Fingerprint)
+	}
+	dialog.Actions = []ui.AlertAction{cancel, {TextFunc: func() string { return locales.AccountLocationReplaceKey(cx) }, Color: colors.Danger, Role: core.AlertDestructive, OnPress: yes, TestID: test + "-alert-replace"}}
 }

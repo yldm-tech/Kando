@@ -22,8 +22,8 @@ func TestSMBKindIsValid(t *testing.T) {
 	if !ok || k.ID != KindSMB || !k.Origin.Builtin() || !slices.Equal(k.SecretKeys(), []string{SMBPassword}) {
 		t.Fatalf("Builtin(smb) = %+v, %v", k, ok)
 	}
-	if _, ok := Builtin("sftp"); ok {
-		t.Fatal("Builtin knows sftp, which this version does not register")
+	if _, ok := Builtin("webdav"); ok {
+		t.Fatal("Builtin knows webdav, which this version does not register")
 	}
 	for _, f := range k.Fields {
 		if f.Title("en") == "" || f.Title("zh-Hans") == "" {

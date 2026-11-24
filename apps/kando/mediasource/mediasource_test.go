@@ -131,6 +131,10 @@ func TestKindValidateRefuses(t *testing.T) {
 		"a field of an unknown type":           func(k *Kind) { k.Fields[0].Type = "file" },
 		"a url field not keyed endpoint":       func(k *Kind) { k.Fields[0].Type = FieldURL },
 		"an Auth on a field that is no secret": func(k *Kind) { k.Fields[0].Auth = &Auth{Login: true} },
+		"a number of several lines":            func(k *Kind) { k.Fields[1].Multiline = true },
+		"two host keys": func(k *Kind) {
+			k.Fields = append(k.Fields, Field{Key: "a", Type: FieldHostKey, Title: title("x")}, Field{Key: "b", Type: FieldHostKey, Title: title("x")})
+		},
 		"13 fields": func(k *Kind) {
 			for i := range 8 {
 				k.Fields = append(k.Fields, Field{Key: "f" + string(rune('a'+i)), Type: FieldText, Title: title("x")})
@@ -165,6 +169,9 @@ func TestKindValidateRefuses(t *testing.T) {
 		"a header that is no header":  func(k *Kind) { k.Fields[2].Auth = &Auth{Header: "X Token"} },
 		"a format without {secret}":   func(k *Kind) { k.Fields[2].Auth = &Auth{Header: "X-Emby-Token", Format: "token"} },
 		"a format without a header":   func(k *Kind) { k.Fields[2].Auth = &Auth{Format: "{secret}", Login: true} },
+		"a host key": func(k *Kind) {
+			k.Fields = append(k.Fields, Field{Key: "hostKey", Type: FieldHostKey, Title: title("x")})
+		},
 	}
 	for name, change := range plugin {
 		k := webdavKind()

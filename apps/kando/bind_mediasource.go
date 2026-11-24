@@ -3,9 +3,11 @@ package main
 import (
 	"strings"
 
+	"kando/apps/kando/account"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sourcebrowser"
+	"kando/apps/kando/storage"
 )
 
 // The 媒体来源 page's reads and writes (settings.MediaSourcesApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself; what they say is in the interface's language. The state and what the actions do are in state_mediasource.go.
@@ -79,13 +81,17 @@ func (a *app) MediaSourceFields() []settings.MediaSourceField {
 	kept := !a.MediaSourceIsNew()
 	var out []settings.MediaSourceField
 	for _, f := range k.Fields {
-		field := settings.MediaSourceField{Key: f.Key, Type: string(f.Type), Title: f.Title(lang)}
+		field := settings.MediaSourceField{Key: f.Key, Type: string(f.Type), Title: f.Title(lang), Multiline: f.Multiline}
 		if f.Hint != nil {
 			field.Hint = f.Hint(lang)
 		}
+		switch {
 		// A secret of a source saved stays in the secure store while its field is left empty.
-		if f.Type == mediasource.FieldSecret && kept {
+		case f.Type == mediasource.FieldSecret && kept:
 			field.Placeholder = a.messages().SettingsSourcesSecretKept()
+		// The first Test asks whether to trust the server's key.
+		case f.Type == mediasource.FieldHostKey:
+			field.Placeholder = a.messages().AccountLocationHostKeyNone()
 		}
 		out = append(out, field)
 	}
@@ -106,6 +112,14 @@ func (a *app) MediaSourceSaving() bool { return a.sources.saving }
 func (a *app) SaveMediaSource() { a.saveMediaSourceDraft() }
 
 func (a *app) CloseMediaSource() { a.closeMediaSourceDialog() }
+
+func (a *app) MediaSourceHostKey() string {
+	return storage.Fingerprint(a.sources.draft.Values[mediasource.SFTPHostKey])
+}
+
+func (a *app) MediaSourceAlert() account.Alert { return a.mediaSourceAlertView() }
+
+func (a *app) AnswerMediaSourceAlert(yes bool) { a.answerMediaSourceAlert(yes) }
 
 func (a *app) MediaSourceRemoving() settings.MediaSourceRemoval {
 	i := a.mediaSourceIndex(a.sources.removing)

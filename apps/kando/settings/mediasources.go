@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 
+	"kando/apps/kando/account"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
@@ -46,6 +47,12 @@ type MediaSourcesApp interface {
 	SaveMediaSource()
 	CloseMediaSource()
 
+	// MediaSourceHostKey is the fingerprint of the server's key the draft trusts, "" before the first Test asked about it.
+	MediaSourceHostKey() string
+	// MediaSourceAlert is the question a Test asks about a server's key, of the draft or of a source saved, Kind account.AlertNone when none is open; AnswerMediaSourceAlert answers it: yes trusts or replaces the key and tests again, no leaves the source as it was.
+	MediaSourceAlert() account.Alert
+	AnswerMediaSourceAlert(yes bool)
+
 	// MediaSourceRemoving is the confirmation open of removing a source, Open false when none is.
 	MediaSourceRemoving() MediaSourceRemoval
 	// AnswerRemoveMediaSource answers it: yes removes the source and forgets its secrets; no leaves it.
@@ -80,9 +87,10 @@ func (d MediaSourceDraft) Equal(o MediaSourceDraft) bool {
 	return d.Name == o.Name && d.Kind == o.Kind && maps.Equal(d.Values, o.Values)
 }
 
-// MediaSourceField is a field of the draft's kind as the dialog draws it: its key, its type (mediasource.FieldType's values: text, number, secret, bool), its label, the line under it and what an empty field shows.
+// MediaSourceField is a field of the draft's kind as the dialog draws it: its key, its type (mediasource.FieldType's values: text, number, secret, bool, hostKey), its label, the line under it and what an empty field shows; Multiline is a field of several lines, as a private key, shown as typed in a small monospaced face. A hostKey field is not typed in: it shows MediaSourceHostKey, or Placeholder before a key is trusted, with Hint under it once one is.
 type MediaSourceField struct {
 	Key, Type, Title, Hint, Placeholder string
+	Multiline                           bool
 }
 
 // MediaSourceRemoval is the confirmation of removing the source Name: Linked is how many films were indexed from it rather than copied, which keep only their subtitles once it goes.
@@ -104,6 +112,7 @@ func (p MediaSources) Render(cx *core.Scope) core.Node {
 		form.Note(func() string { return locales.SettingsSourcesNote(cx) }, 0),
 		mediaSourceDialog{a},
 		mediaSourceRemove{a},
+		account.HostKeyAlert{State: a, Alert: a.MediaSourceAlert, Answer: a.AnswerMediaSourceAlert, TestID: "media-source"},
 	)
 }
 
@@ -271,6 +280,10 @@ func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 		value := func() string { return a.MediaSourceDraft().Values[key] }
 		set := func(s string) { a.MediaSourceDraft().Values[key] = s }
 		rows = append(rows, form.Separator(true))
+		if f.Type == "hostKey" {
+			rows = append(rows, mediaSourceHostKeyRow(cx, a, f))
+			continue
+		}
 		if f.Type == "bool" {
 			rows = append(rows, form.SwitchRow{Title: f.Title, Subtitle: f.Hint, TestID: "media-source-field-" + key,
 				On: live.Func(a, func() bool { return value() == "true" }),
@@ -283,15 +296,37 @@ func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 				})})
 			continue
 		}
-		rows = append(rows, form.Row{Title: f.Title, Subtitle: f.Hint, NoGroup: true, Trailing: []core.Node{
-			mediaSourceInput(a, "media-source-field-"+key, f.Title, f.Placeholder, f.Type == "secret", live.Func(a, value), set),
-		}})
+		in := mediaSourceInput(a, "media-source-field-"+key, f.Title, f.Placeholder, f.Type == "secret" && !f.Multiline, live.Func(a, value), set)
+		if f.Multiline {
+			in.Multiline = true
+			in.Style = core.Style{Width: core.Pt(300), Height: core.Pt(64), FontFamily: ui.Mono, FontSize: 10}
+		}
+		rows = append(rows, form.Row{Title: f.Title, Subtitle: f.Hint, NoGroup: true, Trailing: []core.Node{in}})
 	}
 	return core.Group(rows)
 }
 
+// mediaSourceHostKeyRow is the fingerprint of the server's key the draft trusts, with the field's hint under it, or what an empty field shows before the first Test asks about the key: the key changes only through that question (MediaSourceAlert).
+func mediaSourceHostKeyRow(cx *core.Scope, a MediaSourcesApp, f MediaSourceField) core.Node {
+	colors := ui.ColorsOf(cx)
+	fingerprint := live.Func(a, a.MediaSourceHostKey)
+	shown := core.Text{TestID: "media-source-field-" + f.Key, ContentFunc: func() string {
+		if fp := fingerprint(); fp != "" {
+			return fp
+		}
+		return f.Placeholder
+	}, Selectable: core.SelectableOn, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle,
+		Style: core.Style{FontFamily: ui.Mono, FontSize: 11, Width: core.Pt(300)}, StyleFunc: ui.Colored(colors.Muted)}
+	return form.Row{Title: f.Title, SubtitleFunc: func() string {
+		if fingerprint() != "" {
+			return f.Hint
+		}
+		return ""
+	}, NoGroup: true, Trailing: []core.Node{shown}}
+}
+
 // mediaSourceInput is a field of the dialog, 300 points wide, named label, its value read with value and changed with set; masked hides a secret.
-func mediaSourceInput(a MediaSourcesApp, test, label, placeholder string, masked bool, value func() string, set func(string)) core.Node {
+func mediaSourceInput(a MediaSourcesApp, test, label, placeholder string, masked bool, value func() string, set func(string)) ui.Input {
 	return ui.Input{TestID: test, Label: label, Placeholder: placeholder, Masked: masked, NoAutoCorrect: true, AutoCapitalize: core.AutoCapitalizeNone,
 		Value: value, OnChange: live.On(a, set), Style: core.Style{Width: core.Pt(300)}}
 }
