@@ -216,7 +216,7 @@ jobs:
           cd ../dist
           sha256sum kando-browser-extension-*.zip >>checksums.txt
       # The script plugins' revocation list, which Kando fetches once a day from the latest release (script.RevocationsURL in apps/kando/plugins/script): the owner signs it offline with the plugin root (.github/scripts/plugin-revocations.sh) and commits it, as the root's key never reaches CI, and each release attaches the committed file, with its checksum, beside the packages. A list that does not verify against Kando's root, has expired, or is older than the one the latest release published stops the release, as Kando would refuse it or pause plugins over it. With no list committed yet the release goes without one, which Kando reads as no list, its address answering 404.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: source/go.work
           cache: false
