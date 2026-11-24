@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -11,10 +12,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"kando/apps/kando/account"
 	"kando/apps/kando/feedback"
@@ -23,6 +27,8 @@ import (
 	"kando/apps/kando/settings"
 	"kando/apps/kando/storage"
 
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/webdav"
@@ -154,13 +160,14 @@ func serveLocationSSH(conn net.Conn, config *ssh.ServerConfig, home string) {
 	}
 }
 
-// A location added in the dialog is saved in settings.json with its password, read back at the next start, edited and removed; the file stays readable by its owner alone.
+// A location added in the dialog is saved in settings.json without its password, which the system's secure store keeps, read back with it at the next start, edited and removed, which forgets the password; the file stays readable by its owner alone.
 func TestLocationsPersistAndReload(t *testing.T) {
-	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	msgs := testlocale.Messages()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	wantText(t, tt, msgs.AccountLocationsEmpty())
+	wantText(t, tt, msgs.AccountLocationsNote())
 	tt.Press("id:location-add")
 	if !a.modalOpen() {
 		t.Fatal("the dialog holds no modal flag")
@@ -176,22 +183,36 @@ func TestLocationsPersistAndReload(t *testing.T) {
 	if a.locations.editing || a.modalOpen() || len(a.locations.list) != 1 {
 		t.Fatalf("editing %v modal %v list %+v", a.locations.editing, a.modalOpen(), a.locations.list)
 	}
+	locationSecretsSettle(t, tt, a, updates)
 	id := a.locations.list[0].ID
 	wantText(t, tt, "Home NAS")
 	wantText(t, tt, msgs.AccountLocationSummary("SMB", "nas.local/films"))
+	wantText(t, tt, msgs.AccountLocationsNote())
 	raw, err := os.ReadFile(a.settingsPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(raw), `"password": "pa55-w0rd!"`) || !strings.Contains(string(raw), `"storageLocations"`) {
+	if strings.Contains(string(raw), "pa55-w0rd!") || !strings.Contains(string(raw), `"storageLocations"`) {
 		t.Fatalf("settings.json: %s", raw)
 	}
+	if got := locationStored(t, a, id, "password"); got != "pa55-w0rd!" {
+		t.Fatalf("the secure store keeps %q", got)
+	}
 
-	b := newApp(&fakePipeline{}, func(func()) {})
-	b.restoreSettings(loadSavedSettings(a.settingsPath))
-	want := account.Location{ID: id, Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films", User: "kando", Password: "pa55-w0rd!"}}
+	// The next start reads the password from the secure store, once the window exists.
+	b, bUpdates := restartedLocations(t, a)
+	want := account.Location{ID: id, Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films", User: "kando"}}
 	if len(b.locations.list) != 1 || b.locations.list[0] != want {
 		t.Fatalf("reloaded %+v", b.locations.list)
+	}
+	b.locationsHooks().ready()
+	applyLocationSecrets(t, b, bUpdates)
+	want.Remote.Password = "pa55-w0rd!"
+	if len(b.locations.list) != 1 || b.locations.list[0] != want || b.locations.locationSecretsInFile() {
+		t.Fatalf("reloaded with the store %+v, in the file %v", b.locations.list, b.locations.locationSecretsInFile())
+	}
+	if !slices.Contains(b.feedbackSecrets(), "pa55-w0rd!") {
+		t.Fatal("the password read from the store is not left out of the log and feedback")
 	}
 
 	tt.Press("id:location-edit-" + id)
@@ -200,8 +221,12 @@ func TestLocationsPersistAndReload(t *testing.T) {
 	}
 	tt.Type("id:location-root", "kando")
 	tt.Press("id:location-dialog-save")
-	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].ID != id || got[0].Root != "kando" {
+	locationSecretsSettle(t, tt, a, updates)
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].ID != id || got[0].Root != "kando" || got[0].Password != "" {
 		t.Fatalf("edited %+v", got)
+	}
+	if got := locationStored(t, a, id, "password"); got != "pa55-w0rd!" {
+		t.Fatalf("after the edit the secure store keeps %q", got)
 	}
 
 	tt.Press("id:location-remove-" + id)
@@ -217,6 +242,7 @@ func TestLocationsPersistAndReload(t *testing.T) {
 	if len(a.locations.list) != 0 || a.modalOpen() {
 		t.Fatalf("list %+v", a.locations.list)
 	}
+	locationSecretsSettle(t, tt, a, updates)
 	raw, err = os.ReadFile(a.settingsPath)
 	if err != nil {
 		t.Fatal(err)
@@ -224,6 +250,137 @@ func TestLocationsPersistAndReload(t *testing.T) {
 	if strings.Contains(string(raw), "pa55-w0rd!") || strings.Contains(string(raw), "storageLocations") {
 		t.Fatalf("removed location still in settings.json: %s", raw)
 	}
+	if got := locationStored(t, a, id, "password"); got != "" {
+		t.Fatalf("the removed location's password is still in the secure store: %q", got)
+	}
+}
+
+// A settings.json an earlier version wrote, with a location's password, private key and passphrase in it, keeps them until the secure store took them, then is saved without them; the location keeps them all along.
+func TestLocationSecretsMoveIntoTheSecureStore(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	old := savedLocation{ID: "nas", Name: "NAS", Kind: "sftp", Host: "nas.local", User: "kando", Password: "pa55", PrivateKey: "-----KEY-----", Passphrase: "phrase"}
+	writeLocationSettings(t, a.settingsPath, old)
+	a.restoreSettings(loadSavedSettings(a.settingsPath))
+	if !a.locations.locationSecretsInFile() {
+		t.Fatal("the secrets an earlier version saved are not taken as in the settings file")
+	}
+	// Until the store took them, saving settings.json keeps them there.
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0] != old {
+		t.Fatalf("saved before the store took them %+v", got)
+	}
+
+	a.locationsHooks().ready()
+	locationSecretsSettle(t, tt, a, updates)
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].Password != "" || got[0].PrivateKey != "" || got[0].Passphrase != "" || got[0].Host != "nas.local" {
+		t.Fatalf("saved once the store took them %+v", got)
+	}
+	for key, want := range map[string]string{"password": "pa55", "privateKey": "-----KEY-----", "passphrase": "phrase"} {
+		if got := locationStored(t, a, "nas", key); got != want {
+			t.Errorf("the secure store keeps %s %q", key, got)
+		}
+	}
+	if r := a.locations.list[0].Remote; r.Password != "pa55" || r.PrivateKey != "-----KEY-----" || r.Passphrase != "phrase" {
+		t.Fatalf("the location lost its secrets: %+v", r)
+	}
+	if a.locations.locationSecretsInFile() {
+		t.Fatal("still taken as in the settings file")
+	}
+}
+
+// Without a secure store, as on Linux without a Secret Service, a location's secrets stay in settings.json, those an earlier version saved as those typed in the dialog, and the page says where they are.
+func TestLocationSecretsStayInTheFileWithoutASecureStore(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.locations.secrets = func() ns.Secrets { return ns.Secrets{} }
+	msgs := testlocale.Messages()
+	old := savedLocation{ID: "old", Name: "Old NAS", Kind: "smb", Host: "old.local", Share: "films", User: "kando", Password: "old-pa55"}
+	writeLocationSettings(t, a.settingsPath, old)
+	a.restoreSettings(loadSavedSettings(a.settingsPath))
+	a.locationsHooks().ready()
+	locationSecretsSettle(t, tt, a, updates)
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0] != old {
+		t.Fatalf("an earlier version's secrets were not kept %+v", got)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
+	wantText(t, tt, msgs.AccountLocationsNoteInFile())
+	tt.Press("id:location-add")
+	tt.Type("id:location-name", "Home NAS")
+	tt.Type("id:location-host", "nas.local")
+	tt.Type("id:location-share", "films")
+	tt.Type("id:location-user", "kando")
+	tt.Type("id:location-password", "pa55-w0rd!")
+	tt.Press("id:location-dialog-save")
+	locationSecretsSettle(t, tt, a, updates)
+	got := loadSavedSettings(a.settingsPath).StorageLocations
+	if len(got) != 2 || got[0] != old || got[1].Password != "pa55-w0rd!" {
+		t.Fatalf("settings.json %+v", got)
+	}
+	wantText(t, tt, msgs.AccountLocationsNoteInFile())
+	info, err := os.Stat(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("settings.json mode %v", info.Mode().Perm())
+	}
+}
+
+// writeLocationSettings writes a settings.json with the locations given, as an earlier version saved them.
+func writeLocationSettings(t *testing.T, path string, locations ...savedLocation) {
+	t.Helper()
+	raw, err := json.Marshal(map[string]any{"storageLocations": locations})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// locationStored is what the app's secure store keeps for the location id's secret key, "" for nothing.
+func locationStored(t *testing.T, a *app, id, key string) string {
+	t.Helper()
+	v, _, err := a.locationSecretStore().Get(locationSecretAccount(id, key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+// restartedLocations is a new app with a's settings.json and secure store, as at the next start, before its window exists, and the channel its background updates arrive on.
+func restartedLocations(t *testing.T, a *app) (*app, chan func()) {
+	t.Helper()
+	updates := make(chan func(), 16)
+	b := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	store := a.locationSecretStore()
+	b.locations.secrets = func() ns.Secrets { return store }
+	b.restoreSettings(loadSavedSettings(a.settingsPath))
+	return b, updates
+}
+
+// applyLocationSecrets applies the updates of b, an app with no window, until its store's work is done.
+func applyLocationSecrets(t *testing.T, b *app, updates chan func()) {
+	t.Helper()
+	deadline := time.After(10 * time.Second)
+	for b.locations.secretsBusy > 0 {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-deadline:
+			t.Fatal("the secure store's work did not end")
+		}
+	}
+}
+
+// locationSecretsSettle applies the background updates until the secure store's work on the locations' secrets is done.
+func locationSecretsSettle(t *testing.T, tt *nsgotest.App, a *app, updates chan func()) {
+	t.Helper()
+	waitUntil(t, tt, a, updates, func() bool { return a.locations.secretsBusy == 0 })
 }
 
 // The dialog closes with the page that draws it, and gives back its modal flag.
@@ -348,6 +505,7 @@ func TestLocationTrustsTheSFTPHostKey(t *testing.T) {
 	if len(a.locations.list) != 1 || a.locations.list[0].Remote.HostKey != f.hostKey() || a.modalOpen() {
 		t.Fatalf("saved %+v, modal %v", a.locations.list, a.modalOpen())
 	}
+	locationSecretsSettle(t, tt, a, updates)
 	id := a.locations.list[0].ID
 
 	old := f.hostKey()

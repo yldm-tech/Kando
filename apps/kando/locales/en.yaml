@@ -254,8 +254,11 @@ accountLocationsEmpty:
   message: "No storage locations yet"
   description: "Row of the Storage Locations card while none is set up."
 accountLocationsNote:
-  message: "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."
-  description: "Note under the Storage Locations card: what a location is and where its secrets are kept."
+  message: "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are kept in the system's keychain, not in Kando's settings file."
+  description: "Note under the Storage Locations card: what a location is and where its secrets are kept, the system's secure store (keychain is the word settingsSourcesNote uses for it)."
+accountLocationsNoteInFile:
+  message: "Folders on a NAS or a server, over SMB, WebDAV or SFTP. This computer's keychain didn't take their passwords and keys, so they are saved in the settings file on this computer."
+  description: "Note under the Storage Locations card in place of accountLocationsNote when the system's secure store (keychain) refused a location's secrets or there is none, as on Linux without a Secret Service, so they are kept in Kando's settings file instead."
 accountSectionLocations:
   message: "Storage Locations"
   description: "Heading of the card listing folders on a NAS or a server on the Account & Upload settings page."

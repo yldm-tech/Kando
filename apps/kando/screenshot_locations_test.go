@@ -14,11 +14,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// TestScreenshotsStorageLocations renders the 存储位置 card at the end of 账号与上传 and what it opens over the settings window: three locations, one connected, one testing and one whose password the server refused (settings-account-locations); the dialog adding an SFTP location whose server key was trusted (settings-account-location-dialog); the question at the first connection to an SFTP server (settings-account-location-trust), and the warning about a key that changed, with Replace Key (settings-account-location-key-changed). The servers are names in the scene, never reached, and the keys are made from fixed seeds, so the fingerprints stay the same from run to run.
+// TestScreenshotsStorageLocations renders the 存储位置 card at the end of 账号与上传 and what it opens over the settings window: three locations, one connected, one testing and one whose password the server refused (settings-account-locations), and the same card when the system's secure store did not take their secrets, which the settings file keeps instead (settings-account-locations-in-file); the dialog adding an SFTP location whose server key was trusted (settings-account-location-dialog); the question at the first connection to an SFTP server (settings-account-location-trust), and the warning about a key that changed, with Replace Key (settings-account-location-key-changed). The servers are names in the scene, never reached, and the keys are made from fixed seeds, so the fingerprints stay the same from run to run.
 func TestScreenshotsStorageLocations(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
 	shootSettingsScrolled(t, f, settings.SectionAccount, "settings-account-locations", shown, models, turbo, shotLocations)
+	shootSettingsScrolled(t, f, settings.SectionAccount, "settings-account-locations-in-file", shown, models, turbo, func(a *app) {
+		shotLocations(a)
+		a.locations.plain["nas"] = true
+	})
 	shootSettings(t, f, settings.SectionAccount, "settings-account-location-dialog", shown, models, turbo, func(a *app) {
 		shotLocations(a)
 		a.openLocationDialog("", account.Draft{Name: "Studio", Kind: string(storage.KindSFTP), Host: "studio.lan", User: "reader", Password: "secret", Root: "films", HostKey: shotHostKey(1)})

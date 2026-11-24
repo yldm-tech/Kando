@@ -15,9 +15,11 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/storage"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json); those removed while videos were moved to them (removed, without their secrets, also saved), so one added back at the same address gets its ID back and those videos play again (locationRelink); the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, storage.OpenRemote unless a test sets another.
+// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json); those removed while videos were moved to them (removed, without their secrets, also saved), so one added back at the same address gets its ID back and those videos play again (locationRelink); the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, storage.OpenRemote unless a test sets another. The locations' secrets are kept in the system's secure store (state_locations_secrets.go): plain are the IDs of those whose secrets settings.json keeps instead, as an earlier version wrote them or the store refused them; secretGen numbers each location's changes of its secrets, so a store's answer to an older one is dropped; secretsTail is where the store's work queued last ends, and secretsBusy how many of it are not done; secrets is the store a test sets, the app's own (locationSecretStore) when nil.
 type locationsUI struct {
 	list         []account.Location
 	removed      []account.Location
@@ -31,6 +33,11 @@ type locationsUI struct {
 	editRelease  func()
 	alertRelease func()
 	open         func(context.Context, storage.Remote) (storage.Provider, io.Closer, error)
+	plain        map[string]bool
+	secretGen    map[string]int
+	secretsTail  chan struct{}
+	secretsBusy  int
+	secrets      func() ns.Secrets
 }
 
 // locationTest is how a Test of a location went: running (gen is its number), connected, or why not, as a function of the messages so it reads in the language shown.
@@ -49,13 +56,13 @@ type locationAlert struct {
 }
 
 func newLocationsUI() locationsUI {
-	return locationsUI{tests: map[string]locationTest{}, open: storage.OpenRemote}
+	return locationsUI{tests: map[string]locationTest{}, open: storage.OpenRemote, plain: map[string]bool{}, secretGen: map[string]int{}}
 }
 
 // locationTestTimeout bounds a Test: connecting, signing in and reading the folder.
 const locationTestTimeout = 30 * time.Second
 
-// savedLocations is the storage locations' part of settings.json. Passwords, private keys and passphrases are kept as the object stores' keys are (savedCloud): in settings.json, which saveSettings writes with mode 0600, and left out of the log and of feedback (locationSecrets).
+// savedLocations is the storage locations' part of settings.json. Passwords, private keys and passphrases are kept in the system's secure store (state_locations_secrets.go), and here only for a location the store did not take them for (locationsUI.plain), in settings.json, which saveSettings writes with mode 0600; they are left out of the log and of feedback (locationSecrets).
 type savedLocations struct {
 	StorageLocations []savedLocation `json:"storageLocations,omitempty"`
 	// RemovedStorageLocations are the locations removed while videos were on them, without their passwords and keys (locationsUI.removed).
@@ -116,6 +123,11 @@ func cleanLocations(locations []savedLocation, seen map[string]bool) []savedLoca
 // saveLocations writes the locations, and those removed that videos are still on (storedCount), to settings.json.
 func (a *app) saveLocations(saved *savedSettings) {
 	out := savedLocations{StorageLocations: savedLocationsOf(a.locations.list)}
+	for i := range out.StorageLocations {
+		if l := &out.StorageLocations[i]; !a.locations.plain[l.ID] {
+			l.Password, l.PrivateKey, l.Passphrase = "", "", ""
+		}
+	}
 	var removed []account.Location
 	for _, l := range a.locations.removed {
 		if a.storedCount(l.ID) > 0 {
@@ -137,9 +149,16 @@ func savedLocationsOf(locations []account.Location) []savedLocation {
 	return out
 }
 
+// restoreLocations takes the locations back from settings.json. Those it keeps with their secrets, as an earlier version wrote them, are plain until the secure store took them (locationSecretsLoad); the others' secrets are read from the store once the app's scope exists.
 func (a *app) restoreLocations(saved savedSettings) {
 	a.locations.list = locationsOfSaved(saved.StorageLocations)
 	a.locations.removed = locationsOfSaved(saved.RemovedStorageLocations)
+	clear(a.locations.plain)
+	for _, l := range a.locations.list {
+		if locationHasSecrets(l.Remote) {
+			a.locations.plain[l.ID] = true
+		}
+	}
 }
 
 // locationsOfSaved is the locations settings.json keeps, as the app holds them.
@@ -165,11 +184,12 @@ func (l locationsUI) locationSecrets() []string {
 	return append(out, d.Host, d.URL, d.Share, d.User, d.Domain, d.Password, d.PrivateKey, d.Passphrase)
 }
 
-// locationsHooks: the storage locations are saved in settings.json and taken back at startup; after each change, the dialog and the alert close when the page that draws them went away (locationsModals).
+// locationsHooks: the storage locations are saved in settings.json and taken back at startup, their secrets read from the system's secure store, or moved into it, once the window exists (locationSecretsLoad); after each change, the dialog and the alert close when the page that draws them went away (locationsModals).
 func (a *app) locationsHooks() areaHooks {
 	return areaHooks{
 		save:        a.saveLocations,
 		restore:     a.restoreLocations,
+		ready:       a.locationSecretsLoad,
 		afterChange: a.locationsModals,
 	}
 }
@@ -250,6 +270,7 @@ func (a *app) saveLocationDraft() {
 	// How a Test of the old settings went says nothing of the new ones.
 	delete(l.tests, loc.ID)
 	a.closeLocationDialog()
+	a.locationSecretsKeep(loc.ID)
 }
 
 // removeLocation forgets the location id with its secrets and saves settings.json. Nothing on the location is removed. When videos were moved to it, where it is is kept without its secrets (locationsUI.removed), so adding it back at the same address finds them again (locationRelink).
@@ -269,6 +290,7 @@ func (a *app) removeLocation(id string) {
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().AccountLocationSaveFailed()
 	}
+	a.locationSecretsForget(id)
 }
 
 // locationRelink gives loc, a location just added, the ID of a location removed while videos were on it (locationsUI.removed) at the same address: the same kind of server, host and port, share, address and folder. Those videos' records name that ID, so they play from loc again and can be moved back.

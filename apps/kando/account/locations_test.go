@@ -20,6 +20,7 @@ type fakeLocations struct {
 	draft   Draft
 	problem string
 	alert   Alert
+	inFile  bool
 	lcalls  []string
 }
 
@@ -39,6 +40,7 @@ func (f *fakeLocations) LocationProblem() string     { return f.problem }
 func (f *fakeLocations) SaveLocation()               { f.lcalls = append(f.lcalls, "save") }
 func (f *fakeLocations) CloseLocation()              { f.lcalls = append(f.lcalls, "close"); f.editing = false }
 func (f *fakeLocations) LocationAlert() Alert        { return f.alert }
+func (f *fakeLocations) LocationSecretsInFile() bool { return f.inFile }
 func (f *fakeLocations) AnswerLocationAlert(yes bool) {
 	f.lcalls = append(f.lcalls, fmt.Sprint("answer ", yes))
 	f.alert = Alert{}

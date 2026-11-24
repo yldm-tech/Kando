@@ -21,6 +21,8 @@ func (a *app) LocationStatus(id string) account.Status {
 
 func (a *app) TestLocation(id string) { a.testLocation(id) }
 
+func (a *app) LocationSecretsInFile() bool { return a.locations.locationSecretsInFile() }
+
 func (a *app) AddLocation() { a.openLocationDialog("", account.DraftOf(account.Location{})) }
 
 func (a *app) EditLocation(id string) {

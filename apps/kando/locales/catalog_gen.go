@@ -2036,6 +2036,7 @@ const (
 	textAccountLocationUserHintSMB
 	textAccountLocationsEmpty
 	textAccountLocationsNote
+	textAccountLocationsNoteInFile
 	textAccountSectionLocations
 	textAccountOSSRegionHint
 	textAccountPathStyle
@@ -3920,6 +3921,7 @@ var keyOfText = [numTexts]string{
 	"accountLocationUserHintSMB",
 	"accountLocationsEmpty",
 	"accountLocationsNote",
+	"accountLocationsNoteInFile",
 	"accountSectionLocations",
 	"accountOSSRegionHint",
 	"accountPathStyle",
@@ -5801,7 +5803,8 @@ var textsEn = i18n.NewTexts(""+
 	"User"+
 	"guest for a share open to anyone"+
 	"No storage locations yet"+
-	"Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."+
+	"Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are kept in the system's keychain, not in Kando's settings file."+
+	"Folders on a NAS or a server, over SMB, WebDAV or SFTP. This computer's keychain didn't take their passwords and keys, so they are saved in the settings file on this computer."+
 	"Storage Locations"+
 	"For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."+
 	"Path Style"+
@@ -7680,7 +7683,8 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		32,
 		24,
-		128,
+		139,
+		175,
 		17,
 		79,
 		10,
@@ -9562,7 +9566,8 @@ var textsJa = i18n.NewTexts(""+
 	"ユーザ名"+
 	"誰でも使える共有は guest"+
 	"保存場所はまだありません"+
-	"SMB、WebDAV、SFTP で接続する NAS やサーバのフォルダです。パスワードと鍵はこのコンピュータの設定ファイルにだけ保存されます。"+
+	"SMB、WebDAV、SFTP で接続する NAS やサーバのフォルダです。パスワードと鍵は Kando の設定ファイルではなく、システムのキーチェーンに保存されます。"+
+	"SMB、WebDAV、SFTP で接続する NAS やサーバのフォルダです。このコンピュータのキーチェーンにパスワードと鍵を保存できなかったため、このコンピュータの設定ファイルに保存されています。"+
 	"保存場所"+
 	"例：cn-hangzhou。内部ネットワークでは cn-hangzhou-internal と入力します。"+
 	"パス形式"+
@@ -11441,7 +11446,8 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		33,
 		36,
-		175,
+		200,
+		256,
 		12,
 		93,
 		12,
@@ -13323,7 +13329,8 @@ var textsKo = i18n.NewTexts(""+
 	"사용자 이름"+
 	"누구나 쓰는 공유는 guest"+
 	"아직 저장 위치가 없습니다"+
-	"SMB, WebDAV 또는 SFTP로 연결하는 NAS나 서버의 폴더입니다. 암호와 키는 이 컴퓨터의 설정 파일에만 저장됩니다."+
+	"SMB, WebDAV 또는 SFTP로 연결하는 NAS나 서버의 폴더입니다. 암호와 키는 Kando의 설정 파일이 아니라 시스템 키체인에 보관됩니다."+
+	"SMB, WebDAV 또는 SFTP로 연결하는 NAS나 서버의 폴더입니다. 이 컴퓨터의 키체인에 암호와 키를 보관할 수 없어서 이 컴퓨터의 설정 파일에 저장되어 있습니다."+
 	"저장 위치"+
 	"예: cn-hangzhou. 내부 네트워크는 cn-hangzhou-internal을 입력합니다."+
 	"경로 스타일"+
@@ -15202,7 +15209,8 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		32,
 		36,
-		144,
+		166,
+		205,
 		13,
 		81,
 		16,
@@ -17084,7 +17092,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"用户名"+
 	"对所有人开放的共享填 guest"+
 	"还没有存储位置"+
-	"通过 SMB、WebDAV 或 SFTP 连接的 NAS 或服务器上的文件夹。密码和密钥只存在本机设置文件里。"+
+	"通过 SMB、WebDAV 或 SFTP 连接的 NAS 或服务器上的文件夹。密码和密钥保存在系统的钥匙串里，不写进看懂的设置文件。"+
+	"通过 SMB、WebDAV 或 SFTP 连接的 NAS 或服务器上的文件夹。本机的钥匙串没能保存它们的密码和密钥，所以存在本机设置文件里。"+
 	"存储位置"+
 	"例如 cn-hangzhou。内网填 cn-hangzhou-internal。"+
 	"路径样式"+
@@ -18963,7 +18972,8 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		36,
 		21,
-		121,
+		154,
+		166,
 		12,
 		54,
 		12,
@@ -20845,7 +20855,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"使用者名稱"+
 	"對所有人開放的共用填 guest"+
 	"還沒有儲存位置"+
-	"透過 SMB、WebDAV 或 SFTP 連線的 NAS 或伺服器上的資料夾。密碼和金鑰只存在本機設定檔中。"+
+	"透過 SMB、WebDAV 或 SFTP 連線的 NAS 或伺服器上的資料夾。密碼和金鑰儲存在系統的鑰匙圈裡，不寫進看懂的設定檔。"+
+	"透過 SMB、WebDAV 或 SFTP 連線的 NAS 或伺服器上的資料夾。本機的鑰匙圈無法儲存它們的密碼和金鑰，所以存在本機設定檔中。"+
 	"儲存位置"+
 	"例如 cn-hangzhou。內網填 cn-hangzhou-internal。"+
 	"路徑樣式"+
@@ -22724,7 +22735,8 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		36,
 		21,
-		118,
+		151,
+		163,
 		12,
 		54,
 		12,
@@ -27929,14 +27941,25 @@ func AccountLocationsEmpty(cx *core.Scope) string { return For(cx).AccountLocati
 // AccountLocationsEmpty is the package's AccountLocationsEmpty in the language of msgs.
 func (msgs Messages) AccountLocationsEmpty() string { return msgs.text(textAccountLocationsEmpty) }
 
-// AccountLocationsNote says "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are saved only in the settings file on this computer."
+// AccountLocationsNote says "Folders on a NAS or a server, over SMB, WebDAV or SFTP. Passwords and keys are kept in the system's keychain, not in Kando's settings file."
 // in the language the app shows under cx.
 //
-// Note under the Storage Locations card: what a location is and where its secrets are kept.
+// Note under the Storage Locations card: what a location is and where its secrets are kept, the system's secure store (keychain is the word settingsSourcesNote uses for it).
 func AccountLocationsNote(cx *core.Scope) string { return For(cx).AccountLocationsNote() }
 
 // AccountLocationsNote is the package's AccountLocationsNote in the language of msgs.
 func (msgs Messages) AccountLocationsNote() string { return msgs.text(textAccountLocationsNote) }
+
+// AccountLocationsNoteInFile says "Folders on a NAS or a server, over SMB, WebDAV or SFTP. This computer's keychain didn't take their passwords and keys, so they are saved in the settings file on this computer."
+// in the language the app shows under cx.
+//
+// Note under the Storage Locations card in place of accountLocationsNote when the system's secure store (keychain) refused a location's secrets or there is none, as on Linux without a Secret Service, so they are kept in Kando's settings file instead.
+func AccountLocationsNoteInFile(cx *core.Scope) string { return For(cx).AccountLocationsNoteInFile() }
+
+// AccountLocationsNoteInFile is the package's AccountLocationsNoteInFile in the language of msgs.
+func (msgs Messages) AccountLocationsNoteInFile() string {
+	return msgs.text(textAccountLocationsNoteInFile)
+}
 
 // AccountSectionLocations says "Storage Locations"
 // in the language the app shows under cx.

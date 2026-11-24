@@ -38,14 +38,22 @@ type Locations interface {
 	LocationAlert() Alert
 	// AnswerLocationAlert answers it: yes removes the location, trusts the key, or replaces the key; no leaves everything as it was.
 	AnswerLocationAlert(yes bool)
+	// LocationSecretsInFile is whether the settings file keeps a location's passwords or keys, as the system's secure store did not take them.
+	LocationSecretsInFile() bool
 }
 
-// locationsSection is the 存储位置 card under its label, its footnote, and the location dialog and the alerts it opens over the page.
+// locationsSection is the 存储位置 card under its label, its footnote, which says where the locations' secrets are kept, and the location dialog and the alerts it opens over the page.
 func locationsSection(cx *core.Scope, a App) core.Node {
+	inFile := live.Func(a, a.LocationSecretsInFile)
 	return core.Group{
 		label(func() string { return locales.AccountSectionLocations(cx) }, 12),
 		card("account-locations", locationRows(cx, a), addLocationRow{a}),
-		note(func() string { return locales.AccountLocationsNote(cx) }, 0),
+		note(func() string {
+			if inFile() {
+				return locales.AccountLocationsNoteInFile(cx)
+			}
+			return locales.AccountLocationsNote(cx)
+		}, 0),
 		locationDialog{a},
 		locationAlert{a},
 	}
