@@ -83,6 +83,7 @@ func TestValidateMediaSources(t *testing.T) {
 		{"auth on a text field", `{"key": "user", "type": "text", "title": {"en": "User"}},
         {"key": "password", "type": "secret", "auth": {"basic"`, `{"key": "user", "type": "text", "auth": {"login": true}, "title": {"en": "User"}},
         {"key": "password", "type": "secret", "auth": {"basic"`, ErrBadField},
+		{"a login secret without postPaths", `"postPaths": ["/api/auth/login", "/api/fs/"], `, ``, ErrBadField},
 		{"a post path that climbs", `"/api/fs/"`, `"/api/../admin"`, ErrBadField},
 		{"a post path that is not one", `"/api/fs/"`, `"api/fs"`, ErrBadField},
 	} {

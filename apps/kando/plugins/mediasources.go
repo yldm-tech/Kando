@@ -72,7 +72,7 @@ var (
 // mediaSourceExcludes are what a plugin that contributes media sources may not ask for (ErrSourceNetwork, docs/media-sources.md 11.1): every other way out of Kando, and the lines a film says, so what it reads of the user's server and the session tokens it logs in with go back only to that server.
 var mediaSourceExcludes = []Perm{PermCredFetch, PermLLMChat, PermOpenURL, PermLinesSeen}
 
-// checkMediaSources checks the media sources of the script plugin m (docs/media-sources.md 11.1): at most sourcesMax, each with an id unique among them, a title, one of MediaSourceIcons, the fields of its form (checkMediaSourceFields) and at most postPathsMax POST prefixes; that a plugin contributes sources if and only if it asks for kando.source.fetch, among the permissions it needs; and that one that does reaches no other network and no credential, nor asks for the AI service, a page in the browser or the lines seen (ErrSourceNetwork).
+// checkMediaSources checks the media sources of the script plugin m (docs/media-sources.md 11.1): at most sourcesMax, each with an id unique among them, a title, one of MediaSourceIcons, the fields of its form (checkMediaSourceFields) and at most postPathsMax POST prefixes, at least one when a secret is sent at login; that a plugin contributes sources if and only if it asks for kando.source.fetch, among the permissions it needs; and that one that does reaches no other network and no credential, nor asks for the AI service, a page in the browser or the lines seen (ErrSourceNetwork).
 func checkMediaSources(m *Manifest) error {
 	var sources []MediaSource
 	if m.Contributes != nil {
@@ -117,6 +117,10 @@ func checkMediaSources(m *Manifest) error {
 		}
 		if len(s.PostPaths) > postPathsMax {
 			return bad(fmt.Sprintf("at most %d postPaths", postPathsMax))
+		}
+		// A login secret goes only into the body of a POST under the source's postPaths (kando.source.fetch), so a source without them could never send it.
+		if len(s.PostPaths) == 0 && slices.ContainsFunc(s.Fields, func(f MediaSourceField) bool { return f.Auth != nil && f.Auth.Login }) {
+			return bad("a login secret without postPaths to POST it to")
 		}
 		for j, p := range s.PostPaths {
 			if !prefixPattern.MatchString(p) || !plainPath(p) || slices.Contains(s.PostPaths[:j], p) {
