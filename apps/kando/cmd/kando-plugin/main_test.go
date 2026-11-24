@@ -538,3 +538,18 @@ func TestRevocations(t *testing.T) {
 		t.Errorf("index with an empty list = %d, %q", code, errOut)
 	}
 }
+
+// TestPreviewAsksMediaSources checks that the preview tells the reviewer of each media source what kando.source.fetch's methods cannot narrow: the paths under the user's server its plugin may POST to (docs/media-sources.md 11.4).
+func TestPreviewAsksMediaSources(t *testing.T) {
+	m := plugins.Manifest{Capabilities: &pkg.Capabilities{Host: []string{"kando.source.fetch"}}, Contributes: &plugins.Contributes{Sources: []plugins.MediaSource{{ID: "webdav"}, {ID: "alist", PostPaths: []string{"/api/auth/login", "/api/fs/"}}}}}
+	got := strings.Join(previewAsks(m), "\n")
+	for _, want := range []string{
+		"permissions: ` kando.source.fetch `",
+		"media source ` webdav `, reaching only the server the user fills in, with no POST",
+		"media source ` alist `, reaching only the server the user fills in, with POST only under ` /api/auth/login `, ` /api/fs/ `",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q in\n%s", want, got)
+		}
+	}
+}

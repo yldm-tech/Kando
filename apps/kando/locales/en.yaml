@@ -8368,6 +8368,9 @@ settingsPluginsPermLLMChat:
 settingsPluginsPermCredFetch:
   message: "Send requests with the keys you enter below, only to the hosts listed with them"
   description: "Permission of a script plugin: requests Kando sends with a key the user gave Kando for the plugin."
+settingsPluginsPermSourceFetch:
+  message: "List and read the files on the servers you fill in for its media sources; Kando alone sends your passwords there, and the plugin never sees them"
+  description: "Permission of a script plugin that adds media sources: Kando sends its requests only to the server address the user entered for each source, putting in the source's password itself."
 settingsPluginsNoSecretStore:
   message: "Turned off: this computer has no secure store for the plugin's keys"
   description: "Plugins page: why a script plugin with credentials does not run, on Linux without a Secret Service."
@@ -8407,6 +8410,11 @@ settingsPluginsAddsPanel:
   description: "What a script plugin adds: a panel of its own in the player's side panel, under the Extensions tab."
   placeholders:
     name: { type: "String", example: "Deck" }
+settingsPluginsAddsSource:
+  message: "Media source: {name}"
+  description: "What a script plugin adds: a kind of media source (such as WebDAV) that Settings › Media Sources can add, to browse and import films from."
+  placeholders:
+    name: { type: "String", example: "WebDAV" }
 settingsPluginsCredentials:
   message: "Keys"
   description: "Plugin details: heading of the keys of other services a script plugin uses through Kando."
@@ -8475,6 +8483,9 @@ pluginsErrUnknownPerm:
 pluginsErrBadCapabilities:
   message: "It asks for access Kando doesn't give plugins."
   description: "Why a script plugin cannot be installed: capabilities beyond its permissions and narrow network rules."
+pluginsErrSourceNetwork:
+  message: "It adds media sources but also asks to reach other places, or to read the subtitles."
+  description: "Why a script plugin cannot be installed: a plugin with media sources may reach only the servers the user fills in for them."
 pluginsErrTampered:
   message: "It was changed after it was signed."
   description: "Why a script plugin cannot be installed or run: its parts disagree with its signed code."

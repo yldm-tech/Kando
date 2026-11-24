@@ -137,6 +137,8 @@ func pluginsPermText(m locales.Messages, perm plugins.Perm) string {
 		return m.SettingsPluginsPermLLMChat()
 	case plugins.PermCredFetch:
 		return m.SettingsPluginsPermCredFetch()
+	case plugins.PermSourceFetch:
+		return m.SettingsPluginsPermSourceFetch()
 	}
 	return m.SettingsPluginsPermSettingsGet()
 }
@@ -209,6 +211,7 @@ func pluginsScriptErrorText(m locales.Messages, err error) (string, bool) {
 	}{
 		{plugins.ErrUnknownPerm, m.PluginsErrUnknownPerm},
 		{plugins.ErrBadCapabilities, m.PluginsErrBadCapabilities},
+		{plugins.ErrSourceNetwork, m.PluginsErrSourceNetwork},
 		{plugins.ErrTampered, m.PluginsErrTampered},
 		{script.ErrUntrusted, m.PluginsErrUntrusted},
 		{script.ErrRevoked, m.PluginsErrRevoked},

@@ -52,6 +52,8 @@ var (
 	ErrUnknownPerm = errors.New("the plugin asks for a permission this version of Kando does not have")
 	// ErrBadCapabilities is a script plugin that asks for a capability Kando never grants a plugin: anything but its own permissions (host) and HTTP requests each limited to methods and paths (network).
 	ErrBadCapabilities = errors.New("the plugin asks for a capability Kando does not grant plugins")
+	// ErrSourceNetwork is a script plugin that contributes media sources and also asks for another way out of Kando, network rules, a credential, the AI service or a page in the browser, or for the lines seen (docs/media-sources.md 11.1): a source's plugin reaches only the user's server, through kando.source.fetch.
+	ErrSourceNetwork = errors.New("a plugin with media sources may reach only their servers")
 	// ErrTampered is a script plugin whose parts do not agree: its package is not the one its manifest names by hash, or what its signed code says of itself (kandoManifest, its capabilities, its id or version) is not what its manifest says.
 	ErrTampered = errors.New("the plugin was changed after it was signed")
 )

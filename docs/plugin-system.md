@@ -184,7 +184,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 - **授权的语义**：`tsx.Load`、`tsx.View` 会经 `Sandbox.of`（`view.go:33-41`）把 nil 的 `Capabilities` 补成包自己签名的能力。所以对 Load 路径来说，nil Grant 的意思是「包声明的全部能力都生效，绕过用户的勾选」，并不是「宿主的全部权限」。真正等于宿主权限的只有一个入口：`tsx.Sandboxed` 在 `Capabilities` 和 `Grant` 都为 nil 时。这时连 `file://` 都能读本机文件，因为 `web.go:606` 只在 `caps` 为真时才拦 `file:`，`:655-656` 会直接 `os.ReadFile`。所以有三条规则：Kando 的每个 Load 都显式传入非 nil 的 Grant；全仓库禁止出现 `tsx.Sandboxed`，开发者模式也不例外；这两条都由测试强制（见第 9 节）。
 - **Grant 从零构造**：Grant 只能写成 `&pkg.Capabilities{Network: ..., Host: ...}`，不能照抄包的 Capabilities 再删字段。原因是包本身可以声明 `secrets`、`webview`、`openUrl`、`clipboard`、`notifications` 等能力，而原生的 `openUrl`（`services.go:39-46`）只受 Capabilities.OpenURL 约束，不经过宿主确认。另外，Validate 直接拒收签名 Capabilities 里除 `Host`、`Network` 之外还有任何非零字段的包。
 - **Host 才是真正的权限边界**：`core/host.go:124` 写明 handler 的 fn 是在调用它的那个 scope 的 Access 下跑的，插件的 Access 管不到 app 的 scope。所以 handler 只要用 `a.cx` 调 NSGo 服务，就带着 app 的全部权限。由此定三条不变量：每个插件有自己的 `*core.Host`，从不共享；handler 每次进来先查 `Effective`；handler 不在 `a.cx` 上替插件调用 OpenURL、Secrets、Storage，除非这是宿主自己的设计步骤（例如 `credentialFetch` 读宿主分区的凭据），并且已经过 `Effective` 检查。
-- **host.call 超时**：`core/host.go:60` 的 `HostCallTimeout = 30 * time.Second`，JS 不传 `{timeout}` 就用它。Kando 的 Chat 客户端默认两分钟并且会重试，慢的 LLM 回复会在插件这边先超时。所以有三条规定：插件调 `kando.llm.chat`、`kando.sound.read` 和 `kando.net.credentialFetch` 这三个要等宿主之外的事的 handler 时必须传 `{timeout: 150000}`（写在 5.3 给插件作者的规则里，`kando-plugin preview` 对没传的调用写一条提醒）；宿主侧 handler 自己在 120s 时取消 context（`pluginsCallTimeout`），以 `timeout` 拒绝；`llm.chat` 上的 `ErrHostTimeout` 不计入熔断。
+- **host.call 超时**：`core/host.go:60` 的 `HostCallTimeout = 30 * time.Second`，JS 不传 `{timeout}` 就用它。Kando 的 Chat 客户端默认两分钟并且会重试，慢的 LLM 回复会在插件这边先超时。所以有三条规定：插件调 `kando.llm.chat`、`kando.sound.read`、`kando.net.credentialFetch` 和 `kando.source.fetch` 这四个要等宿主之外的事的 handler 时必须传 `{timeout: 150000}`（写在 5.3 给插件作者的规则里，`kando-plugin preview` 对没传的调用写一条提醒）；宿主侧 handler 自己在 120s 时取消 context（`pluginsCallTimeout`），以 `timeout` 拒绝；`llm.chat` 上的 `ErrHostTimeout` 不计入熔断。
 
 ### 3.4 否决的方案
 
@@ -304,7 +304,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 ### 4.2 脚本插件示例
 
-`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`panels`（E15）最多 8 项，每项是 `id`、`export`（TSX 组件）、`title` 和可选的 `icon`（`plugins.PanelIcons` 之一）。`translators` 最多 8 项，每项 `{id, title, languages, local}`，没有 `export`（固定调 `translate`，可选 `candidates`），见 E14。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。
+`capabilities` 用 `pkg.Capabilities` 的 JSON 形状，只允许出现 `host` 和 `network` 两个键，`network` 只允许 `http` 规则。每条规则都必须写 `methods`，并写 `paths` 或 `pathPrefixes`，`host` 是一个确定的主机名（不带 `*`），最多 16 条；`network.hosts`（放行任意请求）一律拒收。下面的例子是完整形态，P3b 起全部认得（第 15 节）。贡献块 `lookups`、`subtitleFormats`、`exporters`、`annotators` 各最多 8 项，每项有 `id`、`export`（插件导出的函数名）、`label`；`subtitleFormats` 另有 `extension`（不带点，只能是 `plugins.SubtitleExtensions` 里的字幕和文本扩展名：srt、vtt、ass、ssa、sub、lrc、txt、tsv、csv、json、md、ttml、xml、sbv、smi，文件写在视频旁边，不能是 bat、exe、js 这类可执行的扩展名），`exporters` 另有 `takes`（`lines`、`words` 之一或两个），`lookups` 和 `annotators` 可以有 `languages`。`panels`（E15）最多 8 项，每项是 `id`、`export`（TSX 组件）、`title` 和可选的 `icon`（`plugins.PanelIcons` 之一）。`translators` 最多 8 项，每项 `{id, title, languages, local}`，没有 `export`（固定调 `translate`，可选 `candidates`），见 E14。`credentials` 最多 4 项，`header` 不能是 Host、Cookie、Content-Type 等由请求本身或看懂设置的头，`format` 恰好含一个 `{secret}`，`hosts` 是 1–8 个可注册域名下的主机名（不是 IP、不带 `*`、不是公共后缀），`methods` 只能是 GET、POST、PUT、PATCH、DELETE，`pathPrefixes` 1–8 个、以 `/` 开头、不含 `..`；声明了 `credentials` 就必须申请 `kando.net.credentialFetch`，反之亦然。`sources`（E17 媒体来源）最多 4 项，规则见 `docs/media-sources.md` 11.1：声明了它就必须在 `host` 里申请 `kando.source.fetch`（不能放在 `optional`），反之亦然，并且不能有网络规则、`credentials`、`kando.llm.chat`、`kando.ui.openURL`、`kando.lines.seen`（`plugins.ErrSourceNetwork`）。
 
 ```json
 {
@@ -645,6 +645,7 @@ const (
 	PermCandidatesOffer Perm = "kando.candidates.offer"
 	PermLLMChat         Perm = "kando.llm.chat"            // proxied, budgeted
 	PermCredFetch       Perm = "kando.net.credentialFetch" // host-injected secret, only to the granted credential's hosts, methods and paths
+	PermSourceFetch     Perm = "kando.source.fetch"        // media sources only: to the endpoint the user filled in, docs/media-sources.md 11.3
 	PermToast           Perm = "kando.toast"
 	PermOpenURL         Perm = "kando.ui.openURL"          // https only, host confirm every call
 )

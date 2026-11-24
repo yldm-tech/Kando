@@ -25,6 +25,8 @@ const (
 	PermLLMChat Perm = "kando.llm.chat"
 	// PermCredFetch sends a request with a secret the user gave Kando for the plugin (Manifest.Credentials), which Kando puts in, only to the hosts, methods and paths the credential names.
 	PermCredFetch Perm = "kando.net.credentialFetch"
+	// PermSourceFetch sends the requests of the plugin's media sources (MediaSource) to the server the user filled in for each source and to no other, with the source's secrets put in by Kando, which the plugin never sees (docs/media-sources.md 11.3).
+	PermSourceFetch Perm = "kando.source.fetch"
 	// PermToast shows a short message at the bottom of the window.
 	PermToast Perm = "kando.toast"
 	// PermOpenURL opens an https page in the browser, once the user agreed to each.
@@ -34,7 +36,7 @@ const (
 )
 
 // Perms are the permissions this version has, in the order the install confirmation and the details list them.
-var Perms = []Perm{PermFilmCurrent, PermLineCurrent, PermLinesSeen, PermSavedRead, PermWordsRead, PermSoundRead, PermGlossarySuggest, PermLLMChat, PermCredFetch, PermToast, PermOpenURL, PermSettingsGet}
+var Perms = []Perm{PermFilmCurrent, PermLineCurrent, PermLinesSeen, PermSavedRead, PermWordsRead, PermSoundRead, PermGlossarySuggest, PermLLMChat, PermCredFetch, PermSourceFetch, PermToast, PermOpenURL, PermSettingsGet}
 
 // Known reports whether p is a permission this version has.
 func (p Perm) Known() bool { return slices.Contains(Perms, p) }
@@ -75,7 +77,7 @@ const (
 	GroupRead PermGroup = iota
 	// GroupChange changes what the user sees: a toast in Kando's window, and terms proposed for the open film's glossary, which the user adds or dismisses.
 	GroupChange
-	// GroupNetwork reaches out of Kando: the network rules, a credential sent through Kando and a page opened in the browser, whose site hears what its address says.
+	// GroupNetwork reaches out of Kando: the network rules, a credential sent through Kando, the requests of its media sources and a page opened in the browser, whose site hears what its address says.
 	GroupNetwork
 	// GroupAI uses the user's AI service and its tokens.
 	GroupAI
@@ -89,7 +91,7 @@ func (p Perm) Group() PermGroup {
 	switch p {
 	case PermToast, PermGlossarySuggest:
 		return GroupChange
-	case PermOpenURL, PermCredFetch:
+	case PermOpenURL, PermCredFetch, PermSourceFetch:
 		return GroupNetwork
 	case PermLLMChat:
 		return GroupAI

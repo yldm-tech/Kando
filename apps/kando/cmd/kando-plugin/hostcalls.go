@@ -9,7 +9,7 @@ import (
 )
 
 // waitingCalls are the host calls Kando answers only once something outside the engine did (docs/plugin-system.md 5.3), and gives up on after two minutes with the code timeout. host.call waits 30 s unless told otherwise, so a plugin passes {timeout: 150000} to them, to hear Kando's answer rather than its own timeout (docs/plugin-system.md 3.3).
-var waitingCalls = []plugins.Perm{plugins.PermLLMChat, plugins.PermSoundRead, plugins.PermCredFetch}
+var waitingCalls = []plugins.Perm{plugins.PermLLMChat, plugins.PermSoundRead, plugins.PermCredFetch, plugins.PermSourceFetch}
 
 // hostCall is a call host.call("kando.…", …) the code of a script plugin makes with the permission's name written out: the name, and whether it passes host.call's options (a third argument), which is where a timeout is.
 type hostCall struct {

@@ -202,7 +202,8 @@ func TestPluginHostRepliesTellNoSecret(t *testing.T) {
 	for _, perm := range plugins.Perms {
 		c, ok := calls[perm]
 		if !ok {
-			if perm != plugins.PermOpenURL {
+			// A plugin that asks for kando.source.fetch contributes media sources and may ask for neither the AI service nor a credential (plugins.ErrSourceNetwork), so this plugin cannot hold it.
+			if perm != plugins.PermOpenURL && perm != plugins.PermSourceFetch {
 				t.Errorf("%s is not called", perm)
 			}
 			continue

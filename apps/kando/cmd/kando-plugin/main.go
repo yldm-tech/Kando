@@ -361,6 +361,7 @@ var errorCodes = []struct {
 	{plugins.ErrInsecureURL, "insecure-url"},
 	{plugins.ErrUnknownPerm, "unknown-permission"},
 	{plugins.ErrBadCapabilities, "bad-capabilities"},
+	{plugins.ErrSourceNetwork, "source-network"},
 	{plugins.ErrBadField, "bad-field"},
 	{plugins.ErrBadShape, "bad-shape"},
 	{plugins.ErrUnsafePath, "unsafe-path"},

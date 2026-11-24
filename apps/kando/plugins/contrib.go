@@ -335,6 +335,11 @@ func (m Manifest) ExportsNeeded() []string {
 	for _, x := range c.Panels {
 		add(x.Export)
 	}
+	if len(c.Sources) > 0 {
+		add(MediaSourceList)
+		add(MediaSourceStat)
+		add(MediaSourceOpen)
+	}
 	return out
 }
 

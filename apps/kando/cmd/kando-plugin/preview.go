@@ -158,7 +158,7 @@ func previewAdds(m plugins.Manifest) []string {
 	return out
 }
 
-// previewAsks is what the script plugin m asks for, a line each: its permissions, those it needs and those it can do without, its network rules and the credentials Kando sends for it.
+// previewAsks is what the script plugin m asks for, a line each: its permissions, those it needs and those it can do without, its network rules, the credentials Kando sends for it, and its media sources with the paths they may POST to, which kando.source.fetch's methods cannot narrow further (docs/media-sources.md 11.4).
 func previewAsks(m plugins.Manifest) []string {
 	var out []string
 	if m.Capabilities != nil && len(m.Capabilities.Host) > 0 {
@@ -176,6 +176,15 @@ func previewAsks(m plugins.Manifest) []string {
 	}
 	for _, cred := range m.Credentials {
 		out = append(out, fmt.Sprintf("credential %s, sent as the %s header only to %s", code(cred.ID), code(cred.Header), codes(cred.Hosts)))
+	}
+	if m.Contributes != nil {
+		for _, s := range m.Contributes.Sources {
+			post := "no POST"
+			if len(s.PostPaths) > 0 {
+				post = "POST only under " + codes(s.PostPaths)
+			}
+			out = append(out, fmt.Sprintf("media source %s, reaching only the server the user fills in, with %s", code(s.ID), post))
+		}
 	}
 	return out
 }
