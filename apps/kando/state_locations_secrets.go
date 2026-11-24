@@ -30,6 +30,11 @@ func locationHasSecrets(r storage.Remote) bool {
 	return r.Password != "" || r.PrivateKey != "" || r.Passphrase != ""
 }
 
+// locationSameSecrets reports whether a and b hold the same secrets.
+func locationSameSecrets(a, b storage.Remote) bool {
+	return a.Password == b.Password && a.PrivateKey == b.PrivateKey && a.Passphrase == b.Passphrase
+}
+
 // locationSetSecrets puts values, by key, into r.
 func locationSetSecrets(r *storage.Remote, values map[string]string) {
 	r.Password, r.PrivateKey, r.Passphrase = values["password"], values["privateKey"], values["passphrase"]
@@ -105,7 +110,7 @@ func (a *app) locationSecretsDo(op func() (done func())) {
 	}()
 }
 
-// locationSecretsKeep writes the secrets the location id holds to the secure store. Until the store took them, settings.json describes the location as it did: with its secrets for one plain (written by an earlier version, or one the store refused before), without them otherwise. Once taken, settings.json is saved without them; one the store refuses is saved with them (locationSecretsKept).
+// locationSecretsKeep writes the secrets the location id holds to the secure store. Until the store took them, settings.json keeps them for one plain: written by an earlier version, refused by the store before, or typed anew in the dialog (saveLocationDraft). Once taken, settings.json is saved without them; one the store refuses is saved with them (locationSecretsKept).
 func (a *app) locationSecretsKeep(id string) {
 	i := a.locationIndex(id)
 	if i < 0 {

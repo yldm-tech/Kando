@@ -330,6 +330,65 @@ func TestLocationSecretsStayInTheFileWithoutASecureStore(t *testing.T) {
 	}
 }
 
+// An edit saved before the secure store's secrets were read back, as at a start where the system has not answered yet, that leaves the password as it was, neither empties the store nor drops what it reads: the location gets its password once it is read.
+func TestLocationEditedBeforeItsSecretsAreReadKeepsThem(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	writeLocationSettings(t, a.settingsPath, savedLocation{ID: "nas", Name: "NAS", Kind: "smb", Host: "nas.local", Share: "films", User: "kando", Password: "pa55"})
+	a.restoreSettings(loadSavedSettings(a.settingsPath))
+	a.locationsHooks().ready()
+	locationSecretsSettle(t, tt, a, updates)
+	if got := locationStored(t, a, "nas", "password"); got != "pa55" {
+		t.Fatalf("the secure store keeps %q", got)
+	}
+
+	b, bUpdates := restartedLocations(t, a)
+	b.settingsPath = a.settingsPath
+	b.locationsHooks().ready()
+	// The dialog opens on the location as it is before its password is read, and saves it with another folder.
+	edited := b.locations.list[0]
+	edited.Remote.Root = "kando"
+	b.locations.editID, b.locations.draft = "nas", account.DraftOf(edited)
+	b.saveLocationDraft()
+	if b.locations.problem != nil {
+		t.Fatal("save refused")
+	}
+	applyLocationSecrets(t, b, bUpdates)
+	if got := locationStored(t, a, "nas", "password"); got != "pa55" {
+		t.Fatalf("after the edit the secure store keeps %q", got)
+	}
+	if r := b.locations.list[0].Remote; r.Password != "pa55" || r.Root != "kando" {
+		t.Fatalf("the location after its password was read %+v", r)
+	}
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].Root != "kando" || got[0].Password != "" {
+		t.Fatalf("settings.json %+v", got)
+	}
+}
+
+// A password typed in the dialog stays in settings.json until the secure store took it, so quitting before the store answers loses nothing; once it took it, settings.json is saved without it.
+func TestLocationNewPasswordStaysInTheFileUntilTheStoreTookIt(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	b, bUpdates := restartedLocations(t, a)
+	b.settingsPath = a.settingsPath
+	b.locations.editID, b.locations.draft = "", account.DraftOf(account.Location{Name: "NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films", User: "kando", Password: "pa55"}})
+	b.saveLocationDraft()
+	if b.locations.problem != nil || len(b.locations.list) != 1 {
+		t.Fatalf("save refused, list %+v", b.locations.list)
+	}
+	id := b.locations.list[0].ID
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].Password != "pa55" {
+		t.Fatalf("settings.json before the store answered %+v", got)
+	}
+	applyLocationSecrets(t, b, bUpdates)
+	if got := loadSavedSettings(a.settingsPath).StorageLocations; len(got) != 1 || got[0].Password != "" {
+		t.Fatalf("settings.json once the store took it %+v", got)
+	}
+	if got := locationStored(t, a, id, "password"); got != "pa55" {
+		t.Fatalf("the secure store keeps %q", got)
+	}
+}
+
 // writeLocationSettings writes a settings.json with the locations given, as an earlier version saved them.
 func writeLocationSettings(t *testing.T, path string, locations ...savedLocation) {
 	t.Helper()

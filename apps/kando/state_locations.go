@@ -255,22 +255,35 @@ func (a *app) saveLocationDraft() {
 	}
 	loc := account.Location{ID: l.editID, Name: strings.TrimSpace(d.Name), Remote: d.Remote()}
 	before, removed := slices.Clone(l.list), slices.Clone(l.removed)
+	// Only secrets typed anew go to the secure store: an edit that leaves them as they were writes nothing there, so one made before the store's secrets were read back (locationSecretsLoad), or when reading them failed, neither empties the store nor drops what it reads.
+	secretsChanged := true
 	if i := a.locationIndex(loc.ID); loc.ID != "" && i >= 0 {
+		secretsChanged = !locationSameSecrets(l.list[i].Remote, loc.Remote)
 		l.list[i] = loc
 	} else {
 		loc.ID = rand.Text()
 		a.locationRelink(&loc)
 		l.list = append(l.list, loc)
 	}
+	// Secrets typed anew stay in settings.json until the store took them (locationSecretsKept), so quitting before it answers, or while the system asks the user, loses none.
+	wasPlain := l.plain[loc.ID]
+	if secretsChanged && locationHasSecrets(loc.Remote) {
+		l.plain[loc.ID] = true
+	}
 	if err := a.saveSettings(); err != nil {
 		l.list, l.removed = before, removed
+		if !wasPlain {
+			delete(l.plain, loc.ID)
+		}
 		l.problem = locales.Messages.AccountLocationSaveFailed
 		return
 	}
 	// How a Test of the old settings went says nothing of the new ones.
 	delete(l.tests, loc.ID)
 	a.closeLocationDialog()
-	a.locationSecretsKeep(loc.ID)
+	if secretsChanged {
+		a.locationSecretsKeep(loc.ID)
+	}
 }
 
 // removeLocation forgets the location id with its secrets and saves settings.json. Nothing on the location is removed. When videos were moved to it, where it is is kept without its secrets (locationsUI.removed), so adding it back at the same address finds them again (locationRelink).
