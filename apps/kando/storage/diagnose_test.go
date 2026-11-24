@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"testing"
 
+	"kando/apps/kando/storage/sftptest"
+
 	"github.com/cloudsoda/go-smb2"
 )
 
@@ -18,7 +20,7 @@ import (
 func TestDiagnoseReadsTheServersAnswers(t *testing.T) {
 	ctx := context.Background()
 	dav := newFakeDAV(t)
-	ssh := newFakeSSH(t)
+	ssh := sftptest.New(t)
 	closed, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -30,14 +32,14 @@ func TestDiagnoseReadsTheServersAnswers(t *testing.T) {
 
 	wrongDAV := Remote{Kind: KindWebDAV, URL: dav.url, User: "kando", Password: "wrong"}
 	missingDAV := Remote{Kind: KindWebDAV, URL: dav.url, Root: "missing", User: "kando", Password: "secret"}
-	unknown := ssh.remote("")
+	unknown := sftpRemote(ssh, "")
 	unknown.HostKey = ""
-	wrongSSH := ssh.remote("")
+	wrongSSH := sftpRemote(ssh, "")
 	wrongSSH.Password = "wrong"
-	missingSSH := ssh.remote("missing")
-	badKey := ssh.remote("")
+	missingSSH := sftpRemote(ssh, "missing")
+	badKey := sftpRemote(ssh, "")
 	badKey.PrivateKey = "not a key"
-	climbing := ssh.remote("../..")
+	climbing := sftpRemote(ssh, "../..")
 	tls := httptest.NewTLSServer(nil)
 	t.Cleanup(tls.Close)
 	for _, c := range []struct {
@@ -54,7 +56,7 @@ func TestDiagnoseReadsTheServersAnswers(t *testing.T) {
 		{"sftp missing root", missingSSH, FailNoRoot},
 		{"sftp unreadable key", badKey, FailPrivateKey},
 		{"sftp root above home", climbing, FailBadRoot},
-		{"sftp refused", Remote{Kind: KindSFTP, Host: host, Port: n, User: "kando", Password: "secret", HostKey: ssh.hostKey}, FailUnreachable},
+		{"sftp refused", Remote{Kind: KindSFTP, Host: host, Port: n, User: "kando", Password: "secret", HostKey: ssh.HostKey}, FailUnreachable},
 	} {
 		_, closer, err := OpenRemote(ctx, c.cfg)
 		if err == nil {
@@ -106,8 +108,8 @@ func TestDiagnoseReadsSMBStatus(t *testing.T) {
 
 // Fingerprint gives the form HostKeyError.Fingerprint has.
 func TestFingerprintMatchesTheHostKeyError(t *testing.T) {
-	f := newFakeSSH(t)
-	cfg := f.remote("")
+	f := sftptest.New(t)
+	cfg := sftpRemote(f, "")
 	cfg.HostKey = ""
 	_, _, err := OpenRemote(context.Background(), cfg)
 	var hk *HostKeyError
