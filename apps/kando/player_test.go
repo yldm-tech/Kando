@@ -457,7 +457,8 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	tt.Press("id:film-start")
 	settle(t, a, tt, updates)
 	if a.queue.job == nil || a.queue.job.Stage != core.StageComplete || a.openKey != a.queue.job.ID {
-		t.Fatalf("open %q job %#v", a.openKey, a.queue.job)
+		// A job that failed, or was refused before it was queued, leaves the film and says why in the message bar.
+		t.Fatalf("open %q job %#v, message bar %q", a.openKey, a.queue.job, a.lib.notice.Text)
 	}
 	// Its subtitles, written beside it as they were made, show.
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })

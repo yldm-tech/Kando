@@ -175,3 +175,28 @@ func TestMakeLeavesTheUsersOwnSubtitles(t *testing.T) {
 		t.Fatalf("processed again %+v, Movie.srt %q", final, read("Movie.srt"))
 	}
 }
+
+// A film's subtitles that are being read while they are written out are replaced once the reader is done with them. Windows refuses to replace a file another handle holds open, as Go's os.ReadFile does without letting it be deleted, so on Windows the write waits for the reader rather than failing: the player that shows a film while it is made reads its subtitles each time more lines are written out, and a write that failed so failed the film's job (TestOpenFilmStartsLocalVideo, whose film follows its job, closed the film and lost its job on the Windows runner so); elsewhere it replaces the file at once.
+func TestSubtitlesBeingReadAreReplacedOnceTheReaderIsDone(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "talk.bilingual.srt")
+	if err := writeFileAtomic(path, []byte("before")); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		time.Sleep(100 * time.Millisecond)
+		reader.Close()
+	}()
+	if err := writeFileAtomic(path, []byte("after")); err != nil {
+		t.Fatalf("the write failed while the subtitles were read: %v", err)
+	}
+	<-done
+	if data, err := os.ReadFile(path); err != nil || string(data) != "after" {
+		t.Fatalf("read back %q, %v", data, err)
+	}
+}

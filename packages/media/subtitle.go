@@ -100,7 +100,7 @@ func saveTranscript(path string, segments []core.Segment) error {
 	return writeFileAtomic(path, []byte(formatSRT(segments)))
 }
 
-// writeFileAtomic writes data to path through a hidden file beside it, renamed over it once written, so path holds either what it held before or all of data.
+// writeFileAtomic writes data to path through a hidden file beside it, renamed over it once written (replace, which on Windows waits for a reader of path to let go of it), so path holds either what it held before or all of data.
 func writeFileAtomic(path string, data []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
 	if err != nil {
@@ -114,7 +114,7 @@ func writeFileAtomic(path string, data []byte) error {
 		err = os.Chmod(tmp.Name(), 0o644)
 	}
 	if err == nil {
-		err = os.Rename(tmp.Name(), path)
+		err = replace(tmp.Name(), path)
 	}
 	if err != nil {
 		_ = os.Remove(tmp.Name())
