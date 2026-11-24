@@ -1213,6 +1213,15 @@ var Parameters = map[string][]string{
 	"MediaSourceImportTitle":                   {"count", "source"},
 	"MediaSourceImportCopyNote":                {"size"},
 	"MediaSourceImported":                      {"count"},
+	"MediaSourceImportLinkNote":                {"source"},
+	"MediaSourceIndexed":                       {"count"},
+	"MediaSourceFrom":                          {"source"},
+	"MediaSourceUnreachable":                   {"source"},
+	"MediaSourceMissing":                       {"source"},
+	"MediaSourceRelinking":                     {"name"},
+	"MediaSourceRelinked":                      {"name"},
+	"MediaSourceChanged":                       {"source"},
+	"MediaSourceLinkedMove":                    {"name", "source"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1970,6 +1979,15 @@ type Translation struct {
 	MediaSourceImportTitle                   func(count int, source string) string
 	MediaSourceImportCopyNote                func(size string) string
 	MediaSourceImported                      func(count int) string
+	MediaSourceImportLinkNote                func(source string) string
+	MediaSourceIndexed                       func(count int) string
+	MediaSourceFrom                          func(source string) string
+	MediaSourceUnreachable                   func(source string) string
+	MediaSourceMissing                       func(source string) string
+	MediaSourceRelinking                     func(name string) string
+	MediaSourceRelinked                      func(name string) string
+	MediaSourceChanged                       func(source string) string
+	MediaSourceLinkedMove                    func(name string, source string) string
 }
 
 var supplied = map[string]Translation{}
@@ -3860,6 +3878,14 @@ const (
 	textMediaSourceInLibrary
 	textMediaSourceImportStart
 	textMediaSourceCancel
+	textMediaSourceImportCopy
+	textMediaSourceImportLink
+	textMediaSourceImportRemember
+	textMediaSourceRemovedMark
+	textMediaSourceGone
+	textMediaSourceUnplayable
+	textMediaSourceFind
+	textMediaSourceChangedKeep
 	numTexts
 )
 
@@ -5750,6 +5776,14 @@ var keyOfText = [numTexts]string{
 	"mediaSourceInLibrary",
 	"mediaSourceImportStart",
 	"mediaSourceCancel",
+	"mediaSourceImportCopy",
+	"mediaSourceImportLink",
+	"mediaSourceImportRemember",
+	"mediaSourceRemovedMark",
+	"mediaSourceGone",
+	"mediaSourceUnplayable",
+	"mediaSourceFind",
+	"mediaSourceChangedKeep",
 }
 
 // textsEn are the messages without arguments in en.
@@ -7637,7 +7671,15 @@ var textsEn = i18n.NewTexts(""+
 	"Subtitles"+
 	"In Library"+
 	"Import"+
-	"Cancel",
+	"Cancel"+
+	"Copy into the library"+
+	"Index only, and play from the source"+
+	"Remember my choice"+
+	"This film's media source is no longer in Settings"+
+	"This film's video is on a media source that is no longer in Settings. Its lines can still be studied."+
+	"This video can't be played from its media source, even converted for the player. Its lines can still be studied."+
+	"Find It on the Source"+
+	"Got It",
 	[]uint16{
 		5,
 		19,
@@ -9522,6 +9564,14 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		10,
 		6,
+		6,
+		21,
+		36,
+		18,
+		49,
+		101,
+		112,
+		21,
 		6,
 	})
 
@@ -11410,7 +11460,15 @@ var textsJa = i18n.NewTexts(""+
 	"字幕あり"+
 	"ライブラリにあり"+
 	"読み込む"+
-	"キャンセル",
+	"キャンセル"+
+	"ライブラリにコピー"+
+	"インデックスのみ作成し、ソースから再生"+
+	"この選択を記憶する"+
+	"この作品のメディアソースは設定から削除されました"+
+	"この作品の動画は設定から削除されたメディアソース上にあります。セリフの学習は引き続きできます。"+
+	"この動画はメディアソースから再生できません。変換しても再生できませんでした。セリフの学習は引き続きできます。"+
+	"ソースで探す"+
+	"了解",
 	[]uint16{
 		5,
 		30,
@@ -13296,6 +13354,14 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		12,
 		15,
+		27,
+		57,
+		27,
+		72,
+		141,
+		162,
+		18,
+		6,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -15183,7 +15249,15 @@ var textsKo = i18n.NewTexts(""+
 	"자막"+
 	"라이브러리에 있음"+
 	"가져오기"+
-	"취소",
+	"취소"+
+	"라이브러리로 복사"+
+	"색인만 만들고 소스에서 재생"+
+	"선택 기억하기"+
+	"이 영상의 미디어 소스가 설정에서 삭제되었습니다"+
+	"이 영상의 동영상은 설정에서 삭제된 미디어 소스에 있습니다. 대사는 계속 학습할 수 있습니다."+
+	"이 동영상은 미디어 소스에서 재생할 수 없습니다. 변환해도 재생되지 않습니다. 대사는 계속 학습할 수 있습니다."+
+	"소스에서 찾기"+
+	"확인",
 	[]uint16{
 		5,
 		28,
@@ -17068,6 +17142,14 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		25,
 		12,
+		6,
+		25,
+		39,
+		19,
+		68,
+		128,
+		152,
+		19,
 		6,
 	})
 
@@ -18956,7 +19038,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"有字幕"+
 	"已在资料库"+
 	"导入"+
-	"取消",
+	"取消"+
+	"复制到资料库"+
+	"只建索引，从来源播放"+
+	"记住我的选择"+
+	"这部影片的媒体来源已从设置中删除"+
+	"这部影片的视频在一个已从设置中删除的媒体来源上。仍可以学习它的台词。"+
+	"无法从媒体来源播放这个视频，转换后也不行。仍可以学习它的台词。"+
+	"在来源里找"+
+	"知道了",
 	[]uint16{
 		6,
 		15,
@@ -20842,6 +20932,14 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		6,
 		6,
+		18,
+		30,
+		18,
+		48,
+		102,
+		93,
+		15,
+		9,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -22729,7 +22827,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"有字幕"+
 	"已在資料庫"+
 	"匯入"+
-	"取消",
+	"取消"+
+	"複製到資料庫"+
+	"只建索引，從來源播放"+
+	"記住我的選擇"+
+	"這部影片的媒體來源已從設定中刪除"+
+	"這部影片的影片檔在一個已從設定中刪除的媒體來源上。仍可以學習它的台詞。"+
+	"無法從媒體來源播放這部影片，轉換後也不行。仍可以學習它的台詞。"+
+	"在來源裡找"+
+	"知道了",
 	[]uint16{
 		6,
 		15,
@@ -24615,6 +24721,14 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		6,
 		6,
+		18,
+		30,
+		18,
+		48,
+		105,
+		93,
+		15,
+		9,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -26923,6 +27037,33 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImported != nil {
 		s.MediaSourceImported = t.MediaSourceImported
+	}
+	if t.MediaSourceImportLinkNote != nil {
+		s.MediaSourceImportLinkNote = t.MediaSourceImportLinkNote
+	}
+	if t.MediaSourceIndexed != nil {
+		s.MediaSourceIndexed = t.MediaSourceIndexed
+	}
+	if t.MediaSourceFrom != nil {
+		s.MediaSourceFrom = t.MediaSourceFrom
+	}
+	if t.MediaSourceUnreachable != nil {
+		s.MediaSourceUnreachable = t.MediaSourceUnreachable
+	}
+	if t.MediaSourceMissing != nil {
+		s.MediaSourceMissing = t.MediaSourceMissing
+	}
+	if t.MediaSourceRelinking != nil {
+		s.MediaSourceRelinking = t.MediaSourceRelinking
+	}
+	if t.MediaSourceRelinked != nil {
+		s.MediaSourceRelinked = t.MediaSourceRelinked
+	}
+	if t.MediaSourceChanged != nil {
+		s.MediaSourceChanged = t.MediaSourceChanged
+	}
+	if t.MediaSourceLinkedMove != nil {
+		s.MediaSourceLinkedMove = t.MediaSourceLinkedMove
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -72305,6 +72446,402 @@ func (msgs Messages) MediaSourceImported(count int) string {
 				b.WriteString(" 部影片，可在「處理中」查看。")
 			}
 			return b.String()
+		}
+	}
+}
+
+// MediaSourceImportCopy says "Copy into the library"
+// in the language the app shows under cx.
+//
+// Choice in the dialog importing videos from a media source: copy the videos onto this computer.
+func MediaSourceImportCopy(cx *core.Scope) string { return For(cx).MediaSourceImportCopy() }
+
+// MediaSourceImportCopy is the package's MediaSourceImportCopy in the language of msgs.
+func (msgs Messages) MediaSourceImportCopy() string { return msgs.text(textMediaSourceImportCopy) }
+
+// MediaSourceImportLink says "Index only, and play from the source"
+// in the language the app shows under cx.
+//
+// Choice in the dialog importing videos from a media source: keep the videos where they are and play them from the source.
+func MediaSourceImportLink(cx *core.Scope) string { return For(cx).MediaSourceImportLink() }
+
+// MediaSourceImportLink is the package's MediaSourceImportLink in the language of msgs.
+func (msgs Messages) MediaSourceImportLink() string { return msgs.text(textMediaSourceImportLink) }
+
+// MediaSourceImportLinkNote says "They take no room on this computer, but playing them and making their subtitles needs {source} to be reachable. Making a video's subtitles reads it through once. Nothing on the source changes."
+// in the language the app shows under cx.
+//
+// Message of the dialog importing videos from a media source when they are only indexed, not copied.
+func MediaSourceImportLinkNote(cx *core.Scope, source string) string {
+	return For(cx).MediaSourceImportLinkNote(source)
+}
+
+// MediaSourceImportLinkNote is the package's MediaSourceImportLinkNote in the language of msgs.
+func (msgs Messages) MediaSourceImportLinkNote(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportLinkNote(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportLinkNote; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "They take no room on this computer, but playing them and making their subtitles needs " + msgs.arg(source) + " to be reachable. Making a video's subtitles reads it through once. Nothing on the source changes."
+		case "ja":
+			return "このコンピュータの容量は使いませんが、再生と字幕の作成には " + source + " に接続できる必要があります。字幕を作るときは動画をおよそ一度最後まで読み込みます。ソース上のファイルは変更されません。"
+		case "ko":
+			return "이 컴퓨터의 공간을 차지하지 않지만, 재생하고 자막을 만들 때 " + source + "에 연결할 수 있어야 합니다. 자막을 만들 때 동영상을 대략 한 번 끝까지 읽습니다. 소스의 파일은 바뀌지 않습니다."
+		case "zh-Hans":
+			return "不占用这台电脑的空间，但播放和做字幕时需要连得上 " + source + "。给一个视频做字幕时大约会把它完整读一遍。来源上的文件不会改动。"
+		case "zh-Hant":
+			return "不佔用這台電腦的空間，但播放和做字幕時需要連得上 " + source + "。替一部影片做字幕時大約會把它完整讀一遍。來源上的檔案不會變動。"
+		}
+	}
+}
+
+// MediaSourceImportRemember says "Remember my choice"
+// in the language the app shows under cx.
+//
+// Checkbox in the dialog importing videos from a media source: use the same way next time.
+func MediaSourceImportRemember(cx *core.Scope) string { return For(cx).MediaSourceImportRemember() }
+
+// MediaSourceImportRemember is the package's MediaSourceImportRemember in the language of msgs.
+func (msgs Messages) MediaSourceImportRemember() string {
+	return msgs.text(textMediaSourceImportRemember)
+}
+
+// MediaSourceIndexed says "{count, plural, one {Indexed # video. It plays from the source.} other {Indexed # videos. They play from the source.}}"
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page once the videos chosen were indexed into the library rather than copied.
+func MediaSourceIndexed(cx *core.Scope, count int) string { return For(cx).MediaSourceIndexed(count) }
+
+// MediaSourceIndexed is the package's MediaSourceIndexed in the language of msgs.
+func (msgs Messages) MediaSourceIndexed(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceIndexed(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceIndexed; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Indexed ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video. It plays from the source.")
+			default:
+				b.WriteString("Indexed ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos. They play from the source.")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本の動画をインデックスしました。再生はソースから行います。")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("동영상 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개의 색인을 만들었습니다. 재생은 소스에서 합니다.")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("已为 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个视频建立索引，播放时从来源读取。")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("已替 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部影片建立索引，播放時從來源讀取。")
+			}
+			return b.String()
+		}
+	}
+}
+
+// MediaSourceFrom says "Plays from {source}"
+// in the language the app shows under cx.
+//
+// Tooltip of the mark on a film indexed from a media source: its video stays on the source and plays from there.
+func MediaSourceFrom(cx *core.Scope, source string) string { return For(cx).MediaSourceFrom(source) }
+
+// MediaSourceFrom is the package's MediaSourceFrom in the language of msgs.
+func (msgs Messages) MediaSourceFrom(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFrom(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFrom; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Plays from " + msgs.arg(source)
+		case "ja":
+			return source + " から再生"
+		case "ko":
+			return source + "에서 재생"
+		case "zh-Hans":
+			return "从 " + source + " 播放"
+		case "zh-Hant":
+			return "從 " + source + " 播放"
+		}
+	}
+}
+
+// MediaSourceRemovedMark says "This film's media source is no longer in Settings"
+// in the language the app shows under cx.
+//
+// Tooltip of the warning mark on a film indexed from a media source that was since removed in Settings > Media Sources; only its lines are left.
+func MediaSourceRemovedMark(cx *core.Scope) string { return For(cx).MediaSourceRemovedMark() }
+
+// MediaSourceRemovedMark is the package's MediaSourceRemovedMark in the language of msgs.
+func (msgs Messages) MediaSourceRemovedMark() string { return msgs.text(textMediaSourceRemovedMark) }
+
+// MediaSourceGone says "This film's video is on a media source that is no longer in Settings. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the film was indexed from a media source that was since removed in Settings > Media Sources.
+func MediaSourceGone(cx *core.Scope) string { return For(cx).MediaSourceGone() }
+
+// MediaSourceGone is the package's MediaSourceGone in the language of msgs.
+func (msgs Messages) MediaSourceGone() string { return msgs.text(textMediaSourceGone) }
+
+// MediaSourceUnreachable says "Couldn't reach {source}, where this film's video is. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the media source a film was indexed from cannot be reached, as when the NAS is off or the computer is away from home.
+func MediaSourceUnreachable(cx *core.Scope, source string) string {
+	return For(cx).MediaSourceUnreachable(source)
+}
+
+// MediaSourceUnreachable is the package's MediaSourceUnreachable in the language of msgs.
+func (msgs Messages) MediaSourceUnreachable(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceUnreachable(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceUnreachable; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(source) + ", where this film's video is. Its lines can still be studied."
+		case "ja":
+			return "この作品の動画がある " + source + " に接続できません。セリフの学習は引き続きできます。"
+		case "ko":
+			return "이 영상의 동영상이 있는 " + source + "에 연결할 수 없습니다. 대사는 계속 학습할 수 있습니다."
+		case "zh-Hans":
+			return "连不上这部影片的视频所在的 " + source + "。仍可以学习它的台词。"
+		case "zh-Hant":
+			return "連不上這部影片的影片檔所在的 " + source + "。仍可以學習它的台詞。"
+		}
+	}
+}
+
+// MediaSourceMissing says "This film's video is no longer on {source}: it was moved, renamed or deleted there. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when the media source a film was indexed from can be reached but no longer has the video at its path.
+func MediaSourceMissing(cx *core.Scope, source string) string {
+	return For(cx).MediaSourceMissing(source)
+}
+
+// MediaSourceMissing is the package's MediaSourceMissing in the language of msgs.
+func (msgs Messages) MediaSourceMissing(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceMissing(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceMissing; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "This film's video is no longer on " + msgs.arg(source) + ": it was moved, renamed or deleted there. Its lines can still be studied."
+		case "ja":
+			return source + " にこの作品の動画が見つかりません。移動、名前の変更、または削除された可能性があります。セリフの学習は引き続きできます。"
+		case "ko":
+			return source + "에서 이 영상의 동영상을 찾을 수 없습니다. 옮겨졌거나 이름이 바뀌었거나 삭제되었을 수 있습니다. 대사는 계속 학습할 수 있습니다."
+		case "zh-Hans":
+			return "在 " + source + " 上找不到这部影片的视频：它可能被移动、改名或删除了。仍可以学习它的台词。"
+		case "zh-Hant":
+			return "在 " + source + " 上找不到這部影片的影片檔：它可能被移動、改名或刪除了。仍可以學習它的台詞。"
+		}
+	}
+}
+
+// MediaSourceUnplayable says "This video can't be played from its media source, even converted for the player. Its lines can still be studied."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture when neither the system's player nor the copy Kando converts for it from the media source can play a film indexed from there.
+func MediaSourceUnplayable(cx *core.Scope) string { return For(cx).MediaSourceUnplayable() }
+
+// MediaSourceUnplayable is the package's MediaSourceUnplayable in the language of msgs.
+func (msgs Messages) MediaSourceUnplayable() string { return msgs.text(textMediaSourceUnplayable) }
+
+// MediaSourceFind says "Find It on the Source"
+// in the language the app shows under cx.
+//
+// Button under the note of a film whose video is no longer at its path on the media source: opens the Media Sources page at its folder to choose where it is now.
+func MediaSourceFind(cx *core.Scope) string { return For(cx).MediaSourceFind() }
+
+// MediaSourceFind is the package's MediaSourceFind in the language of msgs.
+func (msgs Messages) MediaSourceFind() string { return msgs.text(textMediaSourceFind) }
+
+// MediaSourceRelinking says "Choose where the video of “{name}” is now."
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page while the user looks for the new place of an indexed film's video that is no longer at its path; pressing a video points the film at it.
+func MediaSourceRelinking(cx *core.Scope, name string) string {
+	return For(cx).MediaSourceRelinking(name)
+}
+
+// MediaSourceRelinking is the package's MediaSourceRelinking in the language of msgs.
+func (msgs Messages) MediaSourceRelinking(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceRelinking(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceRelinking; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Choose where the video of “" + msgs.arg(name) + "” is now."
+		case "ja":
+			return "「" + name + "」の動画が今ある場所を選んでください。"
+		case "ko":
+			return "‘" + name + "’의 동영상이 지금 있는 곳을 고르세요."
+		case "zh-Hans":
+			return "选择「" + name + "」的视频现在的位置。"
+		case "zh-Hant":
+			return "選擇「" + name + "」的影片檔現在的位置。"
+		}
+	}
+}
+
+// MediaSourceRelinked says "“{name}” plays from its new place."
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page once an indexed film was pointed at the new place of its video.
+func MediaSourceRelinked(cx *core.Scope, name string) string {
+	return For(cx).MediaSourceRelinked(name)
+}
+
+// MediaSourceRelinked is the package's MediaSourceRelinked in the language of msgs.
+func (msgs Messages) MediaSourceRelinked(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceRelinked(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceRelinked; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” plays from its new place."
+		case "ja":
+			return "「" + name + "」は新しい場所から再生されます。"
+		case "ko":
+			return "‘" + name + "’은(는) 새 위치에서 재생됩니다."
+		case "zh-Hans":
+			return "「" + name + "」改从新位置播放。"
+		case "zh-Hant":
+			return "「" + name + "」改從新位置播放。"
+		}
+	}
+}
+
+// MediaSourceChanged says "This file changed on {source} since its lines were made, so they may not match."
+// in the language the app shows under cx.
+//
+// Bar over the picture of a film indexed from a media source whose file has a different size or version than when it was indexed.
+func MediaSourceChanged(cx *core.Scope, source string) string {
+	return For(cx).MediaSourceChanged(source)
+}
+
+// MediaSourceChanged is the package's MediaSourceChanged in the language of msgs.
+func (msgs Messages) MediaSourceChanged(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceChanged(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceChanged; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "This file changed on " + msgs.arg(source) + " since its lines were made, so they may not match."
+		case "ja":
+			return source + " 上のこのファイルは変更されたため、字幕が合わない可能性があります。"
+		case "ko":
+			return source + "의 이 파일이 바뀌어 자막이 맞지 않을 수 있습니다."
+		case "zh-Hans":
+			return source + " 上的这个文件变了，字幕可能对不上。"
+		case "zh-Hant":
+			return source + " 上的這個檔案變了，字幕可能對不上。"
+		}
+	}
+}
+
+// MediaSourceChangedKeep says "Got It"
+// in the language the app shows under cx.
+//
+// Button of the bar saying an indexed film's file changed on its media source: keep the subtitles and take the file as it is now.
+func MediaSourceChangedKeep(cx *core.Scope) string { return For(cx).MediaSourceChangedKeep() }
+
+// MediaSourceChangedKeep is the package's MediaSourceChangedKeep in the language of msgs.
+func (msgs Messages) MediaSourceChangedKeep() string { return msgs.text(textMediaSourceChangedKeep) }
+
+// MediaSourceLinkedMove says "“{name}” plays from {source}, where it was indexed from, so it stays in this library."
+// in the language the app shows under cx.
+//
+// Message bar when a film indexed from a media source is to be moved to another library; its video stays on the source and its record belongs to this library.
+func MediaSourceLinkedMove(cx *core.Scope, name string, source string) string {
+	return For(cx).MediaSourceLinkedMove(name, source)
+}
+
+// MediaSourceLinkedMove is the package's MediaSourceLinkedMove in the language of msgs.
+func (msgs Messages) MediaSourceLinkedMove(name string, source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceLinkedMove(name, source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceLinkedMove; f != nil {
+			return f(name, source)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” plays from " + msgs.arg(source) + ", where it was indexed from, so it stays in this library."
+		case "ja":
+			return "「" + name + "」はインデックスを作成した " + source + " から再生されるため、このライブラリに残ります。"
+		case "ko":
+			return "‘" + name + "’은(는) 색인을 만든 " + source + "에서 재생되므로 이 라이브러리에 남습니다."
+		case "zh-Hans":
+			return "「" + name + "」从建立索引的 " + source + " 播放，只能留在这个资料库里。"
+		case "zh-Hant":
+			return "「" + name + "」從建立索引的 " + source + " 播放，只能留在這個資料庫裡。"
 		}
 	}
 }

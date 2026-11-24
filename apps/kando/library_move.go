@@ -312,6 +312,11 @@ func (a *app) libraryMoveCheck(m locales.Messages, item films.Film, from string)
 			return a.storedNeedsFile(m, item.VideoPath, name, locales.Messages.StoredLibraryMove).Error()
 		})
 	}
+	// A film indexed from a media source is this library's record of a video on the source (state_mediasource_import.go).
+	if l, linked := a.linkedOf(item.VideoPath); linked {
+		source := a.mediaSourceName(l.Source)
+		return refuse(remote.CodeInvalid, func(m locales.Messages) string { return m.MediaSourceLinkedMove(name, source) })
+	}
 	// A film that keeps no video (core.Job.SubtitlesOnly) is on disk as its subtitles, whose folder moves.
 	kept := item.VideoPath
 	if item.SubtitlesOnly && item.SubtitlePath != "" {

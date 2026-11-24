@@ -25,19 +25,22 @@ import (
 // pageMediaSources is the 媒体来源 page (package sourcebrowser), which the sidebar's row of that name shows while a source was added.
 const pageMediaSources = sidebar.PageMediaSources
 
-// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen); what the page says about the last import (note); and the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back).
+// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen); what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
 type mediaSourceBrowse struct {
-	source        string
-	dir           string
-	entries       []mediasource.Entry
-	subtitled     map[string]bool
-	err           func(locales.Messages) string
-	loading       bool
-	gen           int
-	chosen        map[string]int64
-	note          func(locales.Messages) string
-	importing     map[string]int64
-	importRelease func()
+	source         string
+	dir            string
+	entries        []mediasource.Entry
+	subtitled      map[string]bool
+	err            func(locales.Messages) string
+	loading        bool
+	gen            int
+	chosen         map[string]int64
+	note           func(locales.Messages) string
+	importing      map[string]int64
+	importRelease  func()
+	importLink     bool
+	importRemember bool
+	relink         string
 	// shown is whether the page showed at the last change, so showing it again lists its folder anew (mediaSourceBrowseFollow).
 	shown bool
 }
@@ -185,7 +188,7 @@ func (a *app) mediaSourceRef(p string) string {
 	return mediasource.Ref{Source: a.sources.browse.source, Path: p}.String()
 }
 
-// mediaSourceImported is the job of the open library that imported the video at the address ref, waiting, running or done; false for none, or one that failed or was stopped, which can be imported again.
+// mediaSourceImported is the job of the open library that imported the video at the address ref, waiting, running or done; false for none, or one that failed or was stopped, which can be imported again. A video indexed without a job yet is mediaSourceIndexed.
 func (a *app) mediaSourceImported(ref string) (core.Job, bool) {
 	job, ok := a.queueFindSource(ref)
 	if !ok || job.Stage == core.StageFailed {
@@ -212,7 +215,11 @@ func (a *app) mediaSourceToggle(p string) {
 		if e.Name != name || e.Dir || b.entryPath(e.Name) != p {
 			continue
 		}
-		if _, done := a.mediaSourceImported(a.mediaSourceRef(p)); done {
+		if a.sources.browse.relink != "" {
+			a.mediaSourceRelinkTo(p, e)
+			return
+		}
+		if a.mediaSourceIn(a.mediaSourceRef(p)) {
 			return
 		}
 		if b.chosen == nil {
@@ -239,7 +246,14 @@ func (a *app) mediaSourceOpenEntry(p string) {
 			a.mediaSourceOpenDir(p)
 			return
 		}
-		job, ok := a.mediaSourceImported(a.mediaSourceRef(p))
+		ref := a.mediaSourceRef(p)
+		if placeholder, ok := a.mediaSourceIndexed(ref); ok {
+			if item, found := films.Find(a.films(), placeholder); found {
+				a.Open(item)
+			}
+			return
+		}
+		job, ok := a.mediaSourceImported(ref)
 		if !ok {
 			return
 		}
@@ -259,6 +273,8 @@ func (a *app) mediaSourceAskImport() {
 		return
 	}
 	b.importing = maps.Clone(b.chosen)
+	// The way remembered is chosen, else a copy (docs/media-sources.md 17.10).
+	b.importLink, b.importRemember = a.sources.importLink && a.sources.rememberImport, a.sources.rememberImport
 	if b.importRelease == nil {
 		b.importRelease = a.holdModal()
 	}
@@ -274,15 +290,26 @@ func (a *app) mediaSourceCloseImport() {
 	}
 }
 
-// mediaSourceStartImport queues the videos of the import dialog, each copied into the library by its job (media.SourceReader), in the order of their paths, closes the dialog, lets them go from the page's choice and says what was done: how many were queued, or why none could be, as the queue says it.
+// mediaSourceStartImport imports the videos of the import dialog in the order of their paths, the way it says: indexed and played from the source (mediaSourceLink), or each copied into the library by its job (media.SourceReader); keeps that way for the next import when asked to, or forgets one kept; closes the dialog, lets them go from the page's choice and says what was done: how many were queued, or why none could be, as the queue says it.
 func (a *app) mediaSourceStartImport() {
 	b := &a.sources.browse
 	paths := slices.Sorted(maps.Keys(b.importing))
+	link, remember := b.importLink, b.importRemember
 	a.mediaSourceCloseImport()
 	if len(paths) == 0 {
 		return
 	}
+	if remember != a.sources.rememberImport || (remember && link != a.sources.importLink) {
+		a.sources.rememberImport, a.sources.importLink = remember, link && remember
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = a.messages().SettingsSourcesSaveFailed()
+		}
+	}
 	a.mediaSourcePoolSync()
+	if link {
+		a.mediaSourceLink(paths)
+		return
+	}
 	refs := make([]string, len(paths))
 	for i, p := range paths {
 		refs[i] = a.mediaSourceRef(p)

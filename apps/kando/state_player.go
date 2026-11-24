@@ -39,6 +39,8 @@ type playerUI struct {
 	remuxDir string
 	// remuxStop stops the copy being made for the open video, nil while none is.
 	remuxStop func()
+	// linkedChanged is set while the open film, indexed from a media source, plays a file that changed there since it was indexed (playerLinked), which the bar over the picture says, nil otherwise.
+	linkedChanged *linkedChange
 	// length is the open video's length once known, kept while a seek opens it again.
 	length   time.Duration
 	subs     subtitleView

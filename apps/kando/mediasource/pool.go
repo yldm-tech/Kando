@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"maps"
+	"net/http"
 	"sync"
 	"time"
 
@@ -27,6 +29,8 @@ type Pool struct {
 	open    Opener
 	sources map[string]poolSource
 	conns   map[string]Driver
+	// proxy serves the sources' videos on the loopback address to the system's player and ffmpeg (URL), started the first time one is asked for.
+	proxy *storage.Proxy
 }
 
 // poolSource is a source the Pool holds, with its kind.
@@ -123,14 +127,100 @@ func (p *Pool) Driver(ctx context.Context, id string) (Driver, error) {
 	return d, nil
 }
 
-// Close closes every connection; Driver connects again after it.
+// Close closes every connection and the loopback server; Driver connects again after it, and URL starts a new server.
 func (p *Pool) Close() {
 	p.mu.Lock()
-	conns := p.conns
-	p.conns = nil
+	conns, proxy := p.conns, p.proxy
+	p.conns, p.proxy = nil, nil
 	p.mu.Unlock()
 	for _, d := range conns {
 		_ = d.Close()
+	}
+	if proxy != nil {
+		_ = proxy.Close()
+	}
+}
+
+// URL is the address the system's player and ffmpeg read the video at path of the source id at, http://127.0.0.1:port/token/name, served by the Pool's loopback server (storage.Proxy) through its connection to the source, made anew when the one it had failed; once the file was found there (ErrNotExist when it is not). Each call is given back with Revoke once its holder moved on, as the player does when the page moves on from the film and a job when it ends.
+func (p *Pool) URL(ctx context.Context, id, path string) (string, error) {
+	r := p.Reader(id)
+	info, err := r.Stat(ctx, path)
+	if err != nil {
+		return "", err
+	}
+	if info.Dir {
+		return "", fmt.Errorf("%s: %w", path, ErrNotExist)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.proxy == nil {
+		proxy, err := storage.NewProxy()
+		if err != nil {
+			return "", err
+		}
+		p.proxy = proxy
+	}
+	return p.proxy.URL(r, path)
+}
+
+// Revoke gives back link, an address URL gave, and the loopback server stops serving its video once every call that gave it was given back (storage.Proxy.Revoke).
+func (p *Pool) Revoke(link string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.proxy != nil {
+		p.proxy.Revoke(link)
+	}
+}
+
+// Handler serves the video at path of the source id over HTTP as storage.Handler does, through the Pool's connection to it, as Phone Sync serves an indexed film's video to a phone: 502 when the source cannot be reached, 404 when it lacks the file.
+func (p *Pool) Handler(id, path string) http.Handler {
+	r := p.Reader(id)
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx, cancel := context.WithTimeout(req.Context(), PoolOpenTimeout)
+		_, err := p.Driver(ctx, id)
+		cancel()
+		if err != nil {
+			log.Printf("media source: could not reach a source to serve a file: %v", err)
+			http.Error(w, "the media source cannot be reached", http.StatusBadGateway)
+			return
+		}
+		storage.Handler(r, path).ServeHTTP(w, req)
+	})
+}
+
+// Reader is the source id as storage reads a file (storage.Reader), through the Pool's connection to it, made anew on each read after the one it had failed. It is comparable, so the loopback server gives one address to one file of it.
+func (p *Pool) Reader(id string) storage.Reader { return poolReader{pool: p, id: id} }
+
+// poolReader reads the source id through pool.
+type poolReader struct {
+	pool *Pool
+	id   string
+}
+
+func (r poolReader) Stat(ctx context.Context, path string) (storage.Info, error) {
+	d, err := r.pool.Driver(ctx, r.id)
+	if err != nil {
+		return storage.Info{}, err
+	}
+	info, err := StorageReader(d).Stat(ctx, path)
+	r.forgetAfter(err)
+	return info, err
+}
+
+func (r poolReader) Open(ctx context.Context, path string, offset, length int64) (io.ReadCloser, error) {
+	d, err := r.pool.Driver(ctx, r.id)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := d.Open(ctx, path, offset, length)
+	r.forgetAfter(err)
+	return rc, err
+}
+
+// forgetAfter drops the connection after err, unless err says the file is not there or the read was stopped, so the next read connects again.
+func (r poolReader) forgetAfter(err error) {
+	if err != nil && !errors.Is(err, ErrNotExist) && !errors.Is(err, ErrInvalidPath) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		r.pool.Forget(r.id)
 	}
 }
 

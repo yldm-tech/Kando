@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/mediasource"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/settings"
@@ -365,6 +366,10 @@ type phoneShelf struct {
 	stored  map[string]shelf.Stored
 	targets map[string]storage.Target
 	pool    *storage.Pool
+	// linked is where the video of each film indexed from a media source is (shelf.Library.Linked), sources the IDs of the sources still in the settings, and sourcePool what reads them (state_mediasource_import.go).
+	linked     map[string]shelf.Linked
+	sources    map[string]bool
+	sourcePool *mediasource.Pool
 	// tag is the interface's language, which orders the films' names (films.Next), and nexts the film after each film of the library, by key, made once the library is listed.
 	tag   string
 	nexts map[string]films.Film
@@ -429,6 +434,14 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 			f.SubtitlesOnly = true
 		}
 	}
+	// A film indexed from a media source is served from there alike, the computer reading the source as the phone downloads (docs/media-sources.md 9), with the size the source gave as it was indexed; once its source is no longer in the settings, by its lines alone.
+	if l, ok := shelf.linked[item.VideoPath]; ok {
+		if shelf.sources[l.Source] {
+			f.Remote, f.RemoteSize, f.RemoteAt = shelf.sourcePool.Handler(l.Source, l.Path), l.Size, l.Added
+		} else {
+			f.SubtitlesOnly = true
+		}
+	}
 	if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
 		f.Poster = dest
 	}
@@ -462,7 +475,8 @@ func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films
 		}
 		return phoneShelf{jobs: slices.Clone(a.library.Jobs), added: maps.Clone(a.library.AddedIn(lib.Dir)), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
 			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played),
-			stored: maps.Clone(a.library.Stored), targets: a.storedPlayable(), pool: a.stored.pool, tag: a.prefs.interfaceLanguage}, nil
+			stored: maps.Clone(a.library.Stored), targets: a.storedPlayable(), pool: a.stored.pool,
+			linked: maps.Clone(a.library.Linked), sources: a.mediaSourceIDs(), sourcePool: a.sources.pool, tag: a.prefs.interfaceLanguage}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err
@@ -472,7 +486,7 @@ func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films
 		return nil, phoneShelf{}, phonesync.ErrNotFound
 	}
 	noDetail := func(core.Job) string { return "" }
-	all := storedMark(films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail), shelf.stored)
+	all := linkedMark(storedMark(films.List(lib.Dir, shelf.jobs, videos, shelf.names, jobName, noDetail), shelf.stored), shelf.linked)
 	shelf.nexts = films.Nexts(all, shelf.tag)
 	shelf.redo = map[string]bool{}
 	for _, job := range shelf.jobs {

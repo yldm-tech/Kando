@@ -43,6 +43,8 @@ type Library struct {
 	Locks map[string]Lock
 	// Stored is where the video at each path lives when it was moved out of the library's folder to a storage location (Stored), by the path it had there, which the film is still known by: its subtitles and the other files beside it stay in the folder, named after it. A title kept here follows its video's path when the folder moves (MoveVideos).
 	Stored map[string]Stored
+	// Linked is the films indexed from a media source rather than copied into the library (Linked), by the placeholder path in the library's folder their video is said to be at (mediasource.Placeholder), which their subtitles and the other files beside them are named after; the video itself stays on the source, which Kando only reads. Unlike Stored, nothing removes, moves or writes the file it names. A title kept here follows its placeholder's path when the folder moves (MoveVideos).
+	Linked map[string]Linked
 	// Added is the videos kept outside a library that were added to it without a job, by the library folder's cleaned path, then by the video's path, with when each was added, as a large folder dropped adds its films only into the library (AddVideos): each shows as a film without subtitles, where it is, until its 生成字幕 makes them, when its job holds it and it leaves here (Unadd). library.json is the machine's, so this follows the library as its folder is renamed (MoveAdded).
 	Added map[string]map[string]time.Time
 	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
@@ -75,7 +77,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}, Locks: map[string]Lock{}, Stored: map[string]Stored{}, Added: map[string]map[string]time.Time{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}, Locks: map[string]Lock{}, Stored: map[string]Stored{}, Linked: map[string]Linked{}, Added: map[string]map[string]time.Time{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -144,6 +146,12 @@ func Load(path string) (Library, error) {
 			lib.Stored[path] = Stored{Location: at.Location, Path: at.Path, Size: max(at.Size, 0), Duration: time.Duration(max(at.DurationMs, 0)) * time.Millisecond, Moved: at.Moved}
 		}
 	}
+	// A record without a source or a path says nothing of where the video is, and is dropped.
+	for path, at := range stored.Linked {
+		if at.Source = strings.TrimSpace(at.Source); path != "" && at.Source != "" && at.Path != "" {
+			lib.Linked[path] = Linked{Source: at.Source, Path: at.Path, Size: max(at.Size, 0), Modified: at.Modified, Version: at.Version, Duration: time.Duration(max(at.DurationMs, 0)) * time.Millisecond, Added: at.Added}
+		}
+	}
 	for dir, videos := range stored.Added {
 		for path, at := range videos {
 			if dir = strings.TrimSpace(dir); dir != "" && path != "" {
@@ -165,6 +173,28 @@ type Stored struct {
 	Size     int64
 	Duration time.Duration
 	Moved    time.Time
+}
+
+// Linked is a film indexed from a media source: the source's ID (mediasource.Source.ID), the video's path there, relative to the source's root and slash-separated, and what the source said of the file as it was indexed, its size, time of change and version (mediasource.Entry.Version), which tell a file changed since from the one whose lines were made; how long it plays, 0 until that was read, as no file here tells it; and when it was indexed.
+type Linked struct {
+	Source   string
+	Path     string
+	Size     int64
+	Modified time.Time
+	Version  string
+	Duration time.Duration
+	Added    time.Time
+}
+
+// linkedVideo is a Linked in library.json, its length in milliseconds.
+type linkedVideo struct {
+	Source     string    `json:"source"`
+	Path       string    `json:"path"`
+	Size       int64     `json:"size,omitempty"`
+	Modified   time.Time `json:"modified,omitzero"`
+	Version    string    `json:"version,omitempty"`
+	DurationMs int64     `json:"durationMs,omitempty"`
+	Added      time.Time `json:"added,omitzero"`
 }
 
 // storedVideo is a Stored in library.json, its length in milliseconds.
@@ -232,11 +262,12 @@ func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
 	lifts := MoveKeys(l.Lifts, move)
 	names := MoveKeys(l.Names, move)
 	stored := MoveKeys(l.Stored, move)
+	linked := MoveKeys(l.Linked, move)
 	added := false
 	for _, videos := range l.Added {
 		added = MoveKeys(videos, move) || added
 	}
-	return positions || furthest || played || delays || lifts || names || stored || added
+	return positions || furthest || played || delays || lifts || names || stored || linked || added
 }
 
 // AddVideos adds the videos at paths to the library at dir without a job, as added at at, and returns how many it added: a video added before keeps when it was.
@@ -390,6 +421,12 @@ func (l Library) Save() error {
 		}
 		stored.Stored[path] = storedVideo{Location: at.Location, Path: at.Path, Size: at.Size, DurationMs: at.Duration.Milliseconds(), Moved: at.Moved}
 	}
+	for path, at := range l.Linked {
+		if stored.Linked == nil {
+			stored.Linked = map[string]linkedVideo{}
+		}
+		stored.Linked[path] = linkedVideo{Source: at.Source, Path: at.Path, Size: at.Size, Modified: at.Modified, Version: at.Version, DurationMs: at.Duration.Milliseconds(), Added: at.Added}
+	}
 	for dir, videos := range l.Added {
 		if len(videos) == 0 {
 			continue
@@ -411,7 +448,7 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts, Names, Locks, Stored and Added are Library.Lifts, Library.Names, Library.Locks, Library.Stored and Library.Added. A field added later is left out when empty, so an older Kando reads the file as it did; one that does not know Stored drops it on its next save, and the moved videos' films then lose where their videos are.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts, Names, Locks, Stored, Linked and Added are Library.Lifts, Library.Names, Library.Locks, Library.Stored, Library.Linked and Library.Added. A field added later is left out when empty, so an older Kando reads the file as it did; one that does not know Stored or Linked drops it on its next save, and the moved or indexed videos' films then lose where their videos are, keeping their lines.
 type storedLibrary struct {
 	Jobs      []storedJob                     `json:"jobs"`
 	Positions map[string]float64              `json:"positions,omitempty"`
@@ -422,6 +459,7 @@ type storedLibrary struct {
 	Names     map[string]string               `json:"names,omitempty"`
 	Locks     map[string]Lock                 `json:"locks,omitempty"`
 	Stored    map[string]storedVideo          `json:"stored,omitempty"`
+	Linked    map[string]linkedVideo          `json:"linked,omitempty"`
 	Added     map[string]map[string]time.Time `json:"added,omitempty"`
 }
 

@@ -159,7 +159,7 @@ func (a *app) PlayPath() string { return a.player.playPath }
 
 func (a *app) PlayErr() string { return a.player.playErr }
 
-func (a *app) ErrText(cx *ns.Scope, id string) string { return playerErrTextIn(locales.For(cx), id) }
+func (a *app) ErrText(cx *ns.Scope, id string) string { return a.playerErrText(locales.For(cx), id) }
 
 func (a *app) OpeningText(cx *ns.Scope) string { return a.playerRemuxText(locales.For(cx)) }
 

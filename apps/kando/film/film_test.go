@@ -52,6 +52,7 @@ type fakeApp struct {
 	fakeProgresser
 	fakeReferencer
 	fakeStreamer
+	fakeLinker
 	fakeExplainer
 	fakeExtender
 	fakeNexter

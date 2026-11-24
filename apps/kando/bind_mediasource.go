@@ -126,7 +126,7 @@ func (a *app) MediaSourceRemoving() settings.MediaSourceRemoval {
 	if i < 0 {
 		return settings.MediaSourceRemoval{}
 	}
-	return settings.MediaSourceRemoval{Open: true, Name: a.sources.list[i].Name}
+	return settings.MediaSourceRemoval{Open: true, Name: a.sources.list[i].Name, Linked: a.mediaSourceLinkedCount(a.sources.removing)}
 }
 
 func (a *app) AnswerRemoveMediaSource(yes bool) { a.answerRemoveMediaSource(yes) }
@@ -177,7 +177,7 @@ func (a *app) MediaBrowseEntries() []sourcebrowser.Entry {
 		_, chosen := b.chosen[p]
 		x := sourcebrowser.Entry{Path: p, Name: e.Name, Dir: e.Dir, Share: share && e.Dir, Size: e.Size, Modified: e.Modified, Subtitles: b.subtitled[e.Name], Chosen: chosen}
 		if !e.Dir {
-			_, x.InLibrary = a.mediaSourceImported(a.mediaSourceRef(p))
+			x.InLibrary = a.mediaSourceIn(a.mediaSourceRef(p))
 		}
 		out = append(out, x)
 	}
@@ -219,7 +219,7 @@ func (a *app) MediaBrowseImport() sourcebrowser.Import {
 	if b.importing == nil {
 		return sourcebrowser.Import{}
 	}
-	in := sourcebrowser.Import{Open: true, Count: len(b.importing)}
+	in := sourcebrowser.Import{Open: true, Count: len(b.importing), Link: b.importLink, Remember: b.importRemember}
 	for _, size := range b.importing {
 		in.Size += size
 	}
@@ -229,6 +229,26 @@ func (a *app) MediaBrowseImport() sourcebrowser.Import {
 	return in
 }
 
+func (a *app) ChooseMediaBrowseImportLink(link bool) { a.sources.browse.importLink = link }
+
+func (a *app) RememberMediaBrowseImport(on bool) { a.sources.browse.importRemember = on }
+
 func (a *app) StartMediaBrowseImport() { a.mediaSourceStartImport() }
 
 func (a *app) CancelMediaBrowseImport() { a.mediaSourceCloseImport() }
+
+// LinkedChanged names the source the open film's file changed on since it was indexed (film.Linker), "" while it did not.
+func (a *app) LinkedChanged() string {
+	c := a.player.linkedChanged
+	if c == nil || c.path != a.player.playPath {
+		return ""
+	}
+	l, _ := a.linkedOf(c.path)
+	return a.mediaSourceName(l.Source)
+}
+
+func (a *app) KeepLinkedChanged() { a.linkedKeepChanged() }
+
+func (a *app) RetryLinked() { a.playerRetryLinked() }
+
+func (a *app) FindLinked() { a.mediaSourceFindVideo() }

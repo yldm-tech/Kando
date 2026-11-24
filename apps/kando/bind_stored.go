@@ -38,7 +38,8 @@ func (a *app) storedPlaces(cx *ns.Scope, items []films.Film, wrap func(func()) f
 	var movable []films.Film
 	can := false
 	for _, item := range items {
-		if _, stored := a.storedOf(item.VideoPath); stored {
+		// An indexed film's video stays on its media source.
+		if _, stored := a.storedOf(item.VideoPath); stored || item.Linked != "" {
 			continue
 		}
 		movable = append(movable, item)

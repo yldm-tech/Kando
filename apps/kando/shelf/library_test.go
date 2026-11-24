@@ -804,6 +804,59 @@ func TestLibraryKeepsWhereAMovedVideoIs(t *testing.T) {
 	}
 }
 
+// TestLibraryKeepsWhereAnIndexedVideoIs checks that library.json keeps the films indexed from a media source by their placeholder paths, with the source, the path there and what the source said of the file; that the records follow their placeholders when the library's folder moves; and that a record without a source or a path is dropped as it is read.
+func TestLibraryKeepsWhereAnIndexedVideoIs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Linked) != 0 {
+		t.Fatalf("a new library has indexed videos: %v", lib.Linked)
+	}
+	at := time.Date(2026, 11, 24, 9, 30, 0, 0, time.UTC)
+	want := Linked{Source: "0123456789abcdef", Path: "Films/Heat.mkv", Size: 1234, Modified: at.Add(-time.Hour), Version: "\"e1\"", Duration: 90 * time.Second, Added: at}
+	lib.Linked["/films/NAS/Films/Heat.mkv"] = want
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"linked": {`) || !strings.Contains(string(data), `"source": "0123456789abcdef"`) {
+		t.Fatalf("library.json does not keep the indexed video:\n%s", data)
+	}
+	back, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.Linked["/films/NAS/Films/Heat.mkv"]; got != want {
+		t.Fatalf("read back %+v, want %+v", got, want)
+	}
+	back.MoveVideos(func(p string) (string, bool) {
+		if rest, ok := strings.CutPrefix(p, "/films/"); ok {
+			return "/renamed/" + rest, true
+		}
+		return "", false
+	})
+	if _, ok := back.Linked["/films/NAS/Films/Heat.mkv"]; ok || back.Linked["/renamed/NAS/Films/Heat.mkv"] != want {
+		t.Fatalf("after the folder moved: %v", back.Linked)
+	}
+
+	broken := filepath.Join(t.TempDir(), "library.json")
+	if err := os.WriteFile(broken, []byte(`{"jobs":[],"linked":{"/a.mp4":{"source":"","path":"x"},"/b.mp4":{"source":"0123456789abcdef","path":""},"/c.mp4":{"source":"0123456789abcdef","path":"c.mp4","size":-1}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	read, err := Load(broken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(read.Linked) != 1 || read.Linked["/c.mp4"] != (Linked{Source: "0123456789abcdef", Path: "c.mp4"}) {
+		t.Fatalf("records read: %+v", read.Linked)
+	}
+}
+
 // TestLibraryKeepsTheStepAJobFailedAt checks that a failed job's step and the translation source that failed are kept beside its text, which reads as before, and that both come back as a media.StageError.
 func TestLibraryKeepsTheStepAJobFailedAt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

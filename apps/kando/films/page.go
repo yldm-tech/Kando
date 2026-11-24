@@ -185,6 +185,8 @@ type App interface {
 	StoredPlace(item Film) string
 	// StoredMark is what the mark on the poster and list row of a film whose video is on a storage location says (storedMark): the location's name in m's language, whether it is an object store rather than a NAS location, and whether it is no longer in the settings. It never reaches the location. All zero for a video in the library's folder.
 	StoredMark(m locales.Messages, item Film) (place string, cloud, gone bool)
+	// LinkedMark is what the mark of a film indexed from a media source says (Film.Linked): the source's name, or that it is no longer in the settings. It never reaches the source.
+	LinkedMark(m locales.Messages, item Film) (place string, gone bool)
 	UndoMove()
 	CancelMove()
 	Choose(dir string)

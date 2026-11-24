@@ -208,7 +208,7 @@ func (a *app) feedbackFilmLines(item films.Film) []string {
 	if a.player.subs.key == item.Key && a.player.subs.ready {
 		switch {
 		case a.player.subs.err != "":
-			lines = append(lines, "字幕："+feedback.NoPaths(feedback.NoLinks(playerErrTextIn(locales.In(feedbackIssueLanguage), a.player.subs.err))))
+			lines = append(lines, "字幕："+feedback.NoPaths(feedback.NoLinks(a.playerErrText(locales.In(feedbackIssueLanguage), a.player.subs.err))))
 		case len(a.player.subs.cues) > 0:
 			missing := 0
 			for _, cue := range a.player.subs.cues {

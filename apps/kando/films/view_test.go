@@ -1274,3 +1274,4 @@ func TestHeroIsWholeWhereThePageHasRoom(t *testing.T) {
 		t.Fatal("the hero in a short window is whole")
 	}
 }
+func (f *fakeApp) LinkedMark(locales.Messages, Film) (string, bool) { return "", false }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path"
@@ -18,9 +20,11 @@ import (
 
 	"kando/apps/kando/account"
 	"kando/apps/kando/feedback"
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/storage"
 	"kando/apps/kando/storage/davtest"
 	"kando/apps/kando/storage/sftptest"
@@ -869,4 +873,220 @@ func TestMediaSourceWebDAV(t *testing.T) {
 	tt.Press("id:media-source-dialog-test")
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[""].busy })
 	wantText(t, tt, msgs.AccountLocationFailSignIn())
+}
+
+// A video imported to be indexed rather than copied gets a record in library.json under a placeholder in the library's folder, where no video is, and shows on the shelf marked as playing from its source; the way chosen is remembered when asked to. It plays from the source through the loopback server; a file changed there plays all the same, the bar saying so until it is taken as it is; a source that cannot be reached, a file no longer at its path, which can be found again on the source, and a source removed say so, its lines still read. Taking it off the shelf forgets its record and nothing on the source.
+func TestMediaSourceIndexAndPlay(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	heat := "Movies/Heat (1995).mkv"
+	s, src := browseSource(a, map[string]fakeSourceFile{
+		heat:               {data: "heat video"},
+		"Movies/Ronin.mp4": {data: "ronin"},
+	})
+	a.mediaSourceOpenPage()
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.mediaSourceOpenDir("Movies")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	tt.Press("id:media-sources-choose-" + heat)
+	tt.Press("id:media-sources-import")
+	if a.MediaBrowseImport().Link {
+		t.Fatal("the dialog indexes before it was asked to")
+	}
+	tt.Press("id:media-sources-import-link")
+	wantText(t, tt, msgs.MediaSourceImportLinkNote("Living Room NAS"))
+	tt.Press("id:media-sources-import-remember")
+	tt.Press("id:media-sources-import-start")
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 1 })
+	if !a.sources.rememberImport || !a.sources.importLink {
+		t.Fatalf("the way chosen is not remembered: %v %v", a.sources.rememberImport, a.sources.importLink)
+	}
+	placeholder := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "Movies", "Heat (1995).mkv")
+	l, ok := a.library.Linked[placeholder]
+	if !ok || l.Source != s.ID || l.Path != heat || l.Size != int64(len("heat video")) || l.Version != "v1" {
+		t.Fatalf("records %+v", a.library.Linked)
+	}
+	if _, err := os.Stat(placeholder); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a file at the placeholder: %v", err)
+	}
+	if info, err := os.Stat(filepath.Dir(placeholder)); err != nil || !info.IsDir() {
+		t.Fatalf("no folder for the placeholder: %v", err)
+	}
+	if len(a.library.Jobs) != 0 {
+		t.Fatalf("indexing copied: %+v", a.library.Jobs)
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceIndexed(1))
+	if !tt.Exists("id:media-sources-in-library-" + heat) {
+		t.Fatalf("the video indexed is not marked: %q", tt.Texts())
+	}
+	// The next import starts on the way remembered.
+	tt.Press("id:media-sources-choose-Movies/Ronin.mp4")
+	tt.Press("id:media-sources-import")
+	if !a.MediaBrowseImport().Link || !a.MediaBrowseImport().Remember {
+		t.Fatalf("the next import starts as %+v", a.MediaBrowseImport())
+	}
+	tt.Press("id:media-sources-import-cancel")
+
+	item, ok := films.Find(a.films(), placeholder)
+	if !ok || item.Linked != s.ID {
+		t.Fatalf("the film on the shelf: %+v", item)
+	}
+	if place, gone := a.LinkedMark(msgs, item); place != "Living Room NAS" || gone {
+		t.Fatalf("mark %q %v", place, gone)
+	}
+
+	play := func() {
+		t.Helper()
+		a.closeFilm()
+		a.page = pageFilms
+		a.Open(item)
+		waitUntil(t, tt, a, updates, func() bool {
+			return a.player.playErr != "" || (a.player.play != nil && a.player.play.source != "")
+		})
+	}
+	play()
+	if a.player.playErr != "" || !strings.HasPrefix(a.player.play.source, "http://127.0.0.1:") || a.player.linkedChanged != nil {
+		t.Fatalf("plays %q, error %q", a.player.play.source, a.player.playErr)
+	}
+	wantRange(t, a.player.play.source, "bytes=5-", "video")
+	url := a.player.play.source
+
+	// A file that changed on the source plays all the same, the bar naming the source until 知道了.
+	src.mu.Lock()
+	src.files[heat] = fakeSourceFile{data: "heat video, cut anew"}
+	src.mu.Unlock()
+	play()
+	if a.player.playErr != "" || a.LinkedChanged() != "Living Room NAS" {
+		t.Fatalf("a changed file: error %q, bar %q", a.player.playErr, a.LinkedChanged())
+	}
+	if resp, err := http.Get(url); err == nil {
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("the address of the film played before still serves %d", resp.StatusCode)
+		}
+	}
+	a.KeepLinkedChanged()
+	if a.LinkedChanged() != "" || a.library.Linked[placeholder].Size != int64(len("heat video, cut anew")) {
+		t.Fatalf("知道了 kept %+v", a.library.Linked[placeholder])
+	}
+
+	// A source that cannot be reached: 重试 plays it once it can.
+	src.mu.Lock()
+	src.unreachable = errors.New("dial tcp: connection refused")
+	src.mu.Unlock()
+	a.sources.pool.Forget(s.ID)
+	play()
+	if a.player.playErr != playerErrLinkedUnreachable {
+		t.Fatalf("an unreachable source: error %q", a.player.playErr)
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceUnreachable("Living Room NAS"))
+	src.mu.Lock()
+	src.unreachable = nil
+	src.mu.Unlock()
+	tt.Press("id:film-stage-linked-retry")
+	waitUntil(t, tt, a, updates, func() bool { return a.player.play != nil && a.player.play.source != "" })
+
+	// A file no longer at its path: 在来源里找 shows its folder, and the video chosen there is where the film plays from.
+	src.mu.Lock()
+	delete(src.files, heat)
+	src.files["Movies/Heat.mkv"] = fakeSourceFile{data: "heat video, cut anew"}
+	src.mu.Unlock()
+	play()
+	if a.player.playErr != playerErrLinkedMissing {
+		t.Fatalf("a file gone: error %q", a.player.playErr)
+	}
+	refresh(tt, a)
+	tt.Press("id:film-stage-linked-find")
+	waitUntil(t, tt, a, updates, func() bool { return a.page == pageMediaSources && !a.sources.browse.loading })
+	if a.sources.browse.dir != "Movies" || a.sources.browse.relink != placeholder {
+		t.Fatalf("finding opened %q relinking %q", a.sources.browse.dir, a.sources.browse.relink)
+	}
+	tt.Press("id:media-sources-choose-Movies/Heat.mkv")
+	if a.library.Linked[placeholder].Path != "Movies/Heat.mkv" || a.sources.browse.relink != "" {
+		t.Fatalf("after finding it: %+v", a.library.Linked[placeholder])
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceRelinked(films.Name(item)))
+	play()
+	if a.player.playErr != "" {
+		t.Fatalf("the film found again: error %q", a.player.playErr)
+	}
+
+	// The source removed: its address is kept while the film is indexed from it, and adding it back gives the film its source again.
+	a.closeFilm()
+	a.askRemoveMediaSource(s.ID)
+	a.answerRemoveMediaSource(true)
+	if len(a.sources.list) != 0 || len(a.sources.removed) != 1 || a.sources.removed[0].ID != s.ID {
+		t.Fatalf("list %+v removed %+v", a.sources.list, a.sources.removed)
+	}
+	play()
+	if a.player.playErr != playerErrLinkedGone {
+		t.Fatalf("a source removed: error %q", a.player.playErr)
+	}
+	if _, gone := a.LinkedMark(msgs, item); !gone {
+		t.Fatal("the mark of a film whose source was removed")
+	}
+	back := mediasource.Source{Kind: s.Kind, Config: map[string]string{mediasource.SMBHost: "NAS.local", mediasource.SMBShare: "media/", mediasource.SMBUser: "other"}}
+	if id := a.mediaSourceRelinkID(back); id != s.ID || len(a.sources.removed) != 0 {
+		t.Fatalf("added back as %q, removed %+v", id, a.sources.removed)
+	}
+
+	// Off the shelf: the record goes, and nothing on the source was written.
+	a.closeFilm()
+	a.libraryForget(a.snap().LibraryDir, []films.Film{item})
+	if len(a.library.Linked) != 0 {
+		t.Fatalf("a removed film's record is kept: %v", a.library.Linked)
+	}
+	src.mu.Lock()
+	defer src.mu.Unlock()
+	if _, ok := src.files["Movies/Heat.mkv"]; !ok {
+		t.Fatal("the video on the source went")
+	}
+}
+
+// Settings keeps the sources removed while films are indexed from them, and the way of importing remembered, and drops a way it does not know.
+func TestSavedMediaSourcesKeepRemovedAndTheWay(t *testing.T) {
+	s := savedMediaSources{
+		MediaSources:        []savedMediaSource{{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "NAS"}},
+		RemovedMediaSources: []savedMediaSource{{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "Again"}, {ID: "fedcba9876543210", Kind: mediasource.KindSMB, Name: "Old", Config: map[string]string{mediasource.SMBHost: "nas", mediasource.SMBPassword: "secret"}}},
+		MediaSourceImport:   "move",
+	}
+	s.clean()
+	if len(s.RemovedMediaSources) != 1 || s.RemovedMediaSources[0].Name != "Old" || s.RemovedMediaSources[0].Config[mediasource.SMBPassword] != "" || s.MediaSourceImport != "" {
+		t.Fatalf("cleaned %+v", s)
+	}
+	s.MediaSourceImport = mediaSourceImportLink
+	s.clean()
+	if s.MediaSourceImport != mediaSourceImportLink {
+		t.Fatalf("the way %q", s.MediaSourceImport)
+	}
+}
+
+// Phone Sync serves an indexed film's video from its source, with the size it had as it was indexed, and one whose source is gone by its lines alone.
+func TestPhoneSyncServesAnIndexedVideo(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	s, _ := browseSource(a, map[string]fakeSourceFile{"talk.mp4": {data: "indexed video"}})
+	a.mediaSourcePoolSync()
+	added := time.Date(2026, 11, 24, 9, 0, 0, 0, time.UTC)
+	path := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
+	item := films.Film{Key: path, VideoPath: path, Linked: s.ID}
+	ps := phoneShelf{linked: map[string]shelf.Linked{path: {Source: s.ID, Path: "talk.mp4", Size: 13, Added: added}}, sources: a.mediaSourceIDs(), sourcePool: a.sources.pool}
+	got := phoneFilmOf(item, ps)
+	if got.Remote == nil || got.RemoteSize != 13 || !got.RemoteAt.Equal(added) || got.SubtitlesOnly {
+		t.Fatalf("the indexed film is served as %+v", got)
+	}
+	req, _ := http.NewRequest(http.MethodGet, "/video", nil)
+	req.Header.Set("Range", "bytes=8-")
+	rec := httptest.NewRecorder()
+	got.Remote.ServeHTTP(rec, req)
+	if rec.Code != http.StatusPartialContent || rec.Body.String() != "video" {
+		t.Fatalf("the source serves %d %q", rec.Code, rec.Body.String())
+	}
+	ps.sources = nil
+	if got := phoneFilmOf(item, ps); got.Remote != nil || !got.SubtitlesOnly {
+		t.Fatalf("a film whose source is gone is served as %+v", got)
+	}
 }

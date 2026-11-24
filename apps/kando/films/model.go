@@ -72,6 +72,8 @@ type Film struct {
 	PausedBy string
 	// Stored is the ID of the storage location the film's video was moved to (shelf.Library.Stored), empty for a video in the library's folder. Its subtitles and the other files beside the video stay in the folder.
 	Stored string
+	// Linked is the ID of the media source the film was indexed from rather than copied (shelf.Library.Linked), empty for any other film: its video stays on the source and plays from there, while its subtitles and the other files beside it are in the library's folder, named after the placeholder path its video is said to be at.
+	Linked string
 	// Missing is true for a done film whose video, kept outside the library's folder where it was picked, is not on disk now: moved or renamed in Finder, deleted, or on a drive that is not connected. The film stays on the shelf with its place, its title and its lines, marked, and plays again once its video is back.
 	Missing bool
 	// Added is when a video kept outside the library was added to it without a job, as a large folder dropped adds its films (shelf.Library.Added); zero for any other film.

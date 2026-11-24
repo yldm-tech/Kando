@@ -47,6 +47,8 @@ func (a *app) ensurePoster(item films.Film) {
 	}
 	// A video moved to a storage location is not here for ffmpeg to read: its cover is the one kept before it moved, or its site's picture (state_stored.go).
 	_, stored := a.storedOf(video)
+	// An indexed video is on its media source, read through the loopback server only by a job, which makes its poster as it makes its lines.
+	stored = stored || a.linkedHas(video)
 	if _, err := os.Stat(video); err != nil && !stored {
 		a.markPosterMiss(video)
 		return

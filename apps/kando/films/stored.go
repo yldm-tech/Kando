@@ -10,16 +10,20 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// storedLook is the mark of a film whose video is not in the library's folder: moved to a storage location (Film.Stored, App.StoredMark), with the location's name, whether it is an object store, whose mark is a cloud rather than a drive, and whether it is no longer in the settings, which draws the mark as a warning; or kept outside the library and not on disk now (Film.Missing), which is drawn as a warning too. on is false for a video where it belongs, which has no mark.
+// storedLook is the mark of a film whose video is not in the library's folder: moved to a storage location (Film.Stored, App.StoredMark), with the location's name, whether it is an object store, whose mark is a cloud rather than a drive, and whether it is no longer in the settings, which draws the mark as a warning; indexed from a media source (Film.Linked, App.LinkedMark, linked), with the source's name, or a warning once the source is no longer in the settings; or kept outside the library and not on disk now (Film.Missing), which is drawn as a warning too. on is false for a video where it belongs, which has no mark.
 type storedLook struct {
-	place                    string
-	cloud, gone, missing, on bool
+	place                            string
+	cloud, gone, missing, linked, on bool
 }
 
 // storedLookOf is item's mark in m's language, as the settings know its location now.
 func storedLookOf(a App, m locales.Messages, item Film) storedLook {
 	if item.Missing {
 		return storedLook{gone: true, missing: true, on: true}
+	}
+	if item.Linked != "" {
+		place, gone := a.LinkedMark(m, item)
+		return storedLook{place: place, gone: gone, linked: true, on: true}
 	}
 	if item.Stored == "" {
 		return storedLook{}
@@ -38,19 +42,26 @@ func (l storedLook) label(m locales.Messages) string {
 	if !l.on {
 		return ""
 	}
-	if l.missing {
+	switch {
+	case l.missing:
 		return m.FilmsVideoMissing()
-	}
-	if l.gone {
+	case l.linked && l.gone:
+		return m.MediaSourceRemovedMark()
+	case l.linked:
+		return m.MediaSourceFrom(l.place)
+	case l.gone:
 		return m.FilmsStoredGone()
 	}
 	return m.FilmsStoredOn(l.place)
 }
 
-// icon is the mark's glyph: a file with a question mark for a video that cannot be found, a cloud for an object store, a drive for a NAS location.
+// icon is the mark's glyph: a file with a question mark for a video that cannot be found, a server for a media source the film plays from, a cloud for an object store, a drive for a NAS location.
 func (l storedLook) icon() *core.SVG {
 	if l.missing {
 		return lucide.FileQuestionMark()
+	}
+	if l.linked {
+		return lucide.Server()
 	}
 	if l.cloud {
 		return lucide.Cloud()

@@ -50,7 +50,7 @@ func (a *app) PickLibrary() { a.pickLibrary() }
 
 func (a *app) Reveal(path string) {
 	// A video moved to a storage location is not on disk: its folder, which keeps its subtitles, shows instead (state_stored.go).
-	if _, stored := a.storedOf(path); stored {
+	if _, stored := a.storedOf(path); stored || a.linkedHas(path) {
 		path = filepath.Dir(path)
 	}
 	a.reveal(path)

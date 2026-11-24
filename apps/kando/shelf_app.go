@@ -624,9 +624,9 @@ func (a *app) refreshLibrary() {
 	// Kando keeps its own bundle one film to a folder, the video in it named video.<ext>, and gathers a video dropped loose into it into such a folder. Any other folder opened as a library is the user's, as a folder of series kept for another player or a download client: its files keep the names and the places they have, and its videos show as they are (media.ListVideos).
 	var moved map[string]string
 	if shelfBundle(dir) {
-		// A video moved to a storage location still belongs where it was: its folder is not taken as the folder of a video left in it, and no file is renamed to its path (state_stored.go).
+		// A video moved to a storage location, or indexed from a media source, still belongs where it was: its folder is not taken as the folder of a video left in it, and no file is renamed to its path (state_stored.go, state_mediasource_import.go).
 		var err error
-		if moved, err = media.GatherVideos(dir, a.storedPaths()); err != nil {
+		if moved, err = media.GatherVideos(dir, a.awayPaths()); err != nil {
 			a.saveErr = err.Error()
 			return
 		}
@@ -636,8 +636,8 @@ func (a *app) refreshLibrary() {
 			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 		}
 	}
-	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go), and one added without a job from outside the folder shows where it is.
-	videos, err := films.Videos(dir, a.library.Jobs, a.storedPaths(), a.library.AddedIn(dir))
+	// A video no job processed whose file was moved to a storage location stays on the shelf by the path it had (state_stored.go), one indexed from a media source by its placeholder (state_mediasource_import.go), and one added without a job from outside the folder shows where it is.
+	videos, err := films.Videos(dir, a.library.Jobs, a.awayPaths(), a.library.AddedIn(dir))
 	if err != nil {
 		a.saveErr = err.Error()
 		return
@@ -659,7 +659,7 @@ func shelfBundle(dir string) bool {
 func (a *app) goneOutside(root string) map[string]bool {
 	var gone map[string]bool
 	for _, job := range a.library.Jobs {
-		if job.VideoPath == "" || job.SubtitlesOnly || !job.Stage.Done() || films.InDir(root, job.VideoPath) || !films.InLibrary(root, job) || a.storedHas(job) {
+		if job.VideoPath == "" || job.SubtitlesOnly || !job.Stage.Done() || films.InDir(root, job.VideoPath) || !films.InLibrary(root, job) || a.storedHas(job) || a.linkedHas(job.VideoPath) {
 			continue
 		}
 		if _, err := os.Stat(job.VideoPath); errors.Is(err, os.ErrNotExist) {
@@ -697,16 +697,16 @@ func (a *app) retargetRenamed() bool {
 		}
 	}
 	for _, job := range a.library.Jobs {
-		// A film that keeps no video has none to be renamed with its folder, and is not paired with a video that turns up (core.Job.SubtitlesOnly); nor has one whose video was moved to a storage location (state_stored.go).
-		if !job.SubtitlesOnly && !a.storedHas(job) {
+		// A film that keeps no video has none to be renamed with its folder, and is not paired with a video that turns up (core.Job.SubtitlesOnly); nor has one whose video was moved to a storage location (state_stored.go) or is on the media source it was indexed from.
+		if !job.SubtitlesOnly && !a.storedHas(job) && !a.linkedHas(job.VideoPath) {
 			add(job.VideoPath)
 		}
 		add(job.SubtitlePath)
 	}
 	// A video no job processed keeps the title given in Kando by its path alone, so its folder renamed in Finder is paired the same way a job's is.
 	for _, path := range slices.Sorted(maps.Keys(a.library.Names)) {
-		// A video no job processed that was moved to a storage location is not missing, and no video that turns up takes its title.
-		if _, stored := a.storedOf(path); !stored {
+		// A video no job processed that was moved to a storage location, or indexed from a media source, is not missing, and no video that turns up takes its title.
+		if _, stored := a.storedOf(path); !stored && !a.linkedHas(path) {
 			add(path)
 		}
 	}
@@ -770,8 +770,8 @@ func (a *app) dropMissing() bool {
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	changed := false
 	for _, job := range a.library.Jobs {
-		// A film whose video was moved to a storage location is kept by library.json's record of where it is, not by a file here (state_stored.go).
-		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && !a.storedHas(job) && shelfVideoGone(root, shelfKept(job)) {
+		// A film whose video was moved to a storage location, or is on the media source it was indexed from, is kept by library.json's record of where it is, not by a file here (state_stored.go, state_mediasource_import.go).
+		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && !a.storedHas(job) && !a.linkedHas(job.VideoPath) && shelfVideoGone(root, shelfKept(job)) {
 			changed = true
 			if a.openKey == job.ID {
 				a.openKey = ""
@@ -790,8 +790,8 @@ func (a *app) dropMissing() bool {
 		owned[job.VideoPath] = true
 	}
 	for path := range a.library.Names {
-		// A video moved to a storage location keeps its title by the path it had (state_stored.go).
-		if _, stored := a.storedOf(path); owned[path] || stored || !films.InDir(root, path) {
+		// A video moved to a storage location keeps its title by the path it had (state_stored.go), and an indexed one by its placeholder.
+		if _, stored := a.storedOf(path); owned[path] || stored || a.linkedHas(path) || !films.InDir(root, path) {
 			continue
 		}
 		if _, err := os.Stat(path); err != nil {
@@ -828,8 +828,8 @@ func (a *app) relocateMissing() bool {
 		if !films.InDir(root, job.VideoPath) {
 			continue
 		}
-		// A video moved to a storage location is not looked for here; its subtitles are, as a film's that keeps no video.
-		stored := a.storedHas(job)
+		// A video moved to a storage location, or indexed from a media source, is not looked for here; its subtitles are, as a film's that keeps no video.
+		stored := a.storedHas(job) || a.linkedHas(job.VideoPath)
 		if next, ok := media.Relocate(root, job.VideoPath); ok && !stored {
 			moved[job.VideoPath] = next
 			a.library.Jobs[i].VideoPath = next

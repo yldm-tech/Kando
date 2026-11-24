@@ -9616,3 +9616,73 @@ mediaSourceImported:
   description: "Note on the Media Sources page once the videos chosen were added to the queue; Processing is the library's tab of jobs under way."
   placeholders:
     count: { type: "int", example: "3" }
+mediaSourceImportCopy:
+  message: "Copy into the library"
+  description: "Choice in the dialog importing videos from a media source: copy the videos onto this computer."
+mediaSourceImportLink:
+  message: "Index only, and play from the source"
+  description: "Choice in the dialog importing videos from a media source: keep the videos where they are and play them from the source."
+mediaSourceImportLinkNote:
+  message: "They take no room on this computer, but playing them and making their subtitles needs {source} to be reachable. Making a video's subtitles reads it through once. Nothing on the source changes."
+  description: "Message of the dialog importing videos from a media source when they are only indexed, not copied."
+  placeholders:
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceImportRemember:
+  message: "Remember my choice"
+  description: "Checkbox in the dialog importing videos from a media source: use the same way next time."
+mediaSourceIndexed:
+  message: "{count, plural, one {Indexed # video. It plays from the source.} other {Indexed # videos. They play from the source.}}"
+  description: "Note on the Media Sources page once the videos chosen were indexed into the library rather than copied."
+  placeholders:
+    count: { type: "int", example: "3" }
+mediaSourceFrom:
+  message: "Plays from {source}"
+  description: "Tooltip of the mark on a film indexed from a media source: its video stays on the source and plays from there."
+  placeholders:
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceRemovedMark:
+  message: "This film's media source is no longer in Settings"
+  description: "Tooltip of the warning mark on a film indexed from a media source that was since removed in Settings > Media Sources; only its lines are left."
+mediaSourceGone:
+  message: "This film's video is on a media source that is no longer in Settings. Its lines can still be studied."
+  description: "Shown in place of the picture when the film was indexed from a media source that was since removed in Settings > Media Sources."
+mediaSourceUnreachable:
+  message: "Couldn't reach {source}, where this film's video is. Its lines can still be studied."
+  description: "Shown in place of the picture when the media source a film was indexed from cannot be reached, as when the NAS is off or the computer is away from home."
+  placeholders:
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceMissing:
+  message: "This film's video is no longer on {source}: it was moved, renamed or deleted there. Its lines can still be studied."
+  description: "Shown in place of the picture when the media source a film was indexed from can be reached but no longer has the video at its path."
+  placeholders:
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceUnplayable:
+  message: "This video can't be played from its media source, even converted for the player. Its lines can still be studied."
+  description: "Shown in place of the picture when neither the system's player nor the copy Kando converts for it from the media source can play a film indexed from there."
+mediaSourceFind:
+  message: "Find It on the Source"
+  description: "Button under the note of a film whose video is no longer at its path on the media source: opens the Media Sources page at its folder to choose where it is now."
+mediaSourceRelinking:
+  message: "Choose where the video of “{name}” is now."
+  description: "Note on the Media Sources page while the user looks for the new place of an indexed film's video that is no longer at its path; pressing a video points the film at it."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+mediaSourceRelinked:
+  message: "“{name}” plays from its new place."
+  description: "Note on the Media Sources page once an indexed film was pointed at the new place of its video."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+mediaSourceChanged:
+  message: "This file changed on {source} since its lines were made, so they may not match."
+  description: "Bar over the picture of a film indexed from a media source whose file has a different size or version than when it was indexed."
+  placeholders:
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceChangedKeep:
+  message: "Got It"
+  description: "Button of the bar saying an indexed film's file changed on its media source: keep the subtitles and take the file as it is now."
+mediaSourceLinkedMove:
+  message: "“{name}” plays from {source}, where it was indexed from, so it stays in this library."
+  description: "Message bar when a film indexed from a media source is to be moved to another library; its video stays on the source and its record belongs to this library."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+    source: { type: "String", example: "Living Room NAS" }

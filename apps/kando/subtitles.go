@@ -28,9 +28,33 @@ const (
 	playerErrStoredUnreachable = film.ErrStoredUnreachable
 	playerErrStoredMissing     = film.ErrStoredMissing
 	playerErrStoredUnplayable  = film.ErrStoredUnplayable
+	// A film indexed from a media source (playerLinked): the source is no longer in the settings, could not be reached, no longer has the video, or the system's player cannot play it from there. Their words name the source (playerErrText).
+	playerErrLinkedGone        = film.ErrLinkedGone
+	playerErrLinkedUnreachable = film.ErrLinkedUnreachable
+	playerErrLinkedMissing     = film.ErrLinkedMissing
+	playerErrLinkedUnplayable  = film.ErrLinkedUnplayable
 	// A done film whose video is not on disk now (playerMissing).
 	playerErrVideoMissing = film.ErrVideoMissing
 )
+
+// playerErrText is playerErrTextIn, naming the media source of the open film, indexed from one, where the error is about it.
+func (a *app) playerErrText(m locales.Messages, id string) string {
+	name := ""
+	if l, ok := a.linkedOf(a.player.playPath); ok {
+		name = a.mediaSourceName(l.Source)
+	}
+	switch id {
+	case playerErrLinkedGone:
+		return m.MediaSourceGone()
+	case playerErrLinkedUnreachable:
+		return m.MediaSourceUnreachable(name)
+	case playerErrLinkedMissing:
+		return m.MediaSourceMissing(name)
+	case playerErrLinkedUnplayable:
+		return m.MediaSourceUnplayable()
+	}
+	return playerErrTextIn(m, id)
+}
 
 // playerErrTextIn is what the page says for one of the errors above in the language of m, as the page says it (ErrText) and the feedback issue says it in the language it is written in; any other text shows as it is.
 func playerErrTextIn(m locales.Messages, id string) string {

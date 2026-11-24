@@ -91,3 +91,17 @@ func reservedName(base string) bool {
 	}
 	return false
 }
+
+// LinkedPath is where an indexed film's video is said to be in the library dir, as a copy of it would be put (Copier.Copy): its Placeholder, a video at the root of its source in a folder of its own named as the video, as video.<ext> (ownFolder). taken reports a path in use, as another film's.
+func LinkedPath(dir, sourceName, p string, taken func(string) bool) (string, error) {
+	placeholder, err := Placeholder(dir, sourceName, p, func(p string) bool {
+		if own := ownFolder(dir, p); own != p {
+			return taken(own) || taken(filepath.Dir(own))
+		}
+		return taken(p)
+	})
+	if err != nil {
+		return "", err
+	}
+	return ownFolder(dir, placeholder), nil
+}

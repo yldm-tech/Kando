@@ -29,6 +29,8 @@ type filmPlay struct {
 	// stored is set for a video moved to a storage location, which source plays through the proxy, "" while it is looked up (playerStored); storedURL is the proxy's address of it, which the copy the system's player can open is made from (playerRemux), revoked once the page moves on from the video (dropPlayback).
 	stored    bool
 	storedURL string
+	// linked is set for a film indexed from a media source, whose video source plays through the loopback server from the source, as a stored one does, storedURL being its address there, revoked with the sources' pool (playerLinked).
+	linked bool
 	// remux is the step the copy in source was made by, 0 for the video itself. While it is made, remuxAt is how far into the video ffmpeg got, of remuxLength, the video's length, 0 when that is not known.
 	remux       film.RemuxStep
 	remuxAt     time.Duration
@@ -114,6 +116,9 @@ func (a *app) startPlayback(path string) {
 		return
 	}
 	if !opens && a.playerStored(path, at, jump) {
+		return
+	}
+	if !opens && a.playerLinked(path, at, jump) {
 		return
 	}
 	if !opens && a.playerMissing(path) {
@@ -247,10 +252,14 @@ func (a *app) playerFailed(err error) {
 	}
 	// A video on a storage location is copied as one on disk is, ffmpeg reading it through the proxy.
 	unplayable := playerErrUnplayable
-	if p.stored {
+	switch {
+	case p.linked:
+		log.Printf("player: the system's player cannot play %s from its media source: %v", filepath.Base(p.path), err)
+		unplayable = playerErrLinkedUnplayable
+	case p.stored:
 		log.Printf("player: the system's player cannot play %s from its storage location: %v", filepath.Base(p.path), err)
 		unplayable = playerErrStoredUnplayable
-	} else {
+	default:
 		log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)
 	}
 	if film.MissingPlugins(err) {
@@ -275,7 +284,7 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	ffmpeg := a.ffmpegPath()
 	src := p.path
 	switch {
-	case p.stored:
+	case p.stored || p.linked:
 		src = p.storedURL
 	case p.standIn != "":
 		src = p.standIn
@@ -303,7 +312,10 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	a.player.remuxStop = stop
 	update, length := a.update, p.remuxLength
 	unplayable := playerErrUnplayable
-	if p.stored {
+	switch {
+	case p.linked:
+		unplayable = playerErrLinkedUnplayable
+	case p.stored:
 		unplayable = playerErrStoredUnplayable
 	}
 	// Each whole percent ffmpeg gets further goes to the engine's goroutine.
@@ -353,6 +365,11 @@ func (a *app) playerRemuxPath(dir string, p *filmPlay, step film.RemuxStep) (str
 		id := strings.Join([]string{s.Location, s.Path, strconv.FormatInt(s.Size, 10), strconv.FormatInt(s.Moved.UnixNano(), 10)}, "\x00")
 		return film.RemuxPathOf(dir, id, step), nil
 	}
+	// An indexed film's copy goes by the file on its source, which a file changed there makes anew.
+	if l, ok := a.linkedOf(p.path); ok && p.linked {
+		id := strings.Join([]string{"source", l.Source, l.Path, strconv.FormatInt(l.Size, 10), l.Version}, "\x00")
+		return film.RemuxPathOf(dir, id, step), nil
+	}
 	if p.standIn != "" {
 		return film.RemuxPath(dir, p.standIn, step)
 	}
@@ -368,6 +385,9 @@ func (a *app) playerRemuxText(m locales.Messages) string {
 	percent := min(int(p.remuxAt*100/p.remuxLength), 99)
 	if s, ok := a.storedOf(p.path); ok && p.stored {
 		return m.PlayerRemuxingFrom(a.storedName(m, s.Location), percent)
+	}
+	if l, ok := a.linkedOf(p.path); ok && p.linked {
+		return m.PlayerRemuxingFrom(a.mediaSourceName(l.Source), percent)
 	}
 	return m.PlayerRemuxing(percent)
 }
@@ -479,8 +499,13 @@ func (a *app) dropPlayback() {
 	play := a.player.play
 	if play != nil && play.storedURL != "" {
 		// The loopback proxy stops serving the video once the page moves on from it, so its address reads nothing after.
-		a.stored.pool.Revoke(play.storedURL)
+		if play.linked {
+			a.sources.pool.Revoke(play.storedURL)
+		} else {
+			a.stored.pool.Revoke(play.storedURL)
+		}
 	}
+	a.player.linkedChanged = nil
 	a.player.play = nil
 	a.player.playPath = ""
 	a.player.playErr = ""

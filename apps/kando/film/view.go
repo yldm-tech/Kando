@@ -126,6 +126,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 			s.correcting(),
 			s.lookupCard(),
 			s.streamCard(),
+			s.changedBar(),
 			s.recapCard(),
 			s.nextCard(),
 			s.osd(),
@@ -262,6 +263,7 @@ func (s *screen) stage() core.Node {
 						}},
 						s.pluginsRemedy(note),
 						s.unplayableRemedy(note),
+						s.linkedRemedy(note),
 					}}
 			}},
 		},
@@ -295,7 +297,7 @@ func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
 func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
 	a := s.a
 	return core.Show{When: func() bool {
-		return note().err != "" && note().err != ErrStoredUnplayable && note().err != ErrVideoMissing && a.PlayPath() != ""
+		return note().err != "" && note().err != ErrStoredUnplayable && note().err != ErrVideoMissing && !linkedErr(note().err) && a.PlayPath() != ""
 	}, Then: func(cx *core.Scope) core.Node {
 		stored := core.NewMemo(cx, func() bool {
 			switch note().err {

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"strings"
 	"time"
 
 	"kando/apps/kando/storage"
@@ -63,6 +64,27 @@ func ValidID(id string) bool {
 	}
 	for _, c := range []byte(id) {
 		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+// addressKeys are the fields that say where a source's files are, whatever the user and the secrets: its server, port, share, folder, and a plugin's source's endpoint.
+var addressKeys = []string{SMBHost, SMBPort, SMBShare, SMBRoot, EndpointKey}
+
+// SameAddress reports whether a and b reach the same files: the same kind, server (ignoring case), port, share, folder and endpoint, whoever signs in. A source added back at the address of one removed while films were indexed from it takes its ID back by it, so those films play from it again.
+func SameAddress(a, b Source) bool {
+	if a.Kind != b.Kind {
+		return false
+	}
+	for _, key := range addressKeys {
+		x := strings.Trim(strings.TrimSpace(a.Config[key]), `/\`)
+		y := strings.Trim(strings.TrimSpace(b.Config[key]), `/\`)
+		if key == SMBHost {
+			x, y = strings.ToLower(x), strings.ToLower(y)
+		}
+		if x != y {
 			return false
 		}
 	}

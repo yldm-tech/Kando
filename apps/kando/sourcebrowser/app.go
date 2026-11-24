@@ -34,8 +34,10 @@ type App interface {
 	// OpenMediaSourceSettings opens Settings › 媒体来源, where a source is added.
 	OpenMediaSourceSettings()
 
-	// MediaBrowseImport is the dialog importing the videos chosen, Open false while it is closed; StartMediaBrowseImport queues them and closes it, CancelMediaBrowseImport closes it.
+	// MediaBrowseImport is the dialog importing the videos chosen, Open false while it is closed; ChooseMediaBrowseImportLink picks how they are imported, indexed and played from the source (true) or copied into the library, and RememberMediaBrowseImport whether that way is kept for the next import; StartMediaBrowseImport imports them and closes it, CancelMediaBrowseImport closes it.
 	MediaBrowseImport() Import
+	ChooseMediaBrowseImportLink(link bool)
+	RememberMediaBrowseImport(on bool)
 	StartMediaBrowseImport()
 	CancelMediaBrowseImport()
 }
@@ -56,10 +58,12 @@ type Entry struct {
 	Chosen     bool
 }
 
-// Import is the dialog importing the videos chosen: how many, from which source, and how many bytes their copies take.
+// Import is the dialog importing the videos chosen: how many, from which source, how many bytes their copies take, whether they are only indexed and played from the source (Link) rather than copied, and whether that choice is remembered for the next import.
 type Import struct {
-	Open   bool
-	Count  int
-	Source string
-	Size   int64
+	Open     bool
+	Count    int
+	Source   string
+	Size     int64
+	Link     bool
+	Remember bool
 }

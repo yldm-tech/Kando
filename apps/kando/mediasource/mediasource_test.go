@@ -357,3 +357,42 @@ func TestPlaceholderStaysInTheLibrary(t *testing.T) {
 		}
 	}
 }
+
+// SameAddress tells sources that reach the same files apart from others, whoever signs in, the server's name in any case and the folders with or without slashes.
+func TestSameAddress(t *testing.T) {
+	nas := Source{Kind: KindSMB, Config: map[string]string{SMBHost: "NAS.local", SMBShare: "media", SMBRoot: "/films/", SMBUser: "anna"}}
+	same := Source{Kind: KindSMB, Config: map[string]string{SMBHost: "nas.local", SMBShare: "media/", SMBRoot: "films", SMBUser: "ben", SMBNoSigning: "true"}}
+	if !SameAddress(nas, same) {
+		t.Fatal("the same share read as another")
+	}
+	for name, other := range map[string]Source{
+		"kind":  {Kind: "sftp", Config: same.Config},
+		"host":  {Kind: KindSMB, Config: map[string]string{SMBHost: "nas2.local", SMBShare: "media", SMBRoot: "films"}},
+		"share": {Kind: KindSMB, Config: map[string]string{SMBHost: "nas.local", SMBShare: "music", SMBRoot: "films"}},
+		"root":  {Kind: KindSMB, Config: map[string]string{SMBHost: "nas.local", SMBShare: "media"}},
+		"port":  {Kind: KindSMB, Config: map[string]string{SMBHost: "nas.local", SMBShare: "media", SMBRoot: "films", SMBPort: "4450"}},
+	} {
+		if SameAddress(nas, other) {
+			t.Errorf("another %s read as the same", name)
+		}
+	}
+}
+
+// LinkedPath puts an indexed video where its copy would go: under the source's folder, a video at the source's root in a folder of its own as video.<ext>, numbered when taken.
+func TestLinkedPath(t *testing.T) {
+	dir := filepath.Join(string(filepath.Separator), "lib")
+	taken := map[string]bool{}
+	is := func(p string) bool { return taken[p] }
+	deep, err := LinkedPath(dir, "NAS", "Films/Heat.mkv", is)
+	if err != nil || deep != filepath.Join(dir, "NAS", "Films", "Heat.mkv") {
+		t.Fatalf("a deep video: %q %v", deep, err)
+	}
+	root, err := LinkedPath(dir, "NAS", "Heat.mkv", is)
+	if err != nil || root != filepath.Join(dir, "NAS", "Heat", "video.mkv") {
+		t.Fatalf("a video at the root: %q %v", root, err)
+	}
+	taken[filepath.Join(dir, "NAS", "Heat")] = true
+	if again, err := LinkedPath(dir, "NAS", "Heat.mkv", is); err != nil || again != filepath.Join(dir, "NAS", "Heat (2)", "video.mkv") {
+		t.Fatalf("a taken folder: %q %v", again, err)
+	}
+}

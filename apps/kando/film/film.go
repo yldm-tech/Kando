@@ -31,6 +31,7 @@ type App interface {
 	Nexter
 	Tasker
 	Extender
+	Linker
 	OpenKey() string
 	SetOpenKey(string)
 	StopPlayback()

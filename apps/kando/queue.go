@@ -506,6 +506,9 @@ func (a *app) startFilm(item films.Film) {
 		}
 		return
 	}
+	if id == "" {
+		return
+	}
 	if item.SubtitlePath == "" && a.untranslatable() {
 		a.warn(m.LibraryAddedUntranslated(), settings.SectionAI)
 	}
@@ -520,6 +523,9 @@ func (a *app) startFilm(item films.Film) {
 func (a *app) queueFromFolderChecked(item films.Film) (id, msg, section string) {
 	if err := a.storedNeedsFile(a.messages(), item.VideoPath, films.Name(item), locales.Messages.StoredReprocess); err != nil {
 		return "", err.Error(), ""
+	}
+	if id, msg, section, linked := a.linkedQueue(item); linked {
+		return id, msg, section
 	}
 	msg, section = a.precheck([]string{core.FileURL(item.VideoPath)})
 	if msg != "" {

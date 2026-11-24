@@ -236,7 +236,7 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 	}
 }
 
-// ImportDialog is the dialog over the window that imports the videos chosen on the page: how many, from where, that they are copied and how much room that takes, with 取消 and 导入.
+// ImportDialog is the dialog over the window that imports the videos chosen on the page: how many and from where; whether they are copied into the library or only indexed and played from the source, with what each way means, the copies' room or that the source must be reachable; whether that way is remembered; with 取消 and 导入.
 type ImportDialog struct{ App App }
 
 // Render implements core.Node.
@@ -244,20 +244,35 @@ func (d ImportDialog) Render(cx *core.Scope) core.Node {
 	a := d.App
 	in := core.NewMemo(cx, live.Func(a, a.MediaBrowseImport))
 	cancel := live.Do(a, a.CancelMediaBrowseImport)
+	colors := ui.ColorsOf(cx)
 	return core.Show{When: func() bool { return in.Get().Open }, Then: func(cx *core.Scope) core.Node {
 		// Its words are read as it is built, so it is built again when the interface's language changes.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			_ = i18n.Language(cx)
 			x := core.Untracked(cx, in.Get)
+			choose := live.On(a, a.ChooseMediaBrowseImportLink)
+			ways := ui.RadioGroup{Label: locales.MediaSourceImportTitle(cx, x.Count, x.Source), TestID: "media-sources-import-way", Children: []core.Node{
+				ui.Radio{Text: locales.MediaSourceImportCopy(cx), TestID: "media-sources-import-copy", Checked: func() bool { return !in.Get().Link }, OnChange: func(bool) { choose(false) }},
+				ui.Radio{Text: locales.MediaSourceImportLink(cx), TestID: "media-sources-import-link", Checked: func() bool { return in.Get().Link }, OnChange: func(bool) { choose(true) }},
+			}}
+			note := core.Text{TestID: "media-sources-import-note", Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted),
+				ContentFunc: func() string {
+					if x := in.Get(); x.Link {
+						return locales.MediaSourceImportLinkNote(cx, x.Source)
+					}
+					return locales.MediaSourceImportCopyNote(cx, ByteSize(in.Get().Size))
+				}}
+			remember := ui.Checkbox{Text: locales.MediaSourceImportRemember(cx), TestID: "media-sources-import-remember", Checked: func() bool { return in.Get().Remember },
+				OnChange: live.On(a, a.RememberMediaBrowseImport)}
 			return ui.Dialog{TestID: "media-sources-import-dialog", Open: func() bool { return true }, NoCloseOnBackdropPress: true,
-				Title:       locales.MediaSourceImportTitle(cx, x.Count, x.Source),
-				Description: locales.MediaSourceImportCopyNote(cx, ByteSize(x.Size)),
+				Title: locales.MediaSourceImportTitle(cx, x.Count, x.Source),
 				OnOpenChange: func(open bool, _ base.Reason) {
 					if !open {
 						cancel()
 					}
 				},
-				Style: core.Style{Width: core.Pt(440)},
+				Style:    core.Style{Width: core.Pt(460)},
+				Children: []core.Node{core.View{Style: core.Style{Gap: 12}, Children: []core.Node{ways, note, remember}}},
 				Footer: []core.Node{
 					ui.Button{Text: locales.MediaSourceCancel(cx), Variant: ui.ButtonSecondary, TestID: "media-sources-import-cancel", OnPress: cancel},
 					ui.Button{Text: locales.MediaSourceImportStart(cx), TestID: "media-sources-import-start", OnPress: live.Do(a, a.StartMediaBrowseImport)},

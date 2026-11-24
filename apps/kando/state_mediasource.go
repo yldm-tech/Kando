@@ -44,6 +44,10 @@ type mediaSourceUI struct {
 	pool      *mediasource.Pool
 	browse    mediaSourceBrowse
 	localHost func(ctx context.Context, host string) (bool, error)
+	// removed are the sources removed while films were indexed from them, without their secrets (saved too), so one added back at the same address takes its ID back and those films play again (mediaSourceRelinkID). importLink is the way of importing the user asked to remember (mediaSourceImportWays): index and play from the source when set, else copy; rememberImport is whether they asked.
+	removed        []mediasource.Source
+	importLink     bool
+	rememberImport bool
 }
 
 // mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
@@ -87,10 +91,18 @@ const mediaSourceSecretsPartition = "mediasource"
 // mediaSourceSecretAccount is the account of the secure store a source's secret field key is kept under.
 func mediaSourceSecretAccount(id, key string) string { return id + "." + key }
 
-// savedMediaSources is the media sources' part of settings.json: each source's ID, kind, name and the values of its fields that are not secret. A secret is never here: the system's secure store keeps it (mediaSourceSecrets).
+// savedMediaSources is the media sources' part of settings.json: each source's ID, kind, name and the values of its fields that are not secret, and the same of those removed while films were indexed from them (RemovedMediaSources); and the way of importing the user asked to remember (MediaSourceImport, mediaSourceImportWays), "" while they did not. A secret is never here: the system's secure store keeps it (mediaSourceSecrets).
 type savedMediaSources struct {
-	MediaSources []savedMediaSource `json:"mediaSources,omitempty"`
+	MediaSources        []savedMediaSource `json:"mediaSources,omitempty"`
+	RemovedMediaSources []savedMediaSource `json:"removedMediaSources,omitempty"`
+	MediaSourceImport   string             `json:"mediaSourceImport,omitempty"`
 }
+
+// The ways of importing a media source's videos the user can ask Kando to remember (savedMediaSources.MediaSourceImport).
+const (
+	mediaSourceImportCopy = "copy"
+	mediaSourceImportLink = "link"
+)
 
 // savedMediaSource is one media source in settings.json.
 type savedMediaSource struct {
@@ -100,11 +112,20 @@ type savedMediaSource struct {
 	Config map[string]string `json:"config,omitempty"`
 }
 
-// clean drops a source without an ID of NewID's shape, a kind or a name, and the second of two with the same ID, and trims the rest. A built-in kind's source keeps only the values of its fields that are not secret, so a secret written here by hand is not kept; a source of a kind this version does not know, as a plugin's that is not loaded, keeps its values as they are, so the films imported from it keep their source.
+// clean drops a source without an ID of NewID's shape, a kind or a name, and the second of two with the same ID, and trims the rest. A built-in kind's source keeps only the values of its fields that are not secret, so a secret written here by hand is not kept; a source of a kind this version does not know, as a plugin's that is not loaded, keeps its values as they are, so the films imported from it keep their source. A removed source is kept alike, but none with the ID of one in the settings; a way of importing Kando does not know is dropped.
 func (s *savedMediaSources) clean() {
 	seen := map[string]bool{}
-	kept := s.MediaSources[:0]
-	for _, m := range s.MediaSources {
+	s.MediaSources = cleanMediaSources(s.MediaSources, seen)
+	s.RemovedMediaSources = cleanMediaSources(s.RemovedMediaSources, seen)
+	if s.MediaSourceImport != mediaSourceImportCopy && s.MediaSourceImport != mediaSourceImportLink {
+		s.MediaSourceImport = ""
+	}
+}
+
+// cleanMediaSources is list cleaned as clean says, without the IDs seen already, which it adds to seen.
+func cleanMediaSources(list []savedMediaSource, seen map[string]bool) []savedMediaSource {
+	kept := list[:0]
+	for _, m := range list {
 		m.ID, m.Kind, m.Name = strings.TrimSpace(m.ID), strings.TrimSpace(m.Kind), strings.TrimSpace(m.Name)
 		if !mediasource.ValidID(m.ID) || m.Kind == "" || m.Name == "" || seen[m.ID] {
 			continue
@@ -116,9 +137,9 @@ func (s *savedMediaSources) clean() {
 		kept = append(kept, m)
 	}
 	if len(kept) == 0 {
-		kept = nil
+		return nil
 	}
-	s.MediaSources = kept
+	return kept
 }
 
 // mediaSourceConfig is values kept to the fields of k that are not secret, each trimmed, without the empty ones; nil for none.
@@ -140,19 +161,48 @@ func mediaSourceConfig(k mediasource.Kind, values map[string]string) map[string]
 	return out
 }
 
+// saveMediaSources writes the sources, those removed that films are still indexed from (mediaSourceLinkedCount), and the way of importing remembered, to settings.json.
 func (a *app) saveMediaSources(saved *savedSettings) {
+	out := savedMediaSources{MediaSources: savedMediaSourcesOf(a.sources.list)}
+	var removed []mediasource.Source
+	for _, s := range a.sources.removed {
+		if a.mediaSourceLinkedCount(s.ID) > 0 {
+			removed = append(removed, s)
+		}
+	}
+	out.RemovedMediaSources = savedMediaSourcesOf(removed)
+	if a.sources.rememberImport {
+		out.MediaSourceImport = mediaSourceImportCopy
+		if a.sources.importLink {
+			out.MediaSourceImport = mediaSourceImportLink
+		}
+	}
+	saved.savedMediaSources = out
+}
+
+// savedMediaSourcesOf is list as settings.json keeps it.
+func savedMediaSourcesOf(list []mediasource.Source) []savedMediaSource {
 	var out []savedMediaSource
-	for _, s := range a.sources.list {
+	for _, s := range list {
 		out = append(out, savedMediaSource{ID: s.ID, Kind: s.Kind, Name: s.Name, Config: maps.Clone(s.Config)})
 	}
-	saved.savedMediaSources = savedMediaSources{MediaSources: out}
+	return out
+}
+
+// mediaSourcesOfSaved is list as the app holds it.
+func mediaSourcesOfSaved(list []savedMediaSource) []mediasource.Source {
+	var out []mediasource.Source
+	for _, s := range list {
+		out = append(out, mediasource.Source{ID: s.ID, Kind: s.Kind, Name: s.Name, Config: maps.Clone(s.Config)})
+	}
+	return out
 }
 
 func (a *app) restoreMediaSources(saved savedSettings) {
-	a.sources.list = nil
-	for _, s := range saved.MediaSources {
-		a.sources.list = append(a.sources.list, mediasource.Source{ID: s.ID, Kind: s.Kind, Name: s.Name, Config: maps.Clone(s.Config)})
-	}
+	a.sources.list = mediaSourcesOfSaved(saved.MediaSources)
+	a.sources.removed = mediaSourcesOfSaved(saved.RemovedMediaSources)
+	a.sources.rememberImport = saved.MediaSourceImport != ""
+	a.sources.importLink = saved.MediaSourceImport == mediaSourceImportLink
 }
 
 // mediaSourceSecrets are what of the media sources must not leave the machine, as in the log or a feedback issue: the values of each one's text fields, as its server, share, folder, user and domain, and what the dialog holds in its text and secret fields, its secrets among them. Ports, switches and a server's public key say nothing of where the source is or who signs in. The secrets of the sources saved are in the system's secure store, never in the app, so they cannot leak from here.
@@ -189,12 +239,13 @@ func (m mediaSourceUI) mediaSourceSecrets() []string {
 	return out
 }
 
-// mediaSourceHooks: the sources are saved in settings.json and taken back at startup. Their connections are made with the secure store, which the app's scope gives once the window exists, so the jobs left waiting from the last run copy their videos then; they all close as the app quits. After each change, the settings' dialog and confirmation close when the page that draws them went away (mediaSourceModals), and the 媒体来源 page follows a source removed and closes its import dialog once it went away (mediaSourceBrowseFollow).
+// mediaSourceHooks: the sources are saved in settings.json and taken back at startup, and the length of each indexed video, which no file here tells, is known again from library.json as the shelf is read (linkedLengths). Their connections are made with the secure store, which the app's scope gives once the window exists, so the jobs left waiting from the last run copy their videos then; they all close as the app quits. After each change, the settings' dialog and confirmation close when the page that draws them went away (mediaSourceModals), and the 媒体来源 page follows a source removed and closes its import dialog once it went away (mediaSourceBrowseFollow).
 func (a *app) mediaSourceHooks() areaHooks {
 	return areaHooks{
-		save:    a.saveMediaSources,
-		restore: a.restoreMediaSources,
-		ready:   a.mediaSourcePoolSync,
+		save:        a.saveMediaSources,
+		restore:     a.restoreMediaSources,
+		shelfLoaded: a.linkedLengths,
+		ready:       a.mediaSourcePoolSync,
 		afterChange: func() bool {
 			modals := a.mediaSourceModals()
 			return a.mediaSourceBrowseFollow() || modals
@@ -363,7 +414,7 @@ func (a *app) saveMediaSourceDraft() {
 		s.Name = mediasource.Host(s)
 	}
 	if s.ID == "" {
-		s.ID = mediasource.NewID()
+		s.ID = a.mediaSourceRelinkID(s)
 	}
 	m.problem = nil
 	if len(secrets) == 0 {
@@ -463,14 +514,14 @@ func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, w mediaSourc
 // mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written. It reports whether settings.json took s.
 func (a *app) mediaSourceCommit(s mediasource.Source) bool {
 	m := &a.sources
-	before := slices.Clone(m.list)
+	before, removed := slices.Clone(m.list), slices.Clone(m.removed)
 	if i := a.mediaSourceIndex(s.ID); i >= 0 {
 		m.list[i] = s
 	} else {
 		m.list = append(m.list, s)
 	}
 	if err := a.saveSettings(); err != nil {
-		m.list = before
+		m.list, m.removed = before, removed
 		m.problem = locales.Messages.SettingsSourcesSaveFailed
 		return false
 	}
@@ -493,7 +544,7 @@ func (a *app) askRemoveMediaSource(id string) {
 	}
 }
 
-// answerRemoveMediaSource answers the confirmation and gives back its modal flag: yes removes the source, saves settings.json and, once it did, forgets its secrets off the engine's goroutine; a settings.json that cannot be written keeps the source, its secrets with it, and says so. Nothing on the source is touched, and the films copied from it stay as they are.
+// answerRemoveMediaSource answers the confirmation and gives back its modal flag: yes removes the source, saves settings.json and, once it did, forgets its secrets off the engine's goroutine; a settings.json that cannot be written keeps the source, its secrets with it, and says so. Nothing on the source is touched, the films copied from it stay as they are, and those indexed from it keep their lines, its address kept without its secrets so adding it back plays them again.
 func (a *app) answerRemoveMediaSource(yes bool) {
 	m := &a.sources
 	id := m.removing
@@ -506,10 +557,14 @@ func (a *app) answerRemoveMediaSource(yes bool) {
 	if !yes || i < 0 {
 		return
 	}
-	gone, before := m.list[i], slices.Clone(m.list)
+	gone, before, removed := m.list[i], slices.Clone(m.list), slices.Clone(m.removed)
 	m.list = slices.Delete(m.list, i, i+1)
+	// Where it was is kept without its secrets while films are indexed from it, so adding it back at the same address finds them again (mediaSourceRelinkID).
+	if a.mediaSourceLinkedCount(id) > 0 {
+		m.removed = append(m.removed, mediasource.Source{ID: gone.ID, Kind: gone.Kind, Name: gone.Name, Config: maps.Clone(gone.Config)})
+	}
 	if err := a.saveSettings(); err != nil {
-		m.list = before
+		m.list, m.removed = before, removed
 		a.saveErr = a.messages().SettingsSourcesSaveFailed()
 		return
 	}

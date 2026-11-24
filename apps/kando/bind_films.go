@@ -406,7 +406,7 @@ func (a *app) JobFilm(id string) (films.Film, bool) {
 	if !ok || a.lockHidesJob(job) {
 		return films.Film{}, false
 	}
-	return storedMark([]films.Film{films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job))}, a.library.Stored)[0], true
+	return linkedMark(storedMark([]films.Film{films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job))}, a.library.Stored), a.library.Linked)[0], true
 }
 
 func (a *app) Notice() *films.Notice { return &a.lib.notice }
@@ -490,7 +490,7 @@ func filmFiles(root string, item films.Film) []string {
 	}
 	// A film that keeps no video (core.Job.SubtitlesOnly) has none where its sound was, to go with its subtitles, nor has one whose video was moved to a storage location, whose copy there is removed as it leaves the shelf (storedForget).
 	files := []string{video}
-	if item.SubtitlesOnly || item.Stored != "" {
+	if item.SubtitlesOnly || item.Stored != "" || item.Linked != "" {
 		files = nil
 	}
 	for _, sub := range append(append([]string{item.SubtitlePath}, media.Companions(video)...), media.SameNamed(video)...) {
@@ -507,7 +507,7 @@ func (a *app) films() []films.Film {
 		return nil
 	}
 	shot := a.snap()
-	return goneMark(storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored), shot.Gone)
+	return goneMark(linkedMark(storedMark(films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf), a.library.Stored), a.library.Linked), shot.Gone)
 }
 
 // goneMark sets Missing on each of items whose video is one of gone, the videos kept outside the library that are not on disk now (session.Gone).

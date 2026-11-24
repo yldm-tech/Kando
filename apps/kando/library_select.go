@@ -181,6 +181,7 @@ func (a *app) libraryForget(root string, items []films.Film) {
 		// A video added without a job leaves the library and stays where it is.
 		named = a.library.Unadd(root, item.VideoPath) || named
 		a.storedForget(item)
+		a.linkedForget(item)
 		if item.JobID != "" {
 			a.remove(item.JobID)
 		}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
@@ -267,5 +269,77 @@ func TestCopierGivesAVideoAtTheRootAFolderOfItsOwn(t *testing.T) {
 	again, err := Copier{Pool: &p}.Copy(context.Background(), ref, dir)
 	if want := filepath.Join(dir, "NAS", "Heat (2)", "video.mkv"); err != nil || again != want {
 		t.Fatalf("again %q, %v; want %q", again, err, want)
+	}
+}
+
+// A Pool serves a source's video on the loopback address by ranges, gives ErrNotExist for a file the source lacks, stops serving it once its address is given back, connects again after a read failed, and serves it to a phone through Handler, 502 while the source cannot be reached.
+func TestPoolStreams(t *testing.T) {
+	ctx := context.Background()
+	var opened []*memDriver
+	reachable := true
+	k := testKind(func() (Driver, error) {
+		if !reachable {
+			return nil, errors.New("no route to host")
+		}
+		d := &memDriver{files: map[string]string{"Films/Heat.mkv": "0123456789"}}
+		opened = append(opened, d)
+		return d, nil
+	})
+	p := &Pool{}
+	defer p.Close()
+	p.Set([]Source{{ID: "s1", Kind: "test", Name: "NAS"}}, func(id string) (Kind, bool) { return k, id == "test" }, func(ctx context.Context, k Kind, s Source) (Driver, error) {
+		return k.Open(ctx, s, nil)
+	})
+	if _, err := p.URL(ctx, "s1", "Films/Gone.mkv"); !errors.Is(err, ErrNotExist) {
+		t.Fatalf("a file the source lacks: %v", err)
+	}
+	link, err := p.URL(ctx, "s1", "Films/Heat.mkv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(link, "http://127.0.0.1:") || !strings.HasSuffix(link, "/Heat.mkv") {
+		t.Fatalf("address %q", link)
+	}
+	get := func(link, rng string) (int, string) {
+		req, _ := http.NewRequest(http.MethodGet, link, nil)
+		if rng != "" {
+			req.Header.Set("Range", rng)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		body, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(body)
+	}
+	if code, body := get(link, "bytes=3-5"); code != http.StatusPartialContent || body != "345" {
+		t.Fatalf("a range: %d %q", code, body)
+	}
+	// A read that fails, which the server finds once it answered with the file's headers, drops the connection, and the next read makes another.
+	opened[0].failOn = "Films/Heat.mkv"
+	if _, body := get(link, "bytes=0-1"); body == "01" {
+		t.Fatal("a failed read was answered")
+	}
+	if code, body := get(link, ""); code != http.StatusOK || body != "0123456789" || len(opened) != 2 {
+		t.Fatalf("after the connection failed: %d %q, %d connections", code, body, len(opened))
+	}
+	p.Revoke(link)
+	if code, _ := get(link, ""); code != http.StatusNotFound {
+		t.Fatalf("a revoked address answered %d", code)
+	}
+
+	serve := func() int {
+		rec := httptest.NewRecorder()
+		p.Handler("s1", "Films/Heat.mkv").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/films/x/video", nil))
+		return rec.Code
+	}
+	if code := serve(); code != http.StatusOK {
+		t.Fatalf("the phone's request: %d", code)
+	}
+	p.Forget("s1")
+	reachable = false
+	if code := serve(); code != http.StatusBadGateway {
+		t.Fatalf("an unreachable source answered the phone %d", code)
 	}
 }
