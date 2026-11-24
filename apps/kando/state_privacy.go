@@ -53,16 +53,17 @@ func (a *app) privacyHooks() areaHooks {
 	}
 }
 
-// privacyApply gives the pipeline offline mode as it is. Every change of the tools starts from the pipeline's, so they keep it.
+// privacyApply gives the pipeline offline mode as it is, and the switch the copies of the tools and Phone Sync read (privacyUI.now). Every change of the tools starts from the pipeline's, so they keep it.
 func (a *app) privacyApply() {
-	tools, ok := a.pipeline.(media.Tools)
-	if !ok {
-		return
-	}
+	// The switch is kept whatever the pipeline, as Phone Sync reads it too, to keep a media source on the internet closed (mediaSourcePhoneHandler).
 	if a.privacy.now == nil {
 		a.privacy.now = new(atomic.Bool)
 	}
 	a.privacy.now.Store(a.privacy.offline)
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok {
+		return
+	}
 	tools.Offline = a.privacy.offline
 	tools.Translator.Offline = a.privacy.offline
 	tools.OfflineSwitch = a.privacy.now

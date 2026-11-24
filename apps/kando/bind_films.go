@@ -450,7 +450,7 @@ func (a *app) AskRemove(items ...films.Film) {
 	a.lib.removeFolder = false
 	if len(items) == 1 {
 		item := items[0]
-		files := filmFiles(a.snap().LibraryDir, item)
+		files := filmFiles(a.snap().LibraryDir, item, a.awayPaths())
 		a.lib.removeFolder = len(files) == 1 && files[0] == filepath.Dir(item.VideoPath)
 	}
 	a.lib.removeOpen = true
@@ -479,13 +479,13 @@ func (a *app) libraryCloseRemove() {
 var trashItem = desktop.Trash
 
 // filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video, its subtitles, the hidden files a job keeps beside it (media.Companions) and the media files of its name, its own sound (media.SameNamed), so none is left behind in the folder. A video outside the library has none.
-func filmFiles(root string, item films.Film) []string {
+func filmFiles(root string, item films.Film, away []string) []string {
 	video := item.VideoPath
 	if video == "" || !films.InDir(root, video) {
 		return nil
 	}
 	dir := filepath.Dir(video)
-	if films.InDir(root, dir) && films.AloneIn(dir, video) {
+	if films.InDir(root, dir) && films.AloneAmong(dir, away, video) {
 		return []string{dir}
 	}
 	// A film that keeps no video (core.Job.SubtitlesOnly) has none where its sound was, to go with its subtitles, nor has one whose video was moved to a storage location, whose copy there is removed as it leaves the shelf (storedForget).

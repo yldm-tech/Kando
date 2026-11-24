@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -30,6 +31,7 @@ import (
 	"kando/apps/kando/storage/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -1078,6 +1080,14 @@ func TestPhoneSyncServesAnIndexedVideo(t *testing.T) {
 	if got.Remote == nil || got.RemoteSize != 13 || !got.RemoteAt.Equal(added) || got.SubtitlesOnly {
 		t.Fatalf("the indexed film is served as %+v", got)
 	}
+	// A file taken anew on the source (知道了, 在来源里找) is a change a phone sees, by the time the source gave of it.
+	modified := added.Add(time.Hour)
+	l := ps.linked[path]
+	l.Modified = modified
+	ps.linked[path] = l
+	if got := phoneFilmOf(item, ps); !got.RemoteAt.Equal(modified) {
+		t.Fatalf("a file changed on the source is served as of %v", got.RemoteAt)
+	}
 	req, _ := http.NewRequest(http.MethodGet, "/video", nil)
 	req.Header.Set("Range", "bytes=8-")
 	rec := httptest.NewRecorder()
@@ -1089,4 +1099,93 @@ func TestPhoneSyncServesAnIndexedVideo(t *testing.T) {
 	if got := phoneFilmOf(item, ps); got.Remote != nil || !got.SubtitlesOnly {
 		t.Fatalf("a film whose source is gone is served as %+v", got)
 	}
+}
+
+// Two films indexed from the same folder of a source are said to be in the same folder of the library, where no video of either is: taking one off the shelf sends only its own files to the Trash, never the folder with the other's subtitles, and asks to remove its files rather than its folder.
+func TestTrashOneOfTwoIndexedFilmsKeepsTheOther(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	_, _ = browseSource(a, map[string]fakeSourceFile{"Movies/Heat.mkv": {data: "heat"}, "Movies/Ronin.mkv": {data: "ronin"}})
+	a.mediaSourceOpenPage()
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.mediaSourceLink([]string{"Movies/Heat.mkv", "Movies/Ronin.mkv"})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 2 })
+	dir := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "Movies")
+	heat, ronin := filepath.Join(dir, "Heat.mkv"), filepath.Join(dir, "Ronin.mkv")
+	heatSub, roninSub := filepath.Join(dir, "Heat.bilingual.srt"), filepath.Join(dir, "Ronin.bilingual.srt")
+	writeFiles(t, map[string]string{heatSub: "1\n", roninSub: "1\n"})
+	a.refreshLibrary()
+	var trashed []string
+	prev := trashItem
+	trashItem = func(_ *ns.Scope, path string, done func(error)) {
+		trashed = append(trashed, path)
+		done(os.RemoveAll(path))
+	}
+	t.Cleanup(func() { trashItem = prev })
+	item := must(films.Find(a.films(), heat))
+	a.AskRemove(item)
+	if _, _, folder := a.Removing(); folder {
+		t.Fatal("the confirmation says the folder goes, the other film's subtitles in it")
+	}
+	a.libraryCloseRemove()
+	a.TrashFilms(item)
+	if slices.Contains(trashed, dir) {
+		t.Fatalf("the shared folder went to the Trash: %q", trashed)
+	}
+	if !fileExists(roninSub) {
+		t.Fatalf("the other film's subtitles went: %q", trashed)
+	}
+	if fileExists(heatSub) {
+		t.Fatalf("the film's own subtitles stayed: %q", trashed)
+	}
+	if _, ok := a.library.Linked[ronin]; !ok || len(a.library.Linked) != 1 {
+		t.Fatalf("records %+v", a.library.Linked)
+	}
+}
+
+// Offline mode keeps a source on the internet closed to an indexed film: the page says offline mode is why and offers the privacy settings, rather than saying the source cannot be reached; Phone Sync does not read it for a phone either, while a source on the local network plays and serves as before.
+func TestIndexedFilmOffline(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	s, _ := browseSource(a, map[string]fakeSourceFile{"talk.mp4": {data: "indexed video"}})
+	a.mediaSourceOpenPage()
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	a.mediaSourceLink([]string{"talk.mp4"})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 1 })
+	a.refreshLibrary()
+	path := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "talk", "video.mp4")
+	item := must(films.Find(a.films(), path))
+	apply(tt, a, func() { a.privacySetOffline(true) })
+	a.sources.localHost = func(context.Context, string) (bool, error) { return false, nil }
+	a.page = pageFilms
+	a.Open(item)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.playErr != "" || (a.player.play != nil && a.player.play.source != "") })
+	if a.player.playErr != playerErrLinkedOffline {
+		t.Fatalf("offline: error %q", a.player.playErr)
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceOffline())
+	tt.Press("id:film-stage-linked-privacy")
+	wantSettings(t, a, settings.SectionPrivacy)
+
+	serve := func() int {
+		t.Helper()
+		ps := phoneShelf{linked: maps.Clone(a.library.Linked), sources: a.mediaSourceIDs(), sourcePool: a.sources.pool, sourceList: slices.Clone(a.sources.list), offline: a.privacy.now, localHost: a.sources.localHost}
+		got := phoneFilmOf(item, ps)
+		if got.Remote == nil {
+			t.Fatalf("served as %+v", got)
+		}
+		rec := httptest.NewRecorder()
+		got.Remote.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/video", nil))
+		return rec.Code
+	}
+	if code := serve(); code != http.StatusServiceUnavailable {
+		t.Fatalf("offline, a phone reads the source: %d", code)
+	}
+	a.sources.localHost = func(context.Context, string) (bool, error) { return true, nil }
+	if code := serve(); code != http.StatusOK {
+		t.Fatalf("offline, a source on the local network serves %d", code)
+	}
+	_ = s
 }

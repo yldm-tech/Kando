@@ -675,12 +675,12 @@ func TestFilmFilesKeepsOtherVideosOfTheFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got := filmFiles(lib, filmOf(filepath.Join(dir, "one.mp4")))
+	got := filmFiles(lib, filmOf(filepath.Join(dir, "one.mp4")), nil)
 	want := []string{filepath.Join(dir, "one.mp4"), filepath.Join(dir, "one.bilingual.srt"), filepath.Join(dir, ".one.translation.json"), filepath.Join(dir, ".one.pending.srt"), filepath.Join(dir, ".one.pending.json"), filepath.Join(dir, ".one.proofread.srt")}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("filmFiles = %v, want %v", got, want)
 	}
-	if got := filmFiles(lib, filmOf(filepath.Join(lib, "loose.mp4"))); len(got) != 1 {
+	if got := filmFiles(lib, filmOf(filepath.Join(lib, "loose.mp4")), nil); len(got) != 1 {
 		t.Fatalf("a video at the library's root took more than itself: %v", got)
 	}
 
@@ -694,7 +694,7 @@ func TestFilmFilesKeepsOtherVideosOfTheFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got = filmFiles(lib, filmOf(filepath.Join(course, "video.mp4")))
+	got = filmFiles(lib, filmOf(filepath.Join(course, "video.mp4")), nil)
 	want = []string{filepath.Join(course, "video.mp4"), filepath.Join(course, "video.bilingual.srt")}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("filmFiles = %v, want %v", got, want)

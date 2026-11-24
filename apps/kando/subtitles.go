@@ -28,11 +28,12 @@ const (
 	playerErrStoredUnreachable = film.ErrStoredUnreachable
 	playerErrStoredMissing     = film.ErrStoredMissing
 	playerErrStoredUnplayable  = film.ErrStoredUnplayable
-	// A film indexed from a media source (playerLinked): the source is no longer in the settings, could not be reached, no longer has the video, or the system's player cannot play it from there. Their words name the source (playerErrText).
+	// A film indexed from a media source (playerLinked): the source is no longer in the settings, could not be reached, no longer has the video, the system's player cannot play it from there, or offline mode keeps a source off the local network closed. Their words name the source (playerErrText).
 	playerErrLinkedGone        = film.ErrLinkedGone
 	playerErrLinkedUnreachable = film.ErrLinkedUnreachable
 	playerErrLinkedMissing     = film.ErrLinkedMissing
 	playerErrLinkedUnplayable  = film.ErrLinkedUnplayable
+	playerErrLinkedOffline     = film.ErrLinkedOffline
 	// A done film whose video is not on disk now (playerMissing).
 	playerErrVideoMissing = film.ErrVideoMissing
 )
@@ -52,6 +53,8 @@ func (a *app) playerErrText(m locales.Messages, id string) string {
 		return m.MediaSourceMissing(name)
 	case playerErrLinkedUnplayable:
 		return m.MediaSourceUnplayable()
+	case playerErrLinkedOffline:
+		return m.MediaSourceOffline()
 	}
 	return playerErrTextIn(m, id)
 }

@@ -19,7 +19,7 @@ type Linker interface {
 	FindLinked()
 }
 
-// linkedRemedy is what goes under the note of an indexed film whose video does not play: the settings, where the sources are, once its source was removed; 重试 and the settings when it could not be reached; 在来源里找 when it is no longer at its path there. Nothing when not even the copy made of it from there plays.
+// linkedRemedy is what goes under the note of an indexed film whose video does not play: the settings, where the sources are, once its source was removed; 重试 and the settings when it could not be reached; 在来源里找 when it is no longer at its path there; the privacy settings, where offline mode is, when offline mode keeps the source closed. Nothing when not even the copy made of it from there plays.
 func (s *screen) linkedRemedy(note func() stageNoteState) core.Node {
 	a := s.a
 	err := func() string { return note().err }
@@ -36,13 +36,17 @@ func (s *screen) linkedRemedy(note func() stageNoteState) core.Node {
 			return ui.Button{TestID: "film-stage-linked-find", TextFunc: func() string { return locales.MediaSourceFind(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
 				OnPress: live.Do(a, a.FindLinked)}
 		}},
+		core.Show{When: func() bool { return err() == ErrLinkedOffline }, Then: func(cx *core.Scope) core.Node {
+			return ui.Button{TestID: "film-stage-linked-privacy", TextFunc: func() string { return locales.FilmsOpenSettings(cx) }, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+				OnPress: live.Do(a, func() { a.OpenSettings(sectionid.Privacy) })}
+		}},
 	}}
 }
 
 // linkedErr reports whether id is one of the PlayErr IDs of an indexed film, whose remedies linkedRemedy gives rather than unplayableRemedy.
 func linkedErr(id string) bool {
 	switch id {
-	case ErrLinkedGone, ErrLinkedUnreachable, ErrLinkedMissing, ErrLinkedUnplayable:
+	case ErrLinkedGone, ErrLinkedUnreachable, ErrLinkedMissing, ErrLinkedUnplayable, ErrLinkedOffline:
 		return true
 	}
 	return false

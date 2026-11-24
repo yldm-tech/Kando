@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"kando/apps/kando/mediasource"
+	"kando/packages/media"
 )
 
-// playerLinked opens the video of the film at path, indexed from a media source (state_mediasource_import.go), as startPlayback opens a file, held at at or playing from there when jump, as playerStored does for a video moved to a storage location: off the engine's goroutine the source is reached and the video looked up there, and the system's player then plays it through the sources' loopback server (mediasource.Pool.URL). It reports false for a film that was not indexed. A source no longer in the settings, one that cannot be reached or is on the internet while offline mode is on, and one without the video say so on the page (playErr), which then shows the film's lines alone. A file that changed on the source since it was indexed plays all the same, the bar over the picture saying so (linkedChanged).
+// playerLinked opens the video of the film at path, indexed from a media source (state_mediasource_import.go), as startPlayback opens a file, held at at or playing from there when jump, as playerStored does for a video moved to a storage location: off the engine's goroutine the source is reached and the video looked up there, and the system's player then plays it through the sources' loopback server (mediasource.Pool.URL). It reports false for a film that was not indexed. A source no longer in the settings, one that cannot be reached, one on the internet while offline mode is on, which the page says is offline mode's doing, and one without the video say so on the page (playErr), which then shows the film's lines alone. A file that changed on the source since it was indexed plays all the same, the bar over the picture saying so (linkedChanged).
 func (a *app) playerLinked(path string, at time.Duration, jump bool) bool {
 	l, ok := a.linkedOf(path)
 	if !ok {
@@ -58,6 +59,8 @@ func (a *app) playerLinked(path string, at time.Duration, jump bool) bool {
 			switch {
 			case errors.Is(err, mediasource.ErrNotExist):
 				a.player.playErr = playerErrLinkedMissing
+			case errors.Is(err, media.ErrOffline):
+				a.player.playErr = playerErrLinkedOffline
 			case err != nil:
 				log.Printf("player: could not reach the media source of %s: %v", filepath.Base(path), err)
 				a.player.playErr = playerErrLinkedUnreachable

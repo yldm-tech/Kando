@@ -14,8 +14,8 @@ type Unit struct {
 	Folder string
 }
 
-// Units is items, films of the library at root, as the units they move or go to the Trash in, in the order of items: the films of a folder of root whose every video is among items, and that holds no folder, go together with it, each other film alone. A film whose video is outside root goes alone and without its files.
-func Units(root string, items []Film) []Unit {
+// Units is items, films of the library at root, as the units they move or go to the Trash in, in the order of items: the films of a folder of root whose every video is among items, and that holds no folder, go together with it, each other film alone (AloneAmong, away being the films whose videos are not on disk here). A film whose video is outside root goes alone and without its files.
+func Units(root string, items []Film, away []string) []Unit {
 	byDir := map[string][]string{}
 	for _, item := range items {
 		if item.VideoPath != "" && InDir(root, item.VideoPath) {
@@ -25,7 +25,7 @@ func Units(root string, items []Film) []Unit {
 	}
 	whole := map[string]bool{}
 	for dir, videos := range byDir {
-		whole[dir] = InDir(root, dir) && AloneIn(dir, videos...)
+		whole[dir] = InDir(root, dir) && AloneAmong(dir, away, videos...)
 	}
 	var out []Unit
 	at := map[string]int{}
@@ -60,6 +60,16 @@ func AloneIn(dir string, videos ...string) bool {
 		}
 	}
 	return true
+}
+
+// AloneAmong is AloneIn, and also that dir holds none of away other than videos: the paths of the films whose videos are not on disk here, moved to a storage location or indexed from a media source, whose subtitles and the files beside them are in dir all the same, though no video of theirs is there for AloneIn to see.
+func AloneAmong(dir string, away []string, videos ...string) bool {
+	for _, p := range away {
+		if filepath.Dir(p) == filepath.Clean(dir) && !slices.Contains(videos, p) {
+			return false
+		}
+	}
+	return AloneIn(dir, videos...)
 }
 
 // Name is the whole name of a film, as the page and the message bar call it: the title given to it, else the one it is listed by.

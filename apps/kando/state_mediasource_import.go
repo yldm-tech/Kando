@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"maps"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -327,4 +328,23 @@ func (a *app) mediaSourceIDs() map[string]bool {
 		out[s.ID] = true
 	}
 	return out
+}
+
+// mediaSourcePhoneHandler serves a phone the video of l, a film indexed from a source of shelf, through the sources' pool, as Phone Sync downloads it, once offline mode as it is then (shelf.offline) lets the source be read: a source off the local network is refused with 503 while offline mode is on (docs/media-sources.md 12.4), the source never reached.
+func mediaSourcePhoneHandler(shelf phoneShelf, l shelf.Linked) http.Handler {
+	inner := shelf.sourcePool.Handler(l.Source, l.Path)
+	var s mediasource.Source
+	for _, x := range shelf.sourceList {
+		if x.ID == l.Source {
+			s = x
+		}
+	}
+	offline, local := shelf.offline, shelf.localHost
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if err := mediaSourceOfflineCheck(req.Context(), offline != nil && offline.Load(), s, local); err != nil {
+			http.Error(w, "offline mode keeps the media source closed", http.StatusServiceUnavailable)
+			return
+		}
+		inner.ServeHTTP(w, req)
+	})
 }

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kando/apps/kando/films"
@@ -366,10 +367,13 @@ type phoneShelf struct {
 	stored  map[string]shelf.Stored
 	targets map[string]storage.Target
 	pool    *storage.Pool
-	// linked is where the video of each film indexed from a media source is (shelf.Library.Linked), sources the IDs of the sources still in the settings, and sourcePool what reads them (state_mediasource_import.go).
+	// linked is where the video of each film indexed from a media source is (shelf.Library.Linked), sources the IDs of the sources still in the settings and sourceList those sources, and sourcePool what reads them (state_mediasource_import.go); offline is offline mode as it is when a phone reads, which keeps a source off the local network closed (localHost judging that in place of mediasource.Local when set, as a test's does).
 	linked     map[string]shelf.Linked
 	sources    map[string]bool
+	sourceList []mediasource.Source
 	sourcePool *mediasource.Pool
+	offline    *atomic.Bool
+	localHost  func(ctx context.Context, host string) (bool, error)
 	// tag is the interface's language, which orders the films' names (films.Next), and nexts the film after each film of the library, by key, made once the library is listed.
 	tag   string
 	nexts map[string]films.Film
@@ -434,10 +438,14 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 			f.SubtitlesOnly = true
 		}
 	}
-	// A film indexed from a media source is served from there alike, the computer reading the source as the phone downloads (docs/media-sources.md 9), with the size the source gave as it was indexed; once its source is no longer in the settings, by its lines alone.
+	// A film indexed from a media source is served from there alike, the computer reading the source as the phone downloads (docs/media-sources.md 9), with the size and time of change the source gave as it was indexed, or as the file was taken anew (linkedKeepChanged, mediaSourceRelinkTo), so a phone sees a file changed there as changed; when it was indexed for a source that gives no time; once its source is no longer in the settings, by its lines alone.
 	if l, ok := shelf.linked[item.VideoPath]; ok {
 		if shelf.sources[l.Source] {
-			f.Remote, f.RemoteSize, f.RemoteAt = shelf.sourcePool.Handler(l.Source, l.Path), l.Size, l.Added
+			at := l.Modified
+			if at.IsZero() {
+				at = l.Added
+			}
+			f.Remote, f.RemoteSize, f.RemoteAt = mediaSourcePhoneHandler(shelf, l), l.Size, at
 		} else {
 			f.SubtitlesOnly = true
 		}
@@ -476,7 +484,7 @@ func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films
 		return phoneShelf{jobs: slices.Clone(a.library.Jobs), added: maps.Clone(a.library.AddedIn(lib.Dir)), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
 			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played),
 			stored: maps.Clone(a.library.Stored), targets: a.storedPlayable(), pool: a.stored.pool,
-			linked: maps.Clone(a.library.Linked), sources: a.mediaSourceIDs(), sourcePool: a.sources.pool, tag: a.prefs.interfaceLanguage}, nil
+			linked: maps.Clone(a.library.Linked), sources: a.mediaSourceIDs(), sourceList: slices.Clone(a.sources.list), sourcePool: a.sources.pool, offline: a.privacy.now, localHost: a.sources.localHost, tag: a.prefs.interfaceLanguage}, nil
 	})
 	if err != nil {
 		return nil, phoneShelf{}, err

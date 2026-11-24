@@ -42,12 +42,13 @@ const (
 	ErrStoredUnplayable  = "stored-unplayable"
 )
 
-// The PlayErr IDs of a film indexed from a media source (docs/media-sources.md 6.4): the source is no longer in the settings, could not be reached, no longer has the video at its path, or neither the system's player nor the copy made of it from there plays it. The page offers the settings for the first, 重试 for the second and 在来源里找 for the third.
+// The PlayErr IDs of a film indexed from a media source (docs/media-sources.md 6.4, 12.4): the source is no longer in the settings, could not be reached, no longer has the video at its path, neither the system's player nor the copy made of it from there plays it, or offline mode is on and the source is not on the local network. The page offers the settings for the first, 重试 for the second, 在来源里找 for the third and the privacy settings for the last.
 const (
 	ErrLinkedGone        = "linked-gone"
 	ErrLinkedUnreachable = "linked-unreachable"
 	ErrLinkedMissing     = "linked-missing"
 	ErrLinkedUnplayable  = "linked-unplayable"
+	ErrLinkedOffline     = "linked-offline"
 )
 
 // ErrVideoMissing is PlayErr's ID for a film whose video is not on disk now: kept outside the library where it was picked and moved, renamed or deleted in Finder since, or on a drive that is not connected. The page says so and offers nothing to open, as there is no file to show; the film's lines can still be studied.

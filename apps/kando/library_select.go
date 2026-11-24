@@ -117,7 +117,7 @@ func (a *app) TrashFilms(items ...films.Film) {
 
 // libraryTrashIn moves the files of items, films of the library at root, to the Trash, one unit after another (films.Units), as TrashFilms does, and once the last was tried calls done, on the engine's goroutine, with the films whose files went, or that had none to go, for libraryForget to take off the shelf; whether any file went; and why the first film that stayed did, in the language of m. It neither takes them off the shelf nor says anything.
 func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages, done func(gone []films.Film, trashed bool, reason string)) {
-	units := films.Units(root, items)
+	units := films.Units(root, items, a.awayPaths())
 	var gone []films.Film
 	trashed, reason := false, ""
 	var next func(i int)
@@ -129,7 +129,7 @@ func (a *app) libraryTrashIn(root string, items []films.Film, m locales.Messages
 		unit := units[i]
 		files := []string{unit.Folder}
 		if unit.Folder == "" {
-			files = filmFiles(root, unit.Items[0])
+			files = filmFiles(root, unit.Items[0], a.awayPaths())
 		}
 		a.libraryTrash(files, func(err error) {
 			switch {
