@@ -9,6 +9,8 @@ func Builtin(id string) (Kind, bool) {
 		return SMB(), true
 	case KindSFTP:
 		return SFTP(), true
+	case KindWebDAV:
+		return WebDAV(), true
 	}
 	return Kind{}, false
 }
@@ -20,6 +22,8 @@ func Remote(s Source, secrets map[string]string) (storage.Remote, bool) {
 		return SMBRemote(s, secrets[SMBPassword]), true
 	case KindSFTP:
 		return SFTPRemote(s, secrets), true
+	case KindWebDAV:
+		return WebDAVRemote(s, secrets[WebDAVPassword]), true
 	}
 	return storage.Remote{}, false
 }

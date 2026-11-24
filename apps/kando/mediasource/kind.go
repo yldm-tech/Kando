@@ -10,8 +10,9 @@ import (
 
 // Built-in kinds' IDs. Kando reads these sources itself; a script plugin's kind has an ID of PluginKindID instead.
 const (
-	KindSMB  = "smb"
-	KindSFTP = "sftp"
+	KindSMB    = "smb"
+	KindSFTP   = "sftp"
+	KindWebDAV = "webdav"
 )
 
 // Kind is a kind of media source: one Kando reads itself (Origin.Plugin empty) or one a script plugin contributes. ID names it in the Registry and in a Source; Title is its name in a language, as the interface shows it; Icon is one of Icons; Fields are what the form that adds a source of it asks for (Field); Phone is whether a phone can reach such a source itself, without the computer, which only a built-in kind can, as a phone runs no plugin; Open connects to a source of the kind, with the values of its secret fields by key, and gives the Driver that reads it.

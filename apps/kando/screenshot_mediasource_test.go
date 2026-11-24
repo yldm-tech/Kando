@@ -14,7 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsMediaSources renders 设置 › 媒体来源 and the dialog it opens: two SMB sources, a share whose Test connected and a whole server whose Test listed its shares, and an SFTP server (settings-sources); the dialog adding an SMB source of a NAS without signing, with what that risks (settings-sources-add); the dialog adding an SFTP source whose server's key the Test trusted (settings-sources-add-sftp); and the question the first Test of an SFTP source asks about its server's key (settings-sources-trust). The servers are names in the scene, never reached.
+// TestScreenshotsMediaSources renders 设置 › 媒体来源 and the dialog it opens: two SMB sources, a share whose Test connected and a whole server whose Test listed its shares, and an SFTP server (settings-sources); the dialog adding an SMB source of a NAS without signing, with what that risks (settings-sources-add); the dialog adding an SFTP source whose server's key the Test trusted (settings-sources-add-sftp); the question the first Test of an SFTP source asks about its server's key (settings-sources-trust); and the dialog adding a WebDAV source at an http:// address, which says its password crosses the network unencrypted (settings-sources-add-webdav). The servers are names in the scene, never reached.
 func TestScreenshotsMediaSources(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
@@ -43,6 +43,15 @@ func TestScreenshotsMediaSources(t *testing.T) {
 	shootSettings(t, f, settings.SectionMediaSources, "settings-sources-trust", shown, models, turbo, func(a *app) {
 		sftp(a)
 		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &storage.HostKeyError{Host: "backup.lan", Key: shotHostKey(7), Fingerprint: storage.Fingerprint(shotHostKey(7))}})
+	})
+	shootSettings(t, f, settings.SectionMediaSources, "settings-sources-add-webdav", shown, models, turbo, func(a *app) {
+		shotMediaSources(a)
+		a.AddMediaSource()
+		a.SetMediaSourceKind(mediasource.KindWebDAV)
+		d := a.MediaSourceDraft()
+		d.Name = "Cloud Drive"
+		d.Values = map[string]string{mediasource.WebDAVURL: "http://192.168.1.30:5005/dav", mediasource.WebDAVRoot: "Movies", mediasource.WebDAVUser: "kando", mediasource.WebDAVPassword: "secret"}
+		a.sources.tests[""] = mediaSourceTest{ok: true}
 	})
 }
 

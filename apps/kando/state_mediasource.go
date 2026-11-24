@@ -20,7 +20,7 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, SMB and SFTP for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), the question a Test asks about an SFTP server's key (alert), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped; saveGen numbers the saves the same way, apart from the Tests, so a Test pressed while Save keeps the secrets does not drop the save's answer and leave the dialog saving, and a save of a dialog that closed does not finish in the next one. editRelease, alertRelease and removeRelease give back the modal flags the dialog, the question and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
+// mediaSourceUI is the state of the media sources (docs/media-sources.md): the kinds Kando knows (kinds, the built-in SMB, SFTP and WebDAV for now), the sources added (list, saved in settings.json without their secrets, which the system's secure store keeps, mediaSourceSecrets), the dialog of 设置 › 媒体来源 that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it, saving while Save keeps the secrets), how the last Test of each went (tests, by ID, the draft's under ""), the question a Test asks about an SFTP server's key (alert), and the confirmation of removing one (removing, the source's ID). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped; saveGen numbers the saves the same way, apart from the Tests, so a Test pressed while Save keeps the secrets does not drop the save's answer and leave the dialog saving, and a save of a dialog that closed does not finish in the next one. editRelease, alertRelease and removeRelease give back the modal flags the dialog, the question and the confirmation hold (holdModal). open connects to a source of a kind with its secrets, the kind's own Open unless a test sets another.
 type mediaSourceUI struct {
 	kinds         *mediasource.Registry
 	list          []mediasource.Source
@@ -65,7 +65,7 @@ type mediaSourceAlert struct {
 
 func newMediaSourceUI() mediaSourceUI {
 	kinds := &mediasource.Registry{}
-	for _, k := range []mediasource.Kind{mediasource.SMB(), mediasource.SFTP()} {
+	for _, k := range []mediasource.Kind{mediasource.SMB(), mediasource.SFTP(), mediasource.WebDAV()} {
 		if err := kinds.Register(k); err != nil {
 			panic(err)
 		}
@@ -305,12 +305,16 @@ func (a *app) mediaSourceDraftSource() (mediasource.Source, mediasource.Kind, ma
 	return s, k, secrets, true
 }
 
-// mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved with the secrets typed, nil when nothing does. Either built-in kind needs a server, a port that is a number and a user. An SMB source needs a share of one name, and a share for a folder; its user is guest for a share open to anyone. A new SFTP source needs a password, a private key or both, which one saved keeps in the secure store while its fields are left empty.
+// mediaSourceProblem is what keeps s, a source of kind k, from being tried or saved with the secrets typed, nil when nothing does. A WebDAV source needs a plain https:// or http:// address, as a storage location does. SMB and SFTP need a server, a port that is a number and a user. An SMB source needs a share of one name, and a share for a folder; its user is guest for a share open to anyone. A new SFTP source needs a password, a private key or both, which one saved keeps in the secure store while its fields are left empty.
 func mediaSourceProblem(k mediasource.Kind, s mediasource.Source, typed map[string]string) func(locales.Messages) string {
-	if k.ID != mediasource.KindSMB && k.ID != mediasource.KindSFTP {
+	c := s.Config
+	switch k.ID {
+	case mediasource.KindWebDAV:
+		return account.Draft{Kind: string(storage.KindWebDAV), URL: c[mediasource.WebDAVURL]}.Problem()
+	case mediasource.KindSMB, mediasource.KindSFTP:
+	default:
 		return nil
 	}
-	c := s.Config
 	if c[mediasource.SMBHost] == "" {
 		return locales.Messages.AccountLocationNeedsHost
 	}
@@ -356,7 +360,7 @@ func (a *app) saveMediaSourceDraft() {
 		return
 	}
 	if s.Name == "" {
-		s.Name = s.Config[mediasource.SMBHost]
+		s.Name = mediasource.Host(s)
 	}
 	if s.ID == "" {
 		s.ID = mediasource.NewID()
@@ -649,13 +653,22 @@ func mediaSourceFailure(m locales.Messages, r storage.Remote, err error) string 
 	return account.Failure(m, r, err)
 }
 
-// mediaSourceWarnings are what the dialog says under the fields of the draft: that SMB cannot prove which server it reached, and while the draft does without signing, what that risks.
+// mediaSourceWarnings are what the dialog says under the fields of the draft: for SMB, that it cannot prove which server it reached, and while the draft does without signing, what that risks; for WebDAV at an http:// address, that its password crosses the network unencrypted.
 func (a *app) mediaSourceWarnings() []string {
 	m := &a.sources
-	if !m.editing || m.draft.Kind != mediasource.KindSMB {
+	if !m.editing {
 		return nil
 	}
 	msg := a.messages()
+	if m.draft.Kind == mediasource.KindWebDAV {
+		if mediasource.PlainHTTP(mediasource.Source{Kind: m.draft.Kind, Config: m.draft.Values}) {
+			return []string{msg.SettingsSourcesPlainHTTP()}
+		}
+		return nil
+	}
+	if m.draft.Kind != mediasource.KindSMB {
+		return nil
+	}
 	out := []string{msg.SettingsSourcesSMBWarning()}
 	if m.draft.Values[mediasource.SMBNoSigning] == "true" {
 		out = append(out, msg.SettingsSourcesNoSigningRisk())

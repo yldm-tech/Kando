@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/storage"
+	"kando/apps/kando/storage/davtest"
 	"kando/apps/kando/storage/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
@@ -810,4 +812,61 @@ func TestMediaSourceKeyQuestionClosesWithTheSettings(t *testing.T) {
 	if a.sources.alert.kind != account.AlertNone || a.modalOpen() {
 		t.Fatalf("the question stayed: %+v, modal %v", a.sources.alert, a.modalOpen())
 	}
+}
+
+// A WebDAV source needs a plain https:// or http:// address, says that an http:// one sends its password unencrypted, connects with Test, and is saved named after its server, with its password in the secure store rather than settings.json.
+func TestMediaSourceWebDAV(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	msgs := testlocale.Messages()
+	server := davtest.New(t)
+	if err := os.Mkdir(filepath.Join(server.Dir, "films"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	onEngine(a, func() { a.SetMediaSourceKind(mediasource.KindWebDAV) })
+	refresh(tt, a)
+	wantNoText(t, tt, msgs.SettingsSourcesSMBWarning())
+	tt.Type("id:media-source-field-url", "ftp://nas.local/dav")
+	tt.Press("id:media-source-dialog-save")
+	wantText(t, tt, msgs.AccountLocationNeedsURL())
+	tt.Clear("id:media-source-field-url")
+	tt.Type("id:media-source-field-url", server.URL)
+	wantText(t, tt, msgs.SettingsSourcesPlainHTTP())
+	tt.Type("id:media-source-field-root", "films")
+	tt.Type("id:media-source-field-user", davtest.User)
+	tt.Type("id:media-source-field-password", davtest.Password)
+	tt.Press("id:media-source-dialog-test")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[""].busy })
+	wantText(t, tt, msgs.AccountLocationConnected())
+
+	tt.Press("id:media-source-dialog-save")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.editing })
+	if len(a.sources.list) != 1 {
+		t.Fatalf("list %+v", a.sources.list)
+	}
+	s := a.sources.list[0]
+	if s.Kind != mediasource.KindWebDAV || s.Name != "127.0.0.1" || s.Config[mediasource.WebDAVURL] != server.URL || s.Config[mediasource.WebDAVPassword] != "" {
+		t.Fatalf("saved %+v", s)
+	}
+	raw, err := os.ReadFile(a.settingsPath)
+	if err != nil || strings.Contains(string(raw), davtest.Password) {
+		t.Fatalf("settings.json: %s, %v", raw, err)
+	}
+	if v := mediaSourceStored(t, a, s.ID); v != davtest.Password {
+		t.Fatalf("secure store %q", v)
+	}
+	u, _ := url.Parse(server.URL)
+	wantText(t, tt, msgs.AccountLocationSummary("WebDAV", u.Host+u.Path+"/films"))
+
+	// A wrong password says so.
+	onEngine(a, func() {
+		a.EditMediaSource(s.ID)
+		a.MediaSourceDraft().Values[mediasource.WebDAVPassword] = "wrong"
+	})
+	refresh(tt, a)
+	tt.Press("id:media-source-dialog-test")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[""].busy })
+	wantText(t, tt, msgs.AccountLocationFailSignIn())
 }

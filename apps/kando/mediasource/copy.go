@@ -46,13 +46,15 @@ func SubtitlesOf(video string, names []string) []string {
 	return out
 }
 
-// Host is the server s reaches, as offline mode judges it (Local): an SMB or SFTP source's host, a plugin's source's endpoint's.
+// Host is the server s reaches, as offline mode judges it (Local) and a source without a name is named: an SMB or SFTP source's host, a WebDAV source's address's, a plugin's source's endpoint's.
 func Host(s Source) string {
 	if h := strings.TrimSpace(s.Config[SMBHost]); h != "" {
 		return h
 	}
-	if u, err := url.Parse(s.Config[EndpointKey]); err == nil {
-		return u.Hostname()
+	for _, key := range []string{WebDAVURL, EndpointKey} {
+		if u, err := url.Parse(strings.TrimSpace(s.Config[key])); err == nil && u.Hostname() != "" {
+			return u.Hostname()
+		}
 	}
 	return ""
 }

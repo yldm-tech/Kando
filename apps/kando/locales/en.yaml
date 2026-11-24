@@ -9485,6 +9485,12 @@ settingsSourcesKindSMB:
 settingsSourcesKindSFTP:
   message: "SFTP"
   description: "Name of the kind of media source that is a folder of a server reached over SSH (SFTP). A protocol's name, which most languages keep."
+settingsSourcesKindWebDAV:
+  message: "WebDAV"
+  description: "Name of the kind of media source that is a folder of a WebDAV server, as many NAS systems and cloud drives offer. A protocol's name, which most languages keep."
+settingsSourcesPlainHTTP:
+  message: "This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."
+  description: "Note in the dialog of a WebDAV media source whose address starts with http:// rather than https://."
 settingsSourcesShareHint:
   message: "Empty to choose among the server's shares"
   description: "Hint under the Share field of an SMB media source: left empty, the source is the whole server and browsing it starts with its shares."

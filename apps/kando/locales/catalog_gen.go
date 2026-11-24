@@ -3828,6 +3828,8 @@ const (
 	textSettingsSourcesEditTitle
 	textSettingsSourcesKindSMB
 	textSettingsSourcesKindSFTP
+	textSettingsSourcesKindWebDAV
+	textSettingsSourcesPlainHTTP
 	textSettingsSourcesShareHint
 	textSettingsSourcesNoSigning
 	textSettingsSourcesNoSigningHint
@@ -5714,6 +5716,8 @@ var keyOfText = [numTexts]string{
 	"settingsSourcesEditTitle",
 	"settingsSourcesKindSMB",
 	"settingsSourcesKindSFTP",
+	"settingsSourcesKindWebDAV",
+	"settingsSourcesPlainHTTP",
 	"settingsSourcesShareHint",
 	"settingsSourcesNoSigning",
 	"settingsSourcesNoSigningHint",
@@ -7598,6 +7602,8 @@ var textsEn = i18n.NewTexts(""+
 	"Edit Media Source"+
 	"SMB"+
 	"SFTP"+
+	"WebDAV"+
+	"This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."+
 	"Empty to choose among the server's shares"+
 	"This NAS doesn't support signing"+
 	"For an older NAS, or a share open to guests"+
@@ -9479,6 +9485,8 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		3,
 		4,
+		6,
+		154,
 		41,
 		32,
 		43,
@@ -11363,6 +11371,8 @@ var textsJa = i18n.NewTexts(""+
 	"メディアソースを編集"+
 	"SMB"+
 	"SFTP"+
+	"WebDAV"+
+	"このアドレスは暗号化されず、パスワードが平文でネットワークを流れます。信頼できるネットワークでのみ使うか、サーバーが対応していれば https:// を使ってください。"+
 	"空欄にするとサーバーの共有から選べます"+
 	"この NAS は署名に対応していない"+
 	"古い NAS や、ゲストに公開された共有向け"+
@@ -13244,6 +13254,8 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		3,
 		4,
+		6,
+		232,
 		57,
 		44,
 		56,
@@ -15128,6 +15140,8 @@ var textsKo = i18n.NewTexts(""+
 	"미디어 소스 편집"+
 	"SMB"+
 	"SFTP"+
+	"WebDAV"+
+	"이 주소는 암호화되지 않아 암호가 평문으로 네트워크를 지나갑니다. 신뢰하는 네트워크에서만 사용하거나, 서버가 지원하면 https://를 사용하세요."+
 	"비워 두면 서버의 공유 중에서 고릅니다"+
 	"이 NAS는 서명을 지원하지 않음"+
 	"오래된 NAS나 게스트에게 열린 공유용"+
@@ -17009,6 +17023,8 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		3,
 		4,
+		6,
+		196,
 		53,
 		40,
 		49,
@@ -18893,6 +18909,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"编辑媒体来源"+
 	"SMB"+
 	"SFTP"+
+	"WebDAV"+
+	"这个地址不加密，密码会以明文在网络上传送。只在你信任的网络里使用；服务器支持的话，改用 https://。"+
 	"留空则从服务器的共享里选"+
 	"这台 NAS 不支持签名"+
 	"用于较老的 NAS，或对访客开放的共享"+
@@ -20774,6 +20792,8 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		3,
 		4,
+		6,
+		141,
 		36,
 		26,
 		49,
@@ -22658,6 +22678,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"編輯媒體來源"+
 	"SMB"+
 	"SFTP"+
+	"WebDAV"+
+	"這個地址不加密，密碼會以明文在網路上傳送。只在你信任的網路裡使用；伺服器支援的話，改用 https://。"+
 	"留空則從伺服器的共用資料夾裡選"+
 	"這台 NAS 不支援簽署"+
 	"用於較舊的 NAS，或對訪客開放的共用資料夾"+
@@ -24539,6 +24561,8 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		3,
 		4,
+		6,
+		141,
 		45,
 		26,
 		58,
@@ -71509,6 +71533,28 @@ func SettingsSourcesKindSFTP(cx *core.Scope) string { return For(cx).SettingsSou
 
 // SettingsSourcesKindSFTP is the package's SettingsSourcesKindSFTP in the language of msgs.
 func (msgs Messages) SettingsSourcesKindSFTP() string { return msgs.text(textSettingsSourcesKindSFTP) }
+
+// SettingsSourcesKindWebDAV says "WebDAV"
+// in the language the app shows under cx.
+//
+// Name of the kind of media source that is a folder of a WebDAV server, as many NAS systems and cloud drives offer. A protocol's name, which most languages keep.
+func SettingsSourcesKindWebDAV(cx *core.Scope) string { return For(cx).SettingsSourcesKindWebDAV() }
+
+// SettingsSourcesKindWebDAV is the package's SettingsSourcesKindWebDAV in the language of msgs.
+func (msgs Messages) SettingsSourcesKindWebDAV() string {
+	return msgs.text(textSettingsSourcesKindWebDAV)
+}
+
+// SettingsSourcesPlainHTTP says "This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."
+// in the language the app shows under cx.
+//
+// Note in the dialog of a WebDAV media source whose address starts with http:// rather than https://.
+func SettingsSourcesPlainHTTP(cx *core.Scope) string { return For(cx).SettingsSourcesPlainHTTP() }
+
+// SettingsSourcesPlainHTTP is the package's SettingsSourcesPlainHTTP in the language of msgs.
+func (msgs Messages) SettingsSourcesPlainHTTP() string {
+	return msgs.text(textSettingsSourcesPlainHTTP)
+}
 
 // SettingsSourcesShareHint says "Empty to choose among the server's shares"
 // in the language the app shows under cx.
