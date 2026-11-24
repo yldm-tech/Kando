@@ -27,10 +27,9 @@ apple:
   # Settings › Offline Films shows the films' share of the device and about how much of it is free (session/space.go, NSGo's Scope.DiskSpace), which Apple lets an app read only with a reason in its privacy manifest: 85F4.1, to show the user the space. The reading stays on the device.
   privacy:
     accessed_apis: { NSPrivacyAccessedAPICategoryDiskSpace: [85F4.1] }
-# Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception, plain HTTP to the phone's own loopback server does (loopback_cleartext). CAMERA lets the pairing page read the computer's QR code from the camera's live picture (Scope.ScanCode, which NSGo offers on Android only to an app whose manifest lists it); Android asks the user for it the first time the page scans. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. target_sdk is the API level Google Play requires of new apps and updates, above the runtime's 34.
+# Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception, plain HTTP to the phone's own loopback server does (loopback_cleartext). CAMERA lets the pairing page read the computer's QR code from the camera's live picture (Scope.ScanCode, which NSGo offers on Android only to an app whose manifest lists it); Android asks the user for it the first time the page scans. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. No target_sdk: the runtime's own targetSdkVersion (API 36 since NSGo's bump in #441) is the level Google Play requires of new apps and updates, and nsgo build refuses a lower one for a store build.
 android:
   permissions: [CAMERA, POST_NOTIFICATIONS]
-  target_sdk: 35
   # The player plays a film the computer is still making from the phone's loopback server, over plain HTTP, which Android refuses from API 28 unless the app's network security policy allows it; this allows it to loopback alone, every other host staying HTTPS only.
   loopback_cleartext: true
 
