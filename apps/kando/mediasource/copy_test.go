@@ -206,8 +206,8 @@ func TestCopierFails(t *testing.T) {
 func TestCopierOffline(t *testing.T) {
 	d := &memDriver{files: map[string]string{"a.mkv": "aaaa"}}
 	var p Pool
-	near := Source{ID: "0123456789abcdef", Kind: "test", Name: "NAS", Config: map[string]string{SMBHost: "nas.local"}}
-	far := Source{ID: "fedcba9876543210", Kind: "test", Name: "Cloud", Config: map[string]string{SMBHost: "files.example.com"}}
+	near := Source{ID: "0123456789abcdef", Kind: KindSMB, Name: "NAS", Config: map[string]string{SMBHost: "nas.local"}}
+	far := Source{ID: "fedcba9876543210", Kind: KindSMB, Name: "Cloud", Config: map[string]string{SMBHost: "files.example.com"}}
 	p.Set([]Source{near, far}, func(string) (Kind, bool) { return testKind(nil), true }, func(context.Context, Kind, Source) (Driver, error) { return d, nil })
 	local := func(_ context.Context, host string) (bool, error) { return host == "nas.local", nil }
 	c := Copier{Pool: &p, Offline: func() bool { return true }, LocalHost: local}
@@ -225,11 +225,21 @@ func TestSubtitlesOfAndHost(t *testing.T) {
 	if got := SubtitlesOf("Heat.mkv", names); !slices.Equal(got, []string{"Heat.srt", "Heat.en.vtt", "Heat.SRT"}) {
 		t.Fatalf("SubtitlesOf = %q", got)
 	}
-	if h := Host(Source{Config: map[string]string{SMBHost: " nas.local "}}); h != "nas.local" {
+	if h := Host(Source{Kind: KindSMB, Config: map[string]string{SMBHost: " nas.local "}}); h != "nas.local" {
 		t.Fatalf("SMB host %q", h)
 	}
-	if h := Host(Source{Config: map[string]string{EndpointKey: "https://dav.example.com:8443/remote"}}); h != "dav.example.com" {
-		t.Fatalf("endpoint host %q", h)
+	if h := Host(Source{Kind: KindSFTP, Config: map[string]string{SFTPHost: "10.0.0.2"}}); h != "10.0.0.2" {
+		t.Fatalf("SFTP host %q", h)
+	}
+	// A plugin's source is judged by its endpoint alone, whatever fields of its own named host or url hold, so offline mode never lets one reach the internet through an address of the local network typed into another field.
+	plugin := Source{Kind: PluginKindID("acme.cloud", "drive"), Config: map[string]string{
+		EndpointKey: "https://dav.example.com:8443/remote", SMBHost: "192.168.1.20", WebDAVURL: "http://192.168.1.20/",
+	}}
+	if h := Host(plugin); h != "dav.example.com" {
+		t.Fatalf("plugin endpoint host %q", h)
+	}
+	if h := Host(Source{Kind: KindWebDAV, Config: map[string]string{EndpointKey: "https://dav.example.com/"}}); h != "" {
+		t.Fatalf("a WebDAV source without its address = %q", h)
 	}
 }
 

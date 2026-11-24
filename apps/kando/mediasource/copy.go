@@ -46,17 +46,24 @@ func SubtitlesOf(video string, names []string) []string {
 	return out
 }
 
-// Host is the server s reaches, as offline mode judges it (Local) and a source without a name is named: an SMB or SFTP source's host, a WebDAV source's address's, a plugin's source's endpoint's.
+// Host is the server s reaches, as offline mode judges it (Local) and a source without a name is named, read from the field of s's kind that names it: an SMB or SFTP source's host, a WebDAV source's address's, and any other's, as a plugin's, its endpoint's alone. A plugin's kind may have fields of its own keyed host or url, which say nothing of where its requests go, so they are never read.
 func Host(s Source) string {
-	if h := strings.TrimSpace(s.Config[SMBHost]); h != "" {
-		return h
+	switch s.Kind {
+	case KindSMB, KindSFTP:
+		return strings.TrimSpace(s.Config[SMBHost])
+	case KindWebDAV:
+		return urlHost(s.Config[WebDAVURL])
 	}
-	for _, key := range []string{WebDAVURL, EndpointKey} {
-		if u, err := url.Parse(strings.TrimSpace(s.Config[key])); err == nil && u.Hostname() != "" {
-			return u.Hostname()
-		}
+	return urlHost(s.Config[EndpointKey])
+}
+
+// urlHost is the host of the address raw, "" when it is not one.
+func urlHost(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
 	}
-	return ""
+	return u.Hostname()
 }
 
 // copyProgressEvery is how often a copy reports how far it got.
