@@ -2,56 +2,22 @@ package storage
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
-	"golang.org/x/net/webdav"
+	"kando/apps/kando/storage/davtest"
 )
 
-// fakeDAV is a WebDAV server over a folder, under the path /dav and behind basic authentication as kando with the password secret, that notes the Range of every GET.
-type fakeDAV struct {
-	url string
-	dir string
-
-	mu     sync.Mutex
-	ranges []string
-}
-
-func newFakeDAV(t *testing.T) *fakeDAV {
+// webdavProvider is a provider over the folder films of a new davtest.Server.
+func webdavProvider(t *testing.T) (Provider, *davtest.Server) {
 	t.Helper()
-	f := &fakeDAV{dir: t.TempDir()}
-	dav := &webdav.Handler{Prefix: "/dav", FileSystem: webdav.Dir(f.dir), LockSystem: webdav.NewMemLS()}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if user, password, ok := r.BasicAuth(); !ok || user != "kando" || password != "secret" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="nas"`)
-			http.Error(w, "who are you", http.StatusUnauthorized)
-			return
-		}
-		if r.Method == http.MethodGet {
-			f.mu.Lock()
-			f.ranges = append(f.ranges, r.Header.Get("Range"))
-			f.mu.Unlock()
-		}
-		dav.ServeHTTP(w, r)
-	}))
-	t.Cleanup(srv.Close)
-	f.url = srv.URL + "/dav"
-	return f
-}
-
-// webdavProvider is a provider over the folder films of a new fakeDAV.
-func webdavProvider(t *testing.T) (Provider, *fakeDAV) {
-	t.Helper()
-	f := newFakeDAV(t)
-	if err := os.Mkdir(f.dir+"/films", 0o755); err != nil {
+	f := davtest.New(t)
+	if err := os.Mkdir(f.Dir+"/films", 0o755); err != nil {
 		t.Fatal(err)
 	}
-	p, closer, err := OpenRemote(context.Background(), Remote{Kind: KindWebDAV, URL: f.url, Root: "/films/", User: "kando", Password: "secret"})
+	p, closer, err := OpenRemote(context.Background(), Remote{Kind: KindWebDAV, URL: f.URL, Root: "/films/", User: "kando", Password: "secret"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,22 +28,18 @@ func webdavProvider(t *testing.T) (Provider, *fakeDAV) {
 func TestWebDAVKeepsFilesUnderItsRootAndReadsByRange(t *testing.T) {
 	p, f := webdavProvider(t)
 	write(t, p, "Heat (1995)/video.mp4", "0123456789")
-	if body, err := os.ReadFile(f.dir + "/films/Heat (1995)/video.mp4"); err != nil || string(body) != "0123456789" {
+	if body, err := os.ReadFile(f.Dir + "/films/Heat (1995)/video.mp4"); err != nil || string(body) != "0123456789" {
 		t.Fatalf("on the server: %q, %v", body, err)
 	}
-	f.mu.Lock()
-	f.ranges = nil
-	f.mu.Unlock()
+	f.ForgetRanges()
 	if got := read(t, p, "Heat (1995)/video.mp4", 2, 3); got != "234" {
 		t.Fatalf("range = %q", got)
 	}
 	if got := read(t, p, "Heat (1995)/video.mp4", 7, -1); got != "789" {
 		t.Fatalf("tail = %q", got)
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if !slices.Equal(f.ranges, []string{"bytes=2-4", "bytes=7-9"}) {
-		t.Fatalf("ranges asked %q", f.ranges)
+	if ranges := f.Ranges(); !slices.Equal(ranges, []string{"bytes=2-4", "bytes=7-9"}) {
+		t.Fatalf("ranges asked %q", ranges)
 	}
 	info, err := p.Stat(context.Background(), "Heat (1995)/video.mp4")
 	if err != nil || info.ETag == "" {
@@ -87,11 +49,11 @@ func TestWebDAVKeepsFilesUnderItsRootAndReadsByRange(t *testing.T) {
 
 func TestWebDAVRefusesAWrongPasswordAndABadAddress(t *testing.T) {
 	ctx := context.Background()
-	f := newFakeDAV(t)
-	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.url, User: "kando", Password: "wrong"}); err == nil || !strings.Contains(err.Error(), "401") {
+	f := davtest.New(t)
+	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.URL, User: "kando", Password: "wrong"}); err == nil || !strings.Contains(err.Error(), "401") {
 		t.Fatalf("wrong password = %v", err)
 	}
-	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.url, Root: "missing", User: "kando", Password: "secret"}); err == nil {
+	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.URL, Root: "missing", User: "kando", Password: "secret"}); err == nil {
 		t.Fatal("a missing root opened")
 	}
 	for _, bad := range []string{"ftp://nas/films", "nas/films", "https://user:pw@nas/films", "https://nas/../x"} {
@@ -99,7 +61,7 @@ func TestWebDAVRefusesAWrongPasswordAndABadAddress(t *testing.T) {
 			t.Errorf("%s opened", bad)
 		}
 	}
-	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.url, Root: "../x"}); err == nil {
+	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.URL, Root: "../x"}); err == nil {
 		t.Error("a root above the address opened")
 	}
 }

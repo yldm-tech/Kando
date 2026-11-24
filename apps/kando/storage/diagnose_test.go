@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"testing"
 
+	"kando/apps/kando/storage/davtest"
 	"kando/apps/kando/storage/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
@@ -19,7 +20,7 @@ import (
 // What OpenRemote's own servers answer reads as the failure a person can act on.
 func TestDiagnoseReadsTheServersAnswers(t *testing.T) {
 	ctx := context.Background()
-	dav := newFakeDAV(t)
+	dav := davtest.New(t)
 	ssh := sftptest.New(t)
 	closed, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -30,8 +31,8 @@ func TestDiagnoseReadsTheServersAnswers(t *testing.T) {
 	host, port, _ := net.SplitHostPort(refused)
 	n, _ := strconv.Atoi(port)
 
-	wrongDAV := Remote{Kind: KindWebDAV, URL: dav.url, User: "kando", Password: "wrong"}
-	missingDAV := Remote{Kind: KindWebDAV, URL: dav.url, Root: "missing", User: "kando", Password: "secret"}
+	wrongDAV := Remote{Kind: KindWebDAV, URL: dav.URL, User: "kando", Password: "wrong"}
+	missingDAV := Remote{Kind: KindWebDAV, URL: dav.URL, Root: "missing", User: "kando", Password: "secret"}
 	unknown := sftpRemote(ssh, "")
 	unknown.HostKey = ""
 	wrongSSH := sftpRemote(ssh, "")
