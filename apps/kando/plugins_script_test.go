@@ -212,15 +212,20 @@ func scriptsCall(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id
 		}
 		a.pluginsRunner().Call(l.plugin, name, args, func(v any, err error) { got.v, got.err, got.done = v, err, true })
 	})
-	// A call that times out says whether the runner still has a call and whether the engine still runs what it is posted, so a call that never ended tells apart from an engine held up.
+	// A call that times out says whether the runner still has a call and, on a target, whether the engine still runs what it is posted, so a call that never ended tells apart from an engine held up. Headless the test's goroutine is the engine's, which runs posts only as the test settles, so there the runner is read directly rather than through a post that could never run while the test waits for it.
 	scriptsSettleWithin(t, a, tt, updates, scriptsWait, func() bool { return got.done }, func() string {
-		answer := make(chan bool, 1)
-		a.cx.Post(func() { answer <- a.pluginsRunner().Busy() })
-		state := "the engine did not run a post within a second"
-		select {
-		case busy := <-answer:
-			state = fmt.Sprintf("the runner busy: %v", busy)
-		case <-time.After(time.Second):
+		var state string
+		if nsgotest.Target() == "" {
+			state = fmt.Sprintf("the runner busy: %v", a.pluginsRunner().Busy())
+		} else {
+			answer := make(chan bool, 1)
+			a.cx.Post(func() { answer <- a.pluginsRunner().Busy() })
+			state = "the engine did not run a post within a second"
+			select {
+			case busy := <-answer:
+				state = fmt.Sprintf("the runner busy: %v", busy)
+			case <-time.After(time.Second):
+			}
 		}
 		return fmt.Sprintf("%s.%s posted %v ago, %s", id, name, time.Since(posted).Round(time.Millisecond), state)
 	})
