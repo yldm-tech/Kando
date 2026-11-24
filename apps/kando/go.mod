@@ -6,8 +6,8 @@ tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.48.0
-	github.com/aws/aws-sdk-go-v2/credentials v1.21.0
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.10
+	github.com/aws/aws-sdk-go-v2/credentials v1.21.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.116.0
 	github.com/aws/smithy-go v1.28.9
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8
 	github.com/modelcontextprotocol/go-sdk v1.8.0
@@ -19,7 +19,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/oauth2 v0.38.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/text v0.44.0
@@ -63,8 +63,8 @@ require (
 	github.com/google/licenseclassifier/v2 v2.0.0 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
-	github.com/ikawaha/kagome-dict v1.1.7 // indirect
-	github.com/ikawaha/kagome-dict/ipa v1.2.6 // indirect
+	github.com/ikawaha/kagome-dict v1.1.8 // indirect
+	github.com/ikawaha/kagome-dict/ipa v1.2.7 // indirect
 	github.com/ikawaha/kagome/v2 v2.11.1 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
