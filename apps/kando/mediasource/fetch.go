@@ -215,26 +215,24 @@ func (f *Fetcher) client(redirect func(req *http.Request, via []*http.Request) e
 		DialContext:         dial,
 		TLSHandshakeTimeout: 30 * time.Second,
 		IdleConnTimeout:     90 * time.Second,
-		// The TLS connection is made here rather than by the transport, so the certificate is verified knowing the host dialed, an address among them, for which the transport gives no server name: the endpoint's against the fingerprint the user trusted, or by the system, which knows the fingerprint of one that failed, for the user to trust.
+		// The TLS connection is made here rather than by the transport, so the certificate is checked knowing the host dialed, an address among them, for which the transport gives no server name: by the system, which tells the certificate of one it refused, for the user to trust (CertError); and the endpoint's, once the user trusted one, by its fingerprint alone, as a NAS's own certificate rarely names the address it is reached by.
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			host, _, err := net.SplitHostPort(addr)
 			if err != nil {
 				return nil, err
 			}
+			isEndpoint := strings.EqualFold(host, endpoint)
 			raw, err := dial(ctx, network, addr)
 			if err != nil {
 				return nil, err
 			}
-			conn := tls.Client(raw, &tls.Config{
-				ServerName:         host,
-				MinVersion:         tls.VersionTLS12,
-				InsecureSkipVerify: true,
-				VerifyConnection: func(cs tls.ConnectionState) error {
-					return f.verify(cs, host, strings.EqualFold(host, endpoint))
-				},
-			})
+			conn := tls.Client(raw, f.tlsConfig(host, isEndpoint))
 			if err := conn.HandshakeContext(ctx); err != nil {
 				raw.Close()
+				var refused *tls.CertificateVerificationError
+				if isEndpoint && errors.As(err, &refused) && len(refused.UnverifiedCertificates) > 0 {
+					return nil, &CertError{Fingerprint: Fingerprint(refused.UnverifiedCertificates[0].Raw), Err: refused.Err}
+				}
 				return nil, err
 			}
 			return conn, nil
@@ -246,30 +244,24 @@ func (f *Fetcher) client(redirect func(req *http.Request, via []*http.Request) e
 	return &http.Client{Transport: transport, CheckRedirect: redirect}
 }
 
-// verify checks the certificate of the server at host: the endpoint's against the fingerprint the user trusted when there is one, else, as every other server's, by the system's roots (Roots in a test) for host.
-func (f *Fetcher) verify(cs tls.ConnectionState, host string, endpoint bool) error {
-	if len(cs.PeerCertificates) == 0 {
-		return errors.New("mediasource: the server sent no certificate")
+// tlsConfig is how the server at host is reached: its certificate verified by the system (by Roots in a test) for host; or, for the endpoint once the user trusted a certificate of its (Pin), that certificate alone, by its fingerprint, which takes the place of the system's verification, as trust on first use does for an SFTP server's key.
+func (f *Fetcher) tlsConfig(host string, endpoint bool) *tls.Config {
+	cfg := &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12, RootCAs: f.Roots}
+	if !endpoint || f.Pin == "" {
+		return cfg
 	}
-	leaf := cs.PeerCertificates[0]
-	got := Fingerprint(leaf.Raw)
-	if endpoint && f.Pin != "" {
-		if got != f.Pin {
-			return &CertError{Fingerprint: got, Pinned: f.Pin}
+	pin := f.Pin
+	cfg.InsecureSkipVerify = true // The certificate is checked against the fingerprint the user trusted, in VerifyConnection.
+	cfg.VerifyConnection = func(cs tls.ConnectionState) error {
+		if len(cs.PeerCertificates) == 0 {
+			return errors.New("mediasource: the server sent no certificate")
+		}
+		if got := Fingerprint(cs.PeerCertificates[0].Raw); got != pin {
+			return &CertError{Fingerprint: got, Pinned: pin}
 		}
 		return nil
 	}
-	opts := x509.VerifyOptions{DNSName: host, Roots: f.Roots, Intermediates: x509.NewCertPool()}
-	for _, c := range cs.PeerCertificates[1:] {
-		opts.Intermediates.AddCert(c)
-	}
-	if _, err := leaf.Verify(opts); err != nil {
-		if endpoint {
-			return &CertError{Fingerprint: got, Err: err}
-		}
-		return err
-	}
-	return nil
+	return cfg
 }
 
 // target is the address of path and query under the endpoint, ErrFetchDenied when path is not plain (a segment . or .., an empty one, an escaped slash or dot) and so might leave the endpoint's path.
