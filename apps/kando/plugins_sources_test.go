@@ -189,7 +189,12 @@ func TestPluginSourceReadsAFolderAndAFile(t *testing.T) {
 	s := mediasource.Source{ID: "0123456789abcdef", Kind: pluginKindID, Name: "NAS", Config: map[string]string{mediasource.EndpointKey: srv.URL + "/dav", "user": "kando"}}
 	onEngine(a, func() {
 		a.sources.list = []mediasource.Source{s}
-		if err := a.mediaSourceSecretStore().Set(mediaSourceSecretAccount(s.ID, "password"), "secret"); err != nil {
+		store := a.mediaSourceSecretStore()
+		if err := store.Set(mediaSourceSecretAccount(s.ID, "password"), "secret"); err != nil {
+			t.Fatal(err)
+		}
+		k, _ := a.sources.kinds.Kind(pluginKindID)
+		if err := store.Set(mediaSourceSecretAccount(s.ID, mediaSourceOriginKey), mediaSourceOrigin(k, s)); err != nil {
 			t.Fatal(err)
 		}
 		a.mediaSourcePoolSync()
@@ -305,5 +310,62 @@ func TestPluginSourceTrustsACertificate(t *testing.T) {
 	scriptsSettle(t, a, tt, updates, func() bool { return !a.MediaSourceStatus(id).Busy })
 	if a.sources.list[0].Config[mediasource.PinKey] != want || !a.MediaSourceStatus(id).OK {
 		t.Fatalf("replaced: %+v %+v", a.sources.list[0], a.MediaSourceStatus(id))
+	}
+}
+
+// TestPluginSourceSecretsStayWithTheirServer checks docs/media-sources.md 3.1: a plugin's source's password is kept for its server's origin, so once its address is changed to another server, neither a Test nor a save sends that server the old password, the password not typed again is forgotten, and the certificate trusted for the old server is too.
+func TestPluginSourceSecretsStayWithTheirServer(t *testing.T) {
+	a, tt, updates := sourcesApp(t)
+	srv, other := newSourceServer(t, false), newSourceServer(t, false)
+	tt = sourcesDraft(t, a, tt, srv.URL, "secret")
+	onEngine(a, func() { a.SaveMediaSource() })
+	scriptsSettle(t, a, tt, updates, func() bool { return len(a.sources.list) == 1 && !a.MediaSourceEditing() })
+	var id string
+	onEngine(a, func() {
+		id = a.sources.list[0].ID
+		// The source's server's own certificate was trusted once.
+		a.sources.list[0].Config[mediasource.PinKey] = "SHA256 00"
+		a.EditMediaSource(id)
+	})
+	refresh(tt, a)
+	if st := sourcesTest(t, a, tt, updates); !st.OK {
+		t.Fatalf("the source saved does not reach its server: %+v", st)
+	}
+	onEngine(a, func() {
+		d := a.MediaSourceDraft()
+		d.Values[mediasource.EndpointKey] = other.URL + "/dav"
+	})
+	refresh(tt, a)
+	sourcesTest(t, a, tt, updates)
+	onEngine(a, func() { a.SaveMediaSource() })
+	scriptsSettle(t, a, tt, updates, func() bool { return !a.MediaSourceEditing() })
+	other.mu.Lock()
+	heard := slices.Clone(other.heard)
+	other.mu.Unlock()
+	if slices.Contains(heard, "kando:secret") {
+		t.Errorf("the other server heard the old password: %q", heard)
+	}
+	var (
+		saved           mediasource.Source
+		password        string
+		hadPassword     bool
+		origin, wantOrg string
+	)
+	onEngine(a, func() {
+		saved = a.sources.list[0]
+		store := a.mediaSourceSecretStore()
+		password, hadPassword, _ = store.Get(mediaSourceSecretAccount(id, "password"))
+		origin, _, _ = store.Get(mediaSourceSecretAccount(id, mediaSourceOriginKey))
+		k, _ := a.sources.kinds.Kind(pluginKindID)
+		wantOrg = mediaSourceOrigin(k, saved)
+	})
+	if hadPassword || password != "" {
+		t.Errorf("the old password is still kept: %q", password)
+	}
+	if origin != wantOrg || !strings.HasPrefix(origin, "http://127.0.0.1:") {
+		t.Errorf("the secrets are kept for %q, want %q", origin, wantOrg)
+	}
+	if _, ok := saved.Config[mediasource.PinKey]; ok {
+		t.Errorf("the old server's certificate is still trusted: %+v", saved.Config)
 	}
 }

@@ -359,6 +359,10 @@ func (a *app) mediaSourceDraftSource() (mediasource.Source, mediasource.Kind, ma
 		return mediasource.Source{}, mediasource.Kind{}, nil, false
 	}
 	s := mediasource.Source{ID: m.editID, Kind: k.ID, Name: strings.TrimSpace(m.draft.Name), Config: mediaSourceConfig(k, m.draft.Values)}
+	// The certificate trusted for the source's server is not one to trust for another.
+	if i := a.mediaSourceIndex(s.ID); i >= 0 && s.Config[mediasource.PinKey] != "" && mediaSourceOrigin(k, s) != mediaSourceOrigin(k, m.list[i]) {
+		delete(s.Config, mediasource.PinKey)
+	}
 	secrets := map[string]string{}
 	for _, key := range k.SecretKeys() {
 		if v := m.draft.Values[key]; v != "" {
@@ -432,6 +436,19 @@ func (a *app) saveMediaSourceDraft() {
 		s.ID = a.mediaSourceRelinkID(s)
 	}
 	m.problem = nil
+	if origin := mediaSourceOrigin(k, s); origin != "" {
+		// A plugin's source's secrets are bound to its endpoint's origin: those typed are kept for it, and when the address moved to another server, those not typed again are emptied rather than sent there (docs/media-sources.md 3.1).
+		if i := a.mediaSourceIndex(s.ID); i >= 0 && mediaSourceOrigin(k, m.list[i]) != origin {
+			for _, key := range k.SecretKeys() {
+				if _, typed := secrets[key]; !typed {
+					secrets[key] = ""
+				}
+			}
+		}
+		if len(secrets) > 0 {
+			secrets[mediaSourceOriginKey] = origin
+		}
+	}
 	if len(secrets) == 0 {
 		a.mediaSourceCommit(s)
 		return
@@ -463,14 +480,19 @@ type mediaSourceSecretWrite struct {
 	prev  map[string]string
 }
 
-// set writes v as the secret key, first reading what the store held there to put back.
+// set writes v as the secret key, or forgets it when v is empty, first reading what the store held there to put back.
 func (w *mediaSourceSecretWrite) set(key, v string) error {
 	account := mediaSourceSecretAccount(w.id, key)
 	old, had, err := w.store.Get(account)
 	if err != nil {
 		return err
 	}
-	if err := w.store.Set(account, v); err != nil {
+	if v == "" {
+		err = w.store.Delete(account)
+	} else {
+		err = w.store.Set(account, v)
+	}
+	if err != nil {
 		return err
 	}
 	w.keys = append(w.keys, key)
@@ -589,7 +611,7 @@ func (a *app) answerRemoveMediaSource(yes bool) {
 	if k, ok := mediasource.Builtin(gone.Kind); ok {
 		keys = k.SecretKeys()
 	} else if k, ok := m.kinds.Kind(gone.Kind); ok {
-		keys = k.SecretKeys()
+		keys = append(k.SecretKeys(), mediaSourceOriginKey)
 	}
 	if len(keys) == 0 {
 		return
@@ -648,7 +670,7 @@ func (a *app) testMediaSource(target string) {
 	m.tests[target] = mediaSourceTest{busy: true, gen: gen}
 	open, store, update := m.open, a.mediaSourceSecretStore(), a.update
 	go func() {
-		secrets := mediaSourceReadSecrets(store, k, s.ID, typed)
+		secrets := mediaSourceReadSecrets(store, k, s, typed)
 		ctx, cancel := context.WithTimeout(context.Background(), mediaSourceTestTimeout)
 		defer cancel()
 		var entries []mediasource.Entry
@@ -661,11 +683,17 @@ func (a *app) testMediaSource(target string) {
 	}()
 }
 
-// mediaSourceReadSecrets are the secrets of the source id of kind k: those typed, else those the secure store keeps. It reads the store, which may make it wait, so it runs off the engine's goroutine; a secret it cannot read is left out, so the connection fails at signing in and says so.
-func mediaSourceReadSecrets(store ns.Secrets, k mediasource.Kind, id string, typed map[string]string) map[string]string {
+// mediaSourceReadSecrets are the secrets of the source s of kind k: those typed, else those the secure store keeps. A plugin's source's secrets kept for another origin than its endpoint's (mediaSourceOriginKey) are read as none. It reads the store, which may make it wait, so it runs off the engine's goroutine; a secret it cannot read is left out, so the connection fails at signing in and says so.
+func mediaSourceReadSecrets(store ns.Secrets, k mediasource.Kind, s mediasource.Source, typed map[string]string) map[string]string {
+	id := s.ID
 	secrets := maps.Clone(typed)
 	if secrets == nil {
 		secrets = map[string]string{}
+	}
+	if origin := mediaSourceOrigin(k, s); origin != "" && id != "" {
+		if kept, ok, err := store.Get(mediaSourceSecretAccount(id, mediaSourceOriginKey)); err != nil || !ok || kept != origin {
+			return secrets
+		}
 	}
 	for _, key := range k.SecretKeys() {
 		if secrets[key] != "" || id == "" {

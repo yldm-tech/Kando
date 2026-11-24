@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
+	"strings"
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/mediasource"
@@ -10,6 +12,25 @@ import (
 )
 
 // The sources of a script plugin's kinds (docs/media-sources.md 11, state_plugins_sources.go) as 设置 › 媒体来源 and the 媒体来源 page treat them: what a draft needs, what the dialog says of an address that is not encrypted, why one could not be read, the question that trusts a server's certificate the system does not, as a NAS's own, being 设置 › 媒体来源's one question about a server (mediaSourceAlert, 17.5).
+
+// mediaSourceOriginKey is the key, beside a plugin's source's secrets in the secure store, of the origin of the endpoint they were kept for (docs/media-sources.md 3.1): secrets kept for another origin are read as none, so a source whose address was changed to another server never sends that server the password of the old one, and the user enters it again. No field of a kind can have it, as a field's key has no dot.
+const mediaSourceOriginKey = "endpoint.origin"
+
+// mediaSourceOrigin is the origin of the endpoint of s, a source of the kind k, as its secrets are bound to it: scheme, host in lower case and port, the scheme's own when left out; "" for a built-in kind's source or an endpoint that is not one.
+func mediaSourceOrigin(k mediasource.Kind, s mediasource.Source) string {
+	if k.Origin.Builtin() {
+		return ""
+	}
+	u, err := mediasource.ParseEndpoint(s.Config[mediasource.EndpointKey])
+	if err != nil {
+		return ""
+	}
+	port := u.Port()
+	if port == "" {
+		port = map[string]string{"https": "443", "http": "80"}[u.Scheme]
+	}
+	return u.Scheme + "://" + net.JoinHostPort(strings.ToLower(u.Hostname()), port)
+}
 
 // mediaSourcePluginProblem is what keeps s, a source of a plugin's kind, from being tried or saved, nil when nothing does: an address Kando sends its requests to (mediasource.ParseEndpoint).
 func mediaSourcePluginProblem(s mediasource.Source) func(locales.Messages) string {

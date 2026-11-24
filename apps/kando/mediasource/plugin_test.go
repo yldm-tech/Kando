@@ -193,6 +193,10 @@ func TestFetchRefuses(t *testing.T) {
 		{"a Range", FetchRequest{Method: "GET", Path: "films", Header: map[string]string{"Range": "bytes=0-"}}, ErrFetchDenied},
 		{"a line break", FetchRequest{Method: "GET", Path: "films", Header: map[string]string{"X-A": "1\r\nCookie: a"}}, ErrFetchDenied},
 		{"17 headers", FetchRequest{Method: "GET", Path: "films", Header: many}, ErrFetchDenied},
+		{"a method override", FetchRequest{Method: "POST", Path: "login", Header: map[string]string{"X-HTTP-Method-Override": "DELETE"}}, ErrFetchDenied},
+		{"a method override of another name", FetchRequest{Method: "GET", Path: "films", Header: map[string]string{"x-http-method": "DELETE"}}, ErrFetchDenied},
+		{"a login that is not a POST", FetchRequest{Method: "PROPFIND", Path: "films", Body: "{{secret:pin}}", Login: true}, ErrFetchDenied},
+		{"a login by GET", FetchRequest{Method: "GET", Path: "login", Login: true}, ErrFetchDenied},
 		{"a body over 1 MiB", FetchRequest{Method: "POST", Path: "login", Body: strings.Repeat("x", FetchBodyMax+1)}, ErrFetchTooLarge},
 	} {
 		n := len(s.heard)
@@ -354,6 +358,13 @@ func TestFetcherOffline(t *testing.T) {
 	f.Endpoint = u
 	if _, err := f.Fetch(context.Background(), FetchRequest{Method: "GET", Path: ""}); !errors.Is(err, media.ErrOffline) {
 		t.Errorf("on the internet: %v", err)
+	}
+	// A driver's fetcher outlives a change of offline mode, and reads it as each file is opened.
+	offline := false
+	f.Offline, f.OfflineNow = false, func() bool { return offline }
+	offline = true
+	if _, err := f.Open(context.Background(), OpenTarget{Path: "films/talk.mp4"}, 0, -1); !errors.Is(err, media.ErrOffline) {
+		t.Errorf("a file on the internet once offline mode is on: %v", err)
 	}
 }
 
