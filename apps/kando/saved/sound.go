@@ -143,6 +143,13 @@ func soundFor(ctx context.Context, ffmpeg string, b Book, l Line, delay func(vid
 	kept := StoredSound(b, l.ID)
 	_, err := os.Stat(video)
 	cut := ffmpeg != "" && l.Video != "" && err == nil
+	// A film whose video is not on this computer, as one indexed from a media source, is cut from where the app serves it (WithStreams); the delay still goes by its path in the library.
+	at := video
+	if !cut && ffmpeg != "" && l.Video != "" {
+		if stream := streamOf(ctx, video); stream != "" {
+			at, cut = stream, true
+		}
+	}
 	if !cut && !HasSound(kept) {
 		return "", nil
 	}
@@ -151,7 +158,7 @@ func soundFor(ctx context.Context, ffmpeg string, b Book, l Line, delay func(vid
 	}
 	if cut {
 		from, to := ClipSpan(l, delay(video))
-		err := CutClip(ctx, ffmpeg, video, from, to, out)
+		err := CutClip(ctx, ffmpeg, at, from, to, out)
 		if err == nil {
 			return name, nil
 		}
@@ -174,4 +181,20 @@ func SoundFor(ctx context.Context, ffmpeg string, b Book, l Line, delay time.Dur
 		return "", err
 	}
 	return filepath.Join(dir, name), nil
+}
+
+// streamsKey is the key of WithStreams' function in a context.
+type streamsKey struct{}
+
+// WithStreams is ctx carrying stream: for a film's video that is not on this computer, by its path in the library, the address ffmpeg reads it at until ctx ends, "" for none, so the export and a plugin reading a line's sound cut it from there, as from a film indexed from a media source.
+func WithStreams(ctx context.Context, stream func(ctx context.Context, video string) string) context.Context {
+	return context.WithValue(ctx, streamsKey{}, stream)
+}
+
+// streamOf is the address WithStreams gives video at under ctx, "" for none.
+func streamOf(ctx context.Context, video string) string {
+	if stream, ok := ctx.Value(streamsKey{}).(func(context.Context, string) string); ok && stream != nil {
+		return stream(ctx, video)
+	}
+	return ""
 }

@@ -216,3 +216,32 @@ func TestSoundsFollowTheirRecords(t *testing.T) {
 		t.Errorf("the sweep of an unread record took away %d files", n)
 	}
 }
+
+// TestAnIndexedFilmsSoundIsCutFromItsStream exports a line of a film whose video is not on this computer, as one indexed from a media source: ffmpeg cuts it from the address WithStreams gives for the video's path, and without one the line has no sound.
+func TestAnIndexedFilmsSoundIsCutFromItsStream(t *testing.T) {
+	lib := t.TempDir()
+	ffmpeg := standInFFmpeg(t, t.TempDir())
+	b, _ := Load(lib)
+	b.Toggle(Line{Video: "NAS/Heat/video.mkv", Start: 2 * time.Second, End: 3 * time.Second, Original: "Heat", Film: "Heat"})
+	l := b.Lines[0]
+	stream := "http://127.0.0.1:1/token/video.mkv"
+	asked := ""
+	ctx := WithStreams(context.Background(), func(_ context.Context, video string) string {
+		asked = video
+		return stream
+	})
+	path, err := SoundFor(ctx, ffmpeg, b, l, 0, t.TempDir())
+	if err != nil || path == "" {
+		t.Fatalf("sound %q, %v", path, err)
+	}
+	if asked != filepath.Join(lib, "NAS", "Heat", "video.mkv") {
+		t.Fatalf("the stream was asked for %q", asked)
+	}
+	called, _ := os.ReadFile(filepath.Join(filepath.Dir(ffmpeg), "args"))
+	if !strings.Contains(string(called), "-i "+stream) {
+		t.Fatalf("ffmpeg was asked %q", called)
+	}
+	if path, err := SoundFor(context.Background(), ffmpeg, b, l, 0, t.TempDir()); err != nil || path != "" {
+		t.Fatalf("without a stream: %q, %v", path, err)
+	}
+}

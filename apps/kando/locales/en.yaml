@@ -9686,3 +9686,30 @@ mediaSourceLinkedMove:
   placeholders:
     name: { type: "String", example: "Heat" }
     source: { type: "String", example: "Living Room NAS" }
+mediaSourceCopyToLibrary:
+  message: "Copy into Library"
+  description: "Item of a film's menu for a film indexed from a media source: copy its video onto this computer, so it no longer plays from the source."
+mediaSourceCopying:
+  message: "Copying “{name}” from {source} into the library…"
+  description: "Message bar while the video of a film indexed from a media source is copied onto this computer."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+    source: { type: "String", example: "Living Room NAS" }
+mediaSourceCopied:
+  message: "“{name}” is in the library now and plays offline."
+  description: "Message bar once the video of a film indexed from a media source was copied onto this computer."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+mediaSourceCopyFailed:
+  message: "Couldn't copy “{name}” from {source}: {reason}"
+  description: "Message bar when copying the video of a film indexed from a media source onto this computer failed, with why."
+  placeholders:
+    name: { type: "String", example: "Heat" }
+    source: { type: "String", example: "Living Room NAS" }
+    reason: { type: "String", example: "the NAS is off" }
+mediaSourceChangedRedo:
+  message: "Make Subtitles Again"
+  description: "Button of the bar saying an indexed film's file changed on its media source: make its subtitles again from the file as it is now."
+mediaSourceNoHTTP:
+  message: "This ffmpeg can't read network addresses, which a film played from a media source needs. Use the one Kando downloads, in Settings › General."
+  description: "Why making the subtitles of a film indexed from a media source failed: the ffmpeg in use was built without its http protocol."

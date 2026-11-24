@@ -328,7 +328,7 @@ func (a *app) mediaSourceStartImport() {
 }
 
 // mediaSourceCopier is what copies a media source's video into the library for a job (media.Tools.Sources): through the pool's connection to its source, refusing a source on the internet while offline mode is on.
-func (a *app) mediaSourceCopier() media.SourceReader {
+func (a *app) mediaSourceCopier() mediasource.Copier {
 	return mediasource.Copier{Pool: a.sources.pool, Offline: a.privacy.now.Load, LocalHost: a.sources.localHost}
 }
 

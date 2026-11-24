@@ -17,6 +17,7 @@ func (f *fakeLinker) LinkedChanged() string { return f.changedOn }
 func (f *fakeLinker) KeepLinkedChanged()    { f.linkedAsked = append(f.linkedAsked, "keep") }
 func (f *fakeLinker) RetryLinked()          { f.linkedAsked = append(f.linkedAsked, "retry") }
 func (f *fakeLinker) FindLinked()           { f.linkedAsked = append(f.linkedAsked, "find") }
+func (f *fakeLinker) RedoLinked()           { f.linkedAsked = append(f.linkedAsked, "redo") }
 
 // TestAnIndexedFilmSaysWhyItDoesNotPlay checks what goes under the note of a film indexed from a media source that does not play: 重试 and the settings when its source cannot be reached, the settings alone when it was removed, 在来源里找 when the file is no longer at its path, and none of the file manager's buttons, the video not being on this computer.
 func TestAnIndexedFilmSaysWhyItDoesNotPlay(t *testing.T) {
@@ -48,7 +49,7 @@ func TestAnIndexedFilmSaysWhyItDoesNotPlay(t *testing.T) {
 	}
 }
 
-// TestAChangedFileSaysSo checks the bar over the picture of an indexed film whose file changed on its source: it names the source, and 知道了 takes the file as it is.
+// TestAChangedFileSaysSo checks the bar over the picture of an indexed film whose file changed on its source: it names the source, 重新做字幕 makes its lines again and 知道了 takes the file as it is.
 func TestAChangedFileSaysSo(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
@@ -59,8 +60,9 @@ func TestAChangedFileSaysSo(t *testing.T) {
 	if got := app.Find("id:film-linked-changed"); got == nil || got.Text != testlocale.Messages().MediaSourceChanged("客厅 NAS") {
 		t.Fatalf("bar %q", app.Texts())
 	}
+	app.Press("id:film-linked-changed-redo")
 	app.Press("id:film-linked-changed-keep")
-	if !slices.Equal(a.linkedAsked, []string{"keep"}) {
+	if !slices.Equal(a.linkedAsked, []string{"redo", "keep"}) {
 		t.Fatalf("asked %v", a.linkedAsked)
 	}
 }

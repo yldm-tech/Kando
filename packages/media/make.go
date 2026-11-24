@@ -162,6 +162,8 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	// A media source's video is copied whole into the library first, and is a local film from then on.
 	fromSource := IsSourceRef(job.Source)
 	local := onDisk || fromSource
+	// A film indexed from a media source is not copied: its speech is heard from the source, through the address the app serves it at (SourceStreamer), and its files are named after its placeholder path (core.Job.Linked).
+	streamed := fromSource && job.Linked
 	// soundOnly is a link at core.QualitySubtitles, which keeps no video: it is made from its sound alone, which goes once its subtitles are written.
 	soundOnly := !local && job.Quality == core.QualitySubtitles
 	video := job.VideoPath
@@ -171,6 +173,22 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	// hearFrom is what the speech is heard from: the video, or a link's sound until its video comes.
 	hearFrom := job.VideoPath
 	switch {
+	case streamed:
+		s, ok := p.(SourceStreamer)
+		if !ok {
+			return fail(StageCheck, ErrNoSourceReader)
+		}
+		if hc, ok := p.(HTTPChecker); ok {
+			if err := hc.CheckHTTP(ctx); err != nil {
+				return fail(StageCheck, err)
+			}
+		}
+		url, err := s.StreamSource(ctx, job.Source)
+		if err != nil {
+			job.FailKind = downloadFailKind(job, err)
+			return fail(StageDownload, err)
+		}
+		hearFrom = url
 	case local || Downloaded(video):
 		// A media source's video copied by an earlier try is not copied again.
 		if onDisk || (fromSource && !Downloaded(video)) {
@@ -225,7 +243,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 	}
 	// A local film marks its chapters in its file, if anywhere, as an audiobook does; its titles are translated as a site's are.
 	if ec, ok := p.(EmbeddedChapterer); ok && local && len(chapters) == 0 {
-		chapters = ec.EmbeddedChapters(ctx, video)
+		chapters = ec.EmbeddedChapters(ctx, hearFrom)
 	}
 	if len(chapters) > 0 {
 		keepChapters(video, chapters, job.ChapterUse)
@@ -246,7 +264,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 			}
 		}
 		stopVideo()
-		if hearFrom != video {
+		if hearFrom != video && !streamed {
 			_ = os.Remove(hearFrom)
 		}
 		return fail(StageTranscribe, err)
@@ -258,7 +276,7 @@ func Make(ctx context.Context, p Pipeline, job core.Job, language, device string
 			doc.Events = append(doc.Events, written...)
 		}
 	}
-	m := &making{ctx: ctx, p: p, job: &job, video: video, hearFrom: hearFrom, soundOnly: soundOnly, redo: job.Redo != "", device: device, doc: doc, report: report, coming: coming}
+	m := &making{ctx: ctx, p: p, job: &job, video: video, hearFrom: hearFrom, streamed: streamed, soundOnly: soundOnly, redo: job.Redo != "", device: device, doc: doc, report: report, coming: coming}
 	if _, fetches := p.(PlatformSubtitler); !fetches || local || job.SubtitleSource != core.SubtitlesPlatform {
 		m.siteState = siteNone
 	}
@@ -361,7 +379,9 @@ type making struct {
 	job     *core.Job
 	video   string
 	// hearFrom is the file the speech is heard from: the video, or the sound of a link whose video is still coming, or that keeps none (soundOnly).
-	hearFrom  string
+	hearFrom string
+	// streamed is a film indexed from a media source, whose hearFrom is the address the app serves its video at, which is no file to remove.
+	streamed  bool
 	soundOnly bool
 	// redo is a film made again (core.RedoAll, core.RedoTranslation) into a generation of its own, which the film shows only once it is done: until then nothing of it is written out, and the job keeps describing the film as it was.
 	redo bool
@@ -806,7 +826,7 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 	subtitlesOnly := false
 	if m.soundOnly {
 		job.VideoPath, subtitlesOnly = m.video, removeSound(m.hearFrom)
-	} else if m.hearFrom != job.VideoPath {
+	} else if m.hearFrom != job.VideoPath && !m.streamed {
 		_ = os.Remove(m.hearFrom)
 	}
 	if spoken != "" {

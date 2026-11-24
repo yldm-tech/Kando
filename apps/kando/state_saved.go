@@ -302,6 +302,7 @@ func (a *app) ExportSaved() {
 		book.Lines = slices.Clone(book.Lines)
 		delays := maps.Clone(a.player.delays)
 		ffmpeg, update := a.ffmpegPath(), a.update
+		ctx = saved.WithStreams(ctx, a.linkedStreams())
 		target, name := a.pluginsExportTarget()
 		a.saved.export = savedExport{busy: true, total: len(book.Lines), noFFmpeg: ffmpeg == "", cancel: cancel, gen: gen, template: name, sounds: target.Sounds()}
 		report := func(fn func(e *savedExport)) {

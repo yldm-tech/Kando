@@ -150,13 +150,14 @@ func (a *app) pluginsSoundRead(l *pluginsScript, c *ns.HostCall) {
 		data []byte
 		ms   int64
 	}
+	streams := a.linkedStreams()
 	pluginsWaiting(a, l, c, "sound", func(ctx context.Context) (clip, error) {
 		dir, err := os.MkdirTemp("", "kando-plugin-sound-*")
 		if err != nil {
 			return clip{}, err
 		}
 		defer os.RemoveAll(dir)
-		path, err := saved.SoundFor(ctx, ffmpeg, book, line, delay, dir)
+		path, err := saved.SoundFor(saved.WithStreams(ctx, streams), ffmpeg, book, line, delay, dir)
 		if err != nil {
 			return clip{}, err
 		}

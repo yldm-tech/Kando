@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -104,5 +106,88 @@ func TestMakeCopiesAMediaSourcesVideoOnce(t *testing.T) {
 	failed := Make(context.Background(), p, core.Job{ID: "off", Source: heatRef, Stage: core.StageQueued}, "简体中文", "mac", nil, func(core.Job) {})
 	if failed.Stage != core.StageFailed || failed.Err == nil {
 		t.Fatalf("a source that cannot be read: %+v", failed)
+	}
+}
+
+// URL serves nothing in the tests: the address it gives is only checked to be the one heard from.
+func (r *fakeSourceReader) URL(ctx context.Context, source string) (string, error) {
+	if r.err != nil {
+		return "", r.err
+	}
+	return "http://127.0.0.1:1/token/Heat%20(1995).mkv", nil
+}
+
+// streamPipeline is fakePipeline that reads a media source's video where it is (SourceStreamer), as Tools does through a SourceReader, recording what it was asked to hear from and whether its ffmpeg reads http.
+type streamPipeline struct {
+	fakePipeline
+	reader  *fakeSourceReader
+	noHTTP  bool
+	heardMu sync.Mutex
+	heard   []string
+}
+
+func (p *streamPipeline) StreamSource(ctx context.Context, source string) (string, error) {
+	return Tools{Sources: p.reader}.StreamSource(ctx, source)
+}
+
+func (p *streamPipeline) CheckHTTP(context.Context) error {
+	if p.noHTTP {
+		return ErrNoHTTP
+	}
+	return nil
+}
+
+func (p *streamPipeline) Hear(ctx context.Context, path string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	p.heardMu.Lock()
+	p.heard = append(p.heard, path)
+	p.heardMu.Unlock()
+	return p.fakePipeline.Hear(ctx, path, from, to, heard)
+}
+
+// A film indexed from a media source is not copied: it is heard from the address the app serves its video at, its lines are written beside its placeholder path, which stays its video's, and nothing is removed at the address. An ffmpeg that reads no http fails it at the check, and a source that cannot be read at the download, as a copy's would.
+func TestMakeHearsAnIndexedFilmFromItsSource(t *testing.T) {
+	dir := t.TempDir()
+	placeholder := filepath.Join(dir, "Living Room NAS", "Movies", "Heat (1995).mkv")
+	if err := os.MkdirAll(filepath.Dir(placeholder), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &streamPipeline{fakePipeline: fakePipeline{dir: dir, transcribe: []core.Segment{{End: time.Second, Text: "hello"}}}, reader: &fakeSourceReader{}}
+	job := core.Job{ID: "heat", Source: heatRef, VideoPath: placeholder, Linked: true, Stage: core.StageQueued}
+	var stages []core.Stage
+	final := Make(context.Background(), p, job, "简体中文", "mac", nil, func(j core.Job) { stages = enteredStage(stages, j) })
+	if final.Err != nil || final.Stage != core.StageComplete {
+		t.Fatalf("made %+v", final)
+	}
+	if final.VideoPath != placeholder || !final.Linked || p.reader.copies != 0 || slices.Contains(stages, core.StageDownloading) {
+		t.Fatalf("job %+v, %d copies, stages %v", final, p.reader.copies, stages)
+	}
+	if len(p.heard) == 0 || p.heard[0] != "http://127.0.0.1:1/token/Heat%20(1995).mkv" {
+		t.Fatalf("heard from %q", p.heard)
+	}
+	if _, err := os.Stat(final.SubtitlePath); err != nil || filepath.Dir(final.SubtitlePath) != filepath.Dir(placeholder) {
+		t.Fatalf("subtitles %q: %v", final.SubtitlePath, err)
+	}
+	if _, err := os.Stat(placeholder); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a video at the placeholder: %v", err)
+	}
+
+	p.noHTTP = true
+	if failed := Make(context.Background(), p, core.Job{ID: "nohttp", Source: heatRef, VideoPath: placeholder, Linked: true, Stage: core.StageQueued}, "简体中文", "mac", nil, func(core.Job) {}); !errors.Is(failed.Err, ErrNoHTTP) {
+		t.Fatalf("an ffmpeg without http: %+v", failed.Err)
+	}
+	p.noHTTP = false
+	p.reader = &fakeSourceReader{err: errors.New("the NAS is off")}
+	if failed := Make(context.Background(), p, core.Job{ID: "off", Source: heatRef, VideoPath: placeholder, Linked: true, Stage: core.StageQueued}, "简体中文", "mac", nil, func(core.Job) {}); failed.Stage != core.StageFailed {
+		t.Fatalf("a source that cannot be read: %+v", failed)
+	}
+}
+
+// readsHTTP finds http among the protocols ffmpeg reads, and not among those it only writes.
+func TestReadsHTTP(t *testing.T) {
+	if !readsHTTP("Supported file protocols:\nInput:\n  file\n  http\n  https\nOutput:\n  file\n") {
+		t.Fatal("http to read was not found")
+	}
+	if readsHTTP("Supported file protocols:\nInput:\n  file\nOutput:\n  file\n  http\n") {
+		t.Fatal("http to write was taken for http to read")
 	}
 }

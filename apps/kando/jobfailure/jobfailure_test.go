@@ -57,6 +57,7 @@ func TestHintReadsTheStep(t *testing.T) {
 		media.ReadStageError("transcribe: whisper-cli: signal: killed: whisper_init: out of memory"): "Generating subtitles failed: whisper_init: out of memory",
 		media.ReadStageError("translate: translation API returned 401 Unauthorized: invalid key"):    en.PrecheckTranslateAuth(),
 		media.ReadStageError("download: yt-dlp: " + media.ErrOffline.Error()):                        en.PrivacyNoDownload(),
+		media.ReadStageError("check: " + media.ErrNoHTTP.Error()):                                    en.MediaSourceNoHTTP(),
 		errors.New("boom"): en.PrecheckFailedProcess("boom"),
 		// A step's error with no error says the step failed, and does not panic.
 		&media.StageError{Stage: media.StageExport}: en.PrecheckFailedExport(""),

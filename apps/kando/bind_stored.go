@@ -25,6 +25,10 @@ func (a *app) storedItems(cx *ns.Scope, items []films.Film, wrap func(func()) fu
 	if back := a.storedOn(items); len(back) > 0 {
 		out = append(out, nsdesktop.MenuItem{Label: locales.StoredMoveBack(cx), Disabled: !a.storedBackReady(back), OnSelect: wrap(func() { a.MoveVideosBack(back) })})
 	}
+	// An indexed film's video is copied from its media source to be kept in the library (state_mediasource_import.go).
+	if linked := a.linkedOn(items); len(linked) > 0 {
+		out = append(out, nsdesktop.MenuItem{Label: locales.MediaSourceCopyToLibrary(cx), Disabled: !a.linkedCopyReady(linked), OnSelect: wrap(func() { a.CopyLinked(linked) })})
+	}
 	return out
 }
 

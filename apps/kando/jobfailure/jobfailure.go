@@ -78,6 +78,9 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return m.PrecheckNewerKando(), ""
 	case strings.Contains(detail, media.ErrNoLength.Error()):
 		return m.PrecheckNoLength(), ""
+	// A film indexed from a media source is read over the app's loopback server, which an ffmpeg built without http cannot read; Kando's own one can.
+	case strings.Contains(detail, media.ErrNoHTTP.Error()):
+		return m.MediaSourceNoHTTP(), sectionid.General
 	case strings.Contains(detail, media.ErrOffline.Error()) && stage == media.StageDownload:
 		return m.PrivacyNoDownload(), sectionid.Privacy
 	case strings.Contains(detail, media.ErrOffline.Error()):

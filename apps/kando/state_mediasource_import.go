@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"maps"
 	"net/http"
@@ -14,7 +15,9 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/mediasource"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/packages/media"
 )
 
 // Indexing a media source's videos (docs/media-sources.md 5.2, 6): rather than copied into the library, a video can be indexed, its film then playing from the source through the loopback server (playback_linked.go). library.json keeps where each indexed video is (shelf.Library.Linked) by a placeholder path in the library's folder no video is at (mediasource.LinkedPath), which its subtitles and the files beside it are named after, so the film is studied, searched and exported as any other. Kando never writes, moves or removes the file on the source: taking the film off the shelf forgets its record alone. A source removed keeps its films' records, and its address without its secrets (mediaSourceUI.removed), so adding it back plays them again.
@@ -55,11 +58,11 @@ func (a *app) mediaSourceLink(paths []string) {
 	}()
 }
 
-// mediaSourceLinked keeps a record for each video of s found on it (found, by path), in the order of paths, under a placeholder path of the open library, saves library.json and reads the library again, and says on the page how many were indexed, or why none were.
+// mediaSourceLinked keeps a record for each video of s found on it (found, by path), in the order of paths, under a placeholder path of the open library, saves library.json, reads the library again and queues the jobs that make their lines, and says on the page how many were indexed, and why their lines could not be queued, or why none were.
 func (a *app) mediaSourceLinked(s mediasource.Source, paths []string, found map[string]mediasource.Entry, err error) {
 	b := &a.sources.browse
 	root := a.snap().LibraryDir
-	n := 0
+	var made []string
 	now := time.Now().UTC()
 	for _, p := range paths {
 		e, ok := found[p]
@@ -79,13 +82,18 @@ func (a *app) mediaSourceLinked(s mediasource.Source, paths []string, found map[
 			a.library.Linked = map[string]shelf.Linked{}
 		}
 		a.library.Linked[placeholder] = shelf.Linked{Source: s.ID, Path: p, Size: e.Size, Modified: e.Modified.UTC(), Version: e.Version, Added: now}
-		n++
+		made = append(made, placeholder)
 	}
-	if n > 0 {
+	if n := len(made); n > 0 {
 		if serr := a.library.Save(); serr != nil {
 			a.saveErr = a.shelfSaveErr(serr, a.messages().LibraryShelfSaveFailed)
 		}
 		a.refreshLibrary()
+		// Each film's lines are made from the source, as a copy's are once copied (docs/media-sources.md 5.2).
+		if why := a.linkedMake(made); why != "" {
+			b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) + " " + why }
+			return
+		}
 		b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) }
 		return
 	}
@@ -313,12 +321,53 @@ func linkedChangedFrom(l shelf.Linked, e mediasource.Entry) bool {
 	return l.Version != "" && e.Version != "" && e.Version != l.Version
 }
 
-// linkedQueue makes item's lines when it is a film indexed from a media source, which no job holds yet, and reports whether it is one: the job's ID, or why it could not be queued with the settings section that fixes it. Making the lines of an indexed film from its source is not wired up yet, so none is queued.
+// linkedQueue makes item's lines when it is a film indexed from a media source, which no job holds yet, and reports whether it is one: a job reads its video from the source rather than copying it (core.Job.Linked, media.SourceStreamer) and writes its lines beside its placeholder path, as a video of the folder's job does (queueFolderJob), leaving the film as it was if it fails or is stopped. It returns the job's ID, or why it could not be queued with the settings section that fixes it.
 func (a *app) linkedQueue(item films.Film) (id, msg, section string, linked bool) {
-	if !a.linkedHas(item.VideoPath) {
+	return a.linkedQueueTo(item, false)
+}
+
+// linkedQueueTo is linkedQueue, staying on the page shown when stay is set, as the films indexed on the 媒体来源 page are queued there, rather than going to the library as 生成字幕 does (queueAgain).
+func (a *app) linkedQueueTo(item films.Film, stay bool) (id, msg, section string, linked bool) {
+	l, ok := a.linkedOf(item.VideoPath)
+	if !ok {
 		return "", "", "", false
 	}
-	return "", "", "", true
+	ref := mediasource.Ref{Source: l.Source, Path: l.Path}.String()
+	if msg, section := a.precheck([]string{ref}); msg != "" {
+		return "", msg, section, true
+	}
+	job, err := a.newJob(ref)
+	var dup *queueDuplicate
+	switch {
+	case errors.As(err, &dup):
+		return "", sourceError(a.messages(), err), "", true
+	case err != nil:
+		return "", err.Error(), settings.SectionTranslate, true
+	}
+	a.queueFolderJob(&job, item)
+	job.Linked = true
+	if stay {
+		a.queueAdd(job)
+	} else {
+		a.queueAgain(job, nil)
+	}
+	return job.ID, "", "", true
+}
+
+// linkedMake queues the jobs that make the lines of the films at placeholders, just indexed, one after another, as 生成字幕 does for each (linkedQueue), and returns why the first that could not be queued was not, "" when all were.
+func (a *app) linkedMake(placeholders []string) string {
+	all := a.films()
+	first := ""
+	for _, p := range placeholders {
+		item, ok := films.Find(all, p)
+		if !ok {
+			continue
+		}
+		if _, msg, _, _ := a.linkedQueueTo(item, true); msg != "" && first == "" {
+			first = msg
+		}
+	}
+	return first
 }
 
 // mediaSourceIDs are the IDs of the sources in the settings, taken on the engine's goroutine for Phone Sync.
@@ -347,4 +396,125 @@ func mediaSourcePhoneHandler(shelf phoneShelf, l shelf.Linked) http.Handler {
 		}
 		inner.ServeHTTP(w, req)
 	})
+}
+
+// linkedStreams is, taken on the engine's goroutine, what gives the address ffmpeg cuts an indexed film's sound from, by its placeholder path, through the sources' pool until the export's context ends (mediasource.Copier.URL), "" for any other film or a source that cannot be read now, whose sound is then copied from the one kept as it was saved (saved.WithStreams).
+func (a *app) linkedStreams() func(ctx context.Context, video string) string {
+	linked, copier := maps.Clone(a.library.Linked), a.mediaSourceCopier()
+	return func(ctx context.Context, video string) string {
+		l, ok := linked[video]
+		if !ok {
+			return ""
+		}
+		link, err := copier.URL(ctx, mediasource.Ref{Source: l.Source, Path: l.Path}.String())
+		if err != nil {
+			log.Printf("media source: could not read an indexed film's sound from its source: %v", err)
+			return ""
+		}
+		return link
+	}
+}
+
+// linkedOn is those of items indexed from a media source.
+func (a *app) linkedOn(items []films.Film) []films.Film {
+	var out []films.Film
+	for _, item := range items {
+		if a.linkedHas(item.VideoPath) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// linkedCopyReady reports whether the videos of items, indexed from a media source, can be copied into the library now: one is not being copied or made, and its source is in the settings.
+func (a *app) linkedCopyReady(items []films.Film) bool {
+	for _, item := range items {
+		l, ok := a.linkedOf(item.VideoPath)
+		if ok && a.sources.copying[item.VideoPath] == nil && !a.libraryMoveBusy(item) && a.mediaSourceIndex(l.Source) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// CopyLinked copies the video of each of items indexed from a media source into the library, at its placeholder path, as 复制到资料库 does: off the engine's goroutine, one after another, the message bar saying it began and how it ended. Once a copy is whole, its film's record goes and its job is no longer one indexed (core.Job.Linked), so it is a film of the library like any other, which plays offline.
+func (a *app) CopyLinked(items []films.Film) {
+	for _, item := range a.linkedOn(items) {
+		a.linkedCopy(item)
+	}
+}
+
+// linkedCopy copies item's video from its source to its placeholder path (CopyLinked).
+func (a *app) linkedCopy(item films.Film) {
+	p := item.VideoPath
+	l, ok := a.linkedOf(p)
+	if !ok || a.sources.copying[p] != nil || a.libraryMoveBusy(item) || a.update == nil || a.mediaSourceIndex(l.Source) < 0 {
+		return
+	}
+	name, source := films.Name(item), a.mediaSourceName(l.Source)
+	ctx, cancel := context.WithCancel(context.Background())
+	if a.sources.copying == nil {
+		a.sources.copying = map[string]context.CancelFunc{}
+	}
+	a.sources.copying[p] = cancel
+	a.mediaSourcePoolSync()
+	a.tell(a.messages().MediaSourceCopying(name, source))
+	copier := a.mediaSourceCopier()
+	update, ref := a.update, mediasource.Ref{Source: l.Source, Path: l.Path}.String()
+	go func() {
+		defer cancel()
+		err := copier.CopyTo(ctx, ref, p, nil)
+		update(func() { a.linkedCopied(p, name, source, err) })
+	}()
+}
+
+// linkedCopied ends the copy of the indexed film at p: its record goes and its job holds a video of the library, or the message bar says why it failed. A copy stopped as the app quits says nothing.
+func (a *app) linkedCopied(p, name, source string, err error) {
+	delete(a.sources.copying, p)
+	m := a.messages()
+	switch {
+	case errors.Is(err, context.Canceled):
+		return
+	case err != nil:
+		log.Printf("media source: copying an indexed film failed: %v", err)
+		reason := err.Error()
+		if errors.Is(err, media.ErrOffline) {
+			reason = m.MediaSourceOffline()
+		}
+		a.warn(m.MediaSourceCopyFailed(name, source, reason), "")
+		return
+	}
+	delete(a.library.Linked, p)
+	for i, job := range a.library.Jobs {
+		if job.VideoPath == p && job.Linked {
+			a.library.Jobs[i].Linked = false
+		}
+	}
+	if serr := a.library.Save(); serr != nil {
+		a.saveErr = a.shelfSaveErr(serr, m.LibraryShelfSaveFailed)
+	}
+	a.refreshLibrary()
+	a.tell(m.MediaSourceCopied(name))
+}
+
+// linkedStopCopies stops the copies going on, as the app quits: what they wrote goes (storage.Get), and the films stay indexed.
+func (a *app) linkedStopCopies() {
+	for _, cancel := range a.sources.copying {
+		cancel()
+	}
+}
+
+// linkedRedo makes the open film's lines again from its file as it is now on its source, as 重新做字幕 on the bar saying it changed does: the file is taken as it is (linkedKeepChanged), and the film is processed again (Reprocess).
+func (a *app) linkedRedo() {
+	c := a.player.linkedChanged
+	if c == nil {
+		return
+	}
+	a.linkedKeepChanged()
+	for _, item := range a.films() {
+		if item.VideoPath == c.path {
+			a.Reprocess(item)
+			return
+		}
+	}
 }

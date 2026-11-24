@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"kando/packages/core"
 	"kando/packages/media"
@@ -341,5 +342,49 @@ func TestPoolStreams(t *testing.T) {
 	reachable = false
 	if code := serve(); code != http.StatusBadGateway {
 		t.Fatalf("an unreachable source answered the phone %d", code)
+	}
+}
+
+// Copier.URL serves an indexed film's video where it is until the job's context ends, and refuses a source on the internet while offline mode is on.
+func TestCopierURL(t *testing.T) {
+	k := testKind(func() (Driver, error) { return &memDriver{files: map[string]string{"Films/Heat.mkv": "heat"}}, nil })
+	p := &Pool{}
+	defer p.Close()
+	s := Source{ID: "0123456789abcdef", Kind: "test", Name: "NAS", Config: map[string]string{SMBHost: "nas.example.com"}}
+	p.Set([]Source{s}, func(id string) (Kind, bool) { return k, id == "test" }, func(ctx context.Context, k Kind, s Source) (Driver, error) { return k.Open(ctx, s, nil) })
+	offline := false
+	c := Copier{Pool: p, Offline: func() bool { return offline }, LocalHost: func(context.Context, string) (bool, error) { return false, nil }}
+	ref := Ref{Source: s.ID, Path: "Films/Heat.mkv"}.String()
+	ctx, cancel := context.WithCancel(context.Background())
+	link, err := c.URL(ctx, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := http.Get(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if string(body) != "heat" {
+		t.Fatalf("served %q", body)
+	}
+	cancel()
+	for i := 0; i < 100; i++ {
+		res, err := http.Get(link)
+		if err == nil {
+			res.Body.Close()
+			if res.StatusCode == http.StatusNotFound {
+				break
+			}
+		}
+		if i == 99 {
+			t.Fatal("the address still serves once the job ended")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	offline = true
+	if _, err := c.URL(context.Background(), ref); !errors.Is(err, media.ErrOffline) {
+		t.Fatalf("offline: %v", err)
 	}
 }

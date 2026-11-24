@@ -29,6 +29,8 @@ import (
 	"kando/apps/kando/storage"
 	"kando/apps/kando/storage/davtest"
 	"kando/apps/kando/storage/sftptest"
+	"kando/packages/core"
+	"kando/packages/media"
 
 	"github.com/cloudsoda/go-smb2"
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -878,14 +880,36 @@ func TestMediaSourceWebDAV(t *testing.T) {
 }
 
 // A video imported to be indexed rather than copied gets a record in library.json under a placeholder in the library's folder, where no video is, and shows on the shelf marked as playing from its source; the way chosen is remembered when asked to. It plays from the source through the loopback server; a file changed there plays all the same, the bar saying so until it is taken as it is; a source that cannot be reached, a file no longer at its path, which can be found again on the source, and a source removed say so, its lines still read. Taking it off the shelf forgets its record and nothing on the source.
+// streamingPipeline is fakePipeline that reads an indexed film's video where it is, through the app's copier (media.SourceStreamer), as media.Tools does through Tools.Sources; heard is what it was asked to hear from.
+type streamingPipeline struct {
+	fakePipeline
+	copier media.SourceReader
+	mu     sync.Mutex
+	heard  []string
+}
+
+func (p *streamingPipeline) StreamSource(ctx context.Context, source string) (string, error) {
+	return p.copier.URL(ctx, source)
+}
+
+func (p *streamingPipeline) Hear(ctx context.Context, path string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	p.mu.Lock()
+	p.heard = append(p.heard, path)
+	p.mu.Unlock()
+	return p.fakePipeline.Hear(ctx, path, from, to, heard)
+}
+
+// A video imported to be indexed rather than copied gets a record in library.json under a placeholder in the library's folder, where no video is, and shows on the shelf marked as playing from its source, its lines made by a job that hears it from the source through the loopback server and writes them beside the placeholder; the way chosen is remembered when asked to. It plays from the source through the loopback server; a file changed there plays all the same, the bar saying so until it is taken as it is; a source that cannot be reached, a file no longer at its path, which can be found again on the source, and a source removed say so, its lines still read. Taking it off the shelf forgets its record and nothing on the source.
 func TestMediaSourceIndexAndPlay(t *testing.T) {
-	a, tt, updates := newTestApp(t, &fakePipeline{})
+	p := &streamingPipeline{}
+	a, tt, updates := newTestApp(t, p)
 	msgs := testlocale.Messages()
 	heat := "Movies/Heat (1995).mkv"
 	s, src := browseSource(a, map[string]fakeSourceFile{
 		heat:               {data: "heat video"},
 		"Movies/Ronin.mp4": {data: "ronin"},
 	})
+	p.copier = a.mediaSourceCopier()
 	a.mediaSourceOpenPage()
 	refresh(tt, a)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
@@ -915,11 +939,27 @@ func TestMediaSourceIndexAndPlay(t *testing.T) {
 	if info, err := os.Stat(filepath.Dir(placeholder)); err != nil || !info.IsDir() {
 		t.Fatalf("no folder for the placeholder: %v", err)
 	}
-	if len(a.library.Jobs) != 0 {
-		t.Fatalf("indexing copied: %+v", a.library.Jobs)
-	}
 	refresh(tt, a)
 	wantText(t, tt, msgs.MediaSourceIndexed(1))
+	waitUntil(t, tt, a, updates, func() bool {
+		return len(a.library.Jobs) == 1 && a.library.Jobs[0].Stage.Done() && !a.running()
+	})
+	job := a.library.Jobs[0]
+	if job.Stage != core.StageComplete || !job.Linked || job.VideoPath != placeholder || job.Source != (mediasource.Ref{Source: s.ID, Path: heat}).String() {
+		t.Fatalf("the job %+v", job)
+	}
+	if filepath.Dir(job.SubtitlePath) != filepath.Dir(placeholder) || !fileExists(job.SubtitlePath) {
+		t.Fatalf("subtitles at %q", job.SubtitlePath)
+	}
+	if _, err := os.Stat(placeholder); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the job copied the video: %v", err)
+	}
+	p.mu.Lock()
+	heardFrom := slices.Clone(p.heard)
+	p.mu.Unlock()
+	if len(heardFrom) == 0 || !strings.HasPrefix(heardFrom[0], "http://127.0.0.1:") {
+		t.Fatalf("heard from %q", heardFrom)
+	}
 	if !tt.Exists("id:media-sources-in-library-" + heat) {
 		t.Fatalf("the video indexed is not marked: %q", tt.Texts())
 	}
@@ -931,7 +971,7 @@ func TestMediaSourceIndexAndPlay(t *testing.T) {
 	}
 	tt.Press("id:media-sources-import-cancel")
 
-	item, ok := films.Find(a.films(), placeholder)
+	item, ok := films.Find(a.films(), job.ID)
 	if !ok || item.Linked != s.ID {
 		t.Fatalf("the film on the shelf: %+v", item)
 	}
@@ -1039,8 +1079,8 @@ func TestMediaSourceIndexAndPlay(t *testing.T) {
 	// Off the shelf: the record goes, and nothing on the source was written.
 	a.closeFilm()
 	a.libraryForget(a.snap().LibraryDir, []films.Film{item})
-	if len(a.library.Linked) != 0 {
-		t.Fatalf("a removed film's record is kept: %v", a.library.Linked)
+	if len(a.library.Linked) != 0 || len(a.library.Jobs) != 0 {
+		t.Fatalf("a removed film's record is kept: %v %+v", a.library.Linked, a.library.Jobs)
 	}
 	src.mu.Lock()
 	defer src.mu.Unlock()
@@ -1188,4 +1228,68 @@ func TestIndexedFilmOffline(t *testing.T) {
 		t.Fatalf("offline, a source on the local network serves %d", code)
 	}
 	_ = s
+}
+
+// An indexed film is processed again from its source, as 重新处理 does, and 复制到资料库 copies its video to its placeholder path, after which it is a film of the library like any other, its record gone; a copy that fails says why and leaves it indexed.
+func TestMediaSourceIndexedFilmProcessedAgainAndCopied(t *testing.T) {
+	p := &streamingPipeline{}
+	a, tt, updates := newTestApp(t, p)
+	msgs := testlocale.Messages()
+	s, src := browseSource(a, map[string]fakeSourceFile{"Talk.mp4": {data: "talk video"}})
+	p.copier = a.mediaSourceCopier()
+	a.mediaSourcePoolSync()
+	a.sources.browse.source = s.ID
+	a.sources.browse.chosen = map[string]int64{"Talk.mp4": 10}
+	a.mediaSourceLink([]string{"Talk.mp4"})
+	done := func() bool { return len(a.library.Jobs) == 1 && a.library.Jobs[0].Stage.Done() && !a.running() }
+	waitUntil(t, tt, a, updates, done)
+	job := a.library.Jobs[0]
+	if job.Stage != core.StageComplete || !job.Linked {
+		t.Fatalf("the job %+v", job)
+	}
+	item, _ := films.Find(a.films(), job.ID)
+
+	p.mu.Lock()
+	p.heard = nil
+	p.mu.Unlock()
+	a.Reprocess(item)
+	waitUntil(t, tt, a, updates, func() bool { return a.running() || a.library.Jobs[0].Stage == core.StageQueued })
+	waitUntil(t, tt, a, updates, done)
+	p.mu.Lock()
+	heard := slices.Clone(p.heard)
+	p.mu.Unlock()
+	if a.library.Jobs[0].Stage != core.StageComplete || len(heard) == 0 || !strings.HasPrefix(heard[0], "http://127.0.0.1:") {
+		t.Fatalf("processed again: %+v, heard from %q", a.library.Jobs[0], heard)
+	}
+
+	menu := a.StoredMenu(a.cx, item)
+	if len(menu) != 1 || menu[0].Label != msgs.MediaSourceCopyToLibrary() || menu[0].Disabled {
+		t.Fatalf("the menu %+v", menu)
+	}
+	src.mu.Lock()
+	src.unreachable = errors.New("dial tcp: connection refused")
+	src.mu.Unlock()
+	a.sources.pool.Forget(s.ID)
+	a.CopyLinked([]films.Film{item})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.sources.copying) == 0 })
+	if !a.linkedHas(item.VideoPath) || fileExists(item.VideoPath) {
+		t.Fatal("a copy that failed changed the film")
+	}
+	refresh(tt, a)
+	wantText(t, tt, msgs.MediaSourceCopyFailed(films.Name(item), "Living Room NAS", "dial tcp: connection refused"))
+
+	src.mu.Lock()
+	src.unreachable = nil
+	src.mu.Unlock()
+	a.CopyLinked([]films.Film{item})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.sources.copying) == 0 })
+	if data, err := os.ReadFile(item.VideoPath); err != nil || string(data) != "talk video" {
+		t.Fatalf("the copy: %q, %v", data, err)
+	}
+	if a.linkedHas(item.VideoPath) || a.library.Jobs[0].Linked {
+		t.Fatalf("still indexed: %+v", a.library.Jobs[0])
+	}
+	if got, _ := films.Find(a.films(), job.ID); got.Linked != "" {
+		t.Fatalf("the film is still marked: %+v", got)
+	}
 }

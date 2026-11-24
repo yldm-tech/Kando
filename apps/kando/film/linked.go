@@ -17,6 +17,8 @@ type Linker interface {
 	// RetryLinked opens the video from its source again, once it could not be reached; FindLinked shows the source's folder the video was in, to choose where it is now.
 	RetryLinked()
 	FindLinked()
+	// RedoLinked makes the film's lines again from the file as it is now, as the bar's 重新做字幕 does.
+	RedoLinked()
 }
 
 // linkedRemedy is what goes under the note of an indexed film whose video does not play: the settings, where the sources are, once its source was removed; 重试 and the settings when it could not be reached; 在来源里找 when it is no longer at its path there; the privacy settings, where offline mode is, when offline mode keeps the source closed. Nothing when not even the copy made of it from there plays.
@@ -52,16 +54,17 @@ func linkedErr(id string) bool {
 	return false
 }
 
-// changedBar is the bar at the top of the picture of an indexed film whose file changed on its source since its lines were made: that they may not match, with 知道了.
+// changedBar is the bar at the top of the picture of an indexed film whose file changed on its source since its lines were made: that they may not match, with 重新做字幕 and 知道了.
 func (s *screen) changedBar() core.Node {
 	a, cx := s.a, s.cx
 	source := live.Memo(cx, a, a.LinkedChanged)
 	return core.Show{When: func() bool { return source() != "" }, Then: func(cx *core.Scope) core.Node {
 		text := core.Text{TestID: "film-linked-changed", ContentFunc: func() string { return locales.MediaSourceChanged(cx, source()) },
 			Style: core.Style{FontSize: 12, LineHeight: 17, Color: onGlass, FlexShrink: 1}}
+		redo := lookupButton(cx, func() string { return locales.MediaSourceChangedRedo(cx) }, "film-linked-changed-redo", live.Do(a, a.RedoLinked), nil)
 		keep := lookupButton(cx, func() string { return locales.MediaSourceChangedKeep(cx) }, "film-linked-changed-keep", live.Do(a, a.KeepLinkedChanged), nil)
-		bar := core.View{Role: core.RoleStatus, Style: streamGlass.style().Merge(core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, Padding: core.Symmetric(8, 14), MaxWidth: core.Pt(560)}),
-			Children: []core.Node{text, keep}}
+		bar := core.View{Role: core.RoleStatus, Style: streamGlass.style().Merge(core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, Padding: core.Symmetric(8, 14), MaxWidth: core.Pt(640)}),
+			Children: []core.Node{text, redo, keep}}
 		return core.View{PointerEvents: core.PointerEventsBoxNone,
 			Style: core.Style{Position: core.Absolute, Left: core.Pt(24), Top: core.Pt(64), AlignItems: core.AlignCenter},
 			StyleFunc: func() core.Style {

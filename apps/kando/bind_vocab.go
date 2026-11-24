@@ -226,9 +226,13 @@ func (a *app) ExportVocab() {
 		book.Words, book.Lines = slices.Clone(book.Words), slices.Clone(book.Lines)
 		delays := maps.Clone(a.player.delays)
 		ffmpeg, update := a.ffmpegPath(), a.update
+		streams := a.linkedStreams()
 		a.vocab.stats.exported = study.VocabExported{Busy: true}
 		go func() {
-			sounds, err := saved.VocabSounds(context.Background(), ffmpeg, book, o, func(video string) time.Duration { return delays[video] }, filepath.Join(dir, saved.VocabAudio), nil)
+			// The addresses an indexed film's sound is cut from are given back once the sounds are cut.
+			ctx, cancel := context.WithCancel(saved.WithStreams(context.Background(), streams))
+			defer cancel()
+			sounds, err := saved.VocabSounds(ctx, ffmpeg, book, o, func(video string) time.Duration { return delays[video] }, filepath.Join(dir, saved.VocabAudio), nil)
 			path := ""
 			if err == nil {
 				path, err = saved.ExportVocab(dir, saved.WithSounds(rows, book.Words, book.Lines, o, sounds), o)

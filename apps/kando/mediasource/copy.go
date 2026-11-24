@@ -82,18 +82,9 @@ func (c Copier) Copy(ctx context.Context, source, dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s, ok := c.Pool.Source(ref.Source)
-	if !ok {
-		return "", fmt.Errorf("%w: %s", ErrSourceGone, ref.Source)
-	}
-	if c.Offline != nil && c.Offline() {
-		local := c.LocalHost
-		if local == nil {
-			local = Local
-		}
-		if near, err := local(ctx, Host(s)); err != nil || !near {
-			return "", media.ErrOffline
-		}
+	s, err := c.reachable(ctx, ref)
+	if err != nil {
+		return "", err
 	}
 	d, err := c.Pool.Driver(ctx, ref.Source)
 	if err != nil {
@@ -172,4 +163,51 @@ func (c Copier) copySubtitles(ctx context.Context, d Driver, p, dest string) {
 		local := destStem + strings.TrimPrefix(name, stem)
 		_ = storage.Get(ctx, StorageReader(d), path.Join(dir, name), local, nil)
 	}
+}
+
+// reachable is the source of ref, which the Pool holds, unless offline mode keeps it closed as a source on the internet (media.ErrOffline).
+func (c Copier) reachable(ctx context.Context, ref Ref) (Source, error) {
+	s, ok := c.Pool.Source(ref.Source)
+	if !ok {
+		return Source{}, fmt.Errorf("%w: %s", ErrSourceGone, ref.Source)
+	}
+	if c.Offline != nil && c.Offline() {
+		local := c.LocalHost
+		if local == nil {
+			local = Local
+		}
+		if near, err := local(ctx, Host(s)); err != nil || !near {
+			return Source{}, media.ErrOffline
+		}
+	}
+	return s, nil
+}
+
+// URL is the address ffmpeg reads the video at source, a source's address (Ref), at without copying it, for a film indexed from the source (media.SourceReader): the Pool's loopback server's, given back once ctx ends, as the job that reads it does. A source on the internet is refused in offline mode with media.ErrOffline.
+func (c Copier) URL(ctx context.Context, source string) (string, error) {
+	ref, err := ParseRef(source)
+	if err != nil {
+		return "", err
+	}
+	if _, err := c.reachable(ctx, ref); err != nil {
+		return "", err
+	}
+	link, err := c.Pool.URL(ctx, ref.Source, ref.Path)
+	if err != nil {
+		return "", err
+	}
+	context.AfterFunc(ctx, func() { c.Pool.Revoke(link) })
+	return link, nil
+}
+
+// CopyTo copies the video at source, a source's address (Ref), to dest, as an indexed film's placeholder path once it is to be kept in the library, telling progress how far it got; a source on the internet is refused in offline mode with media.ErrOffline. A copy that fails leaves nothing at dest (storage.Get).
+func (c Copier) CopyTo(ctx context.Context, source, dest string, progress func(done, total int64)) error {
+	ref, err := ParseRef(source)
+	if err != nil {
+		return err
+	}
+	if _, err := c.reachable(ctx, ref); err != nil {
+		return err
+	}
+	return storage.Get(ctx, c.Pool.Reader(ref.Source), ref.Path, dest, progress)
 }

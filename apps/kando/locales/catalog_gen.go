@@ -1222,6 +1222,9 @@ var Parameters = map[string][]string{
 	"MediaSourceRelinked":                      {"name"},
 	"MediaSourceChanged":                       {"source"},
 	"MediaSourceLinkedMove":                    {"name", "source"},
+	"MediaSourceCopying":                       {"name", "source"},
+	"MediaSourceCopied":                        {"name"},
+	"MediaSourceCopyFailed":                    {"name", "source", "reason"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -1988,6 +1991,9 @@ type Translation struct {
 	MediaSourceRelinked                      func(name string) string
 	MediaSourceChanged                       func(source string) string
 	MediaSourceLinkedMove                    func(name string, source string) string
+	MediaSourceCopying                       func(name string, source string) string
+	MediaSourceCopied                        func(name string) string
+	MediaSourceCopyFailed                    func(name string, source string, reason string) string
 }
 
 var supplied = map[string]Translation{}
@@ -3886,6 +3892,9 @@ const (
 	textMediaSourceUnplayable
 	textMediaSourceFind
 	textMediaSourceChangedKeep
+	textMediaSourceCopyToLibrary
+	textMediaSourceChangedRedo
+	textMediaSourceNoHTTP
 	numTexts
 )
 
@@ -5784,6 +5793,9 @@ var keyOfText = [numTexts]string{
 	"mediaSourceUnplayable",
 	"mediaSourceFind",
 	"mediaSourceChangedKeep",
+	"mediaSourceCopyToLibrary",
+	"mediaSourceChangedRedo",
+	"mediaSourceNoHTTP",
 }
 
 // textsEn are the messages without arguments in en.
@@ -7679,7 +7691,10 @@ var textsEn = i18n.NewTexts(""+
 	"This film's video is on a media source that is no longer in Settings. Its lines can still be studied."+
 	"This video can't be played from its media source, even converted for the player. Its lines can still be studied."+
 	"Find It on the Source"+
-	"Got It",
+	"Got It"+
+	"Copy into Library"+
+	"Make Subtitles Again"+
+	"This ffmpeg can't read network addresses, which a film played from a media source needs. Use the one Kando downloads, in Settings › General.",
 	[]uint16{
 		5,
 		19,
@@ -9573,6 +9588,9 @@ var textsEn = i18n.NewTexts(""+
 		112,
 		21,
 		6,
+		17,
+		20,
+		142,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -11468,7 +11486,10 @@ var textsJa = i18n.NewTexts(""+
 	"この作品の動画は設定から削除されたメディアソース上にあります。セリフの学習は引き続きできます。"+
 	"この動画はメディアソースから再生できません。変換しても再生できませんでした。セリフの学習は引き続きできます。"+
 	"ソースで探す"+
-	"了解",
+	"了解"+
+	"ライブラリにコピー"+
+	"字幕を作り直す"+
+	"この ffmpeg はネットワークアドレスを読み込めません。メディアソースから再生する作品にはそれが必要です。「設定 › 一般」で Kando がダウンロードする ffmpeg を使ってください。",
 	[]uint16{
 		5,
 		30,
@@ -13362,6 +13383,9 @@ var textsJa = i18n.NewTexts(""+
 		162,
 		18,
 		6,
+		27,
+		21,
+		244,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -14123,8 +14147,8 @@ var textsKo = i18n.NewTexts(""+
 	"음성 인식은 whisper.cpp로 이 Mac에서 실행됩니다. 모델을 한 번 내려받으면 이후에는 오프라인에서도 사용할 수 있습니다."+
 	"아직 음성 인식 모델이 없습니다. 자막을 만들려면 하나를 내려받으세요"+
 	"다운로드는 백그라운드에서 계속되므로 먼저 다음 단계로 넘어가도 됩니다."+
-	"나중에 설정 › 음성 인식에서 다른 모델로 바꿀 수 있습니다."+
-	"나중에 내려받아도 됩니다. 설정 › 음성 인식에서 언제든지 다운로드할 수 있습니다."+
+	"나중에 설정 › 일반에서 다른 모델로 바꿀 수 있습니다."+
+	"나중에 내려받아도 됩니다. 설정 › 일반에서 언제든지 다운로드할 수 있습니다."+
 	"음성 인식이 준비되었습니다"+
 	"구성 요소와 음성 인식 모델 다운로드"+
 	"링크 붙여 넣기 → 자막 준비 완료"+
@@ -15257,7 +15281,10 @@ var textsKo = i18n.NewTexts(""+
 	"이 영상의 동영상은 설정에서 삭제된 미디어 소스에 있습니다. 대사는 계속 학습할 수 있습니다."+
 	"이 동영상은 미디어 소스에서 재생할 수 없습니다. 변환해도 재생되지 않습니다. 대사는 계속 학습할 수 있습니다."+
 	"소스에서 찾기"+
-	"확인",
+	"확인"+
+	"라이브러리로 복사"+
+	"자막 다시 만들기"+
+	"이 ffmpeg는 네트워크 주소를 읽을 수 없는데, 미디어 소스에서 재생하는 영상에는 그것이 필요합니다. 설정 › 일반에서 Kando가 내려받는 ffmpeg를 사용하세요.",
 	[]uint16{
 		5,
 		28,
@@ -16016,8 +16043,8 @@ var textsKo = i18n.NewTexts(""+
 		159,
 		96,
 		101,
-		82,
-		114,
+		75,
+		107,
 		38,
 		50,
 		45,
@@ -17151,6 +17178,9 @@ var textsKo = i18n.NewTexts(""+
 		152,
 		19,
 		6,
+		25,
+		23,
+		207,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -19046,7 +19076,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"这部影片的视频在一个已从设置中删除的媒体来源上。仍可以学习它的台词。"+
 	"无法从媒体来源播放这个视频，转换后也不行。仍可以学习它的台词。"+
 	"在来源里找"+
-	"知道了",
+	"知道了"+
+	"复制到资料库"+
+	"重新做字幕"+
+	"这个 ffmpeg 不能读网络地址，而从媒体来源播放的影片需要它。请在设置 › 通用里改用看懂下载的 ffmpeg。",
 	[]uint16{
 		6,
 		15,
@@ -20940,6 +20973,9 @@ var textsZhHans = i18n.NewTexts(""+
 		93,
 		15,
 		9,
+		18,
+		15,
+		140,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -22835,7 +22871,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"這部影片的影片檔在一個已從設定中刪除的媒體來源上。仍可以學習它的台詞。"+
 	"無法從媒體來源播放這部影片，轉換後也不行。仍可以學習它的台詞。"+
 	"在來源裡找"+
-	"知道了",
+	"知道了"+
+	"複製到資料庫"+
+	"重新做字幕"+
+	"這個 ffmpeg 不能讀網路位址，而從媒體來源播放的影片需要它。請在設定 › 一般裡改用看懂下載的 ffmpeg。",
 	[]uint16{
 		6,
 		15,
@@ -24729,6 +24768,9 @@ var textsZhHant = i18n.NewTexts(""+
 		93,
 		15,
 		9,
+		18,
+		15,
+		140,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -27064,6 +27106,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceLinkedMove != nil {
 		s.MediaSourceLinkedMove = t.MediaSourceLinkedMove
+	}
+	if t.MediaSourceCopying != nil {
+		s.MediaSourceCopying = t.MediaSourceCopying
+	}
+	if t.MediaSourceCopied != nil {
+		s.MediaSourceCopied = t.MediaSourceCopied
+	}
+	if t.MediaSourceCopyFailed != nil {
+		s.MediaSourceCopyFailed = t.MediaSourceCopyFailed
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -72845,6 +72896,129 @@ func (msgs Messages) MediaSourceLinkedMove(name string, source string) string {
 		}
 	}
 }
+
+// MediaSourceCopyToLibrary says "Copy into Library"
+// in the language the app shows under cx.
+//
+// Item of a film's menu for a film indexed from a media source: copy its video onto this computer, so it no longer plays from the source.
+func MediaSourceCopyToLibrary(cx *core.Scope) string { return For(cx).MediaSourceCopyToLibrary() }
+
+// MediaSourceCopyToLibrary is the package's MediaSourceCopyToLibrary in the language of msgs.
+func (msgs Messages) MediaSourceCopyToLibrary() string {
+	return msgs.text(textMediaSourceCopyToLibrary)
+}
+
+// MediaSourceCopying says "Copying “{name}” from {source} into the library…"
+// in the language the app shows under cx.
+//
+// Message bar while the video of a film indexed from a media source is copied onto this computer.
+func MediaSourceCopying(cx *core.Scope, name string, source string) string {
+	return For(cx).MediaSourceCopying(name, source)
+}
+
+// MediaSourceCopying is the package's MediaSourceCopying in the language of msgs.
+func (msgs Messages) MediaSourceCopying(name string, source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceCopying(name, source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceCopying; f != nil {
+			return f(name, source)
+		}
+		switch lang {
+		case "", "en":
+			return "Copying “" + msgs.arg(name) + "” from " + msgs.arg(source) + " into the library…"
+		case "ja":
+			return "「" + name + "」を " + source + " からライブラリにコピーしています…"
+		case "ko":
+			return "‘" + name + "’을(를) " + source + "에서 라이브러리로 복사하는 중…"
+		case "zh-Hans":
+			return "正在把「" + name + "」从 " + source + " 复制到资料库…"
+		case "zh-Hant":
+			return "正在把「" + name + "」從 " + source + " 複製到資料庫…"
+		}
+	}
+}
+
+// MediaSourceCopied says "“{name}” is in the library now and plays offline."
+// in the language the app shows under cx.
+//
+// Message bar once the video of a film indexed from a media source was copied onto this computer.
+func MediaSourceCopied(cx *core.Scope, name string) string { return For(cx).MediaSourceCopied(name) }
+
+// MediaSourceCopied is the package's MediaSourceCopied in the language of msgs.
+func (msgs Messages) MediaSourceCopied(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceCopied(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceCopied; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is in the library now and plays offline."
+		case "ja":
+			return "「" + name + "」をライブラリにコピーしました。オフラインでも視聴できます。"
+		case "ko":
+			return "‘" + name + "’을(를) 라이브러리로 복사했습니다. 오프라인에서도 볼 수 있습니다."
+		case "zh-Hans":
+			return "「" + name + "」已复制到资料库，离线也能看。"
+		case "zh-Hant":
+			return "「" + name + "」已複製到資料庫，離線也能看。"
+		}
+	}
+}
+
+// MediaSourceCopyFailed says "Couldn't copy “{name}” from {source}: {reason}"
+// in the language the app shows under cx.
+//
+// Message bar when copying the video of a film indexed from a media source onto this computer failed, with why.
+func MediaSourceCopyFailed(cx *core.Scope, name string, source string, reason string) string {
+	return For(cx).MediaSourceCopyFailed(name, source, reason)
+}
+
+// MediaSourceCopyFailed is the package's MediaSourceCopyFailed in the language of msgs.
+func (msgs Messages) MediaSourceCopyFailed(name string, source string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceCopyFailed(name, source, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceCopyFailed; f != nil {
+			return f(name, source, reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't copy “" + msgs.arg(name) + "” from " + msgs.arg(source) + ": " + msgs.arg(reason)
+		case "ja":
+			return source + " から「" + name + "」をコピーできませんでした：" + reason
+		case "ko":
+			return source + "에서 ‘" + name + "’을(를) 복사하지 못했습니다: " + reason
+		case "zh-Hans":
+			return "无法从 " + source + " 复制「" + name + "」：" + reason
+		case "zh-Hant":
+			return "無法從 " + source + " 複製「" + name + "」：" + reason
+		}
+	}
+}
+
+// MediaSourceChangedRedo says "Make Subtitles Again"
+// in the language the app shows under cx.
+//
+// Button of the bar saying an indexed film's file changed on its media source: make its subtitles again from the file as it is now.
+func MediaSourceChangedRedo(cx *core.Scope) string { return For(cx).MediaSourceChangedRedo() }
+
+// MediaSourceChangedRedo is the package's MediaSourceChangedRedo in the language of msgs.
+func (msgs Messages) MediaSourceChangedRedo() string { return msgs.text(textMediaSourceChangedRedo) }
+
+// MediaSourceNoHTTP says "This ffmpeg can't read network addresses, which a film played from a media source needs. Use the one Kando downloads, in Settings › General."
+// in the language the app shows under cx.
+//
+// Why making the subtitles of a film indexed from a media source failed: the ffmpeg in use was built without its http protocol.
+func MediaSourceNoHTTP(cx *core.Scope) string { return For(cx).MediaSourceNoHTTP() }
+
+// MediaSourceNoHTTP is the package's MediaSourceNoHTTP in the language of msgs.
+func (msgs Messages) MediaSourceNoHTTP() string { return msgs.text(textMediaSourceNoHTTP) }
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {

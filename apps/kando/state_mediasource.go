@@ -48,6 +48,8 @@ type mediaSourceUI struct {
 	removed        []mediasource.Source
 	importLink     bool
 	rememberImport bool
+	// copying is the indexed films whose videos are being copied into the library (CopyLinked), by placeholder path, with what stops each.
+	copying map[string]context.CancelFunc
 }
 
 // mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
@@ -250,7 +252,8 @@ func (a *app) mediaSourceHooks() areaHooks {
 			modals := a.mediaSourceModals()
 			return a.mediaSourceBrowseFollow() || modals
 		},
-		quitting: a.sources.pool.Close,
+		quitStarting: a.linkedStopCopies,
+		quitting:     a.sources.pool.Close,
 	}
 }
 

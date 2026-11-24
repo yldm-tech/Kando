@@ -252,3 +252,5 @@ func (a *app) KeepLinkedChanged() { a.linkedKeepChanged() }
 func (a *app) RetryLinked() { a.playerRetryLinked() }
 
 func (a *app) FindLinked() { a.mediaSourceFindVideo() }
+
+func (a *app) RedoLinked() { a.linkedRedo() }

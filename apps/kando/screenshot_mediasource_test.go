@@ -1,13 +1,18 @@
 package main
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"kando/apps/kando/account"
+	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/storage"
 	"kando/packages/core"
 
@@ -128,5 +133,53 @@ func TestScreenshotsMediaSourcesBrowse(t *testing.T) {
 			a.ChooseMediaBrowseImportLink(true)
 			a.RememberMediaBrowseImport(true)
 		})
+	})
+}
+
+// TestScreenshotsMediaSourcesPlay renders the film page of a film indexed from a media source: its source cannot be reached, which the page says with 重试 and the settings in place of the picture (media-sources-unreachable); and its file changed on the source since its lines were made, which the bar over the picture says with 重新做字幕 and 知道了 (media-sources-changed). The source is a fake in memory, never reached over a network.
+func TestScreenshotsMediaSourcesPlay(t *testing.T) {
+	f := newScreenshotFixture(t)
+	share := mediasource.Source{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "Living Room NAS", Config: map[string]string{mediasource.SMBHost: "nas.local", mediasource.SMBShare: "media", mediasource.SMBUser: "kando"}}
+	// index makes j3's film one indexed from share, its video moved aside for the scene, as an indexed film's is not on disk, and put back as it ends; src is the share as the scene finds it.
+	index := func(t *testing.T, a *app, src *fakeSource) films.Film {
+		item := f.film(t, a, "j3")
+		aside := item.VideoPath + ".aside"
+		if err := os.Rename(item.VideoPath, aside); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.Rename(aside, item.VideoPath); err != nil {
+				t.Errorf("the scene's video was not put back: %v", err)
+			}
+		})
+		onEngine(a, func() {
+			a.sources.list = []mediasource.Source{share}
+			a.sources.open = src.open
+			a.library.Linked = map[string]shelf.Linked{item.VideoPath: {Source: share.ID, Path: "Talks/Rust.mp4", Size: 9, Version: "v1", Duration: 3 * time.Minute}}
+			a.refreshLibrary()
+		})
+		return item
+	}
+	f.shoot(t, "media-sources-unreachable", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		src := newFakeSource(nil)
+		src.unreachable = errors.New("dial tcp: connection refused")
+		item := index(t, a, src)
+		onEngine(a, func() { a.Open(must(films.Find(a.films(), item.Key))) })
+		screenshotWait(t, tt, a, updates, "the source's answer", func() bool { return a.player.playErr != "" })
+		screenshotWait(t, tt, a, updates, "the film's lines", func() bool { return a.player.subs.ready })
+		wantText(t, tt, testlocale.Messages().MediaSourceUnreachable("Living Room NAS"))
+	})
+	f.shoot(t, "media-sources-changed", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		src := newFakeSource(map[string]fakeSourceFile{"Talks/Rust.mp4": {data: "cut anew, longer"}})
+		item := index(t, a, src)
+		onEngine(a, func() { a.Open(must(films.Find(a.films(), item.Key))) })
+		screenshotWait(t, tt, a, updates, "the source's answer", func() bool { return a.player.linkedChanged != nil || a.player.playErr != "" })
+		// TODO(nsgo#1057): show the film's own picture, as MyGo's player showed the frames ffmpeg decoded, once Kando plays what ffmpeg decodes (playerRemux in playback.go), which waits on an NSGo audio output fed decoded sound; the system's player cannot play the fake source's bytes, so the stage shows the film's poster under the bar https://github.com/nsgo-dev/nsgo/issues/1057
+		onEngine(a, func() {
+			a.player.playErr = ""
+			a.player.play.source = ""
+		})
+		screenshotWait(t, tt, a, updates, "the film's lines", func() bool { return a.player.subs.ready })
+		wantText(t, tt, testlocale.Messages().MediaSourceChanged("Living Room NAS"))
 	})
 }
