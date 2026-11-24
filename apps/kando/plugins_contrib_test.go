@@ -348,7 +348,7 @@ func scriptsCallAdvancing(t *testing.T, a *app, tt *nsgotest.App, updates chan f
 	onEngine(a, func() {
 		a.pluginsRunner().Call(a.plugins.script.loaded[id].plugin, name, args, func(v any, err error) { got.v, got.err, got.done = v, err, true })
 	})
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(scriptsWait)
 	for !got.done {
 		if time.Now().After(deadline) {
 			t.Fatal("timed out waiting for the plugin")
@@ -709,7 +709,7 @@ func TestPluginExportReadsEverySound(t *testing.T) {
 		a.SetExportTarget(pluginsContribID("acme.wiki", "notes"))
 		a.ExportSaved()
 	})
-	scriptsSettleWithin(t, a, tt, updates, time.Minute, func() bool { return a.ExportState().Finished })
+	scriptsSettleWithin(t, a, tt, updates, time.Minute, func() bool { return a.ExportState().Finished }, nil)
 	if e := a.ExportState(); e.Err != "" || e.Sent != 10 || e.Soundless != 190 || e.Skipped != 0 {
 		t.Fatalf("the export read %d sounds, %d lines refused, %d reads refused for the quota: %+v", e.Sent, e.Soundless, e.Skipped, e)
 	}

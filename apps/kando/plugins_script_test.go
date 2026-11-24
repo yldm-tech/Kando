@@ -149,18 +149,24 @@ func pluginsScriptInstalled(t *testing.T, root string, folders ...string) {
 	}
 }
 
-// scriptsSettle applies the background updates and runs what the engine was posted, as a plugin's host calls and the runner's answers are, until done holds, failing t after five seconds.
+// scriptsSettle applies the background updates and runs what the engine was posted, as a plugin's host calls and the runner's answers are, until done holds, failing t after scriptsWait.
 func scriptsSettle(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), done func() bool) {
 	t.Helper()
-	scriptsSettleWithin(t, a, tt, updates, 5*time.Second, done)
+	scriptsSettleWithin(t, a, tt, updates, scriptsWait, done, nil)
 }
 
-// scriptsSettleWithin is scriptsSettle, failing t after limit.
-func scriptsSettleWithin(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), limit time.Duration, done func() bool) {
+// scriptsWait is how long scriptsSettle waits, as long as waitUntil does: a Windows CI runner under load once took over five seconds to answer a host call refused at once, with no I/O of its own (TestPluginSoundRead, #398), as it took over five for a film's copy for the system's player (waitUntil).
+const scriptsWait = 10 * time.Second
+
+// scriptsSettleWithin is scriptsSettle, failing t after limit, with what says what it waited for, when it is not nil, added to the failure.
+func scriptsSettleWithin(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), limit time.Duration, done func() bool, what func() string) {
 	t.Helper()
 	deadline := time.Now().Add(limit)
 	for !done() {
 		if time.Now().After(deadline) {
+			if what != nil {
+				t.Fatalf("timed out waiting for the plugins: %s", what())
+			}
 			t.Fatal("timed out waiting for the plugins")
 		}
 		select {
@@ -197,6 +203,7 @@ func scriptsCall(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id
 		err  error
 		done bool
 	}
+	posted := time.Now()
 	onEngine(a, func() {
 		l := a.plugins.script.loaded[id]
 		if l == nil {
@@ -205,7 +212,18 @@ func scriptsCall(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id
 		}
 		a.pluginsRunner().Call(l.plugin, name, args, func(v any, err error) { got.v, got.err, got.done = v, err, true })
 	})
-	scriptsSettle(t, a, tt, updates, func() bool { return got.done })
+	// A call that times out says whether the runner still has a call and whether the engine still runs what it is posted, so a call that never ended tells apart from an engine held up.
+	scriptsSettleWithin(t, a, tt, updates, scriptsWait, func() bool { return got.done }, func() string {
+		answer := make(chan bool, 1)
+		a.cx.Post(func() { answer <- a.pluginsRunner().Busy() })
+		state := "the engine did not run a post within a second"
+		select {
+		case busy := <-answer:
+			state = fmt.Sprintf("the runner busy: %v", busy)
+		case <-time.After(time.Second):
+		}
+		return fmt.Sprintf("%s.%s posted %v ago, %s", id, name, time.Since(posted).Round(time.Millisecond), state)
+	})
 	return got.v, got.err
 }
 
