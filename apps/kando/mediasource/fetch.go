@@ -38,8 +38,8 @@ const (
 // FetchMethods are the methods a plugin's source may send: reading and listing, and POST under the paths its manifest names (plugins.MediaSource.PostPaths). None writes, removes or moves a file the way PUT, DELETE, MOVE, COPY or MKCOL would.
 var FetchMethods = []string{http.MethodGet, http.MethodHead, http.MethodPost, "PROPFIND", "REPORT"}
 
-// fetchRefused are the headers a plugin may not set on a request: those the request itself or Kando decide.
-var fetchRefused = []string{"host", "cookie", "content-length", "range", "connection", "transfer-encoding", "te", "upgrade", "proxy-authorization", "expect", "origin", "referer", "user-agent", "accept-encoding", "if-range"}
+// fetchRefused are the headers a plugin may not set on a request: those the request itself or Kando decide, and those many servers read as the request's method in place of its own, which would let a POST or a GET do what FetchMethods leaves out, as a DELETE.
+var fetchRefused = []string{"host", "cookie", "content-length", "range", "connection", "transfer-encoding", "te", "upgrade", "proxy-authorization", "expect", "origin", "referer", "user-agent", "accept-encoding", "if-range", "x-http-method-override", "x-http-method", "x-method-override"}
 
 // replyHeaders are the headers of a reply a plugin is given.
 var replyHeaders = []string{"Content-Type", "ETag", "Last-Modified", "Content-Length"}
@@ -150,6 +150,8 @@ type Fetcher struct {
 	Secrets  map[string]string
 	Pin      string
 	Offline  bool
+	// OfflineNow reports whether offline mode is on as a request is sent, for a fetcher that outlives a change of it, as a driver's reading files does; nil when only Offline says.
+	OfflineNow func() bool
 	// Roots verifies the endpoint's certificate in place of the system's roots, as a test's server's; nil for the system's.
 	Roots *x509.CertPool
 	// Dial connects in place of a net.Dialer, as a test's does; nil for one.
@@ -193,7 +195,7 @@ func (f *Fetcher) TakeCertError() *CertError {
 // client is the HTTP client of f's requests: its own transport, which checks the endpoint's certificate as f says and dials only the local network offline, and redirect, which decides the redirects it follows (nil for none).
 func (f *Fetcher) client(redirect func(req *http.Request, via []*http.Request) error) *http.Client {
 	dialer := &net.Dialer{Timeout: 30 * time.Second}
-	if f.Offline {
+	if f.Offline || f.OfflineNow != nil && f.OfflineNow() {
 		dialer.Control = func(_, address string, _ syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
 			if err != nil {
@@ -375,13 +377,17 @@ func (f *Fetcher) body(r FetchRequest) (string, error) {
 	return body, nil
 }
 
-// Fetch sends r for the plugin and gives back its reply, ErrFetchDenied when the source's rules do not let it go: a method not in FetchMethods, a POST outside the source's PostPaths, a path that is not plain, a header a plugin may not set. It follows no redirect, so a reply to elsewhere goes back to the plugin as it is, and keeps only replyHeaders of the reply's headers, so no Set-Cookie reaches the plugin.
+// Fetch sends r for the plugin and gives back its reply, ErrFetchDenied when the source's rules do not let it go: a method not in FetchMethods, a POST outside the source's PostPaths, a login request that is not a POST, a path that is not plain, a header a plugin may not set. It follows no redirect, so a reply to elsewhere goes back to the plugin as it is, and keeps only replyHeaders of the reply's headers, so no Set-Cookie reaches the plugin.
 func (f *Fetcher) Fetch(ctx context.Context, r FetchRequest) (FetchReply, error) {
 	if !slices.Contains(FetchMethods, r.Method) {
 		return FetchReply{}, fmt.Errorf("%w: method %q", ErrFetchDenied, r.Method)
 	}
 	if r.Method == http.MethodPost && !f.Source.AllowsPost("/"+strings.TrimPrefix(r.Path, "/")) {
 		return FetchReply{}, fmt.Errorf("%w: POST to %q", ErrFetchDenied, r.Path)
+	}
+	// The login secrets go only into the body of a POST to a login path the manifest names, not into a request whose reply might echo them, as a PROPFIND's or a GET's.
+	if r.Login && r.Method != http.MethodPost {
+		return FetchReply{}, fmt.Errorf("%w: a login %s", ErrFetchDenied, r.Method)
 	}
 	u, err := f.target(r.Path, r.Query)
 	if err != nil {
@@ -400,7 +406,10 @@ func (f *Fetcher) Fetch(ctx context.Context, r FetchRequest) (FetchReply, error)
 		return FetchReply{}, err
 	}
 	req.Header = h
-	resp, err := f.client(nil).Do(req)
+	client := f.client(nil)
+	// Each request has a transport of its own, whose connections go with it.
+	defer client.CloseIdleConnections()
+	resp, err := client.Do(req)
 	if err != nil {
 		return FetchReply{}, f.note(fetchErr(err))
 	}
@@ -501,10 +510,14 @@ func (f *Fetcher) Open(ctx context.Context, t OpenTarget, offset, length int64) 
 		return nil, err
 	}
 	req.Header = h
-	resp, err := f.client(redirect).Do(req)
+	client := f.client(redirect)
+	resp, err := client.Do(req)
 	if err != nil {
+		client.CloseIdleConnections()
 		return nil, f.note(fetchErr(err))
 	}
+	// The reading has a transport of its own, whose connections go as the reader closes.
+	resp.Body = readCloser{resp.Body, closers{resp.Body, closeIdle{client}}}
 	switch resp.StatusCode {
 	case http.StatusPartialContent:
 		return resp.Body, nil
@@ -539,6 +552,27 @@ type readCloser struct {
 }
 
 func (r readCloser) Close() error { return r.c.Close() }
+
+// closers closes each in turn, giving back the first error.
+type closers []io.Closer
+
+func (cs closers) Close() error {
+	var first error
+	for _, c := range cs {
+		if err := c.Close(); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
+// closeIdle closes the idle connections of a client as it closes.
+type closeIdle struct{ c *http.Client }
+
+func (c closeIdle) Close() error {
+	c.c.CloseIdleConnections()
+	return nil
+}
 
 // sameOrigin reports whether a and b have the same scheme, host and port, a port left out being the scheme's own.
 func sameOrigin(a, b *url.URL) bool {

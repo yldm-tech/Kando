@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
+	"strings"
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/mediasource"
@@ -19,6 +21,25 @@ type mediaSourceTrust struct {
 	host        string
 	fingerprint string
 	pinned      string
+}
+
+// mediaSourceOriginKey is the key, beside a plugin's source's secrets in the secure store, of the origin of the endpoint they were kept for (docs/media-sources.md 3.1): secrets kept for another origin are read as none, so a source whose address was changed to another server never sends that server the password of the old one, and the user enters it again. No field of a kind can have it, as a field's key has no dot.
+const mediaSourceOriginKey = "endpoint.origin"
+
+// mediaSourceOrigin is the origin of the endpoint of s, a source of the kind k, as its secrets are bound to it: scheme, host in lower case and port, the scheme's own when left out; "" for a built-in kind's source or an endpoint that is not one.
+func mediaSourceOrigin(k mediasource.Kind, s mediasource.Source) string {
+	if k.Origin.Builtin() {
+		return ""
+	}
+	u, err := mediasource.ParseEndpoint(s.Config[mediasource.EndpointKey])
+	if err != nil {
+		return ""
+	}
+	port := u.Port()
+	if port == "" {
+		port = map[string]string{"https": "443", "http": "80"}[u.Scheme]
+	}
+	return u.Scheme + "://" + net.JoinHostPort(strings.ToLower(u.Hostname()), port)
 }
 
 // mediaSourcePluginProblem is what keeps s, a source of a plugin's kind, from being tried or saved, nil when nothing does: an address Kando sends its requests to (mediasource.ParseEndpoint).

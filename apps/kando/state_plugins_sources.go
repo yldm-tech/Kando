@@ -95,7 +95,7 @@ func (a *app) pluginsSourceOpen(plugin string, src plugins.MediaSource, k medias
 		if err != nil {
 			return nil, err
 		}
-		base := &mediasource.Fetcher{Endpoint: endpoint, Source: src, Config: maps.Clone(s.Config), Secrets: maps.Clone(secrets), Pin: s.Config[mediasource.PinKey]}
+		base := &mediasource.Fetcher{Endpoint: endpoint, Source: src, Config: maps.Clone(s.Config), Secrets: maps.Clone(secrets), Pin: s.Config[mediasource.PinKey], OfflineNow: a.privacy.now.Load}
 		base.Clone() // makes the note of refused certificates its clones share
 		type opened struct {
 			id  string

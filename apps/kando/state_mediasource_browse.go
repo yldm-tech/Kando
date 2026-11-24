@@ -67,7 +67,7 @@ func (a *app) mediaSourcePoolSync() {
 	m := &a.sources
 	store, open := a.mediaSourceSecretStore(), m.open
 	m.pool.Set(m.list, m.kinds.Kind, func(ctx context.Context, k mediasource.Kind, s mediasource.Source) (mediasource.Driver, error) {
-		return open(ctx, k, s, mediaSourceReadSecrets(store, k, s.ID, nil))
+		return open(ctx, k, s, mediaSourceReadSecrets(store, k, s, nil))
 	})
 }
 
