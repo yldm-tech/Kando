@@ -15,11 +15,11 @@ jobs:
   build:
     name: Package (iOS, Android)
     # The IPA needs Xcode's iOS SDK and actool, which compiles the icon; Android's arm64 needs no NDK. The image and its Xcode are pinned, not macos-latest's default, so the SDK App Store Connect sees changes only when this file does.
-    # From April 2027 App Store Connect takes only apps built with the iOS 27 SDK (Xcode 27). GitHub has Xcode 27 only on the xcode-27 image, a public preview whose keychains refuse their own password (https://github.com/actions/runner-images/issues/14837), which the signing step below needs, so the signed build stays on Xcode 26 until that is fixed or Xcode 27 reaches a released image; the ios-next job checks meanwhile that the app builds with it.
-    runs-on: macos-26
+    # From April 2027 App Store Connect takes only apps built with the iOS 27 SDK (Xcode 27), and it warns of an upload built with an older one until then. GitHub has Xcode 27 only on the xcode-27 image, a public preview, which also has the Android SDK the App Bundle needs.
+    runs-on: xcode-27
     timeout-minutes: 30
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     # nsgo build runs NSGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials, as the Package workflow's do.
     permissions:
       contents: read
@@ -56,7 +56,8 @@ jobs:
             fi
           done
           keychain="$RUNNER_TEMP/signing.keychain-db"
-          password="$(openssl rand -base64 24)"
+          # The xcode-27 image unlocks a keychain made with a password only when the password is empty (https://github.com/actions/runner-images/issues/14837). The keychain is the job's own, on a machine that ends with the job, and is deleted after the upload; give it a random password again once that is fixed.
+          password=""
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
@@ -191,30 +192,3 @@ jobs:
         env:
           KEYCHAIN: ${{ steps.signing.outputs.keychain }}
         run: security delete-keychain "$KEYCHAIN"
-
-  # The IPA built with Xcode 27 and the iOS 27 SDK, unsigned, so a problem with them (in nsgo build or the app) shows before the App Store requires them in April 2027. It signs and uploads nothing and does not hold back the packages above.
-  ios-next:
-    name: Package (iOS, Xcode 27)
-    runs-on: xcode-27
-    timeout-minutes: 30
-    continue-on-error: true
-    permissions:
-      contents: read
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
-        with:
-          go-version-file: go.work
-          cache: false
-      - name: Build
-        env:
-          BUILD_NUMBER: ${{ github.run_number }}
-        run: |
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-          go tool nsgo build -target ios -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
-          ls "$RUNNER_TEMP"/ios/releases/*-ios.ipa
