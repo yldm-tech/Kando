@@ -22,6 +22,8 @@ type Server struct {
 	URL string
 	Dir string
 
+	srv *httptest.Server
+
 	mu     sync.Mutex
 	ranges []string
 }
@@ -57,8 +59,15 @@ func start(t testing.TB, serve func(http.Handler) *httptest.Server) *Server {
 		dav.ServeHTTP(w, r)
 	}))
 	t.Cleanup(srv.Close)
+	f.srv = srv
 	f.URL = srv.URL + "/dav"
 	return f
+}
+
+// Close stops the server before the test ends, as a NAS switched off: its address answers nothing from then on.
+func (f *Server) Close() {
+	f.srv.CloseClientConnections()
+	f.srv.Close()
 }
 
 // Ranges are the Range headers of the GETs since the last ForgetRanges, "" for a GET of a whole file.

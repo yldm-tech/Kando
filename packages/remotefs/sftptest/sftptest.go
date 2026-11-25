@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,7 +96,12 @@ func New(t testing.TB) *Server {
 			f.conns = append(f.conns, conn)
 			f.dials++
 			f.mu.Unlock()
-			wg.Go(func() { serveSSH(conn, config, f.Home) })
+			wg.Go(func() {
+				serveSSH(conn, config, f.Home)
+				f.mu.Lock()
+				f.conns = slices.DeleteFunc(f.conns, func(c net.Conn) bool { return c == conn })
+				f.mu.Unlock()
+			})
 		}
 	})
 	return f
@@ -154,6 +160,13 @@ func (f *Server) Drop() {
 		c.Close()
 	}
 	f.conns = nil
+}
+
+// Open is how many of the connections the server took are still open: neither side closed them yet.
+func (f *Server) Open() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.conns)
 }
 
 // Dialed is how many connections the server took.
