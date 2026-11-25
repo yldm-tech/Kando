@@ -326,6 +326,8 @@ jobs:
           fi
           files=()
           for file in *; do
+            # nsgo build also writes winget/, the manifest to submit to winget-pkgs, which is no file of a release.
+            [ -f "$file" ] || continue
             case $file in
               install.sh | install.ps1) [ -n "$SCRIPTS" ] || continue ;;
             esac
