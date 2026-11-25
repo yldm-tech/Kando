@@ -1458,8 +1458,8 @@ NSCameraUsageDescription:
   message: "Kando uses the camera to read the QR code your computer shows, to pair with it."
   description: "iOS: the reason the system shows as it asks to let the app use the camera (the Info.plist's NSCameraUsageDescription, which nsgo.yaml's apple.info gives in English); the pairing page takes a photo of the computer's pairing QR code."
 NSLocalNetworkUsageDescription:
-  message: "Kando connects to Kando on your computer over your local network to list and download your films."
-  description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way."
+  message: "Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films."
+  description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way, and the NAS shares and servers added in Settings › NAS & Servers."
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."
@@ -2736,3 +2736,318 @@ playerAutoNext:
 playerAutoNextNote:
   message: "When a film ends, plays the next one of its course or playlist that's on this phone."
   description: "Under the Play Next Automatically switch in the playback settings."
+sourcesTitle:
+  message: "NAS & Servers"
+  description: "Title of the Settings page, and of its row, that lists the NAS shares and servers the phone reaches itself over SMB, SFTP or WebDAV, without the computer."
+sourcesCount:
+  message: "{count}"
+  description: "Value of the NAS & Servers row in Settings: how many sources the phone has."
+  placeholders:
+    count: { type: "int", example: "2" }
+sourcesAdd:
+  message: "Add NAS or Server"
+  description: "Row at the end of the NAS & Servers list that opens the form adding one; also the form's title for a new one."
+sourcesNote:
+  message: "Kando only reads these: it never writes, moves or deletes anything on them. Their passwords stay in this phone's secure storage, and the films you download play without the computer."
+  description: "Footnote under the NAS & Servers list."
+sourcesGroup:
+  message: "NAS"
+  description: "Header of the Library's group listing the NAS shares and servers the phone reaches itself."
+sourceEditTitle:
+  message: "Edit Source"
+  description: "Title of the form editing a NAS or server the phone reaches."
+sourceSummary:
+  message: "{kind} · {place}"
+  description: "Subtitle of a NAS or server's row: its protocol (SMB, SFTP, WebDAV) and where it is, such as nas.local/films."
+  placeholders:
+    kind: { type: "String", example: "SMB" }
+    place: { type: "String", example: "nas.local/films" }
+sourceKindSMB:
+  message: "SMB"
+  description: "Name of the kind of source that is a shared folder of a NAS or a Windows computer, reached over SMB. A protocol's name, which most languages keep."
+sourceKindSFTP:
+  message: "SFTP"
+  description: "Name of the kind of source that is a folder of a server reached over SSH (SFTP). A protocol's name, which most languages keep."
+sourceKindWebDAV:
+  message: "WebDAV"
+  description: "Name of the kind of source that is a folder of a WebDAV server, as many NAS systems and cloud drives offer. A protocol's name, which most languages keep."
+sourceKind:
+  message: "Type"
+  description: "Field of the source form choosing SMB, SFTP or WebDAV."
+sourceName:
+  message: "Name"
+  description: "Field of the source form: the name it is listed by."
+sourceNamePlaceholder:
+  message: "Home NAS"
+  description: "Placeholder of the source form's Name field: an example name."
+sourceHost:
+  message: "Server"
+  description: "Field of an SMB or SFTP source: the server's name or IP address."
+sourceShare:
+  message: "Share"
+  description: "Field of an SMB source: the name of the shared folder on the server."
+sourceShareHint:
+  message: "Empty to choose among the server's shares"
+  description: "Hint under the Share field of an SMB source: left empty, browsing it starts with the server's shares."
+sourceRoot:
+  message: "Folder"
+  description: "Field of a source: the folder on the server browsing starts in."
+sourceRootHintSMB:
+  message: "A folder in the share; empty for its top"
+  description: "Hint under the Folder field of an SMB source."
+sourceRootHintSFTP:
+  message: "Absolute, or in the home folder; empty for the home folder"
+  description: "Hint under the Folder field of an SFTP source."
+sourceRootHintWebDAV:
+  message: "A folder below the address; may be empty"
+  description: "Hint under the Folder field of a WebDAV source."
+sourceUser:
+  message: "User"
+  description: "Field of a source: the user name to sign in with."
+sourceUserHintSMB:
+  message: "guest for a share open to anyone"
+  description: "Hint under the User field of an SMB source. guest is the literal user name, not translated."
+sourcePassword:
+  message: "Password"
+  description: "Field of a source: the user's password."
+sourceSecretKept:
+  message: "Saved; leave empty to keep it"
+  description: "Placeholder of a secret field when editing a source whose secret is kept in the phone's secure storage."
+sourcePrivateKey:
+  message: "Private Key"
+  description: "Field of an SFTP source: the PEM text of the user's private key."
+sourcePrivateKeyHint:
+  message: "Paste the key's PEM text"
+  description: "Hint under the Private Key field. PEM is a file format's name, not translated."
+sourcePassphrase:
+  message: "Passphrase"
+  description: "Field of an SFTP source: the passphrase of an encrypted private key."
+sourcePort:
+  message: "Port"
+  description: "Field of an SMB or SFTP source: the server's port."
+sourcePortHint:
+  message: "Empty for {port}"
+  description: "Hint under the Port field: the port used when it is left empty."
+  placeholders:
+    port: { type: "String", example: "445" }
+sourceDomain:
+  message: "Domain"
+  description: "Field of an SMB source: the Windows domain or workgroup the user signs in to."
+sourceDomainHint:
+  message: "Optional, often WORKGROUP"
+  description: "Hint under the Domain field of an SMB source. WORKGROUP is the literal default name, not translated."
+sourceURL:
+  message: "Address"
+  description: "Field of a WebDAV source: the server's https:// address."
+sourceNoSigning:
+  message: "This NAS doesn't support signing"
+  description: "Switch of an SMB source that lets the phone connect without SMB message signing, which it otherwise requires."
+sourceNoSigningHint:
+  message: "For an older NAS, or a share open to guests"
+  description: "Hint under the switch This NAS doesn't support signing."
+sourceNoSigningRisk:
+  message: "Without signing, a device on the network between this phone and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."
+  description: "Warning in the source form while This NAS doesn't support signing is on."
+sourceSMBWarning:
+  message: "SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."
+  description: "Note in the form of an SMB source: a server pretending to be the NAS could see the sign-in and guess the password offline."
+sourcePlainHTTP:
+  message: "This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."
+  description: "Note in the form of a WebDAV source whose address starts with http:// rather than https://."
+sourceHostKey:
+  message: "Server Key"
+  description: "Field of an SFTP source showing the fingerprint of the server's key the phone trusts."
+sourceCertificate:
+  message: "Certificate"
+  description: "Field of a WebDAV source showing the fingerprint of the server's certificate the phone trusts, for a server whose certificate the system does not."
+sourceTrustedNone:
+  message: "Asked at the first connection"
+  description: "Value of the Server Key or Certificate field before any is trusted: the first test asks whether to trust it."
+sourceNeedsHost:
+  message: "Fill in the server."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsPort:
+  message: "The port is a number from 1 to 65535."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsUser:
+  message: "Fill in the user."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsSecret:
+  message: "Fill in a password, a private key or both."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsShare:
+  message: "Fill in the share's name, without slashes."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsShareForRoot:
+  message: "A folder is inside a share: fill in the share, or leave the folder empty."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceNeedsURL:
+  message: "The address starts with https:// or http://, without a user, a password or a query."
+  description: "Error in the source form: what keeps it from being tested or saved."
+sourceTest:
+  message: "Test Connection"
+  description: "Button of the source form: connect to the server and read the folder."
+sourceTesting:
+  message: "Connecting…"
+  description: "Shown on the Test Connection button while it connects."
+sourceConnected:
+  message: "Connected"
+  description: "Result of Test Connection once it reached the server and read the folder."
+sourceShares:
+  message: "Connected. Shares: {names}"
+  description: "Result of Test Connection of an SMB source without a share: the shares the server offers, joined with commas."
+  placeholders:
+    names: { type: "String", example: "media, backup" }
+sourceNoShares:
+  message: "Connected, but the server shows this user no shares."
+  description: "Result of Test Connection of an SMB source without a share when the server listed none."
+sourceFailSignIn:
+  message: "The server refused the user, password or key."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailDenied:
+  message: "This user can't open the folder."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailNoShare:
+  message: "The server has no share named {share}."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+  placeholders:
+    share: { type: "String", example: "films" }
+sourceFailNoRoot:
+  message: "The folder isn't on the server."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailBadRoot:
+  message: "The folder can't climb above where it starts with “..”."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailUnreachable:
+  message: "Couldn't reach {host}. Check the address, that the server is on and that this phone is on its network."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceFailTimeout:
+  message: "{host} didn't answer in time."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceFailCertificate:
+  message: "This phone doesn't trust the certificate of {host}."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceFailPrivateKey:
+  message: "The private key can't be read. Check it and its passphrase."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailSigning:
+  message: "The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailHostKey:
+  message: "The server's key or certificate isn't trusted, or has changed. Edit the source and test it to see it."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailLocalNetwork:
+  message: "Kando isn't allowed to reach your local network. Allow it in this phone's settings."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailGone:
+  message: "This source was removed."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceFailOther:
+  message: "Couldn't connect."
+  description: "Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it."
+sourceNotTrusted:
+  message: "Not connected: the server's key or certificate isn't trusted."
+  description: "Result of Test Connection after the user declined to trust the server's key or certificate."
+sourceTrustTitle:
+  message: "Trust the server {host}?"
+  description: "Title of the alert asking whether to trust an SFTP server's key, or a WebDAV server's certificate, at the first connection."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceTrustMessage:
+  message: "This is the first connection to it. Its key's fingerprint is {fingerprint}. Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+  description: "Message of the alert asking whether to trust an SFTP server's key at the first connection. ssh-keygen -l is a command, not translated."
+  placeholders:
+    fingerprint: { type: "String", example: "SHA256:0f2c…" }
+sourceCertTrustMessage:
+  message: "This phone doesn't trust its certificate, as is usual for a NAS's own. Its fingerprint is {fingerprint}. Trust it only if it matches the one the server's settings show."
+  description: "Message of the alert asking whether to trust a WebDAV server's certificate at the first connection. The fingerprint looks like SHA256 AB:CD:…"
+  placeholders:
+    fingerprint: { type: "String", example: "SHA256 AB:CD:EF" }
+sourceTrust:
+  message: "Trust"
+  description: "Button of the alert that trusts a server's key or certificate at the first connection."
+sourceKeyChangedTitle:
+  message: "The key of {host} has changed"
+  description: "Title of the warning shown when an SFTP server's key is not the one trusted before."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceKeyChangedMessage:
+  message: "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace the key only if you know why it changed."
+  description: "Message of the warning shown when an SFTP server's key is not the one trusted before. The fingerprints look like SHA256:abc…"
+  placeholders:
+    trusted: { type: "String", example: "SHA256:0f2c…" }
+    offered: { type: "String", example: "SHA256:9a1b…" }
+sourceReplaceKey:
+  message: "Replace Key"
+  description: "Destructive button of the changed-key warning: trust the server's new key in place of the old one."
+sourceCertChangedTitle:
+  message: "The certificate of {host} has changed"
+  description: "Title of the warning shown when a WebDAV server offers another certificate than the one trusted before."
+  placeholders:
+    host: { type: "String", example: "nas.local" }
+sourceCertChangedMessage:
+  message: "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace it only if you know why it changed."
+  description: "Message of the warning shown when a WebDAV server offers another certificate than the one trusted before."
+  placeholders:
+    trusted: { type: "String", example: "SHA256 AB:CD" }
+    offered: { type: "String", example: "SHA256 12:34" }
+sourceReplaceCert:
+  message: "Replace Certificate"
+  description: "Destructive button of the changed-certificate warning: trust the server's new certificate in place of the old one."
+sourceSave:
+  message: "Save"
+  description: "Button saving the source form."
+sourceSaving:
+  message: "Saving…"
+  description: "Shown on the Save button while the source's password is being kept in the phone's secure storage."
+sourceSaveFailed:
+  message: "The source couldn't be saved."
+  description: "Shown in the source form when the phone could not keep it or its password."
+sourceNoSecretStore:
+  message: "This phone has no secure storage for passwords, so Kando can't keep this one. Only a share open to guests can be added."
+  description: "Shown in the source form when Save could not keep the password because the phone offers no secure storage. Kando never keeps the password elsewhere."
+sourceRemove:
+  message: "Remove Source"
+  description: "Destructive button at the foot of a saved source's form."
+sourceRemoveTitle:
+  message: "Remove “{name}”?"
+  description: "Title of the alert confirming that a NAS or server is removed from the phone."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+sourceRemoveMessage:
+  message: "Its password is forgotten. Films downloaded from it stay on this phone, and nothing on the server is deleted."
+  description: "Message of the alert confirming that a NAS or server is removed."
+sourceRemoveConfirm:
+  message: "Remove"
+  description: "Destructive button of the alert confirming that a NAS or server is removed."
+sourceLoading:
+  message: "Loading…"
+  description: "Spoken name of the spinner while a NAS or server's folder is being read."
+sourceEmpty:
+  message: "No folders or videos here"
+  description: "Shown in place of a NAS or server's folder that holds no folders and no videos the phone plays."
+sourceRetry:
+  message: "Try Again"
+  description: "Button under why a NAS or server's folder could not be read: read it again."
+sourceEditSource:
+  message: "Edit Source"
+  description: "Button under why a NAS or server's folder could not be read: open the source's form."
+sourceOpenSettings:
+  message: "Open Settings"
+  description: "Button under the note that the app may not reach the local network: opens the system's settings of the app."
+sourceDownload:
+  message: "Download {name}"
+  description: "Spoken name of the button of a video on a NAS or server that downloads it to the phone, and of its download's bar."
+  placeholders:
+    name: { type: "String", example: "Holiday.mp4" }
+sourcePause:
+  message: "Pause the download of {name}"
+  description: "Spoken name of the button of a video on a NAS or server while it downloads: pauses the download."
+  placeholders:
+    name: { type: "String", example: "Holiday.mp4" }

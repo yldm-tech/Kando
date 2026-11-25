@@ -61,6 +61,9 @@ type Film struct {
 	Added   time.Time `json:"added"`
 	// Streamed is a film kept to play from the user's storage, away from its desktop: its record and lines, with no download of its video asked for, which is not taken for one paused.
 	Streamed bool `json:"streamed,omitempty"`
+	// Source is, for a film downloaded from a NAS or a server the phone reaches itself, the source's ID, and Path the file's path in it; Desktop is then SourceOwner(Source), which names no desktop, and Film.ID is SourceFilmID(Path).
+	Source string `json:"source,omitempty"`
+	Path   string `json:"path,omitempty"`
 }
 
 // Key names a film on the phone: its desktop's ID and its own.
@@ -75,7 +78,7 @@ func (f Film) Done() bool { return f.Video != "" || f.LinesOnly }
 // HasVideo reports whether the film's video is on the phone.
 func (f Film) HasVideo() bool { return f.Video != "" }
 
-// The files of the store, under its folder: the paired desktops, and a folder per film under films/<desktop>/<film>, holding film.json, subtitles.json, marks.json once its computer marked its lines' words, the poster, and video.part while the video downloads.
+// The files of the store, under its folder: the paired desktops, the NAS and servers added (sources.go), and a folder per film under films/<desktop>/<film> (films/source-<source>/<film> for one from a source), holding film.json, subtitles.json, marks.json once its computer marked its lines' words, the poster, and video.part while the video downloads.
 const (
 	desktopsFile  = "desktops.json"
 	filmsDir      = "films"

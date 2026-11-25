@@ -1,4 +1,4 @@
-// Package settings is the Settings tab: the app's card; the language subtitles are translated into, which the computers translate into too, and how the player draws them (style.go); the interface's language and the app's appearance; the computer that processes the links the phone sends, with its AI service and context switch, and its page (computer.go), where the paired computers are picked among, unpaired and another paired; the phone's own review reminder and daily goal, the films saved on it (offline.go), its widgets on iOS (widgets.go) and a tablet's keyboard shortcuts (shortcuts.go); the sync conflicts to settle (conflicts.go); and the app's version, where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
+// Package settings is the Settings tab: the app's card; the language subtitles are translated into, which the computers translate into too, and how the player draws them (style.go); the interface's language and the app's appearance; the computer that processes the links the phone sends, with its AI service and context switch, and its page (computer.go), where the paired computers are picked among, unpaired and another paired; the phone's own review reminder and daily goal, the films saved on it (offline.go), the NAS and servers it reaches itself (package sources), its widgets on iOS (widgets.go) and a tablet's keyboard shortcuts (shortcuts.go); the sync conflicts to settle (conflicts.go); and the app's version, where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
 package settings
 
 import (
@@ -20,10 +20,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Actions are where the tab leads; Computer opens the processing computer's page, computer id's, and Unpaired runs once the user unpaired computer id, for the pages of it to go. Shortcuts opens the keyboard shortcuts, which a tablet lists, Widgets the widgets, which iOS has, Language the interface's language and Offline the films saved on the device.
+// Actions are where the tab leads; Computer opens the processing computer's page, computer id's, and Unpaired runs once the user unpaired computer id, for the pages of it to go. Shortcuts opens the keyboard shortcuts, which a tablet lists, Widgets the widgets, which iOS has, Language the interface's language, Offline the films saved on the device and Sources the NAS and servers the phone reaches itself (package sources).
 type Actions struct {
 	Pair, Target, Style, Goal, Conflicts, Introduction func()
-	Shortcuts, Widgets, Language, Offline              func()
+	Shortcuts, Widgets, Language, Offline, Sources     func()
 	Computer, Unpaired                                 func(id string)
 }
 
@@ -269,6 +269,18 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 			Title:   func() string { return locales.SettingsOffline(cx) },
 			Value:   func() string { return locales.SettingsOfflineCount(cx, len(s.Films())) },
 			OnPress: act.Offline})
+	}
+	if act.Sources != nil {
+		add(look.Row{TestID: "settings-sources", Chevron: true,
+			Leading: look.GlyphTile(cx, glyph("⌂"), fixed(theme.TileTeal)),
+			Title:   func() string { return locales.SourcesTitle(cx) },
+			Value: func() string {
+				if n := len(s.Sources()); n > 0 {
+					return locales.SourcesCount(cx, n)
+				}
+				return ""
+			},
+			OnPress: act.Sources})
 	}
 	if cx.Env().OS() == core.OSIOS && act.Widgets != nil {
 		add(look.Row{TestID: "settings-widgets", Chevron: true,

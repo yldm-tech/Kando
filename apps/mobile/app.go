@@ -18,6 +18,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/settings"
 	"kando/apps/mobile/shell"
+	"kando/apps/mobile/sources"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
 	"kando/apps/mobile/widgets"
@@ -55,6 +56,9 @@ const (
 	widgetsPage
 	languagePage
 	offlinePage
+	sourcesPage
+	sourcePage
+	browsePage
 )
 
 // The tabs, in the order the tab bar and a tablet's sidebar show them.
@@ -66,12 +70,14 @@ const (
 	tabs
 )
 
-// route is a page of a stack and what it shows: the computer and library a film's page is of, and the film.
+// route is a page of a stack and what it shows: the computer and library a film's page is of, and the film; the NAS or server a source's form or folder is of (source, "" for a new one's form), and the folder (dir).
 type route struct {
 	page    page
 	desktop string
 	library sync.Library
 	film    sync.Film
+	source  string
+	dir     string
 }
 
 // App is the app with the session cfg configures: the tabs of the Library, Learn and Settings, each a stack of the pages it opens, under a stack of what covers them, pairing, the introduction and the page that says a computer no longer takes the phone; the film playing over the tabs, or minimized in a bar over them; the introduction in the tabs' place until the user has been through it.
@@ -149,6 +155,22 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			navs[settingsTab].Pop(len(routes) - i)
 		}
 	}
+	// The folders of a NAS or server removed go from the stacks, with the pages opened over them: they could not be read any more. Its form, where it was removed, goes back on its own.
+	cx.Effect(func() {
+		list := s.Sources()
+		gone := func(r route) bool {
+			return r.page == browsePage && !slices.ContainsFunc(list, func(src store.Source) bool { return src.ID == r.source })
+		}
+		for _, n := range navs {
+			if slices.ContainsFunc(n.Routes(), gone) {
+				cx.Post(func() {
+					if routes := n.Routes(); slices.ContainsFunc(routes, gone) {
+						n.Pop(len(routes) - slices.IndexFunc(routes, gone))
+					}
+				})
+			}
+		}
+	})
 	// The film playing shows over the tabs, or in the mini player over them.
 	layer := player.NewLayer(cx, s)
 	// Subtitle Style, from the player's settings, opens in Settings, the film playing on in the mini player over it.
@@ -245,6 +267,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 							n.Push(route{page: offlinePage})
 							s.ReadSpace()
 						},
+						Sources: func() { n.Push(route{page: sourcesPage}) },
 						Computer: func(id string) {
 							n.Push(route{page: computerPage, desktop: id})
 							s.SyncLearning()
@@ -256,6 +279,14 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					return settings.LanguagePage(cx, s, back)
 				case offlinePage:
 					return settings.OfflinePage(cx, s, back)
+				case sourcesPage:
+					return sources.SettingsPage(cx, s, func(id string) { n.Push(route{page: sourcePage, source: id}) }, back)
+				case sourcePage:
+					return sources.EditPage(cx, s, r.source, back)
+				case browsePage:
+					return sources.BrowsePage(cx, s, r.source, r.dir, sources.Browse{Back: back, Play: play,
+						Folder: func(dir string) { n.Push(route{page: browsePage, source: r.source, dir: dir}) },
+						Edit:   func(id string) { n.Push(route{page: sourcePage, source: id}) }})
 				case shortcutsPage:
 					return settings.ShortcutsPage(cx, sectionNames(cx), back)
 				case widgetsPage:
@@ -279,7 +310,8 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					jobsButton = openJobs
 				}
 				return films.Page(cx, s, films.Actions{Pair: openPair, Play: play, PlayHeld: playHeld, PlayAt: layer.PlayAt, Add: openAdd, Jobs: jobsButton, OpenJobs: openJobs, PickLibrary: pickLibrary, Searches: searches.Get, Library: library,
-					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) }})
+					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) },
+					Source: func(id string) { n.Push(route{page: browsePage, source: id}) }})
 			})
 			return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{stack, player.MiniBar(cx, layer)}}
 		}

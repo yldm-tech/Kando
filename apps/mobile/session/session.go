@@ -170,6 +170,8 @@ type Session struct {
 	marks *filmMarks
 	// making is the films being made that the player watches (making.go).
 	making *making
+	// src are the NAS and servers the phone reaches itself (sources.go).
+	src *sources
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -232,6 +234,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		gloss:        newGlossaries(cx),
 		marks:        newFilmMarks(cx),
 		making:       newMaking(cx),
+		src:          newSources(cx),
 		studies:      core.NewSignalFunc(cx, map[string]study.Library{}, nil),
 		studyLoading: map[string]bool{}, studyRuns: map[string]*studyRun{}, finding: map[string]bool{},
 		studySaving: map[string]uint64{}, studySaved: map[string]uint64{},
@@ -261,6 +264,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.awake()
 		}
 		s.work.Wait()
+		s.closeSources()
 	})
 	s.work.Go(func() {
 		desktops, _ := s.st.Desktops()
@@ -276,6 +280,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		prefs, _ := s.st.Prefs()
 		lookups, _ := s.st.Lookups()
 		links, _ := s.st.Links()
+		sources, _ := s.st.Sources()
 		// A phone that paired or downloaded before the introduction existed has been introduced already.
 		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
 		prefs.Onboarded = prefs.Onboarded || migrated
@@ -312,6 +317,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 			}
 			s.transfers.Set(t)
 			s.loadLinks(links)
+			s.loadSources(sources)
 			for _, d := range desktops {
 				s.follow(d.ID)
 			}
@@ -747,9 +753,18 @@ func (s *Session) start(f store.Film) {
 		}
 		return
 	}
-	// Away from its computer's network, the film comes from the user's storage, by the links its computer listed there.
-	src, ok := s.relaySource(f.Desktop, f.Film.ID)
-	if !ok {
+	var src download.Source
+	if f.FromSource() {
+		// A film of a NAS or a server comes from its file there.
+		var ok bool
+		if src, ok = s.sourceDownload(f); !ok {
+			s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, Gone; return t })
+			return
+		}
+	} else if relayed, ok := s.relaySource(f.Desktop, f.Film.ID); ok {
+		// Away from its computer's network, the film comes from the user's storage, by the links its computer listed there.
+		src = relayed
+	} else {
 		c := s.Client(f.Desktop)
 		if c == nil {
 			s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, Unpaired; return t })

@@ -1,4 +1,4 @@
-// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet, which a tablet's sidebar lists too (subscriptions.go, sidebar.go). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
+// Package films is the Library tab: the films of every paired computer and those on the phone as one library (catalog.Merge), which pull to refresh reads again. At its top are the day's study at a glance (stats.go), and under the films to go on with, the computers' subscriptions, each with its sheet, which a tablet's sidebar lists too (subscriptions.go, sidebar.go), and the NAS and servers the phone reaches itself (package sources). A search finds titles and the lines kept on the phone, the films left partway on any device come first to go on with, and chips and the library switcher narrow the list to a source or a library. A computer that cannot be reached says so with the way to try again or pair again, and before any computer is paired the tab says what pairing brings and how.
 package films
 
 import (
@@ -12,6 +12,7 @@ import (
 	"kando/apps/mobile/onboarding"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/shell"
+	"kando/apps/mobile/sources"
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
 
@@ -46,6 +47,8 @@ type Actions struct {
 	Searches func() int
 	// Subscription opens the sheet of the subscription with that key (SubscriptionSheet), which the app shows over every section.
 	Subscription func(key string)
+	// Source opens the root of the NAS or server with that ID (package sources), whose group the tab shows while the phone has one; nil for none.
+	Source func(id string)
 }
 
 // view is the tab's state: what the user searched for, and the source and the library the list is narrowed to, none for all.
@@ -131,8 +134,11 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		core.Show{When: func() bool { return !paired() }, Then: func(cx *core.Scope) core.Node { return unpaired(cx, act.Pair) }},
 		core.Show{When: func() bool { return v.query.Get() == "" && len(v.resumable()) > 0 }, Then: v.carousel},
 		core.Show{When: func() bool { return v.query.Get() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
-		v.list(cx),
 	)
+	if act.Source != nil {
+		blocks = append(blocks, core.Show{When: func() bool { return v.query.Get() == "" }, Then: func(cx *core.Scope) core.Node { return sources.Group(cx, s, act.Source) }})
+	}
+	blocks = append(blocks, v.list(cx))
 	body := core.Scroll{TestID: "films-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1},
 		OnRefresh:  func() { pulled.Set(true); s.Refresh() },
 		Refreshing: pulled.Get,

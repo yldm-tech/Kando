@@ -687,6 +687,24 @@ var Parameters = map[string][]string{
 	"PlayerWordRemoved":              {"word"},
 	"PlayerWordTimes":                {"count"},
 	"PlayerNextIn":                   {"seconds"},
+	"SourcesCount":                   {"count"},
+	"SourceSummary":                  {"kind", "place"},
+	"SourcePortHint":                 {"port"},
+	"SourceShares":                   {"names"},
+	"SourceFailNoShare":              {"share"},
+	"SourceFailUnreachable":          {"host"},
+	"SourceFailTimeout":              {"host"},
+	"SourceFailCertificate":          {"host"},
+	"SourceTrustTitle":               {"host"},
+	"SourceTrustMessage":             {"fingerprint"},
+	"SourceCertTrustMessage":         {"fingerprint"},
+	"SourceKeyChangedTitle":          {"host"},
+	"SourceKeyChangedMessage":        {"trusted", "offered"},
+	"SourceCertChangedTitle":         {"host"},
+	"SourceCertChangedMessage":       {"trusted", "offered"},
+	"SourceRemoveTitle":              {"name"},
+	"SourceDownload":                 {"name"},
+	"SourcePause":                    {"name"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -905,6 +923,24 @@ type Translation struct {
 	PlayerWordRemoved              func(word string) string
 	PlayerWordTimes                func(count int) string
 	PlayerNextIn                   func(seconds int) string
+	SourcesCount                   func(count int) string
+	SourceSummary                  func(kind string, place string) string
+	SourcePortHint                 func(port string) string
+	SourceShares                   func(names string) string
+	SourceFailNoShare              func(share string) string
+	SourceFailUnreachable          func(host string) string
+	SourceFailTimeout              func(host string) string
+	SourceFailCertificate          func(host string) string
+	SourceTrustTitle               func(host string) string
+	SourceTrustMessage             func(fingerprint string) string
+	SourceCertTrustMessage         func(fingerprint string) string
+	SourceKeyChangedTitle          func(host string) string
+	SourceKeyChangedMessage        func(trusted string, offered string) string
+	SourceCertChangedTitle         func(host string) string
+	SourceCertChangedMessage       func(trusted string, offered string) string
+	SourceRemoveTitle              func(name string) string
+	SourceDownload                 func(name string) string
+	SourcePause                    func(name string) string
 }
 
 var supplied = map[string]Translation{}
@@ -1458,6 +1494,80 @@ const (
 	textPlayerNextCancel
 	textPlayerAutoNext
 	textPlayerAutoNextNote
+	textSourcesTitle
+	textSourcesAdd
+	textSourcesNote
+	textSourcesGroup
+	textSourceEditTitle
+	textSourceKindSMB
+	textSourceKindSFTP
+	textSourceKindWebDAV
+	textSourceKind
+	textSourceName
+	textSourceNamePlaceholder
+	textSourceHost
+	textSourceShare
+	textSourceShareHint
+	textSourceRoot
+	textSourceRootHintSMB
+	textSourceRootHintSFTP
+	textSourceRootHintWebDAV
+	textSourceUser
+	textSourceUserHintSMB
+	textSourcePassword
+	textSourceSecretKept
+	textSourcePrivateKey
+	textSourcePrivateKeyHint
+	textSourcePassphrase
+	textSourcePort
+	textSourceDomain
+	textSourceDomainHint
+	textSourceURL
+	textSourceNoSigning
+	textSourceNoSigningHint
+	textSourceNoSigningRisk
+	textSourceSMBWarning
+	textSourcePlainHTTP
+	textSourceHostKey
+	textSourceCertificate
+	textSourceTrustedNone
+	textSourceNeedsHost
+	textSourceNeedsPort
+	textSourceNeedsUser
+	textSourceNeedsSecret
+	textSourceNeedsShare
+	textSourceNeedsShareForRoot
+	textSourceNeedsURL
+	textSourceTest
+	textSourceTesting
+	textSourceConnected
+	textSourceNoShares
+	textSourceFailSignIn
+	textSourceFailDenied
+	textSourceFailNoRoot
+	textSourceFailBadRoot
+	textSourceFailPrivateKey
+	textSourceFailSigning
+	textSourceFailHostKey
+	textSourceFailLocalNetwork
+	textSourceFailGone
+	textSourceFailOther
+	textSourceNotTrusted
+	textSourceTrust
+	textSourceReplaceKey
+	textSourceReplaceCert
+	textSourceSave
+	textSourceSaving
+	textSourceSaveFailed
+	textSourceNoSecretStore
+	textSourceRemove
+	textSourceRemoveMessage
+	textSourceRemoveConfirm
+	textSourceLoading
+	textSourceEmpty
+	textSourceRetry
+	textSourceEditSource
+	textSourceOpenSettings
 	numTexts
 )
 
@@ -2011,6 +2121,80 @@ var keyOfText = [numTexts]string{
 	"playerNextCancel",
 	"playerAutoNext",
 	"playerAutoNextNote",
+	"sourcesTitle",
+	"sourcesAdd",
+	"sourcesNote",
+	"sourcesGroup",
+	"sourceEditTitle",
+	"sourceKindSMB",
+	"sourceKindSFTP",
+	"sourceKindWebDAV",
+	"sourceKind",
+	"sourceName",
+	"sourceNamePlaceholder",
+	"sourceHost",
+	"sourceShare",
+	"sourceShareHint",
+	"sourceRoot",
+	"sourceRootHintSMB",
+	"sourceRootHintSFTP",
+	"sourceRootHintWebDAV",
+	"sourceUser",
+	"sourceUserHintSMB",
+	"sourcePassword",
+	"sourceSecretKept",
+	"sourcePrivateKey",
+	"sourcePrivateKeyHint",
+	"sourcePassphrase",
+	"sourcePort",
+	"sourceDomain",
+	"sourceDomainHint",
+	"sourceURL",
+	"sourceNoSigning",
+	"sourceNoSigningHint",
+	"sourceNoSigningRisk",
+	"sourceSMBWarning",
+	"sourcePlainHTTP",
+	"sourceHostKey",
+	"sourceCertificate",
+	"sourceTrustedNone",
+	"sourceNeedsHost",
+	"sourceNeedsPort",
+	"sourceNeedsUser",
+	"sourceNeedsSecret",
+	"sourceNeedsShare",
+	"sourceNeedsShareForRoot",
+	"sourceNeedsURL",
+	"sourceTest",
+	"sourceTesting",
+	"sourceConnected",
+	"sourceNoShares",
+	"sourceFailSignIn",
+	"sourceFailDenied",
+	"sourceFailNoRoot",
+	"sourceFailBadRoot",
+	"sourceFailPrivateKey",
+	"sourceFailSigning",
+	"sourceFailHostKey",
+	"sourceFailLocalNetwork",
+	"sourceFailGone",
+	"sourceFailOther",
+	"sourceNotTrusted",
+	"sourceTrust",
+	"sourceReplaceKey",
+	"sourceReplaceCert",
+	"sourceSave",
+	"sourceSaving",
+	"sourceSaveFailed",
+	"sourceNoSecretStore",
+	"sourceRemove",
+	"sourceRemoveMessage",
+	"sourceRemoveConfirm",
+	"sourceLoading",
+	"sourceEmpty",
+	"sourceRetry",
+	"sourceEditSource",
+	"sourceOpenSettings",
 }
 
 // textsEn are the messages without arguments in en.
@@ -2262,7 +2446,7 @@ var textsEn = i18n.NewTexts(""+
 	"It leaves your saved lines on every device."+
 	"Remove this line?"+
 	"Kando uses the camera to read the QR code your computer shows, to pair with it."+
-	"Kando connects to Kando on your computer over your local network to list and download your films."+
+	"Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films."+
 	"Continue"+
 	"每条河都始于高山上的一股细流。"+
 	"水往低处流，沿途裹挟起泥沙和石块。"+
@@ -2561,7 +2745,81 @@ var textsEn = i18n.NewTexts(""+
 	"Play Now"+
 	"Cancel"+
 	"Play Next Automatically"+
-	"When a film ends, plays the next one of its course or playlist that's on this phone.",
+	"When a film ends, plays the next one of its course or playlist that's on this phone."+
+	"NAS & Servers"+
+	"Add NAS or Server"+
+	"Kando only reads these: it never writes, moves or deletes anything on them. Their passwords stay in this phone's secure storage, and the films you download play without the computer."+
+	"NAS"+
+	"Edit Source"+
+	"SMB"+
+	"SFTP"+
+	"WebDAV"+
+	"Type"+
+	"Name"+
+	"Home NAS"+
+	"Server"+
+	"Share"+
+	"Empty to choose among the server's shares"+
+	"Folder"+
+	"A folder in the share; empty for its top"+
+	"Absolute, or in the home folder; empty for the home folder"+
+	"A folder below the address; may be empty"+
+	"User"+
+	"guest for a share open to anyone"+
+	"Password"+
+	"Saved; leave empty to keep it"+
+	"Private Key"+
+	"Paste the key's PEM text"+
+	"Passphrase"+
+	"Port"+
+	"Domain"+
+	"Optional, often WORKGROUP"+
+	"Address"+
+	"This NAS doesn't support signing"+
+	"For an older NAS, or a share open to guests"+
+	"Without signing, a device on the network between this phone and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."+
+	"SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."+
+	"This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."+
+	"Server Key"+
+	"Certificate"+
+	"Asked at the first connection"+
+	"Fill in the server."+
+	"The port is a number from 1 to 65535."+
+	"Fill in the user."+
+	"Fill in a password, a private key or both."+
+	"Fill in the share's name, without slashes."+
+	"A folder is inside a share: fill in the share, or leave the folder empty."+
+	"The address starts with https:// or http://, without a user, a password or a query."+
+	"Test Connection"+
+	"Connecting…"+
+	"Connected"+
+	"Connected, but the server shows this user no shares."+
+	"The server refused the user, password or key."+
+	"This user can't open the folder."+
+	"The folder isn't on the server."+
+	"The folder can't climb above where it starts with “..”."+
+	"The private key can't be read. Check it and its passphrase."+
+	"The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."+
+	"The server's key or certificate isn't trusted, or has changed. Edit the source and test it to see it."+
+	"Kando isn't allowed to reach your local network. Allow it in this phone's settings."+
+	"This source was removed."+
+	"Couldn't connect."+
+	"Not connected: the server's key or certificate isn't trusted."+
+	"Trust"+
+	"Replace Key"+
+	"Replace Certificate"+
+	"Save"+
+	"Saving…"+
+	"The source couldn't be saved."+
+	"This phone has no secure storage for passwords, so Kando can't keep this one. Only a share open to guests can be added."+
+	"Remove Source"+
+	"Its password is forgotten. Films downloaded from it stay on this phone, and nothing on the server is deleted."+
+	"Remove"+
+	"Loading…"+
+	"No folders or videos here"+
+	"Try Again"+
+	"Edit Source"+
+	"Open Settings",
 	[]uint16{
 		7,
 		7,
@@ -2810,7 +3068,7 @@ var textsEn = i18n.NewTexts(""+
 		43,
 		17,
 		79,
-		97,
+		134,
 		8,
 		45,
 		51,
@@ -3110,6 +3368,80 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		23,
 		84,
+		13,
+		17,
+		182,
+		3,
+		11,
+		3,
+		4,
+		6,
+		4,
+		4,
+		8,
+		6,
+		5,
+		41,
+		6,
+		40,
+		58,
+		40,
+		4,
+		32,
+		8,
+		29,
+		11,
+		24,
+		10,
+		4,
+		6,
+		25,
+		7,
+		32,
+		43,
+		166,
+		136,
+		154,
+		10,
+		11,
+		29,
+		19,
+		37,
+		17,
+		42,
+		42,
+		73,
+		83,
+		15,
+		13,
+		9,
+		52,
+		45,
+		32,
+		31,
+		59,
+		59,
+		169,
+		101,
+		83,
+		24,
+		17,
+		61,
+		5,
+		11,
+		19,
+		4,
+		9,
+		29,
+		119,
+		13,
+		109,
+		6,
+		10,
+		25,
+		9,
+		11,
+		13,
 	})
 
 // textsJa are the messages without arguments in ja.
@@ -3361,7 +3693,7 @@ var textsJa = i18n.NewTexts(""+
 	"すべての端末の保存した文から削除されます。"+
 	"この文を削除しますか？"+
 	"Kando はコンピュータに表示された QR コードをカメラで読み取り、ペアリングします。"+
-	"Kando はローカルネットワーク経由でコンピュータの Kando に接続し、映画の一覧を表示してダウンロードします。"+
+	"Kando はローカルネットワーク経由でコンピュータの Kando や追加した NAS・サーバに接続し、映画の一覧を表示してダウンロードします。"+
 	"続ける"+
 	"すべての川は、山の高いところの細い流れから始まります。"+
 	"水は下りながら、砂や石を運んでいきます。"+
@@ -3660,7 +3992,81 @@ var textsJa = i18n.NewTexts(""+
 	"今すぐ再生"+
 	"キャンセル"+
 	"次の作品を自動再生"+
-	"作品が終わると、同じコースやリストでこの端末にある次の作品を再生します。",
+	"作品が終わると、同じコースやリストでこの端末にある次の作品を再生します。"+
+	"NAS とサーバ"+
+	"NAS またはサーバを追加"+
+	"Kando はこれらを読み取るだけで、書き込み・移動・削除は一切しません。パスワードはこの端末の安全な保管場所に保存され、ダウンロードした映画はコンピュータなしで再生できます。"+
+	"NAS"+
+	"ソースを編集"+
+	"SMB"+
+	"SFTP"+
+	"WebDAV"+
+	"種類"+
+	"名前"+
+	"自宅の NAS"+
+	"サーバ"+
+	"共有"+
+	"空欄にするとサーバの共有から選べます"+
+	"フォルダ"+
+	"共有内のフォルダ。空欄なら共有の最上位"+
+	"絶対パスかホームフォルダ内のパス。空欄ならホームフォルダ"+
+	"アドレスの下のフォルダ。空欄も可"+
+	"ユーザ名"+
+	"誰でも使える共有は guest"+
+	"パスワード"+
+	"保存済み。空欄のままなら変更しません"+
+	"秘密鍵"+
+	"鍵の PEM テキストを貼り付けます"+
+	"パスフレーズ"+
+	"ポート"+
+	"ドメイン"+
+	"省略可。多くは WORKGROUP"+
+	"アドレス"+
+	"この NAS は署名に対応していない"+
+	"古い NAS や、ゲストに公開された共有向け"+
+	"署名がないと、この端末と NAS の間のネットワーク上の機器が、Kando が読み取る内容を改ざんできます。NAS が署名付きの接続を拒否する場合を除き、オフのままにしてください。"+
+	"SMB は接続先のサーバが本物か確認できません。SMB ソースは信頼できるネットワークでのみ追加し、このパスワードを他のアカウントと共用しないでください。"+
+	"このアドレスは暗号化されず、パスワードが平文でネットワークを流れます。信頼できるネットワークでのみ使うか、サーバが対応していれば https:// を使ってください。"+
+	"サーバの鍵"+
+	"証明書"+
+	"最初の接続で確認します"+
+	"サーバを入力してください。"+
+	"ポートは 1〜65535 の数字です。"+
+	"ユーザ名を入力してください。"+
+	"パスワードか秘密鍵、または両方を入力してください。"+
+	"共有名をスラッシュなしで入力してください。"+
+	"フォルダは共有の中にあります。共有を入力するか、フォルダを空欄にしてください。"+
+	"アドレスは https:// か http:// で始め、ユーザ名、パスワード、クエリを含めないでください。"+
+	"接続をテスト"+
+	"接続しています…"+
+	"接続できました"+
+	"接続しましたが、サーバはこのユーザに共有を表示していません。"+
+	"サーバがユーザ名、パスワード、または鍵を拒否しました。"+
+	"このユーザはフォルダを開けません。"+
+	"フォルダがサーバにありません。"+
+	"フォルダは「..」で始点より上を指定できません。"+
+	"秘密鍵を読み込めません。鍵とパスフレーズを確認してください。"+
+	"サーバがメッセージに署名しませんでしたが、Kando は署名を必要とします。この NAS が署名に対応していない場合や、共有がゲストに公開されている場合は「この NAS は署名に対応していない」をオンにしてください。"+
+	"サーバの鍵または証明書が信頼されていないか、変わっています。ソースを編集して接続をテストすると確認できます。"+
+	"Kando にローカルネットワークへのアクセスが許可されていません。この端末の設定で許可してください。"+
+	"このソースは削除されました。"+
+	"接続できませんでした。"+
+	"接続していません：サーバの鍵または証明書が信頼されていません。"+
+	"信頼する"+
+	"鍵を置き換える"+
+	"証明書を置き換える"+
+	"保存"+
+	"保存中…"+
+	"ソースを保存できませんでした。"+
+	"この端末にはパスワードを保存する安全な場所がないため、Kando はこのパスワードを保存できません。追加できるのはゲストに公開された共有だけです。"+
+	"ソースを削除"+
+	"パスワードは忘れられます。このソースからダウンロードした映画はこの端末に残り、サーバ上のものは何も削除されません。"+
+	"削除"+
+	"読み込み中…"+
+	"フォルダや動画はありません"+
+	"もう一度試す"+
+	"ソースを編集"+
+	"設定を開く",
 	[]uint16{
 		15,
 		9,
@@ -3909,7 +4315,7 @@ var textsJa = i18n.NewTexts(""+
 		63,
 		33,
 		115,
-		151,
+		182,
 		9,
 		81,
 		60,
@@ -4209,6 +4615,80 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		27,
 		108,
+		16,
+		31,
+		252,
+		3,
+		18,
+		3,
+		4,
+		6,
+		6,
+		6,
+		13,
+		9,
+		6,
+		54,
+		12,
+		57,
+		84,
+		48,
+		12,
+		33,
+		15,
+		54,
+		9,
+		44,
+		18,
+		9,
+		12,
+		31,
+		12,
+		44,
+		56,
+		240,
+		215,
+		229,
+		15,
+		9,
+		33,
+		39,
+		41,
+		42,
+		75,
+		63,
+		117,
+		124,
+		18,
+		24,
+		21,
+		90,
+		81,
+		51,
+		45,
+		68,
+		90,
+		292,
+		162,
+		141,
+		42,
+		33,
+		93,
+		12,
+		21,
+		27,
+		6,
+		12,
+		45,
+		207,
+		18,
+		171,
+		6,
+		18,
+		39,
+		18,
+		18,
+		15,
 	})
 
 // textsKo are the messages without arguments in ko.
@@ -4460,7 +4940,7 @@ var textsKo = i18n.NewTexts(""+
 	"모든 기기의 저장한 문장에서 삭제됩니다."+
 	"이 문장을 삭제할까요?"+
 	"Kando는 카메라로 컴퓨터에 표시된 QR 코드를 읽어 페어링합니다."+
-	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando에 연결하여 영화 목록을 보고 다운로드합니다."+
+	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando와 추가한 NAS 및 서버에 연결하여 영화 목록을 보고 다운로드합니다."+
 	"계속"+
 	"모든 강은 높은 산의 가느다란 물줄기에서 시작됩니다."+
 	"물은 아래로 흐르며 모래와 돌을 실어 나릅니다."+
@@ -4759,7 +5239,81 @@ var textsKo = i18n.NewTexts(""+
 	"지금 재생"+
 	"취소"+
 	"다음 작품 자동 재생"+
-	"작품이 끝나면 같은 강좌나 목록에서 이 휴대폰에 있는 다음 작품을 재생합니다.",
+	"작품이 끝나면 같은 강좌나 목록에서 이 휴대폰에 있는 다음 작품을 재생합니다."+
+	"NAS 및 서버"+
+	"NAS 또는 서버 추가"+
+	"Kando는 이곳을 읽기만 하며, 아무것도 쓰거나 옮기거나 지우지 않습니다. 암호는 이 휴대폰의 보안 저장소에 보관되고, 다운로드한 영화는 컴퓨터 없이 재생됩니다."+
+	"NAS"+
+	"소스 편집"+
+	"SMB"+
+	"SFTP"+
+	"WebDAV"+
+	"종류"+
+	"이름"+
+	"집 NAS"+
+	"서버"+
+	"공유"+
+	"비워 두면 서버의 공유 중에서 고릅니다"+
+	"폴더"+
+	"공유 안의 폴더, 비워 두면 공유의 최상위"+
+	"절대 경로 또는 홈 폴더 안의 경로, 비워 두면 홈 폴더"+
+	"주소 아래의 폴더, 비워 둘 수 있음"+
+	"사용자 이름"+
+	"누구나 쓰는 공유는 guest"+
+	"암호"+
+	"저장됨. 비워 두면 그대로 둡니다"+
+	"개인 키"+
+	"키의 PEM 텍스트를 붙여 넣으십시오"+
+	"암호 문구"+
+	"포트"+
+	"도메인"+
+	"선택 사항, 보통 WORKGROUP"+
+	"주소"+
+	"이 NAS는 서명을 지원하지 않음"+
+	"오래된 NAS나 게스트에게 열린 공유용"+
+	"서명하지 않으면 이 휴대폰과 NAS 사이 네트워크의 기기가 Kando가 읽는 내용을 바꿀 수 있습니다. NAS가 서명된 연결을 거부하는 경우가 아니면 끄세요."+
+	"SMB는 연결한 서버가 진짜인지 확인할 수 없으므로, SMB 소스는 신뢰하는 네트워크에서만 추가하고 이 암호를 다른 계정과 함께 쓰지 마세요."+
+	"이 주소는 암호화되지 않아 암호가 평문으로 네트워크를 지나갑니다. 신뢰하는 네트워크에서만 사용하거나, 서버가 지원하면 https://를 사용하세요."+
+	"서버 키"+
+	"인증서"+
+	"첫 연결 때 확인합니다"+
+	"서버를 입력하십시오."+
+	"포트는 1~65535 사이의 숫자입니다."+
+	"사용자 이름을 입력하십시오."+
+	"암호나 개인 키, 또는 둘 다 입력하십시오."+
+	"슬래시 없이 공유 이름을 입력하십시오."+
+	"폴더는 공유 안에 있습니다. 공유를 입력하거나 폴더를 비워 두세요."+
+	"주소는 https:// 또는 http://로 시작하고 사용자 이름, 암호, 쿼리를 넣지 마십시오."+
+	"연결 테스트"+
+	"연결 중…"+
+	"연결되었습니다"+
+	"연결되었지만 서버가 이 사용자에게 공유를 보여 주지 않습니다."+
+	"서버가 사용자 이름, 암호 또는 키를 거부했습니다."+
+	"이 사용자는 폴더를 열 수 없습니다."+
+	"서버에 폴더가 없습니다."+
+	"폴더는 ‘..’로 시작 위치보다 위를 가리킬 수 없습니다."+
+	"개인 키를 읽을 수 없습니다. 키와 암호 문구를 확인하십시오."+
+	"서버가 메시지에 서명하지 않았지만 Kando는 서명을 요구합니다. 이 NAS가 서명을 지원하지 않거나 공유가 게스트에게 열려 있다면 '이 NAS는 서명을 지원하지 않음'을 켜세요."+
+	"서버 키나 인증서를 신뢰하지 않았거나 바뀌었습니다. 소스를 편집하고 연결을 테스트하면 볼 수 있습니다."+
+	"Kando가 로컬 네트워크에 접근하도록 허용되지 않았습니다. 이 휴대폰의 설정에서 허용하세요."+
+	"이 소스는 제거되었습니다."+
+	"연결하지 못했습니다."+
+	"연결하지 않음: 서버 키나 인증서를 신뢰하지 않았습니다."+
+	"신뢰"+
+	"키 바꾸기"+
+	"인증서 바꾸기"+
+	"저장"+
+	"저장하는 중…"+
+	"소스를 저장할 수 없습니다."+
+	"이 휴대폰에는 암호를 보관할 보안 저장소가 없어 Kando가 이 암호를 보관할 수 없습니다. 게스트에게 열린 공유만 추가할 수 있습니다."+
+	"소스 제거"+
+	"암호는 잊힙니다. 이 소스에서 다운로드한 영화는 이 휴대폰에 남고, 서버에서는 아무것도 지우지 않습니다."+
+	"제거"+
+	"불러오는 중…"+
+	"폴더나 동영상이 없습니다"+
+	"다시 시도"+
+	"소스 편집"+
+	"설정 열기",
 	[]uint16{
 		6,
 		10,
@@ -5008,7 +5562,7 @@ var textsKo = i18n.NewTexts(""+
 		56,
 		30,
 		84,
-		120,
+		148,
 		6,
 		73,
 		64,
@@ -5308,6 +5862,80 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		27,
 		107,
+		14,
+		24,
+		217,
+		3,
+		13,
+		3,
+		4,
+		6,
+		6,
+		6,
+		7,
+		6,
+		6,
+		53,
+		6,
+		55,
+		71,
+		46,
+		16,
+		32,
+		6,
+		44,
+		10,
+		46,
+		13,
+		6,
+		9,
+		31,
+		6,
+		40,
+		49,
+		198,
+		185,
+		196,
+		10,
+		9,
+		30,
+		29,
+		44,
+		39,
+		56,
+		53,
+		91,
+		106,
+		16,
+		13,
+		21,
+		86,
+		68,
+		48,
+		33,
+		76,
+		82,
+		228,
+		143,
+		124,
+		36,
+		29,
+		77,
+		6,
+		13,
+		19,
+		6,
+		19,
+		37,
+		178,
+		13,
+		144,
+		6,
+		19,
+		35,
+		13,
+		13,
+		13,
 	})
 
 // textsZhHans are the messages without arguments in zh-Hans.
@@ -5559,7 +6187,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"它会从所有设备的收藏里移除。"+
 	"移除这句？"+
 	"看懂用相机读取电脑上显示的二维码，与电脑配对。"+
-	"看懂通过局域网连接你电脑上的看懂，列出并下载你的影片。"+
+	"看懂通过局域网连接你电脑上的看懂，以及你添加的 NAS 和服务器，列出并下载你的影片。"+
 	"继续"+
 	"每条河都始于高山上的一股细流。"+
 	"水往低处流，沿途裹挟起泥沙和石块。"+
@@ -5858,7 +6486,81 @@ var textsZhHans = i18n.NewTexts(""+
 	"立即播放"+
 	"取消"+
 	"自动播放下一部"+
-	"一部播完后，接着播放同一课程或列表里已在手机上的下一部。",
+	"一部播完后，接着播放同一课程或列表里已在手机上的下一部。"+
+	"NAS 与服务器"+
+	"添加 NAS 或服务器"+
+	"看懂只读取这些位置，从不在上面写入、移动或删除任何东西。它们的密码保存在这台手机的安全存储里，下载的影片不用电脑也能播放。"+
+	"NAS"+
+	"编辑来源"+
+	"SMB"+
+	"SFTP"+
+	"WebDAV"+
+	"类型"+
+	"名称"+
+	"家里的 NAS"+
+	"服务器"+
+	"共享"+
+	"留空则从服务器的共享里选"+
+	"文件夹"+
+	"共享里的文件夹，留空为共享的顶层"+
+	"绝对路径或主目录下的路径，留空为主目录"+
+	"地址下的文件夹，可留空"+
+	"用户名"+
+	"对所有人开放的共享填 guest"+
+	"密码"+
+	"已保存，留空则不变"+
+	"私钥"+
+	"粘贴私钥的 PEM 文本"+
+	"私钥密码"+
+	"端口"+
+	"域"+
+	"可不填，常为 WORKGROUP"+
+	"地址"+
+	"这台 NAS 不支持签名"+
+	"用于较老的 NAS，或对访客开放的共享"+
+	"不签名时，这台手机和 NAS 之间网络上的设备可以篡改看懂读到的内容。除非 NAS 拒绝签名的连接，否则不要打开。"+
+	"SMB 无法证明连上的是哪台服务器，所以只在你信任的网络里添加 SMB 来源，也不要和别的账号共用这个密码。"+
+	"这个地址不加密，密码会以明文在网络上传送。只在你信任的网络里使用；服务器支持的话，改用 https://。"+
+	"服务器密钥"+
+	"证书"+
+	"首次连接时询问"+
+	"填写服务器。"+
+	"端口是 1 到 65535 之间的数字。"+
+	"填写用户名。"+
+	"填写密码或私钥，或两者都填。"+
+	"填写共享名称，不带斜杠。"+
+	"文件夹在共享里面：请填写共享，或者把文件夹留空。"+
+	"地址以 https:// 或 http:// 开头，不含用户名、密码或查询参数。"+
+	"测试连接"+
+	"正在连接…"+
+	"连接成功"+
+	"已连接，但服务器没有给这个用户列出任何共享。"+
+	"服务器拒绝了用户名、密码或私钥。"+
+	"这个用户打不开该文件夹。"+
+	"服务器上没有这个文件夹。"+
+	"文件夹不能用“..”跳到起点之上。"+
+	"读不了私钥。检查私钥和私钥密码。"+
+	"服务器没有给消息签名，而看懂要求签名。如果这台 NAS 不支持签名，或者共享对访客开放，请打开「这台 NAS 不支持签名」。"+
+	"服务器的密钥或证书未被信任，或者变了。编辑这个来源并测试连接，就能看到它。"+
+	"看懂没有访问局域网的权限。请在这台手机的设置里允许。"+
+	"这个来源已被移除。"+
+	"连接失败。"+
+	"未连接：服务器的密钥或证书未被信任。"+
+	"信任"+
+	"替换密钥"+
+	"替换证书"+
+	"保存"+
+	"正在保存…"+
+	"无法保存这个来源。"+
+	"这台手机没有保存密码的安全存储，看懂无法保存这个密码，只能添加对访客开放的共享。"+
+	"移除来源"+
+	"它的密码会被忘掉。从它下载的影片留在这台手机上，服务器上的东西一样也不会删。"+
+	"移除"+
+	"正在读取…"+
+	"这里没有文件夹或视频"+
+	"重试"+
+	"编辑来源"+
+	"打开设置",
 	[]uint16{
 		6,
 		6,
@@ -6107,7 +6809,7 @@ var textsZhHans = i18n.NewTexts(""+
 		42,
 		15,
 		69,
-		81,
+		119,
 		6,
 		45,
 		51,
@@ -6407,6 +7109,80 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		16,
+		23,
+		183,
+		3,
+		12,
+		3,
+		4,
+		6,
+		6,
+		6,
+		13,
+		9,
+		6,
+		36,
+		9,
+		48,
+		57,
+		33,
+		9,
+		36,
+		6,
+		27,
+		6,
+		26,
+		12,
+		6,
+		3,
+		28,
+		6,
+		26,
+		49,
+		151,
+		144,
+		141,
+		15,
+		6,
+		21,
+		18,
+		40,
+		18,
+		42,
+		36,
+		72,
+		82,
+		12,
+		15,
+		12,
+		66,
+		48,
+		36,
+		36,
+		47,
+		48,
+		166,
+		111,
+		78,
+		27,
+		15,
+		54,
+		6,
+		12,
+		12,
+		6,
+		15,
+		27,
+		120,
+		12,
+		114,
+		6,
+		15,
+		30,
+		6,
+		12,
+		12,
 	})
 
 // textsZhHant are the messages without arguments in zh-Hant.
@@ -6658,7 +7434,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"它會從所有裝置的收藏裡移除。"+
 	"移除這句？"+
 	"看懂使用相機讀取電腦上顯示的 QR 碼，與電腦配對。"+
-	"看懂透過區域網路連線到你電腦上的看懂，列出並下載你的影片。"+
+	"看懂透過區域網路連線到你電腦上的看懂，以及你新增的 NAS 和伺服器，列出並下載你的影片。"+
 	"繼續"+
 	"每條河都始於高山上的一股細流。"+
 	"水往低處流，沿途裹挾起泥沙和石塊。"+
@@ -6957,7 +7733,81 @@ var textsZhHant = i18n.NewTexts(""+
 	"立即播放"+
 	"取消"+
 	"自動播放下一部"+
-	"一部播完後，接著播放同一課程或清單裡已在手機上的下一部。",
+	"一部播完後，接著播放同一課程或清單裡已在手機上的下一部。"+
+	"NAS 與伺服器"+
+	"新增 NAS 或伺服器"+
+	"看懂只讀取這些位置，從不在上面寫入、移動或刪除任何東西。它們的密碼儲存在這支手機的安全儲存區裡，下載的影片不用電腦也能播放。"+
+	"NAS"+
+	"編輯來源"+
+	"SMB"+
+	"SFTP"+
+	"WebDAV"+
+	"類型"+
+	"名稱"+
+	"家裡的 NAS"+
+	"伺服器"+
+	"共用"+
+	"留空則從伺服器的共用資料夾裡選"+
+	"資料夾"+
+	"共用裡的資料夾，留空為共用的最上層"+
+	"絕對路徑或家目錄下的路徑，留空為家目錄"+
+	"位址下的資料夾，可留空"+
+	"使用者名稱"+
+	"對所有人開放的共用填 guest"+
+	"密碼"+
+	"已儲存，留空則不變"+
+	"私密金鑰"+
+	"貼上金鑰的 PEM 文字"+
+	"金鑰密碼"+
+	"連接埠"+
+	"網域"+
+	"可不填，常為 WORKGROUP"+
+	"位址"+
+	"這台 NAS 不支援簽署"+
+	"用於較舊的 NAS，或對訪客開放的共用資料夾"+
+	"不簽署時，這支手機和 NAS 之間網路上的裝置可以竄改看懂讀到的內容。除非 NAS 拒絕簽署的連線，否則不要開啟。"+
+	"SMB 無法證明連上的是哪台伺服器，所以只在你信任的網路裡新增 SMB 來源，也不要和別的帳號共用這個密碼。"+
+	"這個位址不加密，密碼會以明文在網路上傳送。只在你信任的網路裡使用；伺服器支援的話，改用 https://。"+
+	"伺服器金鑰"+
+	"憑證"+
+	"首次連線時詢問"+
+	"填寫伺服器。"+
+	"連接埠是 1 到 65535 之間的數字。"+
+	"填寫使用者名稱。"+
+	"填寫密碼或私密金鑰，或兩者都填。"+
+	"填寫共用名稱，不含斜線。"+
+	"資料夾在共用資料夾裡面：請填寫共用資料夾，或者把資料夾留空。"+
+	"位址以 https:// 或 http:// 開頭，不含使用者名稱、密碼或查詢參數。"+
+	"測試連線"+
+	"正在連線…"+
+	"連線成功"+
+	"已連線，但伺服器沒有為這個使用者列出任何共用資料夾。"+
+	"伺服器拒絕了使用者名稱、密碼或金鑰。"+
+	"這個使用者打不開該資料夾。"+
+	"伺服器上沒有這個資料夾。"+
+	"資料夾不能用「..」跳到起點之上。"+
+	"讀不了私密金鑰。檢查金鑰和金鑰密碼。"+
+	"伺服器沒有為訊息簽署，而看懂要求簽署。如果這台 NAS 不支援簽署，或者共用資料夾對訪客開放，請開啟「這台 NAS 不支援簽署」。"+
+	"伺服器的金鑰或憑證未被信任，或者變了。編輯這個來源並測試連線，就能看到它。"+
+	"看懂沒有存取區域網路的權限。請在這支手機的設定裡允許。"+
+	"這個來源已被移除。"+
+	"連線失敗。"+
+	"未連線：伺服器的金鑰或憑證未被信任。"+
+	"信任"+
+	"替換金鑰"+
+	"替換憑證"+
+	"儲存"+
+	"正在儲存…"+
+	"無法儲存這個來源。"+
+	"這支手機沒有儲存密碼的安全儲存區，看懂無法儲存這個密碼，只能新增對訪客開放的共用資料夾。"+
+	"移除來源"+
+	"它的密碼會被忘掉。從它下載的影片留在這支手機上，伺服器上的東西一樣也不會刪。"+
+	"移除"+
+	"正在讀取…"+
+	"這裡沒有資料夾或影片"+
+	"重試"+
+	"編輯來源"+
+	"打開設定",
 	[]uint16{
 		6,
 		6,
@@ -7206,7 +8056,7 @@ var textsZhHant = i18n.NewTexts(""+
 		42,
 		15,
 		70,
-		87,
+		125,
 		6,
 		45,
 		51,
@@ -7506,6 +8356,80 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		16,
+		23,
+		186,
+		3,
+		12,
+		3,
+		4,
+		6,
+		6,
+		6,
+		13,
+		9,
+		6,
+		45,
+		9,
+		51,
+		57,
+		33,
+		15,
+		36,
+		6,
+		27,
+		12,
+		26,
+		12,
+		9,
+		6,
+		28,
+		6,
+		26,
+		58,
+		151,
+		144,
+		141,
+		15,
+		6,
+		21,
+		18,
+		43,
+		24,
+		48,
+		36,
+		90,
+		88,
+		12,
+		15,
+		12,
+		78,
+		54,
+		39,
+		36,
+		47,
+		54,
+		175,
+		111,
+		81,
+		27,
+		15,
+		54,
+		6,
+		12,
+		12,
+		6,
+		15,
+		27,
+		132,
+		12,
+		114,
+		6,
+		15,
+		30,
+		6,
+		12,
+		12,
 	})
 
 // texts returns the messages without arguments in lang, nil for a
@@ -8197,6 +9121,60 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerNextIn != nil {
 		s.PlayerNextIn = t.PlayerNextIn
+	}
+	if t.SourcesCount != nil {
+		s.SourcesCount = t.SourcesCount
+	}
+	if t.SourceSummary != nil {
+		s.SourceSummary = t.SourceSummary
+	}
+	if t.SourcePortHint != nil {
+		s.SourcePortHint = t.SourcePortHint
+	}
+	if t.SourceShares != nil {
+		s.SourceShares = t.SourceShares
+	}
+	if t.SourceFailNoShare != nil {
+		s.SourceFailNoShare = t.SourceFailNoShare
+	}
+	if t.SourceFailUnreachable != nil {
+		s.SourceFailUnreachable = t.SourceFailUnreachable
+	}
+	if t.SourceFailTimeout != nil {
+		s.SourceFailTimeout = t.SourceFailTimeout
+	}
+	if t.SourceFailCertificate != nil {
+		s.SourceFailCertificate = t.SourceFailCertificate
+	}
+	if t.SourceTrustTitle != nil {
+		s.SourceTrustTitle = t.SourceTrustTitle
+	}
+	if t.SourceTrustMessage != nil {
+		s.SourceTrustMessage = t.SourceTrustMessage
+	}
+	if t.SourceCertTrustMessage != nil {
+		s.SourceCertTrustMessage = t.SourceCertTrustMessage
+	}
+	if t.SourceKeyChangedTitle != nil {
+		s.SourceKeyChangedTitle = t.SourceKeyChangedTitle
+	}
+	if t.SourceKeyChangedMessage != nil {
+		s.SourceKeyChangedMessage = t.SourceKeyChangedMessage
+	}
+	if t.SourceCertChangedTitle != nil {
+		s.SourceCertChangedTitle = t.SourceCertChangedTitle
+	}
+	if t.SourceCertChangedMessage != nil {
+		s.SourceCertChangedMessage = t.SourceCertChangedMessage
+	}
+	if t.SourceRemoveTitle != nil {
+		s.SourceRemoveTitle = t.SourceRemoveTitle
+	}
+	if t.SourceDownload != nil {
+		s.SourceDownload = t.SourceDownload
+	}
+	if t.SourcePause != nil {
+		s.SourcePause = t.SourcePause
 	}
 	supplied[lang] = s
 	Catalog.Add(lang)
@@ -15243,10 +16221,10 @@ func (msgs Messages) NSCameraUsageDescription() string {
 	return msgs.text(textNSCameraUsageDescription)
 }
 
-// NSLocalNetworkUsageDescription says "Kando connects to Kando on your computer over your local network to list and download your films."
+// NSLocalNetworkUsageDescription says "Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films."
 // in the language the app shows under cx.
 //
-// iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way.
+// iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way, and the NAS shares and servers added in Settings › NAS & Servers.
 func NSLocalNetworkUsageDescription(cx *core.Scope) string {
 	return For(cx).NSLocalNetworkUsageDescription()
 }
@@ -20597,6 +21575,1230 @@ func PlayerAutoNextNote(cx *core.Scope) string { return For(cx).PlayerAutoNextNo
 
 // PlayerAutoNextNote is the package's PlayerAutoNextNote in the language of msgs.
 func (msgs Messages) PlayerAutoNextNote() string { return msgs.text(textPlayerAutoNextNote) }
+
+// SourcesTitle says "NAS & Servers"
+// in the language the app shows under cx.
+//
+// Title of the Settings page, and of its row, that lists the NAS shares and servers the phone reaches itself over SMB, SFTP or WebDAV, without the computer.
+func SourcesTitle(cx *core.Scope) string { return For(cx).SourcesTitle() }
+
+// SourcesTitle is the package's SourcesTitle in the language of msgs.
+func (msgs Messages) SourcesTitle() string { return msgs.text(textSourcesTitle) }
+
+// SourcesCount says "{count}"
+// in the language the app shows under cx.
+//
+// Value of the NAS & Servers row in Settings: how many sources the phone has.
+func SourcesCount(cx *core.Scope, count int) string { return For(cx).SourcesCount(count) }
+
+// SourcesCount is the package's SourcesCount in the language of msgs.
+func (msgs Messages) SourcesCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourcesCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourcesCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// SourcesAdd says "Add NAS or Server"
+// in the language the app shows under cx.
+//
+// Row at the end of the NAS & Servers list that opens the form adding one; also the form's title for a new one.
+func SourcesAdd(cx *core.Scope) string { return For(cx).SourcesAdd() }
+
+// SourcesAdd is the package's SourcesAdd in the language of msgs.
+func (msgs Messages) SourcesAdd() string { return msgs.text(textSourcesAdd) }
+
+// SourcesNote says "Kando only reads these: it never writes, moves or deletes anything on them. Their passwords stay in this phone's secure storage, and the films you download play without the computer."
+// in the language the app shows under cx.
+//
+// Footnote under the NAS & Servers list.
+func SourcesNote(cx *core.Scope) string { return For(cx).SourcesNote() }
+
+// SourcesNote is the package's SourcesNote in the language of msgs.
+func (msgs Messages) SourcesNote() string { return msgs.text(textSourcesNote) }
+
+// SourcesGroup says "NAS"
+// in the language the app shows under cx.
+//
+// Header of the Library's group listing the NAS shares and servers the phone reaches itself.
+func SourcesGroup(cx *core.Scope) string { return For(cx).SourcesGroup() }
+
+// SourcesGroup is the package's SourcesGroup in the language of msgs.
+func (msgs Messages) SourcesGroup() string { return msgs.text(textSourcesGroup) }
+
+// SourceEditTitle says "Edit Source"
+// in the language the app shows under cx.
+//
+// Title of the form editing a NAS or server the phone reaches.
+func SourceEditTitle(cx *core.Scope) string { return For(cx).SourceEditTitle() }
+
+// SourceEditTitle is the package's SourceEditTitle in the language of msgs.
+func (msgs Messages) SourceEditTitle() string { return msgs.text(textSourceEditTitle) }
+
+// SourceSummary says "{kind} · {place}"
+// in the language the app shows under cx.
+//
+// Subtitle of a NAS or server's row: its protocol (SMB, SFTP, WebDAV) and where it is, such as nas.local/films.
+func SourceSummary(cx *core.Scope, kind string, place string) string {
+	return For(cx).SourceSummary(kind, place)
+}
+
+// SourceSummary is the package's SourceSummary in the language of msgs.
+func (msgs Messages) SourceSummary(kind string, place string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceSummary(kind, place))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceSummary; f != nil {
+			return f(kind, place)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(kind) + " · " + msgs.arg(place)
+		case "ja":
+			return kind + " · " + place
+		case "ko":
+			return kind + " · " + place
+		case "zh-Hans":
+			return kind + " · " + place
+		case "zh-Hant":
+			return kind + " · " + place
+		}
+	}
+}
+
+// SourceKindSMB says "SMB"
+// in the language the app shows under cx.
+//
+// Name of the kind of source that is a shared folder of a NAS or a Windows computer, reached over SMB. A protocol's name, which most languages keep.
+func SourceKindSMB(cx *core.Scope) string { return For(cx).SourceKindSMB() }
+
+// SourceKindSMB is the package's SourceKindSMB in the language of msgs.
+func (msgs Messages) SourceKindSMB() string { return msgs.text(textSourceKindSMB) }
+
+// SourceKindSFTP says "SFTP"
+// in the language the app shows under cx.
+//
+// Name of the kind of source that is a folder of a server reached over SSH (SFTP). A protocol's name, which most languages keep.
+func SourceKindSFTP(cx *core.Scope) string { return For(cx).SourceKindSFTP() }
+
+// SourceKindSFTP is the package's SourceKindSFTP in the language of msgs.
+func (msgs Messages) SourceKindSFTP() string { return msgs.text(textSourceKindSFTP) }
+
+// SourceKindWebDAV says "WebDAV"
+// in the language the app shows under cx.
+//
+// Name of the kind of source that is a folder of a WebDAV server, as many NAS systems and cloud drives offer. A protocol's name, which most languages keep.
+func SourceKindWebDAV(cx *core.Scope) string { return For(cx).SourceKindWebDAV() }
+
+// SourceKindWebDAV is the package's SourceKindWebDAV in the language of msgs.
+func (msgs Messages) SourceKindWebDAV() string { return msgs.text(textSourceKindWebDAV) }
+
+// SourceKind says "Type"
+// in the language the app shows under cx.
+//
+// Field of the source form choosing SMB, SFTP or WebDAV.
+func SourceKind(cx *core.Scope) string { return For(cx).SourceKind() }
+
+// SourceKind is the package's SourceKind in the language of msgs.
+func (msgs Messages) SourceKind() string { return msgs.text(textSourceKind) }
+
+// SourceName says "Name"
+// in the language the app shows under cx.
+//
+// Field of the source form: the name it is listed by.
+func SourceName(cx *core.Scope) string { return For(cx).SourceName() }
+
+// SourceName is the package's SourceName in the language of msgs.
+func (msgs Messages) SourceName() string { return msgs.text(textSourceName) }
+
+// SourceNamePlaceholder says "Home NAS"
+// in the language the app shows under cx.
+//
+// Placeholder of the source form's Name field: an example name.
+func SourceNamePlaceholder(cx *core.Scope) string { return For(cx).SourceNamePlaceholder() }
+
+// SourceNamePlaceholder is the package's SourceNamePlaceholder in the language of msgs.
+func (msgs Messages) SourceNamePlaceholder() string { return msgs.text(textSourceNamePlaceholder) }
+
+// SourceHost says "Server"
+// in the language the app shows under cx.
+//
+// Field of an SMB or SFTP source: the server's name or IP address.
+func SourceHost(cx *core.Scope) string { return For(cx).SourceHost() }
+
+// SourceHost is the package's SourceHost in the language of msgs.
+func (msgs Messages) SourceHost() string { return msgs.text(textSourceHost) }
+
+// SourceShare says "Share"
+// in the language the app shows under cx.
+//
+// Field of an SMB source: the name of the shared folder on the server.
+func SourceShare(cx *core.Scope) string { return For(cx).SourceShare() }
+
+// SourceShare is the package's SourceShare in the language of msgs.
+func (msgs Messages) SourceShare() string { return msgs.text(textSourceShare) }
+
+// SourceShareHint says "Empty to choose among the server's shares"
+// in the language the app shows under cx.
+//
+// Hint under the Share field of an SMB source: left empty, browsing it starts with the server's shares.
+func SourceShareHint(cx *core.Scope) string { return For(cx).SourceShareHint() }
+
+// SourceShareHint is the package's SourceShareHint in the language of msgs.
+func (msgs Messages) SourceShareHint() string { return msgs.text(textSourceShareHint) }
+
+// SourceRoot says "Folder"
+// in the language the app shows under cx.
+//
+// Field of a source: the folder on the server browsing starts in.
+func SourceRoot(cx *core.Scope) string { return For(cx).SourceRoot() }
+
+// SourceRoot is the package's SourceRoot in the language of msgs.
+func (msgs Messages) SourceRoot() string { return msgs.text(textSourceRoot) }
+
+// SourceRootHintSMB says "A folder in the share; empty for its top"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of an SMB source.
+func SourceRootHintSMB(cx *core.Scope) string { return For(cx).SourceRootHintSMB() }
+
+// SourceRootHintSMB is the package's SourceRootHintSMB in the language of msgs.
+func (msgs Messages) SourceRootHintSMB() string { return msgs.text(textSourceRootHintSMB) }
+
+// SourceRootHintSFTP says "Absolute, or in the home folder; empty for the home folder"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of an SFTP source.
+func SourceRootHintSFTP(cx *core.Scope) string { return For(cx).SourceRootHintSFTP() }
+
+// SourceRootHintSFTP is the package's SourceRootHintSFTP in the language of msgs.
+func (msgs Messages) SourceRootHintSFTP() string { return msgs.text(textSourceRootHintSFTP) }
+
+// SourceRootHintWebDAV says "A folder below the address; may be empty"
+// in the language the app shows under cx.
+//
+// Hint under the Folder field of a WebDAV source.
+func SourceRootHintWebDAV(cx *core.Scope) string { return For(cx).SourceRootHintWebDAV() }
+
+// SourceRootHintWebDAV is the package's SourceRootHintWebDAV in the language of msgs.
+func (msgs Messages) SourceRootHintWebDAV() string { return msgs.text(textSourceRootHintWebDAV) }
+
+// SourceUser says "User"
+// in the language the app shows under cx.
+//
+// Field of a source: the user name to sign in with.
+func SourceUser(cx *core.Scope) string { return For(cx).SourceUser() }
+
+// SourceUser is the package's SourceUser in the language of msgs.
+func (msgs Messages) SourceUser() string { return msgs.text(textSourceUser) }
+
+// SourceUserHintSMB says "guest for a share open to anyone"
+// in the language the app shows under cx.
+//
+// Hint under the User field of an SMB source. guest is the literal user name, not translated.
+func SourceUserHintSMB(cx *core.Scope) string { return For(cx).SourceUserHintSMB() }
+
+// SourceUserHintSMB is the package's SourceUserHintSMB in the language of msgs.
+func (msgs Messages) SourceUserHintSMB() string { return msgs.text(textSourceUserHintSMB) }
+
+// SourcePassword says "Password"
+// in the language the app shows under cx.
+//
+// Field of a source: the user's password.
+func SourcePassword(cx *core.Scope) string { return For(cx).SourcePassword() }
+
+// SourcePassword is the package's SourcePassword in the language of msgs.
+func (msgs Messages) SourcePassword() string { return msgs.text(textSourcePassword) }
+
+// SourceSecretKept says "Saved; leave empty to keep it"
+// in the language the app shows under cx.
+//
+// Placeholder of a secret field when editing a source whose secret is kept in the phone's secure storage.
+func SourceSecretKept(cx *core.Scope) string { return For(cx).SourceSecretKept() }
+
+// SourceSecretKept is the package's SourceSecretKept in the language of msgs.
+func (msgs Messages) SourceSecretKept() string { return msgs.text(textSourceSecretKept) }
+
+// SourcePrivateKey says "Private Key"
+// in the language the app shows under cx.
+//
+// Field of an SFTP source: the PEM text of the user's private key.
+func SourcePrivateKey(cx *core.Scope) string { return For(cx).SourcePrivateKey() }
+
+// SourcePrivateKey is the package's SourcePrivateKey in the language of msgs.
+func (msgs Messages) SourcePrivateKey() string { return msgs.text(textSourcePrivateKey) }
+
+// SourcePrivateKeyHint says "Paste the key's PEM text"
+// in the language the app shows under cx.
+//
+// Hint under the Private Key field. PEM is a file format's name, not translated.
+func SourcePrivateKeyHint(cx *core.Scope) string { return For(cx).SourcePrivateKeyHint() }
+
+// SourcePrivateKeyHint is the package's SourcePrivateKeyHint in the language of msgs.
+func (msgs Messages) SourcePrivateKeyHint() string { return msgs.text(textSourcePrivateKeyHint) }
+
+// SourcePassphrase says "Passphrase"
+// in the language the app shows under cx.
+//
+// Field of an SFTP source: the passphrase of an encrypted private key.
+func SourcePassphrase(cx *core.Scope) string { return For(cx).SourcePassphrase() }
+
+// SourcePassphrase is the package's SourcePassphrase in the language of msgs.
+func (msgs Messages) SourcePassphrase() string { return msgs.text(textSourcePassphrase) }
+
+// SourcePort says "Port"
+// in the language the app shows under cx.
+//
+// Field of an SMB or SFTP source: the server's port.
+func SourcePort(cx *core.Scope) string { return For(cx).SourcePort() }
+
+// SourcePort is the package's SourcePort in the language of msgs.
+func (msgs Messages) SourcePort() string { return msgs.text(textSourcePort) }
+
+// SourcePortHint says "Empty for {port}"
+// in the language the app shows under cx.
+//
+// Hint under the Port field: the port used when it is left empty.
+func SourcePortHint(cx *core.Scope, port string) string { return For(cx).SourcePortHint(port) }
+
+// SourcePortHint is the package's SourcePortHint in the language of msgs.
+func (msgs Messages) SourcePortHint(port string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourcePortHint(port))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourcePortHint; f != nil {
+			return f(port)
+		}
+		switch lang {
+		case "", "en":
+			return "Empty for " + msgs.arg(port)
+		case "ja":
+			return "空欄なら " + port
+		case "ko":
+			return "비워 두면 " + port
+		case "zh-Hans":
+			return "留空为 " + port
+		case "zh-Hant":
+			return "留空為 " + port
+		}
+	}
+}
+
+// SourceDomain says "Domain"
+// in the language the app shows under cx.
+//
+// Field of an SMB source: the Windows domain or workgroup the user signs in to.
+func SourceDomain(cx *core.Scope) string { return For(cx).SourceDomain() }
+
+// SourceDomain is the package's SourceDomain in the language of msgs.
+func (msgs Messages) SourceDomain() string { return msgs.text(textSourceDomain) }
+
+// SourceDomainHint says "Optional, often WORKGROUP"
+// in the language the app shows under cx.
+//
+// Hint under the Domain field of an SMB source. WORKGROUP is the literal default name, not translated.
+func SourceDomainHint(cx *core.Scope) string { return For(cx).SourceDomainHint() }
+
+// SourceDomainHint is the package's SourceDomainHint in the language of msgs.
+func (msgs Messages) SourceDomainHint() string { return msgs.text(textSourceDomainHint) }
+
+// SourceURL says "Address"
+// in the language the app shows under cx.
+//
+// Field of a WebDAV source: the server's https:// address.
+func SourceURL(cx *core.Scope) string { return For(cx).SourceURL() }
+
+// SourceURL is the package's SourceURL in the language of msgs.
+func (msgs Messages) SourceURL() string { return msgs.text(textSourceURL) }
+
+// SourceNoSigning says "This NAS doesn't support signing"
+// in the language the app shows under cx.
+//
+// Switch of an SMB source that lets the phone connect without SMB message signing, which it otherwise requires.
+func SourceNoSigning(cx *core.Scope) string { return For(cx).SourceNoSigning() }
+
+// SourceNoSigning is the package's SourceNoSigning in the language of msgs.
+func (msgs Messages) SourceNoSigning() string { return msgs.text(textSourceNoSigning) }
+
+// SourceNoSigningHint says "For an older NAS, or a share open to guests"
+// in the language the app shows under cx.
+//
+// Hint under the switch This NAS doesn't support signing.
+func SourceNoSigningHint(cx *core.Scope) string { return For(cx).SourceNoSigningHint() }
+
+// SourceNoSigningHint is the package's SourceNoSigningHint in the language of msgs.
+func (msgs Messages) SourceNoSigningHint() string { return msgs.text(textSourceNoSigningHint) }
+
+// SourceNoSigningRisk says "Without signing, a device on the network between this phone and the NAS can change what Kando reads from it. Leave this off unless the NAS refuses signed connections."
+// in the language the app shows under cx.
+//
+// Warning in the source form while This NAS doesn't support signing is on.
+func SourceNoSigningRisk(cx *core.Scope) string { return For(cx).SourceNoSigningRisk() }
+
+// SourceNoSigningRisk is the package's SourceNoSigningRisk in the language of msgs.
+func (msgs Messages) SourceNoSigningRisk() string { return msgs.text(textSourceNoSigningRisk) }
+
+// SourceSMBWarning says "SMB can't prove which server it reached, so add SMB sources only on a network you trust, and don't use this password for other accounts."
+// in the language the app shows under cx.
+//
+// Note in the form of an SMB source: a server pretending to be the NAS could see the sign-in and guess the password offline.
+func SourceSMBWarning(cx *core.Scope) string { return For(cx).SourceSMBWarning() }
+
+// SourceSMBWarning is the package's SourceSMBWarning in the language of msgs.
+func (msgs Messages) SourceSMBWarning() string { return msgs.text(textSourceSMBWarning) }
+
+// SourcePlainHTTP says "This address isn't encrypted: the password crosses the network as plain text. Use it only on a network you trust, or use https:// if the server offers it."
+// in the language the app shows under cx.
+//
+// Note in the form of a WebDAV source whose address starts with http:// rather than https://.
+func SourcePlainHTTP(cx *core.Scope) string { return For(cx).SourcePlainHTTP() }
+
+// SourcePlainHTTP is the package's SourcePlainHTTP in the language of msgs.
+func (msgs Messages) SourcePlainHTTP() string { return msgs.text(textSourcePlainHTTP) }
+
+// SourceHostKey says "Server Key"
+// in the language the app shows under cx.
+//
+// Field of an SFTP source showing the fingerprint of the server's key the phone trusts.
+func SourceHostKey(cx *core.Scope) string { return For(cx).SourceHostKey() }
+
+// SourceHostKey is the package's SourceHostKey in the language of msgs.
+func (msgs Messages) SourceHostKey() string { return msgs.text(textSourceHostKey) }
+
+// SourceCertificate says "Certificate"
+// in the language the app shows under cx.
+//
+// Field of a WebDAV source showing the fingerprint of the server's certificate the phone trusts, for a server whose certificate the system does not.
+func SourceCertificate(cx *core.Scope) string { return For(cx).SourceCertificate() }
+
+// SourceCertificate is the package's SourceCertificate in the language of msgs.
+func (msgs Messages) SourceCertificate() string { return msgs.text(textSourceCertificate) }
+
+// SourceTrustedNone says "Asked at the first connection"
+// in the language the app shows under cx.
+//
+// Value of the Server Key or Certificate field before any is trusted: the first test asks whether to trust it.
+func SourceTrustedNone(cx *core.Scope) string { return For(cx).SourceTrustedNone() }
+
+// SourceTrustedNone is the package's SourceTrustedNone in the language of msgs.
+func (msgs Messages) SourceTrustedNone() string { return msgs.text(textSourceTrustedNone) }
+
+// SourceNeedsHost says "Fill in the server."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsHost(cx *core.Scope) string { return For(cx).SourceNeedsHost() }
+
+// SourceNeedsHost is the package's SourceNeedsHost in the language of msgs.
+func (msgs Messages) SourceNeedsHost() string { return msgs.text(textSourceNeedsHost) }
+
+// SourceNeedsPort says "The port is a number from 1 to 65535."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsPort(cx *core.Scope) string { return For(cx).SourceNeedsPort() }
+
+// SourceNeedsPort is the package's SourceNeedsPort in the language of msgs.
+func (msgs Messages) SourceNeedsPort() string { return msgs.text(textSourceNeedsPort) }
+
+// SourceNeedsUser says "Fill in the user."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsUser(cx *core.Scope) string { return For(cx).SourceNeedsUser() }
+
+// SourceNeedsUser is the package's SourceNeedsUser in the language of msgs.
+func (msgs Messages) SourceNeedsUser() string { return msgs.text(textSourceNeedsUser) }
+
+// SourceNeedsSecret says "Fill in a password, a private key or both."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsSecret(cx *core.Scope) string { return For(cx).SourceNeedsSecret() }
+
+// SourceNeedsSecret is the package's SourceNeedsSecret in the language of msgs.
+func (msgs Messages) SourceNeedsSecret() string { return msgs.text(textSourceNeedsSecret) }
+
+// SourceNeedsShare says "Fill in the share's name, without slashes."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsShare(cx *core.Scope) string { return For(cx).SourceNeedsShare() }
+
+// SourceNeedsShare is the package's SourceNeedsShare in the language of msgs.
+func (msgs Messages) SourceNeedsShare() string { return msgs.text(textSourceNeedsShare) }
+
+// SourceNeedsShareForRoot says "A folder is inside a share: fill in the share, or leave the folder empty."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsShareForRoot(cx *core.Scope) string { return For(cx).SourceNeedsShareForRoot() }
+
+// SourceNeedsShareForRoot is the package's SourceNeedsShareForRoot in the language of msgs.
+func (msgs Messages) SourceNeedsShareForRoot() string { return msgs.text(textSourceNeedsShareForRoot) }
+
+// SourceNeedsURL says "The address starts with https:// or http://, without a user, a password or a query."
+// in the language the app shows under cx.
+//
+// Error in the source form: what keeps it from being tested or saved.
+func SourceNeedsURL(cx *core.Scope) string { return For(cx).SourceNeedsURL() }
+
+// SourceNeedsURL is the package's SourceNeedsURL in the language of msgs.
+func (msgs Messages) SourceNeedsURL() string { return msgs.text(textSourceNeedsURL) }
+
+// SourceTest says "Test Connection"
+// in the language the app shows under cx.
+//
+// Button of the source form: connect to the server and read the folder.
+func SourceTest(cx *core.Scope) string { return For(cx).SourceTest() }
+
+// SourceTest is the package's SourceTest in the language of msgs.
+func (msgs Messages) SourceTest() string { return msgs.text(textSourceTest) }
+
+// SourceTesting says "Connecting…"
+// in the language the app shows under cx.
+//
+// Shown on the Test Connection button while it connects.
+func SourceTesting(cx *core.Scope) string { return For(cx).SourceTesting() }
+
+// SourceTesting is the package's SourceTesting in the language of msgs.
+func (msgs Messages) SourceTesting() string { return msgs.text(textSourceTesting) }
+
+// SourceConnected says "Connected"
+// in the language the app shows under cx.
+//
+// Result of Test Connection once it reached the server and read the folder.
+func SourceConnected(cx *core.Scope) string { return For(cx).SourceConnected() }
+
+// SourceConnected is the package's SourceConnected in the language of msgs.
+func (msgs Messages) SourceConnected() string { return msgs.text(textSourceConnected) }
+
+// SourceShares says "Connected. Shares: {names}"
+// in the language the app shows under cx.
+//
+// Result of Test Connection of an SMB source without a share: the shares the server offers, joined with commas.
+func SourceShares(cx *core.Scope, names string) string { return For(cx).SourceShares(names) }
+
+// SourceShares is the package's SourceShares in the language of msgs.
+func (msgs Messages) SourceShares(names string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceShares(names))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceShares; f != nil {
+			return f(names)
+		}
+		switch lang {
+		case "", "en":
+			return "Connected. Shares: " + msgs.arg(names)
+		case "ja":
+			return "接続しました。共有：" + names
+		case "ko":
+			return "연결됨. 공유: " + names
+		case "zh-Hans":
+			return "已连接。共享：" + names
+		case "zh-Hant":
+			return "已連線。共用資料夾：" + names
+		}
+	}
+}
+
+// SourceNoShares says "Connected, but the server shows this user no shares."
+// in the language the app shows under cx.
+//
+// Result of Test Connection of an SMB source without a share when the server listed none.
+func SourceNoShares(cx *core.Scope) string { return For(cx).SourceNoShares() }
+
+// SourceNoShares is the package's SourceNoShares in the language of msgs.
+func (msgs Messages) SourceNoShares() string { return msgs.text(textSourceNoShares) }
+
+// SourceFailSignIn says "The server refused the user, password or key."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailSignIn(cx *core.Scope) string { return For(cx).SourceFailSignIn() }
+
+// SourceFailSignIn is the package's SourceFailSignIn in the language of msgs.
+func (msgs Messages) SourceFailSignIn() string { return msgs.text(textSourceFailSignIn) }
+
+// SourceFailDenied says "This user can't open the folder."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailDenied(cx *core.Scope) string { return For(cx).SourceFailDenied() }
+
+// SourceFailDenied is the package's SourceFailDenied in the language of msgs.
+func (msgs Messages) SourceFailDenied() string { return msgs.text(textSourceFailDenied) }
+
+// SourceFailNoShare says "The server has no share named {share}."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailNoShare(cx *core.Scope, share string) string { return For(cx).SourceFailNoShare(share) }
+
+// SourceFailNoShare is the package's SourceFailNoShare in the language of msgs.
+func (msgs Messages) SourceFailNoShare(share string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceFailNoShare(share))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceFailNoShare; f != nil {
+			return f(share)
+		}
+		switch lang {
+		case "", "en":
+			return "The server has no share named " + msgs.arg(share) + "."
+		case "ja":
+			return "サーバに " + share + " という共有はありません。"
+		case "ko":
+			return "서버에 " + share + " 공유가 없습니다."
+		case "zh-Hans":
+			return "服务器上没有名为 " + share + " 的共享。"
+		case "zh-Hant":
+			return "伺服器上沒有名為 " + share + " 的共用。"
+		}
+	}
+}
+
+// SourceFailNoRoot says "The folder isn't on the server."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailNoRoot(cx *core.Scope) string { return For(cx).SourceFailNoRoot() }
+
+// SourceFailNoRoot is the package's SourceFailNoRoot in the language of msgs.
+func (msgs Messages) SourceFailNoRoot() string { return msgs.text(textSourceFailNoRoot) }
+
+// SourceFailBadRoot says "The folder can't climb above where it starts with “..”."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailBadRoot(cx *core.Scope) string { return For(cx).SourceFailBadRoot() }
+
+// SourceFailBadRoot is the package's SourceFailBadRoot in the language of msgs.
+func (msgs Messages) SourceFailBadRoot() string { return msgs.text(textSourceFailBadRoot) }
+
+// SourceFailUnreachable says "Couldn't reach {host}. Check the address, that the server is on and that this phone is on its network."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailUnreachable(cx *core.Scope, host string) string {
+	return For(cx).SourceFailUnreachable(host)
+}
+
+// SourceFailUnreachable is the package's SourceFailUnreachable in the language of msgs.
+func (msgs Messages) SourceFailUnreachable(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceFailUnreachable(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceFailUnreachable; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(host) + ". Check the address, that the server is on and that this phone is on its network."
+		case "ja":
+			return host + " に接続できませんでした。アドレス、サーバの電源、この端末が同じネットワークにいるかを確認してください。"
+		case "ko":
+			return host + "에 연결할 수 없습니다. 주소, 서버 전원, 이 휴대폰이 같은 네트워크에 있는지 확인하십시오."
+		case "zh-Hans":
+			return "连不上 " + host + "。检查地址，确认服务器已开机、这台手机连在它所在的网络上。"
+		case "zh-Hant":
+			return "連不上 " + host + "。檢查位址，確認伺服器已開機、這支手機連在它所在的網路上。"
+		}
+	}
+}
+
+// SourceFailTimeout says "{host} didn't answer in time."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailTimeout(cx *core.Scope, host string) string { return For(cx).SourceFailTimeout(host) }
+
+// SourceFailTimeout is the package's SourceFailTimeout in the language of msgs.
+func (msgs Messages) SourceFailTimeout(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceFailTimeout(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceFailTimeout; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(host) + " didn't answer in time."
+		case "ja":
+			return host + " から時間内に応答がありませんでした。"
+		case "ko":
+			return host + "에서 제때 응답하지 않았습니다."
+		case "zh-Hans":
+			return host + " 没有及时响应。"
+		case "zh-Hant":
+			return host + " 沒有及時回應。"
+		}
+	}
+}
+
+// SourceFailCertificate says "This phone doesn't trust the certificate of {host}."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailCertificate(cx *core.Scope, host string) string {
+	return For(cx).SourceFailCertificate(host)
+}
+
+// SourceFailCertificate is the package's SourceFailCertificate in the language of msgs.
+func (msgs Messages) SourceFailCertificate(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceFailCertificate(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceFailCertificate; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "This phone doesn't trust the certificate of " + msgs.arg(host) + "."
+		case "ja":
+			return "この端末は " + host + " の証明書を信頼していません。"
+		case "ko":
+			return "이 휴대폰은 " + host + "의 인증서를 신뢰하지 않습니다."
+		case "zh-Hans":
+			return "这台手机不信任 " + host + " 的证书。"
+		case "zh-Hant":
+			return "這支手機不信任 " + host + " 的憑證。"
+		}
+	}
+}
+
+// SourceFailPrivateKey says "The private key can't be read. Check it and its passphrase."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailPrivateKey(cx *core.Scope) string { return For(cx).SourceFailPrivateKey() }
+
+// SourceFailPrivateKey is the package's SourceFailPrivateKey in the language of msgs.
+func (msgs Messages) SourceFailPrivateKey() string { return msgs.text(textSourceFailPrivateKey) }
+
+// SourceFailSigning says "The server didn't sign its messages, which Kando requires. If this NAS doesn't support signing, or the share is open to guests, turn on This NAS doesn't support signing."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailSigning(cx *core.Scope) string { return For(cx).SourceFailSigning() }
+
+// SourceFailSigning is the package's SourceFailSigning in the language of msgs.
+func (msgs Messages) SourceFailSigning() string { return msgs.text(textSourceFailSigning) }
+
+// SourceFailHostKey says "The server's key or certificate isn't trusted, or has changed. Edit the source and test it to see it."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailHostKey(cx *core.Scope) string { return For(cx).SourceFailHostKey() }
+
+// SourceFailHostKey is the package's SourceFailHostKey in the language of msgs.
+func (msgs Messages) SourceFailHostKey() string { return msgs.text(textSourceFailHostKey) }
+
+// SourceFailLocalNetwork says "Kando isn't allowed to reach your local network. Allow it in this phone's settings."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailLocalNetwork(cx *core.Scope) string { return For(cx).SourceFailLocalNetwork() }
+
+// SourceFailLocalNetwork is the package's SourceFailLocalNetwork in the language of msgs.
+func (msgs Messages) SourceFailLocalNetwork() string { return msgs.text(textSourceFailLocalNetwork) }
+
+// SourceFailGone says "This source was removed."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailGone(cx *core.Scope) string { return For(cx).SourceFailGone() }
+
+// SourceFailGone is the package's SourceFailGone in the language of msgs.
+func (msgs Messages) SourceFailGone() string { return msgs.text(textSourceFailGone) }
+
+// SourceFailOther says "Couldn't connect."
+// in the language the app shows under cx.
+//
+// Why a NAS or server could not be reached or read, as Test Connection and a folder's page say it.
+func SourceFailOther(cx *core.Scope) string { return For(cx).SourceFailOther() }
+
+// SourceFailOther is the package's SourceFailOther in the language of msgs.
+func (msgs Messages) SourceFailOther() string { return msgs.text(textSourceFailOther) }
+
+// SourceNotTrusted says "Not connected: the server's key or certificate isn't trusted."
+// in the language the app shows under cx.
+//
+// Result of Test Connection after the user declined to trust the server's key or certificate.
+func SourceNotTrusted(cx *core.Scope) string { return For(cx).SourceNotTrusted() }
+
+// SourceNotTrusted is the package's SourceNotTrusted in the language of msgs.
+func (msgs Messages) SourceNotTrusted() string { return msgs.text(textSourceNotTrusted) }
+
+// SourceTrustTitle says "Trust the server {host}?"
+// in the language the app shows under cx.
+//
+// Title of the alert asking whether to trust an SFTP server's key, or a WebDAV server's certificate, at the first connection.
+func SourceTrustTitle(cx *core.Scope, host string) string { return For(cx).SourceTrustTitle(host) }
+
+// SourceTrustTitle is the package's SourceTrustTitle in the language of msgs.
+func (msgs Messages) SourceTrustTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceTrustTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceTrustTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Trust the server " + msgs.arg(host) + "?"
+		case "ja":
+			return "サーバ " + host + " を信頼しますか？"
+		case "ko":
+			return "서버 " + host + "을(를) 신뢰하시겠습니까?"
+		case "zh-Hans":
+			return "信任服务器 " + host + " 吗？"
+		case "zh-Hant":
+			return "信任伺服器 " + host + " 嗎？"
+		}
+	}
+}
+
+// SourceTrustMessage says "This is the first connection to it. Its key's fingerprint is {fingerprint}. Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+// in the language the app shows under cx.
+//
+// Message of the alert asking whether to trust an SFTP server's key at the first connection. ssh-keygen -l is a command, not translated.
+func SourceTrustMessage(cx *core.Scope, fingerprint string) string {
+	return For(cx).SourceTrustMessage(fingerprint)
+}
+
+// SourceTrustMessage is the package's SourceTrustMessage in the language of msgs.
+func (msgs Messages) SourceTrustMessage(fingerprint string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceTrustMessage(fingerprint))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceTrustMessage; f != nil {
+			return f(fingerprint)
+		}
+		switch lang {
+		case "", "en":
+			return "This is the first connection to it. Its key's fingerprint is " + msgs.arg(fingerprint) + ". Trust it only if it matches what the server shows (ssh-keygen -l) or what its administrator gives you."
+		case "ja":
+			return "このサーバへの最初の接続です。鍵のフィンガープリントは " + fingerprint + " です。サーバに表示されるもの（ssh-keygen -l）や管理者から聞いたものと一致する場合だけ信頼してください。"
+		case "ko":
+			return "이 서버에 처음 연결합니다. 키의 지문은 " + fingerprint + "입니다. 서버에 표시되는 지문(ssh-keygen -l)이나 관리자가 알려 준 지문과 같을 때만 신뢰하십시오."
+		case "zh-Hans":
+			return "这是第一次连接这台服务器。它的密钥指纹是 " + fingerprint + "。只有和服务器上显示的（ssh-keygen -l）或管理员给你的一致时才信任。"
+		case "zh-Hant":
+			return "這是第一次連線這台伺服器。它的金鑰指紋是 " + fingerprint + "。只有和伺服器上顯示的（ssh-keygen -l）或管理員給你的一致時才信任。"
+		}
+	}
+}
+
+// SourceCertTrustMessage says "This phone doesn't trust its certificate, as is usual for a NAS's own. Its fingerprint is {fingerprint}. Trust it only if it matches the one the server's settings show."
+// in the language the app shows under cx.
+//
+// Message of the alert asking whether to trust a WebDAV server's certificate at the first connection. The fingerprint looks like SHA256 AB:CD:…
+func SourceCertTrustMessage(cx *core.Scope, fingerprint string) string {
+	return For(cx).SourceCertTrustMessage(fingerprint)
+}
+
+// SourceCertTrustMessage is the package's SourceCertTrustMessage in the language of msgs.
+func (msgs Messages) SourceCertTrustMessage(fingerprint string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceCertTrustMessage(fingerprint))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceCertTrustMessage; f != nil {
+			return f(fingerprint)
+		}
+		switch lang {
+		case "", "en":
+			return "This phone doesn't trust its certificate, as is usual for a NAS's own. Its fingerprint is " + msgs.arg(fingerprint) + ". Trust it only if it matches the one the server's settings show."
+		case "ja":
+			return "この端末はこの証明書を信頼していません（NAS 独自の証明書ではよくあることです）。フィンガープリントは " + fingerprint + " です。サーバの設定に表示されるものと一致する場合だけ信頼してください。"
+		case "ko":
+			return "이 휴대폰은 이 인증서를 신뢰하지 않습니다(NAS 자체 인증서는 흔히 그렇습니다). 지문은 " + fingerprint + "입니다. 서버 설정에 표시된 것과 같을 때만 신뢰하세요."
+		case "zh-Hans":
+			return "这台手机不信任它的证书，NAS 自带的证书通常如此。它的指纹是 " + fingerprint + "。只有和服务器设置里显示的一致时才信任。"
+		case "zh-Hant":
+			return "這支手機不信任它的憑證，NAS 自帶的憑證通常如此。它的指紋是 " + fingerprint + "。只有和伺服器設定裡顯示的一致時才信任。"
+		}
+	}
+}
+
+// SourceTrust says "Trust"
+// in the language the app shows under cx.
+//
+// Button of the alert that trusts a server's key or certificate at the first connection.
+func SourceTrust(cx *core.Scope) string { return For(cx).SourceTrust() }
+
+// SourceTrust is the package's SourceTrust in the language of msgs.
+func (msgs Messages) SourceTrust() string { return msgs.text(textSourceTrust) }
+
+// SourceKeyChangedTitle says "The key of {host} has changed"
+// in the language the app shows under cx.
+//
+// Title of the warning shown when an SFTP server's key is not the one trusted before.
+func SourceKeyChangedTitle(cx *core.Scope, host string) string {
+	return For(cx).SourceKeyChangedTitle(host)
+}
+
+// SourceKeyChangedTitle is the package's SourceKeyChangedTitle in the language of msgs.
+func (msgs Messages) SourceKeyChangedTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceKeyChangedTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceKeyChangedTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "The key of " + msgs.arg(host) + " has changed"
+		case "ja":
+			return host + " の鍵が変わりました"
+		case "ko":
+			return host + "의 키가 바뀌었습니다"
+		case "zh-Hans":
+			return host + " 的密钥变了"
+		case "zh-Hant":
+			return host + " 的金鑰變了"
+		}
+	}
+}
+
+// SourceKeyChangedMessage says "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace the key only if you know why it changed."
+// in the language the app shows under cx.
+//
+// Message of the warning shown when an SFTP server's key is not the one trusted before. The fingerprints look like SHA256:abc…
+func SourceKeyChangedMessage(cx *core.Scope, trusted string, offered string) string {
+	return For(cx).SourceKeyChangedMessage(trusted, offered)
+}
+
+// SourceKeyChangedMessage is the package's SourceKeyChangedMessage in the language of msgs.
+func (msgs Messages) SourceKeyChangedMessage(trusted string, offered string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceKeyChangedMessage(trusted, offered))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceKeyChangedMessage; f != nil {
+			return f(trusted, offered)
+		}
+		switch lang {
+		case "", "en":
+			return "The server offered another key than the one trusted before. It may have been reinstalled, or another machine may be answering in its place. Trusted: " + msgs.arg(trusted) + ". Offered now: " + msgs.arg(offered) + ". Replace the key only if you know why it changed."
+		case "ja":
+			return "サーバが以前信頼したものとは別の鍵を提示しました。再インストールされたか、別のマシンがなりすましている可能性があります。信頼済み：" + trusted + "。今回：" + offered + "。理由が分かっている場合だけ鍵を置き換えてください。"
+		case "ko":
+			return "서버가 전에 신뢰한 것과 다른 키를 보냈습니다. 서버가 다시 설치되었거나 다른 기기가 대신 응답하고 있을 수 있습니다. 신뢰한 키: " + trusted + ". 지금 보낸 키: " + offered + ". 바뀐 이유를 알 때만 키를 바꾸십시오."
+		case "zh-Hans":
+			return "服务器给出的密钥和之前信任的不同。可能是服务器重装了，也可能是另一台机器在冒充它。之前信任的：" + trusted + "。现在给出的：" + offered + "。只有清楚原因时才替换密钥。"
+		case "zh-Hant":
+			return "伺服器給出的金鑰和之前信任的不同。可能是伺服器重裝了，也可能是另一台機器在冒充它。之前信任的：" + trusted + "。現在給出的：" + offered + "。只有清楚原因時才替換金鑰。"
+		}
+	}
+}
+
+// SourceReplaceKey says "Replace Key"
+// in the language the app shows under cx.
+//
+// Destructive button of the changed-key warning: trust the server's new key in place of the old one.
+func SourceReplaceKey(cx *core.Scope) string { return For(cx).SourceReplaceKey() }
+
+// SourceReplaceKey is the package's SourceReplaceKey in the language of msgs.
+func (msgs Messages) SourceReplaceKey() string { return msgs.text(textSourceReplaceKey) }
+
+// SourceCertChangedTitle says "The certificate of {host} has changed"
+// in the language the app shows under cx.
+//
+// Title of the warning shown when a WebDAV server offers another certificate than the one trusted before.
+func SourceCertChangedTitle(cx *core.Scope, host string) string {
+	return For(cx).SourceCertChangedTitle(host)
+}
+
+// SourceCertChangedTitle is the package's SourceCertChangedTitle in the language of msgs.
+func (msgs Messages) SourceCertChangedTitle(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceCertChangedTitle(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceCertChangedTitle; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "The certificate of " + msgs.arg(host) + " has changed"
+		case "ja":
+			return host + " の証明書が変わりました"
+		case "ko":
+			return host + "의 인증서가 바뀌었습니다"
+		case "zh-Hans":
+			return host + " 的证书变了"
+		case "zh-Hant":
+			return host + " 的憑證變了"
+		}
+	}
+}
+
+// SourceCertChangedMessage says "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: {trusted}. Offered now: {offered}. Replace it only if you know why it changed."
+// in the language the app shows under cx.
+//
+// Message of the warning shown when a WebDAV server offers another certificate than the one trusted before.
+func SourceCertChangedMessage(cx *core.Scope, trusted string, offered string) string {
+	return For(cx).SourceCertChangedMessage(trusted, offered)
+}
+
+// SourceCertChangedMessage is the package's SourceCertChangedMessage in the language of msgs.
+func (msgs Messages) SourceCertChangedMessage(trusted string, offered string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceCertChangedMessage(trusted, offered))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceCertChangedMessage; f != nil {
+			return f(trusted, offered)
+		}
+		switch lang {
+		case "", "en":
+			return "The server offered another certificate than the one trusted before. It may have been renewed, or another machine may be answering in its place. Trusted: " + msgs.arg(trusted) + ". Offered now: " + msgs.arg(offered) + ". Replace it only if you know why it changed."
+		case "ja":
+			return "サーバが以前に信頼したものと違う証明書を示しました。証明書が更新されたか、別のマシンがなりすましている可能性があります。信頼済み：" + trusted + "。今回：" + offered + "。理由が分かる場合だけ置き換えてください。"
+		case "ko":
+			return "서버가 이전에 신뢰한 것과 다른 인증서를 제시했습니다. 인증서가 갱신되었거나 다른 기기가 대신 응답하고 있을 수 있습니다. 신뢰한 것: " + trusted + ". 지금 제시한 것: " + offered + ". 이유를 알 때만 바꾸세요."
+		case "zh-Hans":
+			return "服务器给出的证书和之前信任的不同。可能是证书续期了，也可能是另一台机器在冒充它。之前信任的：" + trusted + "。现在给出的：" + offered + "。只有清楚原因时才替换。"
+		case "zh-Hant":
+			return "伺服器給出的憑證和之前信任的不同。可能是憑證續期了，也可能是另一台機器在冒充它。之前信任的：" + trusted + "。現在給出的：" + offered + "。只有清楚原因時才替換。"
+		}
+	}
+}
+
+// SourceReplaceCert says "Replace Certificate"
+// in the language the app shows under cx.
+//
+// Destructive button of the changed-certificate warning: trust the server's new certificate in place of the old one.
+func SourceReplaceCert(cx *core.Scope) string { return For(cx).SourceReplaceCert() }
+
+// SourceReplaceCert is the package's SourceReplaceCert in the language of msgs.
+func (msgs Messages) SourceReplaceCert() string { return msgs.text(textSourceReplaceCert) }
+
+// SourceSave says "Save"
+// in the language the app shows under cx.
+//
+// Button saving the source form.
+func SourceSave(cx *core.Scope) string { return For(cx).SourceSave() }
+
+// SourceSave is the package's SourceSave in the language of msgs.
+func (msgs Messages) SourceSave() string { return msgs.text(textSourceSave) }
+
+// SourceSaving says "Saving…"
+// in the language the app shows under cx.
+//
+// Shown on the Save button while the source's password is being kept in the phone's secure storage.
+func SourceSaving(cx *core.Scope) string { return For(cx).SourceSaving() }
+
+// SourceSaving is the package's SourceSaving in the language of msgs.
+func (msgs Messages) SourceSaving() string { return msgs.text(textSourceSaving) }
+
+// SourceSaveFailed says "The source couldn't be saved."
+// in the language the app shows under cx.
+//
+// Shown in the source form when the phone could not keep it or its password.
+func SourceSaveFailed(cx *core.Scope) string { return For(cx).SourceSaveFailed() }
+
+// SourceSaveFailed is the package's SourceSaveFailed in the language of msgs.
+func (msgs Messages) SourceSaveFailed() string { return msgs.text(textSourceSaveFailed) }
+
+// SourceNoSecretStore says "This phone has no secure storage for passwords, so Kando can't keep this one. Only a share open to guests can be added."
+// in the language the app shows under cx.
+//
+// Shown in the source form when Save could not keep the password because the phone offers no secure storage. Kando never keeps the password elsewhere.
+func SourceNoSecretStore(cx *core.Scope) string { return For(cx).SourceNoSecretStore() }
+
+// SourceNoSecretStore is the package's SourceNoSecretStore in the language of msgs.
+func (msgs Messages) SourceNoSecretStore() string { return msgs.text(textSourceNoSecretStore) }
+
+// SourceRemove says "Remove Source"
+// in the language the app shows under cx.
+//
+// Destructive button at the foot of a saved source's form.
+func SourceRemove(cx *core.Scope) string { return For(cx).SourceRemove() }
+
+// SourceRemove is the package's SourceRemove in the language of msgs.
+func (msgs Messages) SourceRemove() string { return msgs.text(textSourceRemove) }
+
+// SourceRemoveTitle says "Remove “{name}”?"
+// in the language the app shows under cx.
+//
+// Title of the alert confirming that a NAS or server is removed from the phone.
+func SourceRemoveTitle(cx *core.Scope, name string) string { return For(cx).SourceRemoveTitle(name) }
+
+// SourceRemoveTitle is the package's SourceRemoveTitle in the language of msgs.
+func (msgs Messages) SourceRemoveTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceRemoveTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceRemoveTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove “" + msgs.arg(name) + "”?"
+		case "ja":
+			return "「" + name + "」を削除しますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 제거하시겠습니까?"
+		case "zh-Hans":
+			return "移除“" + name + "”吗？"
+		case "zh-Hant":
+			return "移除「" + name + "」嗎？"
+		}
+	}
+}
+
+// SourceRemoveMessage says "Its password is forgotten. Films downloaded from it stay on this phone, and nothing on the server is deleted."
+// in the language the app shows under cx.
+//
+// Message of the alert confirming that a NAS or server is removed.
+func SourceRemoveMessage(cx *core.Scope) string { return For(cx).SourceRemoveMessage() }
+
+// SourceRemoveMessage is the package's SourceRemoveMessage in the language of msgs.
+func (msgs Messages) SourceRemoveMessage() string { return msgs.text(textSourceRemoveMessage) }
+
+// SourceRemoveConfirm says "Remove"
+// in the language the app shows under cx.
+//
+// Destructive button of the alert confirming that a NAS or server is removed.
+func SourceRemoveConfirm(cx *core.Scope) string { return For(cx).SourceRemoveConfirm() }
+
+// SourceRemoveConfirm is the package's SourceRemoveConfirm in the language of msgs.
+func (msgs Messages) SourceRemoveConfirm() string { return msgs.text(textSourceRemoveConfirm) }
+
+// SourceLoading says "Loading…"
+// in the language the app shows under cx.
+//
+// Spoken name of the spinner while a NAS or server's folder is being read.
+func SourceLoading(cx *core.Scope) string { return For(cx).SourceLoading() }
+
+// SourceLoading is the package's SourceLoading in the language of msgs.
+func (msgs Messages) SourceLoading() string { return msgs.text(textSourceLoading) }
+
+// SourceEmpty says "No folders or videos here"
+// in the language the app shows under cx.
+//
+// Shown in place of a NAS or server's folder that holds no folders and no videos the phone plays.
+func SourceEmpty(cx *core.Scope) string { return For(cx).SourceEmpty() }
+
+// SourceEmpty is the package's SourceEmpty in the language of msgs.
+func (msgs Messages) SourceEmpty() string { return msgs.text(textSourceEmpty) }
+
+// SourceRetry says "Try Again"
+// in the language the app shows under cx.
+//
+// Button under why a NAS or server's folder could not be read: read it again.
+func SourceRetry(cx *core.Scope) string { return For(cx).SourceRetry() }
+
+// SourceRetry is the package's SourceRetry in the language of msgs.
+func (msgs Messages) SourceRetry() string { return msgs.text(textSourceRetry) }
+
+// SourceEditSource says "Edit Source"
+// in the language the app shows under cx.
+//
+// Button under why a NAS or server's folder could not be read: open the source's form.
+func SourceEditSource(cx *core.Scope) string { return For(cx).SourceEditSource() }
+
+// SourceEditSource is the package's SourceEditSource in the language of msgs.
+func (msgs Messages) SourceEditSource() string { return msgs.text(textSourceEditSource) }
+
+// SourceOpenSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button under the note that the app may not reach the local network: opens the system's settings of the app.
+func SourceOpenSettings(cx *core.Scope) string { return For(cx).SourceOpenSettings() }
+
+// SourceOpenSettings is the package's SourceOpenSettings in the language of msgs.
+func (msgs Messages) SourceOpenSettings() string { return msgs.text(textSourceOpenSettings) }
+
+// SourceDownload says "Download {name}"
+// in the language the app shows under cx.
+//
+// Spoken name of the button of a video on a NAS or server that downloads it to the phone, and of its download's bar.
+func SourceDownload(cx *core.Scope, name string) string { return For(cx).SourceDownload(name) }
+
+// SourceDownload is the package's SourceDownload in the language of msgs.
+func (msgs Messages) SourceDownload(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourceDownload(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourceDownload; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Download " + msgs.arg(name)
+		case "ja":
+			return name + " をダウンロード"
+		case "ko":
+			return name + " 다운로드"
+		case "zh-Hans":
+			return "下载 " + name
+		case "zh-Hant":
+			return "下載 " + name
+		}
+	}
+}
+
+// SourcePause says "Pause the download of {name}"
+// in the language the app shows under cx.
+//
+// Spoken name of the button of a video on a NAS or server while it downloads: pauses the download.
+func SourcePause(cx *core.Scope, name string) string { return For(cx).SourcePause(name) }
+
+// SourcePause is the package's SourcePause in the language of msgs.
+func (msgs Messages) SourcePause(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SourcePause(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SourcePause; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Pause the download of " + msgs.arg(name)
+		case "ja":
+			return name + " のダウンロードを一時停止"
+		case "ko":
+			return name + " 다운로드 일시 정지"
+		case "zh-Hans":
+			return "暂停下载 " + name
+		case "zh-Hant":
+			return "暫停下載 " + name
+		}
+	}
+}
 
 // dated is lang with the hour cycle the user set, which times take.
 func (msgs Messages) dated(lang string) string {
