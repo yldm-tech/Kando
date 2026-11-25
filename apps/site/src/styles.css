@@ -2559,5 +2559,14 @@
     .kp {
       --kp-scale: 0.6;
     }
+    /* The download panel's four tabs share the panel's width on a phone, as at their least width they are wider than it. */
+    .dl .seg {
+      width: auto;
+    }
+    .dl .seg button {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 4px;
+    }
   }
 }
