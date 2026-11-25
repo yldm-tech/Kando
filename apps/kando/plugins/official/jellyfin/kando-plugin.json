@@ -2,7 +2,7 @@
   "schema": 2,
   "id": "kando.jellyfin",
   "kind": "script",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "kando": ">=0.54.0",
   "license": "FSL-1.1-ALv2",
   "author": "Kando",

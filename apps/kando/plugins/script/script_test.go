@@ -491,6 +491,45 @@ export function ping() { return 1 }`}), plugins.Grant{})
 	}
 }
 
+// TestScriptRunnerEndsACallCutAfterAHostCall checks that a call whose piece after a host call's answer and a timer runs past Limits' half second ends with tsx.ErrBudget soon after it, the answer given from another goroutine as Kando's kando.source.fetch gives it. The timer is what the official media-source plugins take after each answer (their turn): a piece cut while tsx settles the answer itself is lost, and the call never ends.
+func TestScriptRunnerEndsACallCutAfterAHostCall(t *testing.T) {
+	s := newSigner(t, AppIDPrefix+"acme.*")
+	roots := s.roots()
+	e := newEngine(t)
+	p := s.pack(t, fixture{id: "acme.late", caps: `{"host": ["kando.saved.read"]}`, code: `import { host } from "nsgo"
+export async function late() {
+  await host.call("kando.saved.read", {}, { timeout: 150000 })
+  await new Promise((done) => setTimeout(done, 0))
+  const t = Date.now(); while (Date.now() - t < 2000) {}
+  return 1
+}`})
+	host := core.NewHost()
+	host.Handle(string(plugins.PermSavedRead), func(c *core.HostCall) {
+		go e.post(func() { c.Resolve("the saved lines") })
+	})
+	v, err := Verify(trustOf(t, roots), roots, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pl *Plugin
+	e.do(func() { pl, err = Load(e.root, v, plugins.Grant{Perms: []plugins.Perm{plugins.PermSavedRead}}, host) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	watch := DefaultWatch
+	// tsx's budget is what this test is about: the heartbeats must not stop the plugin first.
+	watch.Stall = time.Hour
+	r := &Runner{Post: e.post, Watch: watch}
+	start := time.Now()
+	got := wait(t, e.call(r, pl, "late"), 30*time.Second)
+	if !errors.Is(got.err, tsx.ErrBudget) {
+		t.Fatalf("the call ended with %v, %v", got.v, got.err)
+	}
+	if d := got.at.Sub(start); d > slow(1500*time.Millisecond) {
+		t.Errorf("the call ended after %v", d)
+	}
+}
+
 // TestScriptRunnerStopsAPluginTsxStopped checks that a plugin tsx stopped at its node quota, whose every call after fails at once with the quota's coded error, which the breaker does not count, is stopped and reported as failed by the call that ran into the quota, and that the calls after it end with ErrStopped.
 func TestScriptRunnerStopsAPluginTsxStopped(t *testing.T) {
 	s := newSigner(t, AppIDPrefix+"acme.*")

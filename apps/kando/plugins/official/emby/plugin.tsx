@@ -4,6 +4,9 @@ import { host } from "nsgo"
 // What Kando waits for a request; Kando's own limit is 120 s, so the plugin hears Kando's answer rather than its own timeout.
 const WAIT = { timeout: 150000 }
 
+// How many items are named in one piece of JS (children), few enough that a piece of a folder of thousands stays well under Kando's half second, under the race detector on a busy runner too.
+const NAMED_AT_ONCE = 200
+
 // The most entries Kando takes of a folder, and how many the server is asked for at once, few enough that a page stays well under the 4 MiB Kando takes of a reply.
 const LIST_MAX = 5000
 const PAGE = 500
@@ -22,6 +25,12 @@ let nodes: Record<string, Node> = {}
 let held = 0
 const NODES_MAX = 50000
 
+// turn waits for a timer, so what follows runs as a piece of JS of its own, under a time budget of its own (Kando's half second a piece), rather than as the rest of the piece that was running.
+// TODO(nsgo): a piece of JS cut at its budget while tsx settles a host.call's answer is lost: tsx/host.go drops the interrupt that settling the promise returns, so the call never ends and holds Kando's runner until its deadline, a minute, rather than failing at once; one cut in a timer's piece tsx does report. get takes a turn after each answer, so what follows it never runs as part of settling it; drop that once tsx reports the cut.
+function turn(): Promise<void> {
+  return new Promise((done) => setTimeout(done, 0))
+}
+
 // fail rejects with code, which Kando reads (auth, not-found, unavailable, timeout), and message.
 function fail(code: string, message: string): never {
   const e: any = new Error(message)
@@ -32,9 +41,15 @@ function fail(code: string, message: string): never {
 // get GETs path with query under the source's address and answers its JSON, the API key put in by Kando; null for 404.
 async function get(source: any, path: string, query: Record<string, string>): Promise<any> {
   let r: any
+  let refused: { e: any } | null = null
   try {
     r = await host.call("kando.source.fetch", { source: source.id, method: "GET", path, query, header: { "Accept": "application/json" } }, WAIT)
   } catch (e: any) {
+    refused = { e }
+  }
+  await turn()
+  if (refused) {
+    const e = refused.e
     const code = e && e.code
     fail(code === "timeout" ? "timeout" : "unavailable", "the server did not answer: " + String((e && e.message) || code || e))
   }
@@ -142,7 +157,9 @@ async function children(source: any, node: Node): Promise<Array<[string, Node, a
       fail("not-found", "not a folder")
   }
   const named: Array<[string, Node, any]> = []
-  for (const item of list) {
+  for (let i = 0; i < list.length; i++) {
+    if (i > 0 && i % NAMED_AT_ONCE === 0) await turn()
+    const item = list[i]
     const child: Node | null = node.kind === "root" ? (item && item.Id ? { kind: "lib", id: String(item.Id), type: String(item.CollectionType || "").toLowerCase() } : null) : nodeOf(item, node)
     if (!child) continue
     const name = child.kind === "video" ? videoName(item) : clean(item.Name, child.id)
