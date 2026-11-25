@@ -167,14 +167,13 @@ func TestScriptPanelPastItsBudget(t *testing.T) {
 	}
 }
 
-// watchFixture is a plugin with four panels for the watchdog: busy, which keeps the engine busy from a timer, 80 ms of every 90; grow, which keeps what a timer makes, an array of 64 Ki numbers every 20 ms, copied with concat, which tsx's memory quota (Limits.Memory) does not count, the engine idle in between; quiet, which does nothing; and big, which keeps a string of 1 MiB every 20 ms, made with repeat, which the quota counts.
+// watchFixture is a plugin with four panels for the watchdog: busy, which keeps the engine busy from a timer, 80 ms of every 90; grow, which keeps what a timer makes, 16 Ki objects every 20 ms in a linked list, which tsx's memory quota (Limits.Memory) does not count, as it counts no ordinary objects, the engine idle in between; quiet, which does nothing; and big, which keeps a string of 1 MiB every 20 ms, made with repeat, which the quota counts.
 var watchFixture = fixture{id: "acme.watch", extra: `"contributes": {"panels": [{"id": "busy", "export": "Busy", "title": {"en": "Busy"}}, {"id": "grow", "export": "Grow", "title": {"en": "Grow"}}, {"id": "quiet", "export": "Quiet", "title": {"en": "Quiet"}}, {"id": "big", "export": "Big", "title": {"en": "Big"}}]}`,
 	code: `import { host, mount, View } from "nsgo"
 const kept = []
-const half = []
-for (let i = 0; i < 1 << 15; i++) half.push(i)
+let chain = null
 export function Busy() { setInterval(() => { const t = Date.now(); while (Date.now() - t < 80) {} }, 10); return <View /> }
-export function Grow() { setInterval(() => { kept.push(half.concat(half)) }, 20); return <View /> }
+export function Grow() { setInterval(() => { for (let i = 0; i < 1 << 14; i++) chain = { next: chain, i } }, 20); return <View /> }
 export function Quiet() { return <View /> }
 export function Big() { let n = 0; setInterval(() => { kept.push("x".repeat(1 << 20) + n++) }, 20); return <View /> }
 if (host.params.panel === "busy") mount(Busy)

@@ -436,6 +436,7 @@ pairErrRelay: "無法經你的儲存空間配對。請確認電腦上的看懂�
 pairErrTooMany: "嘗試次數太多，請稍等一分鐘再試。"
 pairErrUnreachable: "連不上 {address} 的電腦。請確認兩者在同一個網路，且已開啟手機同步。"
 pairErrWrongCode: "這不是電腦上顯示的配對碼。"
+pairOpenSettings: "開啟設定"
 pairScan: "掃描 QR 碼"
 pairScanning: "正在讀取 QR 碼…"
 pairStepEnter: "輸入那裡顯示的位址和配對碼"
@@ -849,3 +850,5 @@ github.com/nsgo-dev/nsgo/updater/locales:
   installError: "無法安裝更新"
   installErrorMessage: "{app} {version} 無法下載或安裝，你可以改從它的頁面取得。"
   openPage: "開啟頁面"
+github.com/nsgo-dev/nsgo/mobile/locales:
+  tabBadgeNew: "有新內容"

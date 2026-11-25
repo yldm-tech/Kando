@@ -8,6 +8,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	desktoplocales "github.com/nsgo-dev/nsgo/desktop/locales"
 	"github.com/nsgo-dev/nsgo/i18n"
+	mobilelocales "github.com/nsgo-dev/nsgo/mobile/locales"
 	updaterlocales "github.com/nsgo-dev/nsgo/updater/locales"
 	"strings"
 	"time"
@@ -363,6 +364,21 @@ func init() {
 		},
 		GuideDrag: func(app string, permission string) string {
 			return "將 " + app + " 拖移到上方列表以允許「" + permission + "」。"
+		},
+	})
+	mobilelocales.Supply("ja", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "新着あり",
+		},
+	})
+	mobilelocales.Supply("ko", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "새 항목 있음",
+		},
+	})
+	mobilelocales.Supply("zh-Hant", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "有新內容",
 		},
 	})
 	updaterlocales.Supply("ja", updaterlocales.Translation{

@@ -96,6 +96,8 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 	confirmed := core.NewSignal(cx, false)
 	// page ends as the page goes, which stops a pairing under way. It is the page's own, read as the page is built: a handler's cx is the region of the button pressed, which the page's stages replace as a pairing goes on.
 	page := cx.Context()
+	// localRefused is the problem on show being the local network the phone may not reach, which Settings turns on: the page offers to open them.
+	localRefused := core.NewSignal(cx, false)
 	// relaying is a pairing through the computer's relay under way.
 	relaying := core.NewSignal(cx, false)
 
@@ -156,34 +158,50 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 			return
 		}
 		problem.Set("")
+		localRefused.Set(false)
 		confirmed.Set(false)
 		at.Set(checking)
-		go func() {
-			// A link with a mailbox goes on through the relay once no address answers within one connection's time, rather than waiting out iOS's question about the local network: a phone away from the computer's network would wait for nothing, and the relay pairs one that is on it all the same.
-			within := reachFor
-			if target.Relay != nil && target.Expected != nil {
-				within = connectTimeout
+		viaLink := target.Relay != nil && target.Expected != nil
+		// iOS asks the user before the app first reaches the local network; asking here, before the first connection, shows its question at once and tells a refusal for what it is. Elsewhere the answer is not gated.
+		cx.RequestPermission(core.PermissionLocalNetwork, func(st core.PermissionStatus) {
+			if at.Get() != checking {
+				return
 			}
-			f, err := reach(page, target.Addrs, within)
-			cx.Post(func() {
-				switch {
-				case err != nil && target.Relay != nil && target.Expected != nil:
+			if st == core.PermissionDenied {
+				if viaLink {
+					// The relay goes through the internet, which the setting does not keep from the app.
 					viaRelay(target)
-				case err != nil:
-					problem.Set(unreachable(cx, s, target, err))
-					at.Set(editing)
-				case target.Expected != nil && !bytes.Equal(target.Expected, f.fingerprint):
-					problem.Set(locales.PairErrFingerprint(cx))
-					at.Set(editing)
-				case target.Expected != nil:
-					answer.Set(f)
-					send(f, target)
-				default:
-					answer.Set(f)
-					at.Set(comparing)
+					return
 				}
-			})
-		}()
+				problem.Set(locales.PairErrLocalNetwork(cx, target.Addrs[0].String()))
+				localRefused.Set(true)
+				at.Set(editing)
+				return
+			}
+			go func() {
+				f, err := reach(page, target.Addrs)
+				cx.Post(func() {
+					switch {
+					case err != nil && viaLink:
+						viaRelay(target)
+					case err != nil:
+						msg, refused := unreachable(cx, s, target, err)
+						problem.Set(msg)
+						localRefused.Set(refused)
+						at.Set(editing)
+					case target.Expected != nil && !bytes.Equal(target.Expected, f.fingerprint):
+						problem.Set(locales.PairErrFingerprint(cx))
+						at.Set(editing)
+					case target.Expected != nil:
+						answer.Set(f)
+						send(f, target)
+					default:
+						answer.Set(f)
+						at.Set(comparing)
+					}
+				})
+			}()
+		})
 	}
 
 	// scanning is a photo of the computer's QR code being read.
@@ -209,6 +227,7 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 	// scan reads the QR code the computer shows as the camera sees it, or, on a phone that can only take a photo, from a photo of it.
 	scan := func() {
 		problem.Set("")
+		localRefused.Set(false)
 		if cx.Env().CanScanCode() {
 			cx.ScanCode(core.ScanOptions{Kinds: []core.CodeKind{core.CodeQR}}, func(c *core.ScannedCode, err error) {
 				if err != nil {
@@ -257,6 +276,10 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		field(cx, func() string { return locales.PairCode(cx) }, codeInput(cx, code.Get, func(v string) { code.Set(v); problem.Set("") }, busy)),
 		core.Show{When: func() bool { return problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{TestID: "pair-problem", ContentFunc: problem.Get, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
+		}},
+		core.Show{When: func() bool { return localRefused.Get() && problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
+			return look.Button{Kind: look.Tinted, Icon: lucide.Settings, Text: func() string { return locales.PairOpenSettings(cx) }, TestID: "pair-settings",
+				OnPress: func() { cx.OpenPermissionSettings(core.PermissionLocalNetwork, nil) }}
 		}},
 		core.Show{When: busy, Then: func(cx *core.Scope) core.Node { return connecting(cx, fill, relaying.Get) }},
 	}}
@@ -375,9 +398,9 @@ type found struct {
 	fingerprint []byte
 }
 
-// reach tries every address at once for the computer's certificate, and returns the first that answers. An address the phone is not let reach yet (blocked) is tried again until within is up, as iOS refuses a connection to the local network while it asks the user whether the app may make one: the pairing goes on once they allow it, without their pressing Continue again. The error is of an address that failed for another reason when there is one, so blocked is true of it only when every address was blocked.
-func reach(ctx context.Context, addrs []netip.AddrPort, within time.Duration) (found, error) {
-	ctx, cancel := context.WithTimeout(ctx, within)
+// reach tries every address at once for the computer's certificate, and returns the first that answers. The error is of an address that failed for another reason than being blocked when there is one, so blocked is true of it only when every address was.
+func reach(ctx context.Context, addrs []netip.AddrPort) (found, error) {
+	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 	type result struct {
 		found found
@@ -386,7 +409,7 @@ func reach(ctx context.Context, addrs []netip.AddrPort, within time.Duration) (f
 	results := make(chan result, len(addrs))
 	for _, a := range addrs {
 		go func() {
-			fp, err := fetchUntil(ctx, a)
+			fp, err := sync.FetchFingerprint(ctx, a)
 			results <- result{found{a, fp}, err}
 		}()
 	}
@@ -403,40 +426,17 @@ func reach(ctx context.Context, addrs []netip.AddrPort, within time.Duration) (f
 	return found{}, err
 }
 
-// TODO(nsgo#2347): NSGo cannot ask for iOS's local network access before the first connection or say whether it was given, so reach waits out the question and unreachable guesses a refusal from the error; ask ahead and read the answer once NSGo can https://github.com/nsgo-dev/nsgo/issues/2347
-// reachFor is how long reach keeps trying an address the phone is not let reach when there is no other way to the computer: long enough to read iOS's question about the local network and answer it.
-const reachFor = 30 * time.Second
-
-// fetchUntil fetches the certificate's fingerprint at a, again while the connection is blocked and ctx lasts, a little later each time.
-func fetchUntil(ctx context.Context, a netip.AddrPort) ([]byte, error) {
-	pause := 250 * time.Millisecond
-	for {
-		tctx, cancel := context.WithTimeout(ctx, connectTimeout)
-		fp, err := sync.FetchFingerprint(tctx, a)
-		cancel()
-		if err == nil || !blocked(err) {
-			return fp, err
-		}
-		select {
-		case <-ctx.Done():
-			return nil, err
-		case <-time.After(pause):
-		}
-		pause = min(2*pause, 2*time.Second)
-	}
-}
-
 // blocked reports whether err is a connection the system refused to make rather than one nothing answered: no route to the host or its network, or not permitted, as iOS fails a connection to the local network while the app may not make one (Apple's TN3179).
 func blocked(err error) bool {
 	return errors.Is(err, syscall.EHOSTUNREACH) || errors.Is(err, syscall.ENETUNREACH) || errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES)
 }
 
-// unreachable is what the page says when no address of target answered with err: on iOS, a connection the system refused is most likely the local network access the user did not allow, which Settings turns on.
-func unreachable(cx *core.Scope, s *session.Session, target Target, err error) string {
+// unreachable is what the page says when no address of target answered with err, and whether it is the local network access Settings turns on: on iOS, a connection the system refused is most likely that, as when the user turned it off after the app asked.
+func unreachable(cx *core.Scope, s *session.Session, target Target, err error) (string, bool) {
 	if s.Platform() == sync.PlatformIOS && blocked(err) {
-		return locales.PairErrLocalNetwork(cx, target.Addrs[0].String())
+		return locales.PairErrLocalNetwork(cx, target.Addrs[0].String()), true
 	}
-	return locales.PairErrUnreachable(cx, target.Addrs[0].String())
+	return locales.PairErrUnreachable(cx, target.Addrs[0].String()), false
 }
 
 // pairProblem is what the page says when pairing with the computer at addr failed for err.

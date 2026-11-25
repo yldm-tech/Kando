@@ -1624,6 +1624,9 @@ pairErrUnreachable:
 pairErrWrongCode:
   message: "That isn't the code your computer shows."
   description: "Error on the pairing page: the code is not the one on offer."
+pairOpenSettings:
+  message: "Open Settings"
+  description: "Button on the pairing page under the error that the phone may not use the local network: opens the app's page in the phone's Settings, where Local Network is turned on."
 pairScan:
   message: "Scan QR Code"
   description: "Button on the pairing page that opens the camera to read the QR code the computer shows."

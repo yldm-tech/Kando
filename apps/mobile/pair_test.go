@@ -375,3 +375,25 @@ func TestCancellingTheScanChangesNothing(t *testing.T) {
 		t.Fatal("the phone paired from a cancelled photo")
 	}
 }
+
+// A phone that may not use the local network says so before it tries the computer, and offers the Settings that turn it on; a link with the computer's relay pairs through it all the same.
+func TestPairingWithTheLocalNetworkRefusedOpensSettings(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.app.PermissionAnswers[core.PermissionLocalNetwork] = core.PermissionDenied
+	p.startPairing()
+	p.app.WaitFor("id:pair-address", wait)
+	addr := d.Addr.String()
+	p.app.Type("id:pair-address", sync.PairURL{Addrs: []netip.AddrPort{d.Addr}, Code: "123456", Fingerprint: d.Fingerprint, Name: "Studio"}.String())
+	p.app.Press("id:pair-continue")
+	if got, want := p.app.WaitFor("id:pair-problem", wait).Text, msgs.PairErrLocalNetwork(addr); got != want {
+		t.Fatalf("problem %q, want %q", got, want)
+	}
+	if d.Paired() != 0 {
+		t.Fatal("the phone reached the desktop with the local network refused")
+	}
+	p.app.Press("id:pair-settings")
+	if got := p.app.PermissionSettings; len(got) != 1 || got[0] != core.PermissionLocalNetwork {
+		t.Fatalf("settings opened %v, want the local network's", got)
+	}
+}

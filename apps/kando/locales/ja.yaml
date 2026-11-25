@@ -2763,3 +2763,5 @@ github.com/nsgo-dev/nsgo/updater/locales:
   installError: "アップデートをインストールできません"
   installErrorMessage: "{app} {version} をダウンロードまたはインストールできませんでした。代わりにそのページから入手できます。"
   openPage: "ページを開く"
+github.com/nsgo-dev/nsgo/mobile/locales:
+  tabBadgeNew: "新着あり"

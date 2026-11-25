@@ -436,6 +436,7 @@ pairErrRelay: "ストレージ経由でペアリングできませんでした�
 pairErrTooMany: "試行回数が多すぎます。1 分ほど待ってからもう一度お試しください。"
 pairErrUnreachable: "{address} のコンピュータに接続できません。同じネットワークにあり、スマートフォン同期がオンになっているか確認してください。"
 pairErrWrongCode: "コンピュータに表示されているコードと違います。"
+pairOpenSettings: "設定を開く"
 pairScan: "QR コードをスキャン"
 pairScanning: "QR コードを読み取り中…"
 pairStepEnter: "表示されたアドレスとペアリングコードを入力"
@@ -849,3 +850,5 @@ github.com/nsgo-dev/nsgo/updater/locales:
   installError: "アップデートをインストールできません"
   installErrorMessage: "{app} {version} をダウンロードまたはインストールできませんでした。代わりにそのページから入手できます。"
   openPage: "ページを開く"
+github.com/nsgo-dev/nsgo/mobile/locales:
+  tabBadgeNew: "新着あり"

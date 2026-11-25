@@ -34,7 +34,7 @@ func TestReachTakesTheAddressThatAnswers(t *testing.T) {
 	defer desktop.Close()
 	addrs := []netip.AddrPort{netip.MustParseAddrPort(silent.Addr().String()), netip.MustParseAddrPort(desktop.Listener.Addr().String())}
 	start := time.Now()
-	f, err := reach(context.Background(), addrs, reachFor)
+	f, err := reach(context.Background(), addrs)
 	if err != nil {
 		t.Fatal(err)
 	}

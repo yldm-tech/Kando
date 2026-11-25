@@ -8,6 +8,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	desktoplocales "github.com/nsgo-dev/nsgo/desktop/locales"
 	"github.com/nsgo-dev/nsgo/i18n"
+	mobilelocales "github.com/nsgo-dev/nsgo/mobile/locales"
 	updaterlocales "github.com/nsgo-dev/nsgo/updater/locales"
 	"strings"
 	"time"
@@ -360,6 +361,21 @@ func init() {
 		},
 		GuideDrag: func(app string, permission string) string {
 			return "將 " + app + " 拖移到上方列表以允許「" + permission + "」。"
+		},
+	})
+	mobilelocales.Supply("ja", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "新着あり",
+		},
+	})
+	mobilelocales.Supply("ko", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "새 항목 있음",
+		},
+	})
+	mobilelocales.Supply("zh-Hant", mobilelocales.Translation{
+		Texts: map[string]string{
+			"tabBadgeNew": "有新內容",
 		},
 	})
 	updaterlocales.Supply("ja", updaterlocales.Translation{
@@ -1189,6 +1205,7 @@ const (
 	textPairErrRelay
 	textPairErrTooMany
 	textPairErrWrongCode
+	textPairOpenSettings
 	textPairScan
 	textPairScanning
 	textPairStepEnter
@@ -1741,6 +1758,7 @@ var keyOfText = [numTexts]string{
 	"pairErrRelay",
 	"pairErrTooMany",
 	"pairErrWrongCode",
+	"pairOpenSettings",
 	"pairScan",
 	"pairScanning",
 	"pairStepEnter",
@@ -2291,6 +2309,7 @@ var textsEn = i18n.NewTexts(""+
 	"Couldn't pair through your storage. Check that Kando is open on the computer and its storage works, then try again with a new code."+
 	"Too many tries. Wait a minute, then try again."+
 	"That isn't the code your computer shows."+
+	"Open Settings"+
 	"Scan QR Code"+
 	"Reading the QR code…"+
 	"Enter the address and code it shows"+
@@ -2838,6 +2857,7 @@ var textsEn = i18n.NewTexts(""+
 		131,
 		46,
 		40,
+		13,
 		12,
 		22,
 		35,
@@ -3388,6 +3408,7 @@ var textsJa = i18n.NewTexts(""+
 	"ストレージ経由でペアリングできませんでした。コンピュータで Kando が開いていてストレージが使えることを確認し、新しいコードでもう一度お試しください。"+
 	"試行回数が多すぎます。1 分ほど待ってからもう一度お試しください。"+
 	"コンピュータに表示されているコードと違います。"+
+	"設定を開く"+
 	"QR コードをスキャン"+
 	"QR コードを読み取り中…"+
 	"表示されたアドレスとペアリングコードを入力"+
@@ -3935,6 +3956,7 @@ var textsJa = i18n.NewTexts(""+
 		217,
 		95,
 		69,
+		15,
 		27,
 		33,
 		63,
@@ -4485,6 +4507,7 @@ var textsKo = i18n.NewTexts(""+
 	"스토리지를 거쳐 페어링하지 못했습니다. 컴퓨터에서 Kando가 열려 있고 스토리지가 작동하는지 확인한 뒤 새 코드로 다시 시도하세요."+
 	"시도 횟수가 너무 많습니다. 1분 후에 다시 시도하세요."+
 	"컴퓨터에 표시된 코드가 아닙니다."+
+	"설정 열기"+
 	"QR 코드 스캔"+
 	"QR 코드 읽는 중…"+
 	"표시된 주소와 페어링 코드 입력"+
@@ -5032,6 +5055,7 @@ var textsKo = i18n.NewTexts(""+
 		178,
 		73,
 		46,
+		13,
 		16,
 		23,
 		43,
@@ -5582,6 +5606,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"没能经你的存储配对。请确认电脑上的看懂开着、存储能用，再换一个新代码重试。"+
 	"尝试次数太多，请稍等一分钟再试。"+
 	"这不是电脑上显示的配对码。"+
+	"打开设置"+
 	"扫描二维码"+
 	"正在读取二维码…"+
 	"输入那里显示的地址和配对码"+
@@ -6129,6 +6154,7 @@ var textsZhHans = i18n.NewTexts(""+
 		111,
 		48,
 		39,
+		12,
 		15,
 		24,
 		39,
@@ -6679,6 +6705,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"無法經你的儲存空間配對。請確認電腦上的看懂已開啟、儲存空間可用，再換一個新代碼重試。"+
 	"嘗試次數太多，請稍等一分鐘再試。"+
 	"這不是電腦上顯示的配對碼。"+
+	"開啟設定"+
 	"掃描 QR 碼"+
 	"正在讀取 QR 碼…"+
 	"輸入那裡顯示的位址和配對碼"+
@@ -7226,6 +7253,7 @@ var textsZhHant = i18n.NewTexts(""+
 		126,
 		48,
 		39,
+		12,
 		13,
 		22,
 		39,
@@ -15810,6 +15838,15 @@ func PairErrWrongCode(cx *core.Scope) string { return For(cx).PairErrWrongCode()
 
 // PairErrWrongCode is the package's PairErrWrongCode in the language of msgs.
 func (msgs Messages) PairErrWrongCode() string { return msgs.text(textPairErrWrongCode) }
+
+// PairOpenSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button on the pairing page under the error that the phone may not use the local network: opens the app's page in the phone's Settings, where Local Network is turned on.
+func PairOpenSettings(cx *core.Scope) string { return For(cx).PairOpenSettings() }
+
+// PairOpenSettings is the package's PairOpenSettings in the language of msgs.
+func (msgs Messages) PairOpenSettings() string { return msgs.text(textPairOpenSettings) }
 
 // PairScan says "Scan QR Code"
 // in the language the app shows under cx.

@@ -435,6 +435,7 @@ pairErrRelay: "没能经你的存储配对。请确认电脑上的看懂开着�
 pairErrTooMany: "尝试次数太多，请稍等一分钟再试。"
 pairErrUnreachable: "连不上 {address} 的电脑。请确认两者在同一网络，且已打开手机同步。"
 pairErrWrongCode: "这不是电脑上显示的配对码。"
+pairOpenSettings: "打开设置"
 pairScan: "扫描二维码"
 pairScanning: "正在读取二维码…"
 pairStepEnter: "输入那里显示的地址和配对码"
