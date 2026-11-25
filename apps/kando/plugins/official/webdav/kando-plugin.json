@@ -1,0 +1,35 @@
+{
+  "schema": 2,
+  "id": "kando.webdav",
+  "kind": "script",
+  "version": "1.0.0",
+  "kando": ">=0.54.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/webdav",
+  "name": {"en": "WebDAV", "zh-Hans": "WebDAV", "zh-Hant": "WebDAV", "ja": "WebDAV", "ko": "WebDAV"},
+  "description": {
+    "en": "Browses and imports films from a folder of a WebDAV server, as many NAS systems and cloud drives offer.",
+    "zh-Hans": "浏览并导入 WebDAV 服务器上某个文件夹里的影片，许多 NAS 和网盘都提供 WebDAV。",
+    "zh-Hant": "瀏覽並匯入 WebDAV 伺服器上某個資料夾裡的影片，許多 NAS 和雲端硬碟都提供 WebDAV。",
+    "ja": "多くの NAS やクラウドドライブが提供する WebDAV サーバーのフォルダから、映像を閲覧して読み込みます。",
+    "ko": "많은 NAS와 클라우드 드라이브가 제공하는 WebDAV 서버의 폴더에서 영상을 둘러보고 가져옵니다."
+  },
+  "capabilities": {"host": ["kando.source.fetch"]},
+  "contributes": {
+    "sources": [{
+      "id": "webdav",
+      "title": {"en": "WebDAV", "zh-Hans": "WebDAV", "zh-Hant": "WebDAV", "ja": "WebDAV", "ko": "WebDAV"},
+      "icon": "server",
+      "fields": [
+        {"key": "endpoint", "type": "url",
+          "title": {"en": "Server address", "zh-Hans": "服务器地址", "zh-Hant": "伺服器位址", "ja": "サーバーのアドレス", "ko": "서버 주소"},
+          "hint": {"en": "The address of the folder, such as https://nas.local:5006/films/", "zh-Hans": "文件夹的地址，例如 https://nas.local:5006/films/", "zh-Hant": "資料夾的位址，例如 https://nas.local:5006/films/", "ja": "フォルダのアドレス。例：https://nas.local:5006/films/", "ko": "폴더 주소, 예: https://nas.local:5006/films/"}},
+        {"key": "user", "type": "text",
+          "title": {"en": "User", "zh-Hans": "用户名", "zh-Hant": "使用者名稱", "ja": "ユーザー名", "ko": "사용자 이름"}},
+        {"key": "password", "type": "secret", "auth": {"basic": ["user", "password"]},
+          "title": {"en": "Password", "zh-Hans": "密码", "zh-Hant": "密碼", "ja": "パスワード", "ko": "비밀번호"}}
+      ]
+    }]
+  }
+}

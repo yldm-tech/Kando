@@ -314,6 +314,8 @@
 - `kando.alist`（P6）：登录 `POST /api/auth/login`（`login: true`）拿令牌，`POST /api/fs/list`、`/api/fs/get`；`open` 回 `fs/get` 给的 `raw_url`（同 origin 的 `/d/…` 带签名，跨 origin 的经重定向规则）。
 - `kando.jellyfin`、`kando.emby`（P6）：两者 API 同源，`X-Emby-Token` 头（`auth.header`），`list` 把「媒体库 → 剧集 → 季 → 集」映射成目录，`open` 回 `/Videos/<id>/stream?static=true`，只取原始文件、不让服务器转码。
 - 源码放 `apps/kando/plugins/official/<名字>/`，和 `deepl/` 一样由 `make official-plugins` 签名、从 kando-plugins 发布（`docs/plugin-system.md` E14）。
+- 测试：每个插件文件夹的 Go 测试用测试现场生成的密钥签这个文件夹、`official.Wrap` 打包、`plugins.Stage` 安装、`script.Verify` 验成官方插件，在看懂的沙箱里跑（`plugins/official/sourcetest`，只给这几个插件的测试用，app 不导入它）：来源由看懂自己的 `mediasource.PluginDriver` 读，`kando.source.fetch` 由看懂自己的 `mediasource.Fetcher` 发到 httptest 写的假服务器，秘密按清单注入，所以测到的是插件和宿主规则合在一起的行为。
+- `kando.webdav` 1.0.0 的实现（PR 4.3）：清单写 `"kando": ">=0.54.0"`（`kando.source.fetch` 和插件驱动随 #464 进了 v0.54.0），包签了清单（`signature.SignsManifest`），`plugin.tsx` 不再写 `kandoManifest()`。字段是 `endpoint`、`user`、`password`（`auth.basic`），没有 `postPaths`，只发 `PROPFIND`。`multistatus` 按标签的本地名读，不管服务器给 `DAV:` 用什么前缀或默认命名空间，只取状态 200 的 `propstat`，认 CDATA 和实体；`href` 可以是绝对 URL 或路径，解码后取最后一段作文件名；文件夹自己那一项按 `href` 等于来源地址的路径加 `dir` 认出，认不出时（代理改写了路径）去掉其余各项都在它下面的最短那项。`version` 用 ETag，没有时用大小和修改时间；`stat("")` 回一个以地址最后一段命名的文件夹。列文件夹时路径以 `/` 结尾，`stat` 遇到 3xx 时加 `/` 再问一次。测试（`webdav_test.go`）：`golang.org/x/net/webdav` 的假服务器上列根目录和子目录（空格、中文、`#`）、`stat` 文件、文件夹、根和不存在的路径、从偏移读文件（看懂自己 GET，带 Basic）、插件发的请求只有 `PROPFIND` 且没有自己的 Authorization、地址是服务器根下的子文件夹；错密码是 `auth`（列目录、`stat`、读文件都是），不是 WebDAV 的地址和没人监听的地址是 `unavailable`；另一台手写回答的服务器覆盖小写前缀、默认命名空间、绝对 URL 的 `href`、404 的 `propstat`、实体和 CDATA、自己那一项不在第一个。签名和发布（`make official-plugins`、kando-plugins 的 PR）留给 owner。
 
 ## 12. 安全
 
