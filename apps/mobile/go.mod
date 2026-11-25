@@ -21,8 +21,8 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/google/licenseclassifier/v2 v2.0.0 // indirect
-	github.com/ikawaha/kagome-dict v1.1.7 // indirect
-	github.com/ikawaha/kagome-dict/ipa v1.2.6 // indirect
+	github.com/ikawaha/kagome-dict v1.1.8 // indirect
+	github.com/ikawaha/kagome-dict/ipa v1.2.7 // indirect
 	github.com/ikawaha/kagome/v2 v2.11.1 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.8.0 // indirect
 	github.com/nsgo-dev/goja v0.1.0-nsgo.2.0.20261121173409-f05dab9a4261 // indirect
