@@ -1324,14 +1324,19 @@ func TestMakeGivesUpAServiceThatFailsEveryCellWhileItIsHeard(t *testing.T) {
 	}
 }
 
-// A key the service rejects is given up after maxFailedBatches drafts one after another, without waiting for more of the film to be heard: no cell mends it.
+// A key the service rejects is given up after maxFailedBatches drafts one after another, without waiting for more of the film to be heard: no cell mends it. The cells after the first are heard only once that many drafts were sent, so a make that waited for them would never give up.
 func TestMakeGivesUpARejectedKeyWithoutWaitingForCells(t *testing.T) {
 	job, _ := makeJob(t)
 	job.SpeechLanguage = "ja"
+	open := make(chan struct{})
+	var drafts atomic.Int32
 	f := &makeFilm{length: 150 * time.Second, language: "ja", translate: func(string) (string, error) {
+		if drafts.Add(1) == maxFailedBatches {
+			close(open)
+		}
 		return "", &statusError{code: 401, status: "401 Unauthorized", detail: "invalid key"}
 	}}
-	done, _ := makeFilmOf(t, slowHearFilm{f}, job, 0)
+	done, _ := makeFilmOf(t, firstCellHearFilm{f, open}, job, 0)
 	if done.Stage != core.StageComplete || done.TranslationErr == "" {
 		t.Fatalf("job = %s %q", done.Stage, done.TranslationErr)
 	}
@@ -1343,6 +1348,24 @@ func TestMakeGivesUpARejectedKeyWithoutWaitingForCells(t *testing.T) {
 	if len(f.translated) != maxFailedBatches {
 		t.Fatalf("%d drafts sent, want %d", len(f.translated), maxFailedBatches)
 	}
+}
+
+// firstCellHearFilm is a makeFilm whose Hear gives the first cell's lines, and the line at 30 seconds that ends it, and the rest only once open is closed: a film heard slower than any number of drafts that fail, whatever the machine's speed.
+type firstCellHearFilm struct {
+	*makeFilm
+	open <-chan struct{}
+}
+
+func (f firstCellHearFilm) Hear(ctx context.Context, video string, from, to time.Duration, heard func(core.Segment)) (string, error) {
+	return f.makeFilm.Hear(ctx, video, from, to, func(s core.Segment) {
+		if s.Start > 30*time.Second {
+			select {
+			case <-ctx.Done():
+			case <-f.open:
+			}
+		}
+		heard(s)
+	})
 }
 
 // A film translated again that gave up a cell fails, leaving the film as it was; translated again once the service translates it, it begins anew rather than go on with what gave up, which would fail at once.
