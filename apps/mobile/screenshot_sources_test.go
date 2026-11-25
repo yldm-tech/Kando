@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -121,18 +123,23 @@ func TestScreenshotsSourcesStream(t *testing.T) {
 	f.ForgetRanges()
 	p.app.Press("id:browse-video-Morning Talk.mp4")
 	p.app.WaitFor("id:player-video", wait)
-	// The system's player reads the talk's length from the loopback server, then plays it on: the time left counts down.
-	p.app.WaitUntil(wait, func() bool { return len(f.Ranges()) > 0 && p.texts("id:player-left") == "-0:10" })
-	p.app.Press("id:player-play")
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-at") != "0:00" })
-	p.app.Press("id:player-play")
-	t.Logf("the player played %s from the loopback server, asking the NAS for %q; time left %q", p.playerSource(), f.Ranges(), p.texts("id:player-left"))
+	// On a phone the system's player reads the talk's length from the loopback server, then plays it on: the time played moves. Headless no player opens the URL.
+	if runtime.GOOS == "ios" || runtime.GOOS == "android" {
+		p.app.WaitUntil(wait, func() bool { return len(f.Ranges()) > 0 && p.texts("id:player-left") == "-0:10" })
+		p.app.Press("id:player-play")
+		p.app.WaitUntil(wait, func() bool { return p.texts("id:player-at") != "0:00" })
+		p.app.Press("id:player-play")
+		t.Logf("the player played %s from the loopback server, asking the NAS for %q; time left %q", p.playerSource(), f.Ranges(), p.texts("id:player-left"))
+	}
 	shot(p, "sources-stream")
 
 	f.Close()
 	p.app.Press("id:player-minimize")
 	p.app.WaitFor("id:browse-video-Holiday.mp4", wait)
 	p.app.Press("id:browse-video-Holiday.mp4")
+	p.app.WaitUntil(wait, func() bool { return strings.HasSuffix(p.playerSource(), "/Holiday.mp4") })
+	// What the system's player asks first, which headless nothing asks.
+	fetchRange(t, p.playerSource(), 0, 9)
 	p.app.WaitFor("id:player-failed-why", wait)
 	shot(p, "sources-stream-unreachable")
 }
