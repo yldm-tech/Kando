@@ -567,13 +567,27 @@
     gap: 12px;
     margin-top: 34px;
   }
-  .phone-actions {
-    margin-top: 12px;
-  }
   .meta {
     margin: 14px 0 0;
     color: var(--ink-3);
     font-size: 13px;
+  }
+  /* The phone app's line sits between the download buttons and the meta line, its links in the ink of the lead and underlined, so they read as links without being buttons. */
+  .phone-links {
+    margin-top: 20px;
+  }
+  .phone-links + .meta {
+    margin-top: 6px;
+  }
+  .phone-links a {
+    color: var(--ink-2);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: rgba(94, 87, 80, 0.35);
+    text-underline-offset: 3px;
+  }
+  .phone-links a:hover {
+    text-decoration-color: currentColor;
   }
 
   .stage {
