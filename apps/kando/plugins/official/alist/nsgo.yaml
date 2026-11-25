@@ -1,0 +1,6 @@
+# What go tool nsgo publish signs of Kando's official Alist plugin (.github/scripts/official-plugins.sh). The id is ai.yldm.kando.plugin. and the plugin's id, the version is kando-plugin.json's, and the capabilities are exactly what kando-plugin.json declares, in nsgo.yaml's snake_case: Kando refuses a package that signed anything else, and TestPluginAlistPublishes checks that they agree. The plugin signs no network rule of its own: it reaches the server only through kando.source.fetch, which Kando sends to the address the user filled in, POSTs only under the source's postPaths, and puts the password into the login request's body, which this code never sees.
+name: Alist
+id: ai.yldm.kando.plugin.kando.alist
+version: 1.0.0
+capabilities:
+  host: [kando.source.fetch]

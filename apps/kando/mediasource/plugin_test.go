@@ -3,6 +3,7 @@ package mediasource
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -209,7 +210,7 @@ func TestFetchRefuses(t *testing.T) {
 	}
 }
 
-// TestFetchLogin checks that a login request has the source's login secret put in its body, and only a login request: another sends the marker as it is.
+// TestFetchLogin checks that a login request has the source's login secret put in its body, and only a login request: another sends the marker as it is; and that the secret is escaped as the body's Content-Type reads it.
 func TestFetchLogin(t *testing.T) {
 	s := newDAV(t, false, "video")
 	f := s.fetcher(t, "secret")
@@ -223,6 +224,28 @@ func TestFetchLogin(t *testing.T) {
 	}
 	if got, _ = f.Fetch(context.Background(), FetchRequest{Method: "POST", Path: "login", Body: body}); string(got.Body) != body {
 		t.Errorf("a request that is no login sent %s", got.Body)
+	}
+
+	// A secret of a quote, a backslash, an ampersand, an equals sign and a line break is written into a JSON body as a JSON string's characters and into a form as a form's value, so the server reads it as it is; into another body as it is.
+	f.Secrets["pin"] = "a\"b\\c&d=e\nf"
+	got, err = f.Fetch(context.Background(), FetchRequest{Method: "POST", Path: "login", Header: map[string]string{"content-type": "application/json; charset=utf-8"}, Body: `{"pin":"{{secret:pin}}"}`, Login: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sent struct{ Pin string }
+	if err := json.Unmarshal(got.Body, &sent); err != nil || sent.Pin != f.Secrets["pin"] {
+		t.Errorf("a JSON login sent %s: %v", got.Body, err)
+	}
+	got, err = f.Fetch(context.Background(), FetchRequest{Method: "POST", Path: "login", Header: map[string]string{"Content-Type": "application/x-www-form-urlencoded"}, Body: "user=kando&pin={{secret:pin}}", Login: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if form, err := url.ParseQuery(string(got.Body)); err != nil || form.Get("pin") != f.Secrets["pin"] || form.Get("user") != "kando" {
+		t.Errorf("a form login sent %s: %v", got.Body, err)
+	}
+	got, err = f.Fetch(context.Background(), FetchRequest{Method: "POST", Path: "login", Header: map[string]string{"Content-Type": "text/plain"}, Body: "{{secret:pin}}", Login: true})
+	if err != nil || string(got.Body) != f.Secrets["pin"] {
+		t.Errorf("a plain login sent %q: %v", got.Body, err)
 	}
 }
 

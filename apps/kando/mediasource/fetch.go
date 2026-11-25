@@ -7,10 +7,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"net/netip"
@@ -360,7 +362,7 @@ func validHeader(name string) bool {
 	return true
 }
 
-// body is the request's body: the plugin's, with the source's login secrets put in place of {{secret:<key>}} for a login request alone; ErrFetchTooLarge over FetchBodyMax.
+// body is the request's body: the plugin's, with the source's login secrets put in place of {{secret:<key>}} for a login request alone, escaped as the body's Content-Type reads them (loginEscape); ErrFetchTooLarge over FetchBodyMax.
 func (f *Fetcher) body(r FetchRequest) (string, error) {
 	if len(r.Body) > FetchBodyMax {
 		return "", ErrFetchTooLarge
@@ -368,13 +370,35 @@ func (f *Fetcher) body(r FetchRequest) (string, error) {
 	if !r.Login {
 		return r.Body, nil
 	}
+	escape := loginEscape(r.Header)
 	body := r.Body
 	for _, field := range f.Source.Fields {
 		if field.Auth != nil && field.Auth.Login {
-			body = strings.ReplaceAll(body, "{{secret:"+field.Key+"}}", f.Secrets[field.Key])
+			body = strings.ReplaceAll(body, "{{secret:"+field.Key+"}}", escape(f.Secrets[field.Key]))
 		}
 	}
 	return body, nil
+}
+
+// loginEscape is how a secret is written into the body of a login request of the headers header, by its Content-Type: as the characters of a JSON string for JSON (application/json, or a type ending in +json), where {{secret:<key>}} stands inside the string's quotes; as a form's value for application/x-www-form-urlencoded; as it is otherwise. So a password with a quote, a backslash or an ampersand reaches the server as itself rather than breaking the body, or adding to it.
+func loginEscape(header map[string]string) func(string) string {
+	var contentType string
+	for k, v := range header {
+		if strings.EqualFold(k, "Content-Type") {
+			contentType = v
+		}
+	}
+	mediaType, _, _ := mime.ParseMediaType(contentType)
+	switch {
+	case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
+		return func(s string) string {
+			quoted, _ := json.Marshal(s)
+			return string(quoted[1 : len(quoted)-1])
+		}
+	case mediaType == "application/x-www-form-urlencoded":
+		return url.QueryEscape
+	}
+	return func(s string) string { return s }
 }
 
 // Fetch sends r for the plugin and gives back its reply, ErrFetchDenied when the source's rules do not let it go: a method not in FetchMethods, a POST outside the source's PostPaths, a login request that is not a POST, a path that is not plain, a header a plugin may not set. It follows no redirect, so a reply to elsewhere goes back to the plugin as it is, and keeps only replyHeaders of the reply's headers, so no Set-Cookie reaches the plugin.

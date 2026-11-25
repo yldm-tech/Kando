@@ -1,0 +1,37 @@
+{
+  "schema": 2,
+  "id": "kando.alist",
+  "kind": "script",
+  "version": "1.0.0",
+  "kando": ">=0.58.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/alist",
+  "name": {"en": "Alist", "zh-Hans": "Alist", "zh-Hant": "Alist", "ja": "Alist", "ko": "Alist"},
+  "description": {
+    "en": "Browses and imports films from an Alist (or OpenList) server, and the cloud drives it mounts.",
+    "zh-Hans": "浏览并导入 Alist（或 OpenList）服务器以及它挂载的网盘里的影片。",
+    "zh-Hant": "瀏覽並匯入 Alist（或 OpenList）伺服器以及它掛載的雲端硬碟裡的影片。",
+    "ja": "Alist（または OpenList）サーバーと、それがマウントしたクラウドドライブから映像を閲覧して読み込みます。",
+    "ko": "Alist(또는 OpenList) 서버와 그 서버가 마운트한 클라우드 드라이브에서 영상을 둘러보고 가져옵니다."
+  },
+  "capabilities": {"host": ["kando.source.fetch"]},
+  "contributes": {
+    "sources": [{
+      "id": "alist",
+      "title": {"en": "Alist", "zh-Hans": "Alist", "zh-Hant": "Alist", "ja": "Alist", "ko": "Alist"},
+      "icon": "cloud",
+      "postPaths": ["/api/auth/login", "/api/fs/list", "/api/fs/get"],
+      "fields": [
+        {"key": "endpoint", "type": "url",
+          "title": {"en": "Server address", "zh-Hans": "服务器地址", "zh-Hant": "伺服器位址", "ja": "サーバーのアドレス", "ko": "서버 주소"},
+          "hint": {"en": "The address you open Alist at, such as http://nas.local:5244/", "zh-Hans": "打开 Alist 用的地址，例如 http://nas.local:5244/", "zh-Hant": "開啟 Alist 用的位址，例如 http://nas.local:5244/", "ja": "Alist を開くアドレス。例：http://nas.local:5244/", "ko": "Alist를 여는 주소, 예: http://nas.local:5244/"}},
+        {"key": "user", "type": "text",
+          "title": {"en": "User", "zh-Hans": "用户名", "zh-Hant": "使用者名稱", "ja": "ユーザー名", "ko": "사용자 이름"},
+          "hint": {"en": "Leave empty to browse as a guest", "zh-Hans": "留空则以游客身份浏览", "zh-Hant": "留空則以訪客身分瀏覽", "ja": "空欄にするとゲストとして閲覧します", "ko": "비워 두면 게스트로 둘러봅니다"}},
+        {"key": "password", "type": "secret", "auth": {"login": true},
+          "title": {"en": "Password", "zh-Hans": "密码", "zh-Hant": "密碼", "ja": "パスワード", "ko": "비밀번호"}}
+      ]
+    }]
+  }
+}
