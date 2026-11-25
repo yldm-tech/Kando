@@ -572,6 +572,27 @@
     color: var(--ink-3);
     font-size: 13px;
   }
+  /* On a phone the hero's four downloads are a grid of two columns, each button as wide as the others. */
+  .hero-tux {
+    display: inline-flex;
+  }
+  @media (max-width: 640px) {
+    .hero-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      gap: 10px;
+    }
+    .hero-actions .btn {
+      padding: 0 10px;
+      gap: 6px;
+      font-size: 14px;
+    }
+    /* The Windows and Linux button keeps Windows' mark alone there, as both and its words are wider than half a phone. */
+    .hero-tux {
+      display: none;
+    }
+  }
 
   .stage {
     position: relative;
@@ -2558,6 +2579,15 @@
     }
     .kp {
       --kp-scale: 0.6;
+    }
+    /* The download panel's four tabs share the panel's width on a phone, as at their least width they are wider than it. */
+    .dl .seg {
+      width: auto;
+    }
+    .dl .seg button {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 4px;
     }
   }
 }

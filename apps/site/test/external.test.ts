@@ -1,12 +1,12 @@
-// TestNoExternalHosts: the pages load nothing from elsewhere and link nowhere but the repository, the plugin directory's repository, EveryAPI and the site's own address: no fonts, scripts, analytics or CDNs, in the HTML, the site's own scripts and styles, or the bundled libraries. The Go site also had no inline script or style at all; React's hydration needs the router's inline scripts, so here each page carries a Content Security Policy that allows the site's own files and those scripts by their hashes only, and the HTML still has no style attribute, no <style> and no event handler attribute.
+// TestNoExternalHosts: the pages load nothing from elsewhere and link nowhere but the repository, the plugin directory's repository, the iPhone app's TestFlight invitation, the phone app's Google Play page, EveryAPI and the site's own address: no fonts, scripts, analytics or CDNs, in the HTML, the site's own scripts and styles, or the bundled libraries. The Go site also had no inline script or style at all; React's hydration needs the router's inline scripts, so here each page carries a Content Security Policy that allows the site's own files and those scripts by their hashes only, and the HTML still has no style attribute, no <style> and no event handler attribute.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { inlineScripts, scriptHash } from "../buildtime/csp";
-import { everyAPIURL, pluginsRepoURL, repoURL, siteURL } from "../src/lib/site";
+import { everyAPIURL, pluginsRepoURL, repoURL, googlePlayURL, siteURL, testFlightURL } from "../src/lib/site";
 import { attr, decode, dist, htmlFiles, isExternal, readOut, siteDir, tags } from "./helpers";
 
-const allowed = [repoURL, everyAPIURL, siteURL, pluginsRepoURL];
+const allowed = [repoURL, everyAPIURL, siteURL, pluginsRepoURL, testFlightURL, googlePlayURL];
 
 function allowedRef(ref: string): boolean {
   return allowed.some((base) => ref === base || (ref.startsWith(base) && /^[/?#]/.test(ref.slice(base.length))));
