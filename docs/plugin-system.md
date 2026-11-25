@@ -339,7 +339,7 @@ kind 是封闭枚举：`dictionary`、`wordlist`、`glossary`、`ai-service`、`
 
 AnkiConnect 的所有动作（包括删除牌组）都走同一个端点，动作名写在请求体里，`methods`/`paths` 管不到它。所以这个参考插件刻意不申请 `lines.seen` 和 `llm.chat`：它的行为由签过名的代码决定，不会被字幕内容左右。这条残余风险写在审核规范里（见 6.2）。
 
-上面是展示完整形态的示例。实际发布的官方插件在 `apps/kando/plugins/official/`（`ankiconnect/`、`deepl/`，以及媒体来源插件 `webdav/`、`alist/`，见 `docs/media-sources.md` 11.5），AnkiConnect 只有导出目标，申请得更少（没有命令和事件，`optional` 只有 `kando.sound.read`），见第 15 节 P3c。
+上面是展示完整形态的示例。实际发布的官方插件在 `apps/kando/plugins/official/`（`ankiconnect/`、`deepl/`，以及媒体来源插件 `webdav/`、`alist/`、`jellyfin/`，见 `docs/media-sources.md` 11.5），AnkiConnect 只有导出目标，申请得更少（没有命令和事件，`optional` 只有 `kando.sound.read`），见第 15 节 P3c。
 
 带凭据的插件（官方的 DeepL 翻译来源，`official/deepl/kando-plugin.json`）换掉的是下面这几个键，语言表只列了几个。它只申请 `kando.net.credentialFetch`：要翻的句子由宿主作为 `translate` 的参数交给它，不需要 `kando.lines.seen`；候选译文由 `candidates` 导出提供，没有 `kando.candidates.offer` 这个权限（5.3）。`methods` 和 `pathPrefixes` 是必填项，宿主据此限制 `credentialFetch`：
 

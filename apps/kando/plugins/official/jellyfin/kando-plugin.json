@@ -1,0 +1,34 @@
+{
+  "schema": 2,
+  "id": "kando.jellyfin",
+  "kind": "script",
+  "version": "1.0.0",
+  "kando": ">=0.54.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/jellyfin",
+  "name": {"en": "Jellyfin", "zh-Hans": "Jellyfin", "zh-Hant": "Jellyfin", "ja": "Jellyfin", "ko": "Jellyfin"},
+  "description": {
+    "en": "Browses and imports films and episodes from a Jellyfin server, as their original files, never transcoded.",
+    "zh-Hans": "浏览并导入 Jellyfin 服务器上的电影和剧集，取原始文件，不经转码。",
+    "zh-Hant": "瀏覽並匯入 Jellyfin 伺服器上的電影和影集，取原始檔案，不經轉碼。",
+    "ja": "Jellyfin サーバーの映画とエピソードを、トランスコードせず元のファイルのまま閲覧して読み込みます。",
+    "ko": "Jellyfin 서버의 영화와 에피소드를 트랜스코딩 없이 원본 파일 그대로 둘러보고 가져옵니다."
+  },
+  "capabilities": {"host": ["kando.source.fetch"]},
+  "contributes": {
+    "sources": [{
+      "id": "jellyfin",
+      "title": {"en": "Jellyfin", "zh-Hans": "Jellyfin", "zh-Hant": "Jellyfin", "ja": "Jellyfin", "ko": "Jellyfin"},
+      "icon": "film",
+      "fields": [
+        {"key": "endpoint", "type": "url",
+          "title": {"en": "Server address", "zh-Hans": "服务器地址", "zh-Hant": "伺服器位址", "ja": "サーバーのアドレス", "ko": "서버 주소"},
+          "hint": {"en": "The address you open Jellyfin at, such as http://nas.local:8096/", "zh-Hans": "打开 Jellyfin 用的地址，例如 http://nas.local:8096/", "zh-Hant": "開啟 Jellyfin 用的位址，例如 http://nas.local:8096/", "ja": "Jellyfin を開くアドレス。例：http://nas.local:8096/", "ko": "Jellyfin을 여는 주소, 예: http://nas.local:8096/"}},
+        {"key": "apiKey", "type": "secret", "auth": {"header": "Authorization", "format": "MediaBrowser Token=\"{secret}\""},
+          "title": {"en": "API key", "zh-Hans": "API 密钥", "zh-Hant": "API 金鑰", "ja": "API キー", "ko": "API 키"},
+          "hint": {"en": "An administrator makes one under API Keys in the server's dashboard", "zh-Hans": "由管理员在服务器控制台的 API 密钥页面创建", "zh-Hant": "由管理員在伺服器控制台的 API 金鑰頁面建立", "ja": "管理者がサーバーのダッシュボードの API キーで作成します", "ko": "관리자가 서버 대시보드의 API 키에서 만듭니다"}}
+      ]
+    }]
+  }
+}
