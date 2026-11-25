@@ -236,7 +236,7 @@ func (p *Plugin) Open(t testing.TB, kind string, config, secrets map[string]stri
 	return d
 }
 
-// Call calls the plugin's export with args through Kando's runner, waiting 15 s at most as Kando does for a source's list, stat and open; a rejection with a code is a *mediasource.PluginError, as Kando makes it.
+// Call calls the plugin's export with args through Kando's runner, waiting 15 s at most as Kando does for a source's list, stat and open (callWait, longer under the race detector); a rejection with a code is a *mediasource.PluginError, as Kando makes it.
 func (p *Plugin) Call(ctx context.Context, export string, args ...any) (any, error) {
 	type answer struct {
 		v   any
@@ -246,7 +246,7 @@ func (p *Plugin) Call(ctx context.Context, export string, args ...any) (any, err
 	p.e.post(func() {
 		p.r.Call(p.pl, export, args, func(v any, err error) { got <- answer{v, coded(err)} })
 	})
-	timer := time.NewTimer(15 * time.Second)
+	timer := time.NewTimer(callWait)
 	defer timer.Stop()
 	select {
 	case r := <-got:
