@@ -26,13 +26,14 @@ func (s *Session) keepNexts(desktop string, listing catalog.Listing) {
 	}
 }
 
-// Next is the key of the film that plays after the film under key, as its computer last named it, and whether the phone keeps that film with its video, which it can play then; "" for a film with none.
+// Next is the key of the film that plays after the film under key, as its computer last named it, and whether the phone keeps that film with its video, which it can play then; "" for a film with none. A film of a source matched to a computer's film goes on as that film does, and a next film matched to a film of a source plays as that one (PlayKey), from the phone, its source or its computer (matched.go).
 func (s *Session) Next(key string) (string, bool) {
 	f, ok := s.Film(key)
-	if !ok || f.Film.Next == "" {
+	lf := f.LinesFilm()
+	if !ok || lf.Film.Next == "" {
 		return "", false
 	}
-	next := store.Key(f.Desktop, f.Film.Next)
+	next := s.PlayKey(store.Key(lf.Desktop, lf.Film.Next))
 	kept, ok := s.Film(next)
-	return next, ok && kept.HasVideo()
+	return next, ok && (kept.HasVideo() || kept.FromSource())
 }

@@ -284,10 +284,10 @@ func (v *view) detailTone(cx *core.Scope, key func() string) func() core.Color {
 	}
 }
 
-// open is what pressing a film does: plays a film on the phone from the line the search found, or where it was left (openFilm), else opens the film's page.
+// open is what pressing a film does: plays a film on the phone, or one a NAS or a server streams, from the line the search found, or where it was left (openFilm), else opens the film's page.
 func (v *view) open(r catalog.Result) {
 	if h := r.Hit; h != nil {
-		if k, ok := v.s.Film(r.Key()); ok && k.Done() {
+		if k, ok := v.s.Film(r.Key()); ok && k.Done() || v.s.Matched(r.Key()) {
 			v.playAt(r.Key(), h.At)
 			return
 		}
@@ -299,7 +299,8 @@ func (v *view) open(r catalog.Result) {
 func (v *view) row(cx *core.Scope, r func() catalog.Result, i func() int) core.Node {
 	colors := ui.ColorsOf(cx)
 	s := v.s
-	key := func() string { return r().Key() }
+	// What stands on the phone for a film of a NAS matched to it is its copy there (session.Copy).
+	key := func() string { return s.Copy(r().Key()) }
 	transfer := func() (session.Transfer, bool) { return s.Transfer(key()) }
 	kept := func() (store.Film, bool) { return s.Film(key()) }
 	id := r().Desktop + "-" + r().Film.ID
@@ -353,7 +354,7 @@ var dots = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" wid
 // cell is a film of a tablet's grid: its poster with its length and how far it was watched, its title, its meta and the line a search found, and its options beside the title, at the poster's foot. Pressed, it does what a row does.
 func (v *view) cell(cx *core.Scope, r func() catalog.Result) core.Node {
 	colors := ui.ColorsOf(cx)
-	key := func() string { return r().Key() }
+	key := func() string { return v.s.Copy(r().Key()) }
 	id := r().Desktop + "-" + r().Film.ID
 	return core.View{Style: core.Style{Width: core.Pct(33.333), Padding: core.Symmetric(0, 8)}, Children: []core.Node{
 		core.View{TestID: "films-film-" + id, Role: core.RoleButton,

@@ -185,3 +185,42 @@ func TestScreenshotsSourcesLines(t *testing.T) {
 	}
 	shot(p, "sources-stream-lines")
 }
+
+// The Library with a video of the NAS that the paired computer made a film of, downloaded from the NAS: listed once, as the computer's film, with its poster, where the film of the NAS and the computer's film were two rows of the same video before.
+func TestScreenshotsSourcesMerged(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	f := davFilms(t, false)
+	video := storeAsset(t, "talk.mp4")
+	if err := os.WriteFile(filepath.Join(f.Dir, "Films/Morning Talk.mp4"), video, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := davSource(f)
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Japanese Class")
+	listed := sync.Film{ID: "f2", Title: "Morning Talk", Source: "local", DurationMS: 10_000, Spoken: "ja", Translation: "English", Updated: now(),
+		SourceKey: remotefs.SourceKey(nas.Remote(src, nil), "Morning Talk.mp4", int64(len(video)))}
+	d.AddFilm(synctest.Film{Library: "lib", Video: video, Poster: storeAsset(t, "poster-talk.jpg"), Cues: storeCues, Film: listed})
+	d.AddFilm(synctest.Film{Library: "lib", Video: []byte("v"), Poster: storeAsset(t, "poster-kyoto.jpg"),
+		Film: sync.Film{ID: "f3", Title: "A Walk Through Old Kyoto", Source: "youtube", DurationMS: (14*time.Minute + 32*time.Second).Milliseconds(), Spoken: "ja", Translation: "English", Updated: now().Add(-time.Hour)}})
+	d.Offer("123456")
+	desktop := store.DesktopID(d.Fingerprint)
+	// The film of the NAS was downloaded from it and took the computer's lines on an earlier run.
+	st := store.Open(dir)
+	kept := store.Film{Desktop: store.SourceOwner(src.ID), Library: src.Name, Source: src.ID, Path: "Morning Talk.mp4", Video: "video.mp4", Added: now(),
+		Film:  sync.Film{ID: store.SourceFilmID("Morning Talk.mp4"), Title: "Morning Talk", Source: "local", VideoSize: int64(len(video))},
+		Lines: &store.Lines{Desktop: desktop, Library: "lib", LibraryName: "Japanese Class", Film: listed}}
+	if err := st.SaveFilm(kept); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveCues(desktop, "f2", storeCues); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(st.FilmDir(kept.Desktop, kept.Film.ID), kept.Video), video, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p := startWithSourceAndDesktop(t, dir, src, d)
+	p.app.WaitFor(filmRow(desktop, "f2"), wait)
+	p.app.WaitFor(filmRow(desktop, "f3"), wait)
+	shot(p, "sources-merged")
+}

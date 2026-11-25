@@ -47,8 +47,9 @@ func (l *Layer) Play(key string) { l.open(key, false) }
 // PlayHeld shows the player of the film kept under key over the app held where the film was left, with the recap of the part watched, as from the film's page; the one minimized when it plays that film shows as it is.
 func (l *Layer) PlayHeld(key string) { l.open(key, true) }
 
-// open shows the player of the film kept under key over the app, a new one opened held (held) unless it is the one minimized.
+// open shows the player of the film kept under key over the app, a new one opened held (held) unless it is the one minimized. A computer's film matched to a film of a source plays as that film, which plays either video and holds where both were left (session.PlayKey).
 func (l *Layer) open(key string, held bool) {
+	key = l.s.PlayKey(key)
 	if l.key.GetUntracked() != key {
 		l.held = held
 		l.key.Set(key)
@@ -58,6 +59,7 @@ func (l *Layer) open(key string, held bool) {
 
 // PlayAt shows the player of the film kept under key over the app, playing from at.
 func (l *Layer) PlayAt(key string, at time.Duration) {
+	key = l.s.PlayKey(key)
 	l.s.SavePosition(key, at)
 	if p := l.cur.GetUntracked(); p != nil && p.key == key {
 		p.seek(at)

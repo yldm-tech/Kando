@@ -37,7 +37,7 @@ func miniBar(cx *core.Scope, l *Layer, p *play) core.Node {
 	over := look.OverTabBar(cx)
 	// Beside a tablet's sidebar the bar is roomier: a wider poster, larger text and buttons.
 	wide := func() bool { return !over() }
-	title := func() string { f, _ := p.s.Film(p.key); return f.Film.Title }
+	title := func() string { f, _ := p.s.LinesFilm(p.key); return f.Film.Title }
 	// The line playing, or the last heard: its translation first, its original under it; a film's title where there is no line, or no translation.
 	top := func() string {
 		c := p.line(p.shown.Get())

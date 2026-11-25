@@ -135,6 +135,8 @@ type Entry struct {
 func (e Entry) Key() string { return store.Key(e.Desktop, e.Film.ID) }
 
 // Merge is the films the computers list and those the phone keeps, each once, the latest first by when each last changed on its computer, so a film keeps its place whether or not its computer answers: a film both have is the computer's, as it lists it now, with where it was left last of the computer's and the phone's positions, the phone's being newer even where it went back to the beginning. A film the phone keeps from a computer that does not list it, as one out of reach or unpaired, is the phone's. A film whose computer gave no time is ordered by when the phone downloaded it.
+//
+// A film of a NAS or a server matched to a computer's film of the same file (store.Film.Lines, docs/media-sources.md 10.5) is that computer's film: it is listed once, under the computer's film's key, with the computer's title, poster and library, and where it was left last of both; where the computer does not list it, it is listed as the phone last took it from the computer (store.Lines). Which of the phone's copies plays it is the session's to say (session.PlayKey, session.Copy).
 func Merge(computers []Computer, kept []store.Film) []Entry {
 	var out []Entry
 	at := map[string]int{}
@@ -152,7 +154,11 @@ func Merge(computers []Computer, kept []store.Film) []Entry {
 	}
 	for _, k := range kept {
 		mine := Position{At: time.Duration(k.PositionMS) * time.Millisecond, When: k.PositionAt, Mine: true}
-		if i, ok := at[k.Key()]; ok {
+		key := k.Key()
+		if k.FromSource() && k.Lines != nil {
+			key = k.Lines.Key()
+		}
+		if i, ok := at[key]; ok {
 			if (k.PositionMS > 0 || !k.PositionAt.IsZero()) && (out[i].Position.At <= 0 || !out[i].Position.When.After(k.PositionAt)) {
 				out[i].Position = mine
 			}
@@ -162,6 +168,9 @@ func Merge(computers []Computer, kept []store.Film) []Entry {
 			continue
 		}
 		e := Entry{Desktop: k.Desktop, Library: sync.Library{Name: k.Library}, Film: k.Film, Added: k.Film.Updated}
+		if l := k.Lines; key != k.Key() {
+			e = Entry{Desktop: l.Desktop, Library: sync.Library{ID: l.Library, Name: l.LibraryName}, Film: l.Film, Added: l.Film.Updated}
+		}
 		if e.Added.IsZero() {
 			e.Added = k.Added
 		}

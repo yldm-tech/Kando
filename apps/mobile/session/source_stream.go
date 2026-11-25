@@ -18,7 +18,7 @@ import (
 	"kando/packages/sync"
 )
 
-// Streaming from a source (docs/media-sources.md 10.3): a video of a NAS or a server plays at once, nothing of it downloaded, as the system's player opens it at a URL of the phone's loopback server (kando/apps/mobile/loopback), the one a film being made plays from, which serves the file's bytes read through a connection of the film's own (remotefs.Handler: Range, If-Range and the rest). The film is kept as a film kept to stream (store.Film.Streamed), so the player keeps where it was left as for any film, and a download of it later goes on from there. Its URL and its connection last while the player holds the film, and go as it plays another or the film leaves the phone (EndStream). A connection that fails, as the source is switched off or the phone leaves its network, is told (StreamProblem), and the next request the player makes connects anew.
+// Streaming from a source (docs/media-sources.md 10.3): a video of a NAS or a server plays at once, nothing of it downloaded, as the system's player opens it at a URL of the phone's loopback server (kando/apps/mobile/loopback), the one a film being made plays from, which serves the file's bytes read through a connection of the film's own (remotefs.Handler: Range, If-Range and the rest). The film is kept as a film kept to stream (store.Film.Streamed), so the player keeps where it was left as for any film, and a download of it later goes on from there. Its URL and its connection last while the player holds the film, and go as it plays another or the film leaves the phone (EndStream). A connection that fails, as the source is switched off or the phone leaves its network, is told (StreamProblem), and the next request the player makes connects anew. A film matched to a computer's film of the same file streams the computer's video instead once its source fails, rather than saying so (matched.go, toComputer).
 
 // sourceStream is the file at path of the source id that the player streams the film kept under key from: the connection made for it, the first time the player asks, and the error of the last request that failed, nil once one succeeds again. Its fields under mu are read and written off the engine's goroutine, by the loopback server's requests.
 type sourceStream struct {
@@ -106,8 +106,14 @@ func (s *Session) EndStream(key string) {
 	s.work.Go(st.close)
 }
 
-// StreamProblem is why the film kept under key could not be read from its source the last time the player asked, nil while it streams or for a film that does not stream from a source: ErrSourceGone for a source removed, ErrStreamFileGone for a file no longer there, else the connection's error, which remotefs.Diagnose tells. Read it in a binding.
-func (s *Session) StreamProblem(key string) error { return s.src.streamFail.Get()[key] }
+// StreamProblem is why the film kept under key could not be read from its source the last time the player asked, nil while it streams or for a film that does not stream from a source: ErrSourceGone for a source removed, ErrStreamFileGone for a file no longer there, else the connection's error, which remotefs.Diagnose tells. A film matched to a computer's film that streams the computer's video for it has none. Read it in a binding.
+func (s *Session) StreamProblem(key string) error {
+	if f, ok := s.Film(key); ok && s.streamsFromComputer(f) {
+		// A film matched to a computer's film plays the computer's video instead.
+		return nil
+	}
+	return s.src.streamFail.Get()[key]
+}
 
 // ErrStreamFileGone is the error of a film streamed from a source whose file is no longer there, as it was moved or deleted.
 var ErrStreamFileGone = streamFileGoneError{}
@@ -210,6 +216,10 @@ func (st *sourceStream) tell(err error) {
 		s.src.mu.Unlock()
 		if !current {
 			return
+		}
+		// A film matched to a computer's film streams the computer's video instead, which the player opens anew (StreamLink), once the computer has it; the failure is kept, so it is told while the computer does not.
+		if f, ok := s.Film(st.key); err != nil && ok {
+			s.toComputer(f)
 		}
 		m := maps.Clone(s.src.streamFail.GetUntracked())
 		if err == nil {

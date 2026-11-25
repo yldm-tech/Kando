@@ -22,6 +22,9 @@ import (
 type sources struct {
 	list       *core.Signal[[]store.Source]
 	streamFail *core.Signal[map[string]error]
+	// fromComputer are the films of a source matched to a computer's film that could not be read from their source this session, by key, which stream from the computer instead (matched.go, StreamLink); probing the films whose source DownloadCopy is asking whether it answers. Engine goroutine only.
+	fromComputer *core.Signal[map[string]bool]
+	probing      map[string]bool
 
 	mu      gosync.Mutex
 	saved   []store.Source
@@ -32,6 +35,7 @@ type sources struct {
 
 func newSources(cx *core.Scope) *sources {
 	return &sources{list: core.NewSignalFunc[[]store.Source](cx, nil, nil), streamFail: core.NewSignalFunc(cx, map[string]error{}, nil),
+		fromComputer: core.NewSignalFunc(cx, map[string]bool{}, nil), probing: map[string]bool{},
 		readers: map[string]nas.Reader{}, streams: map[string]*sourceStream{}, dial: nas.Remotefs}
 }
 

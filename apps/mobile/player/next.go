@@ -108,7 +108,8 @@ func nextCard(cx *core.Scope, l *Layer, p *play) core.Node {
 		title := func() string {
 			up := p.card.Get()
 			if up.key != "" {
-				if f, ok := p.s.Film(up.key); ok {
+				// A film of a NAS matched to a computer's film is named as the computer names it.
+				if f, ok := p.s.LinesFilm(up.key); ok {
 					return f.Film.Title
 				}
 			}

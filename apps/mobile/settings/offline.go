@@ -31,10 +31,10 @@ func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 						}},
 						core.Show{When: func() bool { _, ok := s.Space(); return ok }, Then: func(cx *core.Scope) core.Node { return offlineSpace(cx, s) }},
 					}},
-				core.Show{When: func() bool { return len(s.Films()) > 0 },
+				core.Show{When: func() bool { return len(s.Offline()) > 0 },
 					Then: func(cx *core.Scope) core.Node {
 						return section(cx, func() string { return locales.SettingsOfflineSaved(cx) },
-							core.Each(s.Films, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
+							core.Each(s.Offline, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
 								return offlineFilm(cx, s, f, i)
 							}))
 					},
@@ -51,13 +51,16 @@ func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func() int) core.Node {
 	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
 	key := f().Key()
+	// A film of a NAS matched to a computer's film is named as the computer names it, and stands for both copies the phone may keep: where the one with its video, or on its way, stands (session.Copy), with the computer's poster.
+	named := func() store.Film { lf, _ := s.LinesFilm(key); return lf }
+	copied := func() store.Film { c, _ := s.Film(s.Copy(key)); return c }
 	detail := func() string {
 		var parts []string
 		if n := f().Film.VideoSize; n > 0 {
 			parts = append(parts, look.Size(n))
 		}
 		// A film kept whole says it is saved, as the design's list does; one on its way or stopped says where it stands.
-		if fl := f(); fl.Done() && fl.HasVideo() {
+		if fl := copied(); fl.Done() && fl.HasVideo() {
 			parts = append(parts, locales.SettingsOfflineFilmSaved(cx))
 		} else if st := look.Status(cx, s, key); st != "" {
 			parts = append(parts, st)
@@ -65,23 +68,28 @@ func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func
 		return strings.Join(parts, " · ")
 	}
 	remove := func() {
-		cx.ShowAlert(core.AlertConfig{Title: locales.FilmDeleteTitle(cx, f().Film.Title), Actions: []core.AlertAction{
+		cx.ShowAlert(core.AlertConfig{Title: locales.FilmDeleteTitle(cx, named().Film.Title), Actions: []core.AlertAction{
 			{Label: locales.CommonCancel(cx), Role: core.AlertCancel},
 			{Label: locales.FilmDeleteConfirm(cx), Role: core.AlertDestructive},
 		}}, func(i int) {
 			if i == 1 {
-				s.Delete(key)
+				s.DeleteCopies(key)
 			}
 		})
 	}
 	// The rows are the design's 64 points with a 15/600 title, as the films lists' rows with a poster are.
 	return look.Row{TestID: "offline-film-" + key, Index: i, TitleLines: 1, MinHeight: 64,
 		TitleStyle: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightSemibold},
-		Leading:    look.Poster(cx, func() core.ImageSource { return look.LocalPoster(s, f()) }, 72, ""),
-		Title:      func() string { return f().Film.Title },
-		Detail:     detail,
+		Leading: look.Poster(cx, func() core.ImageSource {
+			if c, ok := s.Film(named().Key()); ok && c.Poster != "" {
+				return look.LocalPoster(s, c)
+			}
+			return look.LocalPoster(s, f())
+		}, 72, ""),
+		Title:  func() string { return named().Film.Title },
+		Detail: detail,
 		// Delete is a capsule in danger's color on its tint; ui.Button takes its text as a string, which would not follow the language, and has no danger look, so it is base.Button in the design's style.
-		Trailing: base.Button{TestID: "offline-delete-" + key, LabelFunc: func() string { return locales.SettingsOfflineDelete(cx, f().Film.Title) },
+		Trailing: base.Button{TestID: "offline-delete-" + key, LabelFunc: func() string { return locales.SettingsOfflineDelete(cx, named().Film.Title) },
 			OnPress: func(core.PressEvent) { remove() },
 			Style:   core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 12), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
 			StyleFunc: func() core.Style {

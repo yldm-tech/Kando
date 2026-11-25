@@ -90,12 +90,50 @@ func (s *Session) StreamLink(key string) string {
 		return ""
 	}
 	if f.FromSource() {
+		if s.streamsFromComputer(f) {
+			return s.computerLink(key, f.LinesFilm())
+		}
 		return s.sourceLink(f)
 	}
+	return s.computerLink(key, f)
+}
+
+// computerLink is the link f, a computer's film, streams from as the film kept under key: from the computer on its network, unless the player could not open it from there (StreamFailed), else out of its storage; "" when neither has its video. Read it in a binding.
+func (s *Session) computerLink(key string, f store.Film) string {
 	if s.OnNetwork(f.Desktop) && !s.making.fromStorage.Get()[key] {
 		return s.lanLink(f)
 	}
 	return s.remote.shelf.Get()[f.Desktop].films.VideoLink(f.Film.ID)
+}
+
+// streamsFromComputer reports whether f, a film of a source, streams from the computer's film matched to it (store.Film.Lines) rather than from its source: its source was removed, or could not be read this session (fromComputer), and the computer has the video to stream now (computerHas), on its network or in its storage; until it has, the film streams from its source, which says why it fails (StreamProblem). Read it in a binding.
+func (s *Session) streamsFromComputer(f store.Film) bool {
+	if f.Lines == nil {
+		return false
+	}
+	if _, ok := s.Source(f.Source); ok && !s.src.fromComputer.Get()[f.Key()] {
+		return false
+	}
+	return s.computerHas(f.LinesFilm())
+}
+
+// computerHas reports whether the computer of f, a computer's film, has its video to stream now: on its network, or in its storage away from it. Read it in a binding.
+func (s *Session) computerHas(f store.Film) bool {
+	return s.OnNetwork(f.Desktop) || s.remote.shelf.Get()[f.Desktop].films.VideoLink(f.Film.ID) != ""
+}
+
+// toComputer has f, a film of a source matched to a computer's film, stream from the computer from now on, once the computer has the video (streamsFromComputer), as its source could not be read; it reports whether f streams from the computer now. A film of no match does not. Engine goroutine only.
+func (s *Session) toComputer(f store.Film) bool {
+	key := f.Key()
+	if f.Lines == nil {
+		return false
+	}
+	if !s.src.fromComputer.GetUntracked()[key] {
+		m := maps.Clone(s.src.fromComputer.GetUntracked())
+		m[key] = true
+		s.src.fromComputer.Set(m)
+	}
+	return s.streamsFromComputer(f)
 }
 
 // relaySource is desktop's films in its storage, for downloading film id away from its network: false while the phone reaches the computer on its network, or the storage holds no video of the film. Engine goroutine only.

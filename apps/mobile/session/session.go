@@ -318,6 +318,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 			s.transfers.Set(t)
 			s.loadLinks(links)
 			s.loadSources(sources)
+			s.shareKeptPositions()
 			for _, d := range desktops {
 				s.follow(d.ID)
 			}
@@ -634,17 +635,19 @@ func (s *Session) savePosition(key string, at time.Duration, send bool) {
 	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()
 	s.replace(f)
 	s.saveFilm(f)
-	if f.LibraryID == "" {
+	// A film of a source matched to a computer's film keeps the place as that film's too, which the computer and the other devices go on from (matched.go).
+	lf := f.LinesFilm()
+	if lf.LibraryID == "" {
 		return
 	}
 	// A library still being read from disk is not written over: the player's next save sends the position.
-	k := studyKey(f.Desktop, f.LibraryID)
+	k := studyKey(lf.Desktop, lf.LibraryID)
 	if _, ok := s.studies.GetUntracked()[k]; !ok && (!s.learn.ready.GetUntracked() || s.studyLoading[k]) {
 		return
 	}
-	s.setStudy(f.Desktop, f.LibraryID, study.Change(s.studies.GetUntracked()[k], study.Position(f.Film.ID, at, f.PositionAt)))
+	s.setStudy(lf.Desktop, lf.LibraryID, study.Change(s.studies.GetUntracked()[k], study.Position(lf.Film.ID, at, f.PositionAt)))
 	if send {
-		s.syncStudy(f.Desktop, f.LibraryID)
+		s.syncStudy(lf.Desktop, lf.LibraryID)
 	}
 }
 
@@ -835,7 +838,12 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 	}
 	if j.remove.Load() {
 		if !j.lines {
+			cur, _ := s.Film(key)
 			s.dropFilm(key)
+			if cur.Lines != nil {
+				// The lines it took from a computer's film go with it, as remove has them go.
+				s.dropLines(*cur.Lines, key)
+			}
 			return
 		}
 		s.replace(got)

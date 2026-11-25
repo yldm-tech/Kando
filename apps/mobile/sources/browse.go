@@ -109,11 +109,12 @@ func BrowsePage(cx *core.Scope, s *session.Session, id, dir string, act Browse) 
 func videoRow(cx *core.Scope, s *session.Session, id, p string, e func() remotefs.Info, i func() int, play func(key string)) core.Node {
 	colors := ui.ColorsOf(cx)
 	key := session.SourceFilmKey(id, p)
-	done := func() bool { f, ok := s.Film(key); return ok && f.HasVideo() }
-	running := func() bool { t, ok := s.Transfer(key); return ok && t.State == session.Running }
+	// A file the paired computer made a film of is on the phone once either copy is, the computer's downloaded from the computer among them (session.Copy), as the Library says.
+	done := func() bool { f, ok := s.Film(s.Copy(key)); return ok && f.HasVideo() }
+	running := func() bool { t, ok := s.Transfer(s.Copy(key)); return ok && t.State == session.Running }
 	press := func() {
 		if running() {
-			s.Pause(key)
+			s.Pause(s.Copy(key))
 			return
 		}
 		s.DownloadSource(id, p, e())
@@ -149,7 +150,7 @@ func videoRow(cx *core.Scope, s *session.Session, id, p string, e func() remotef
 		Detail:   detail,
 		Trailing: trailing,
 		Below: core.Show{When: running, Then: func(cx *core.Scope) core.Node {
-			return ui.Progress{LabelFunc: func() string { return locales.SourceDownload(cx, name()) }, Value: func() float32 { t, _ := s.Transfer(key); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 4}}}
+			return ui.Progress{LabelFunc: func() string { return locales.SourceDownload(cx, name()) }, Value: func() float32 { t, _ := s.Transfer(s.Copy(key)); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 4}}}
 		}},
 		OnPress: func() { s.StreamSource(id, p, e(), play) }}
 }

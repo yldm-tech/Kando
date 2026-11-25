@@ -132,8 +132,9 @@ func LocalPoster(s *session.Session, f store.Film) core.ImageSource {
 	return core.Src(kcore.FileURL(filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Poster)))
 }
 
-// Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, downloaded, or its lines kept for a film kept without its video; "" for a film not on the phone.
+// Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, downloaded, or its lines kept for a film kept without its video; "" for a film not on the phone. Of a film of a source and the computer's film of the same file, it is where the copy that stands for both stands (session.Copy).
 func Status(cx *core.Scope, s *session.Session, key string) string {
+	key = s.Copy(key)
 	if t, ok := s.Transfer(key); ok {
 		percent := int(t.Fraction() * 100)
 		switch t.State {

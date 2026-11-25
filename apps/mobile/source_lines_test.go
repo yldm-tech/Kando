@@ -132,7 +132,7 @@ func TestASourceFilmOfAServerNamedOtherwiseHasNoLines(t *testing.T) {
 	}
 }
 
-// A film of a NAS that took a computer's lines shows them where the computer cannot be reached, as it is not paired any more: they are kept on the phone, and a search finds them. Deleted from the phone, the film takes them with it.
+// A film of a NAS that took a computer's lines shows them where the computer cannot be reached, as it is not paired any more: they are kept on the phone, the Library lists the film as the computer's it took them from, and a search finds them. Deleted from the phone, the film takes them with it.
 func TestASourceFilmShowsItsLinesOffline(t *testing.T) {
 	dir := t.TempDir()
 	src := davSource(davFilms(t, false))
@@ -150,10 +150,10 @@ func TestASourceFilmShowsItsLinesOffline(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := startPhone(t, dir, keepSource(t, dir, src, davtest.Password))
-	row := filmRow(f.Desktop, f.Film.ID)
+	row := filmRow("gonedesk", "f2")
 	p.app.WaitFor(row, wait)
 	p.app.Type("id:films-search", "HOW ARE")
-	hit := "id:films-hit-" + f.Desktop + "-" + f.Film.ID
+	hit := "id:films-hit-gonedesk-f2"
 	p.app.WaitFor(hit, wait)
 	if got, want := p.texts(hit), msgs.FilmsHit("0:03", "How are you?"); got != want {
 		t.Fatalf("the hit says %q, want %q", got, want)
@@ -172,7 +172,7 @@ func TestASourceFilmShowsItsLinesOffline(t *testing.T) {
 		t.Fatalf("the card's translation is %q", got)
 	}
 	p.app.Press("id:player-minimize")
-	options := "id:films-options-" + f.Desktop + "-" + f.Film.ID
+	options := "id:films-options-gonedesk-f2"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
 	p.choose(msgs.FilmDelete())

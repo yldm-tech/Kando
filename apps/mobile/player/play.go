@@ -229,19 +229,18 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	return p
 }
 
-// hasVideo reports whether the film has a video to play: on the phone, or for a film kept to stream (streamed) in its computer's storage. A film kept by its lines alone is studied line by line, holding still, until it has. Read it in a binding.
+// hasVideo reports whether the film has a video to play: on the phone (session.VideoFile), or for a film kept to stream (streamed) in its computer's storage. A film kept by its lines alone is studied line by line, holding still, until it has. Read it in a binding.
 func (p *play) hasVideo() bool {
 	if p.streamed() {
 		return p.s.StreamLink(p.key) != ""
 	}
-	f, ok := p.s.Film(p.key)
-	return ok && f.HasVideo()
+	return p.s.VideoFile(p.key) != ""
 }
 
-// streamed reports whether the film is kept to stream rather than downloaded (store.Film.Streamed): from its computer on its network, or from its storage away from it (session.StreamLink). A film of a source streams from its file there until its download is done, even while it downloads. Read it in a binding.
+// streamed reports whether the film is kept to stream rather than downloaded (store.Film.Streamed): from its computer on its network, or from its storage away from it (session.StreamLink). A film of a source streams from its file there until its download is done, even while it downloads, unless the video of the computer's film matched to it is on the phone (session.VideoFile). Read it in a binding.
 func (p *play) streamed() bool {
 	f, ok := p.s.Film(p.key)
-	return ok && (f.Streamed || f.FromSource()) && !f.Done()
+	return ok && (f.Streamed || f.FromSource()) && !f.Done() && p.s.VideoFile(p.key) == ""
 }
 
 // untranslated reports whether the film's lines were not translated by its computer (sync.Film.Translation is empty), as a film heard in the language its subtitles are for: its lines are its own alone. Read it in a binding.

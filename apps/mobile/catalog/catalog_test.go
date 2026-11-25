@@ -228,3 +228,38 @@ func TestFromRelayListsTheLibrariesFilms(t *testing.T) {
 		t.Fatalf("listed %+v", got)
 	}
 }
+
+// A film of a NAS matched to a computer's film of the same file (store.Film.Lines) is that film: listed once, under the computer's key, with the computer's title and library, and where it was left last of the computer's position and those of the phone's two copies; with the computer out of reach it is listed as the phone last took it from the computer. A film of a NAS matched to nothing is listed as its own.
+func TestMergeListsAMatchedSourceFilmOnce(t *testing.T) {
+	listed := film("f2", "Holiday on the NAS", "local", day)
+	lines := &store.Lines{Desktop: "d1", Library: "lib", LibraryName: "Japanese Class", Film: listed}
+	nasFilm := store.Film{Desktop: store.SourceOwner("src"), Library: "Home NAS", Source: "src", Path: "Holiday.mp4", Streamed: true, Added: day,
+		Film: sync.Film{ID: store.SourceFilmID("Holiday.mp4"), Title: "Holiday", Source: "local"}, Lines: lines,
+		PositionMS: 4_000, PositionAt: day.Add(2 * time.Hour)}
+	computer := Computer{ID: "d1", Name: "Studio", Listing: Listing{Libraries: []Library{{Library: sync.Library{ID: "lib", Name: "Japanese Class"}, Films: []sync.Film{listed},
+		Positions: map[string]Position{"f2": {At: 9 * time.Second, When: day.Add(time.Hour), Device: "Studio"}}}}}}
+	downloaded := store.Film{Desktop: "d1", Library: "Japanese Class", Film: listed, Video: "video.mp4", Added: day, PositionMS: 2_000, PositionAt: day.Add(30 * time.Minute)}
+
+	got := Merge([]Computer{computer}, []store.Film{nasFilm, downloaded})
+	if len(got) != 1 || got[0].Key() != "d1/f2" || got[0].Film.Title != "Holiday on the NAS" || got[0].Computer != "Studio" || got[0].Library.ID != "lib" {
+		t.Fatalf("merged %+v", got)
+	}
+	if p := got[0].Position; p.At != 4*time.Second || !p.Mine {
+		t.Errorf("the film was left at %+v, want 0:04 on the phone, the latest", p)
+	}
+	if c := Continue(got, 6); len(c) != 1 || c[0].Key() != "d1/f2" {
+		t.Errorf("Continue %v", keys(c))
+	}
+
+	got = Merge(nil, []store.Film{nasFilm})
+	if len(got) != 1 || got[0].Key() != "d1/f2" || got[0].Film.Title != "Holiday on the NAS" || got[0].Library.Name != "Japanese Class" || got[0].Position.At != 4*time.Second {
+		t.Fatalf("merged with the computer out of reach %+v", got)
+	}
+
+	unmatched := nasFilm
+	unmatched.Lines = nil
+	got = Merge([]Computer{computer}, []store.Film{unmatched})
+	if want := []string{"d1/f2", unmatched.Key()}; !slices.Equal(keys(got), want) {
+		t.Errorf("merged a film matched to nothing as %v, want %v", keys(got), want)
+	}
+}

@@ -10,7 +10,7 @@ import (
 	"kando/packages/remotefs"
 )
 
-// The lines of a film of a source, from a computer (docs/media-sources.md 10.3, 10.5): the phone makes no subtitles itself, so a film it plays from a NAS or a server has none, unless a paired computer made a film of the same file. A computer names the file a film of its media sources was made of by its key (sync.Film.SourceKey, remotefs.SourceKey of where the file is and its size), which the phone computes alike for the file of its own source; once a computer lists a film of the same key (matchLines), the phone takes that film's subtitles as it takes a computer's film's by its lines alone, over the computer's network or out of its storage, and keeps them in that film's folder, films/<desktop>/<film>, which holds no film.json and so is no film of the Library. The film of the source keeps which film it took them from (store.Film.Lines), so it shows them where neither the computer nor the storage can be reached; the player, the word marks, the learning state, lookups and the glossary all go by that film (LinesFilm), while the video still plays from the source and the place it was left stays the film of the source's own. A server named otherwise on the two devices, as nas.local on one and its address on the other, gives other keys, and the film keeps no lines, on purpose.
+// The lines of a film of a source, from a computer (docs/media-sources.md 10.3, 10.5): the phone makes no subtitles itself, so a film it plays from a NAS or a server has none, unless a paired computer made a film of the same file. A computer names the file a film of its media sources was made of by its key (sync.Film.SourceKey, remotefs.SourceKey of where the file is and its size), which the phone computes alike for the file of its own source; once a computer lists a film of the same key (matchLines), the phone takes that film's subtitles as it takes a computer's film's by its lines alone, over the computer's network or out of its storage, and keeps them in that film's folder, films/<desktop>/<film>, which holds no film.json and so is no film of the Library. The film of the source keeps which film it took them from (store.Film.Lines), so it shows them where neither the computer nor the storage can be reached; the player, the word marks, the learning state, lookups and the glossary all go by that film (LinesFilm), and the two are one film from then on: the Library lists it once, as the computer's film, and the film of the source holds the place both were left at and plays the video of either (matched.go). A server named otherwise on the two devices, as nas.local on one and its address on the other, gives other keys, and the film keeps no lines, on purpose.
 
 // linesFor is how long the phone waits for a computer, or its storage, to give the lines of a film of a source.
 const linesFor = 30 * time.Second
@@ -121,6 +121,8 @@ func (s *Session) tookLines(key string, l store.Lines, fw *follow, err error, re
 		return
 	}
 	cur.Lines = &l
+	// Where the computer's film was left on the phone before they were matched is where both go on from, when it is the later (matched.go).
+	cur = s.sharedPosition(cur)
 	s.replace(cur)
 	s.saveFilm(cur)
 	s.OpenMarks(key)

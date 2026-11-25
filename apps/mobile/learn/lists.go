@@ -125,10 +125,10 @@ func kept(s *session.Session, it learning.Item) (store.Film, bool) {
 	return s.Film(store.Key(it.Desktop, it.Film))
 }
 
-// playable reports whether the film it is from is whole on the phone, so its player can show the place: one still downloading, or waiting to, is not.
+// playable reports whether the film it is from is whole on the phone, so its player can show the place: one still downloading, or waiting to, is not. A computer's film matched to a film of a NAS on the phone plays as that film, which streams it from the NAS or the computer until either copy is downloaded (session.PlayKey).
 func playable(s *session.Session, it learning.Item) bool {
 	f, ok := kept(s, it)
-	return ok && f.Done()
+	return ok && f.Done() || it.Film != "" && s.Matched(store.Key(it.Desktop, it.Film))
 }
 
 // posterOf is the poster of the film it is from: the one kept on the phone, or one the Library fetched this session; none otherwise.

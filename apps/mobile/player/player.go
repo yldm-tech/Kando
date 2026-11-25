@@ -73,6 +73,8 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	theme.Dark(cx)
 	s := l.s
 	f, _ := s.Film(key)
+	// A film of a source matched to a computer's film is named as the computer names it, as the Library lists it (catalog.Merge).
+	title := f.LinesFilm().Film.Title
 	p := newPlay(cx, s, key)
 	l.carry(p)
 	shown := l.Full
@@ -126,11 +128,14 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 
 	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer on its network, or from its storage away from it, and shows its lines alone when neither has its video (session.Stream); a film being made plays a link's sound until its video comes, then the video from where it was, as the link changes (session.StreamLink) and the player opens it anew (OnLoad).
 	video := func(cx *core.Scope) core.Node {
-		return core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
+		return core.Video{TestID: "player-video", Ref: p.ref, Label: title,
 			// A film streamed until its download is done plays from the phone from then on, so its file is read as the record has it now.
 			SourceFunc: func() string {
 				if p.streamed() {
 					return s.StreamLink(key)
+				}
+				if v := s.VideoFile(key); v != "" {
+					return v
 				}
 				k, _ := s.Film(key)
 				return filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
@@ -236,10 +241,10 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 	notFull := func() bool { return shape.Get() != full }
 	bar := core.Show{When: notFull,
 		Then: func(cx *core.Scope) core.Node {
-			return topBar(cx, f.Film.Title, l.Minimize, func() { settingsOpen.Set(true) })
+			return topBar(cx, title, l.Minimize, func() { settingsOpen.Set(true) })
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return landscapeTop(cx, p, f.Film.Title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn)
+			return landscapeTop(cx, p, title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn)
 		}}
 	controlsNode := core.Show{When: notFull,
 		Then: func(cx *core.Scope) core.Node { return transport(cx, p) },

@@ -612,7 +612,7 @@ func (s *Session) learnSave(write func() error) {
 	})
 }
 
-// LineClips are the clips of items' lines to dictate (learning.ClipOf), by their keys, read off the engine's goroutine and answered on it: an item whose film's video is not kept whole on the phone has none, as its line cannot be heard.
+// LineClips are the clips of items' lines to dictate (learning.ClipOf), by their keys, read off the engine's goroutine and answered on it: an item whose film's video is not kept whole on the phone has none, as its line cannot be heard. A computer's film matched to a film of a source is heard from whichever of the two the phone keeps the video of, with the delay the player keeps for both (matched.go).
 func (s *Session) LineClips(items []learning.Item, done func(map[string]learning.Clip)) {
 	type kept struct {
 		video string
@@ -621,8 +621,11 @@ func (s *Session) LineClips(items []learning.Item, done func(map[string]learning
 	films := map[string]kept{}
 	for _, it := range items {
 		key := store.Key(it.Desktop, it.Film)
-		if f, ok := s.Film(key); ok && f.HasVideo() && it.Film != "" {
-			films[key] = kept{video: filepath.Join(s.st.FilmDir(f.Desktop, f.Film.ID), f.Video), film: f}
+		plays := s.PlayKey(key)
+		if f, ok := s.Film(plays); ok && it.Film != "" {
+			if video := s.VideoFile(plays); video != "" {
+				films[key] = kept{video: video, film: f.LinesFilm()}
+			}
 		}
 	}
 	s.work.Go(func() {

@@ -130,11 +130,11 @@ func (s *Session) Computers() []catalog.Computer {
 // Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge).
 func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.films.Get()) }
 
-// LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on, and for a film of a source that took a computer's film's lines, that film's key, whose folder they are in (store.Film.LinesFilm).
+// LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on, and for a film of a source that took a computer's film's lines, streamed or downloaded, that film's key, whose folder they are in (store.Film.LinesFilm) and which the Library lists it under (catalog.Merge).
 func (s *Session) LinesKey() string {
 	var b strings.Builder
 	for _, f := range s.films.Get() {
-		if f.Done() {
+		if f.Done() || f.Lines != nil {
 			lf := f.LinesFilm()
 			b.WriteString(f.Key())
 			b.WriteByte('@')
@@ -149,12 +149,12 @@ func (s *Session) LinesKey() string {
 	return b.String()
 }
 
-// Lines reads the lines of the films LinesKey names, by film key, for a search: off the engine's goroutine, as a resource's fetcher. A film whose lines cannot be read has none.
+// Lines reads the lines of the films LinesKey names, by the key the Library lists each under, for a search: a film of a source that took a computer's film's lines by that film's (catalog.Merge). It runs off the engine's goroutine, as a resource's fetcher. A film whose lines cannot be read has none.
 func (s *Session) Lines(ctx context.Context, key string) map[string][]sync.Cue {
 	out := map[string][]sync.Cue{}
 	for line := range strings.Lines(key) {
 		parts := strings.Split(strings.TrimSuffix(line, "\n"), "@")
-		k, from := parts[0], parts[0]
+		from := parts[0]
 		if len(parts) > 2 {
 			from = parts[2]
 		}
@@ -163,7 +163,7 @@ func (s *Session) Lines(ctx context.Context, key string) map[string][]sync.Cue {
 			continue
 		}
 		if cues, ok, _ := s.st.Cues(desktop, film); ok {
-			out[k] = cues
+			out[from] = cues
 		}
 	}
 	return out

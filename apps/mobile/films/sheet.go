@@ -32,7 +32,9 @@ type optionsSheet struct {
 
 // options shows what can be done with e's film, in a sheet on a phone and a dialog in the middle of a tablet's screen (optionsNode), headed by its poster, title, source and length: play it, from where it was left or from the start, once it is on the phone, and delete it from the phone; download it, or pause, resume or cancel its download; for a film its computer keeps no video of, keep its lines on the phone and have the computer download the video, and once it has, download the video to the phone; through its computer, export its subtitles to share, translate it again and delete it from the library.
 func (v *view) options(cx *core.Scope, e catalog.Entry) {
-	s, key := v.s, e.Key()
+	// What is on the phone of a computer's film matched to a film of a NAS is the copy that stands for both (session.Copy); the options that go through the computer are of the computer's film.
+	s := v.s
+	key := s.Copy(e.Key())
 	k, kept := s.Film(key)
 	t, moving := s.Transfer(key)
 	q := s.Queue(e.Desktop)
@@ -60,6 +62,15 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		opts = append(opts,
 			option{label: locales.FilmPause(cx), do: func() { s.Pause(key) }},
 			option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
+	case s.Matched(e.Key()) && !moving:
+		// Streamed from its NAS, or from its computer when the NAS cannot be read, and downloaded from either (session.DownloadCopy).
+		opts = append(opts, option{label: locales.FilmPlay(cx), do: func() { v.resume(e) }})
+		if catalog.Resumable(e.Position, time.Duration(e.Film.DurationMS)*time.Millisecond) {
+			opts = append(opts, option{label: locales.FilmsPlayFromStart(cx), do: func() { v.playAt(key, 0) }})
+		}
+		opts = append(opts,
+			option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.DownloadCopy(e.Key()) }},
+			option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
 	case kept:
 		opts = append(opts,
 			option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }},
@@ -72,7 +83,7 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 	case s.Client(e.Desktop) != nil:
 		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 	}
-	_, listed := s.Listed(key)
+	_, listed := s.Listed(e.Key())
 	if listed && e.Film.SubtitlesOnly && q.Can(sync.OpFilmVideo) && !s.VideoComing(e.Desktop, e.Film.ID) {
 		opts = append(opts, option{label: locales.FilmVideoOnComputer(cx, computer), do: func() { s.DownloadVideoOnComputer(e.Desktop, e.Film) }})
 	}
@@ -185,14 +196,14 @@ func (v *view) confirmDeleteFromLibrary(cx *core.Scope, e catalog.Entry, compute
 	})
 }
 
-// confirmDelete asks before deleting e's film from the phone, which its computer keeps.
+// confirmDelete asks before deleting e's film from the phone, which its computer keeps: every copy of it there, of a computer's film matched to a film of a NAS both (session.DeleteCopies).
 func (v *view) confirmDelete(cx *core.Scope, e catalog.Entry) {
 	cx.ShowAlert(core.AlertConfig{Title: locales.FilmDeleteTitle(cx, e.Film.Title), Actions: []core.AlertAction{
 		{Label: locales.CommonCancel(cx), Role: core.AlertCancel},
 		{Label: locales.FilmDeleteConfirm(cx), Role: core.AlertDestructive},
 	}}, func(i int) {
 		if i == 1 {
-			v.s.Delete(e.Key())
+			v.s.DeleteCopies(e.Key())
 		}
 	})
 }

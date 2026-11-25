@@ -267,7 +267,7 @@ func deviceRows(cx *core.Scope, s *session.Session, act Actions) []core.Node {
 		add(look.Row{TestID: "settings-offline", Chevron: true,
 			Leading: look.GlyphTile(cx, glyph("↓"), fixed(theme.TileSky)),
 			Title:   func() string { return locales.SettingsOffline(cx) },
-			Value:   func() string { return locales.SettingsOfflineCount(cx, len(s.Films())) },
+			Value:   func() string { return locales.SettingsOfflineCount(cx, len(s.Offline())) },
 			OnPress: act.Offline})
 	}
 	if act.Sources != nil {

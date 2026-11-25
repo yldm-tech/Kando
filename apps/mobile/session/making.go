@@ -87,9 +87,15 @@ func (s *Session) loopback() *loopback.Server {
 	return m.server
 }
 
-// StreamFailed is the player failing to open the film kept under key from where it streams: one it could not open from its computer on its network streams from the storage for the rest of the session, when the storage holds its video, and StreamFailed reports true, as the player opens it again from there (StreamLink); otherwise it reports false, and the film cannot play. Engine goroutine only.
+// StreamFailed is the player failing to open the film kept under key from where it streams: one it could not open from its computer on its network streams from the storage for the rest of the session, when the storage holds its video, and StreamFailed reports true, as the player opens it again from there (StreamLink); otherwise it reports false, and the film cannot play. A film of a source matched to a computer's film goes from its source to the computer's video so (toComputer), and from the computer's network to its storage as the computer's film does. Engine goroutine only.
 func (s *Session) StreamFailed(key string) bool {
 	f, ok := s.Film(key)
+	if ok && f.FromSource() {
+		if !s.streamsFromComputer(f) {
+			return s.toComputer(f)
+		}
+		f = f.LinesFilm()
+	}
 	if !ok || !s.OnNetwork(f.Desktop) || s.making.fromStorage.GetUntracked()[key] || s.remote.shelf.GetUntracked()[f.Desktop].films.VideoLink(f.Film.ID) == "" {
 		return false
 	}
