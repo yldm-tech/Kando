@@ -21,7 +21,7 @@ type Looked struct {
 
 // Vocabulary are the words of the vocabulary of the film under key's library spoken in its language, the phone's changes not yet sent among them, the latest put in first. Read it in a binding.
 func (s *Session) Vocabulary(key string) []learning.Item {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return nil
 	}
@@ -50,7 +50,7 @@ func sameSpoken(a, b string) bool {
 
 // ToggleWord puts word, as e, the computer's lookup of it, gives it, looked up in c, a line of the film under key, in its library's vocabulary, or takes it out once it is in, and reports whether it is in now. A film whose library is not known yet changes nothing (Studyable).
 func (s *Session) ToggleWord(key, word string, e sync.WordEntry, c study.Cue) bool {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return false
 	}
@@ -74,7 +74,7 @@ func (s *Session) ToggleWord(key, word string, e sync.WordEntry, c study.Cue) bo
 // LookedUp are the words looked up on the phone in lines, the originals of the lines of the film under key, in the order the lookups were made. Read it in a binding: it changes as a word is looked up.
 func (s *Session) LookedUp(key string, lines []string) []Looked {
 	_ = s.lookupRev.Get()
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || len(lines) == 0 {
 		return nil
 	}

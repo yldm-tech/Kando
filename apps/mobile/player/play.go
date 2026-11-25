@@ -69,12 +69,10 @@ type play struct {
 	aspect  *core.Signal[float32]
 	failed  *core.Signal[bool]
 	// loop is the line looped, -1 for none.
-	loop *core.Signal[int]
-	mode *core.Persisted[string]
-	// untranslated is true for a film the desktop did not translate (sync.Film.Translation is empty), as one heard in the language its subtitles are for: its lines are its own alone.
-	untranslated bool
-	rate         *core.Persisted[float32]
-	saved        time.Duration
+	loop  *core.Signal[int]
+	mode  *core.Persisted[string]
+	rate  *core.Persisted[float32]
+	saved time.Duration
 	// reported is where the video last said it was, and watched how long it played since the time watched was last kept (session.Watch).
 	reported, watched time.Duration
 	// current is the line showing, -1 for none; shown is the line the card shows: the one showing, else the last one heard, else the first.
@@ -119,33 +117,37 @@ func (p *play) say(kind, title string) {
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	f, _ := s.Film(key)
 	p := &play{cx: cx, s: s, key: key, ref: &core.Ref{},
-		playing:      core.NewSignal(cx, f.HasVideo()),
-		at:           core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
-		length:       core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
-		aspect:       core.NewSignal(cx, float32(16.0/9)),
-		failed:       core.NewSignal(cx, false),
-		loop:         core.NewSignal(cx, -1),
-		mode:         core.NewPersisted(cx, modeKey, kcore.SubBilingual, core.PersistOptions{}),
-		rate:         core.NewPersisted(cx, speedKey, float32(1), core.PersistOptions{}),
-		follow:       core.NewPersisted(cx, followKey, false, core.PersistOptions{}),
-		audioOnly:    core.NewPersisted(cx, audioOnlyKey, false, core.PersistOptions{}),
-		onPicture:    core.NewPersisted(cx, onPictureKey, false, core.PersistOptions{}),
-		held:         core.NewSignal(cx, false),
-		delay:        core.NewSignal(cx, time.Duration(f.DelayMS)*time.Millisecond),
-		sleep:        core.NewSignal(cx, sleepOff),
-		autoNext:     core.NewPersisted(cx, autoNextKey, true, core.PersistOptions{}),
-		card:         core.NewSignal(cx, upNext{}),
-		revealed:     core.NewSignal(cx, -1),
-		cut:          core.NewSignal(cx, 0),
-		pip:          core.NewSignal(cx, core.PictureInPictureState{}),
-		saved:        time.Duration(f.PositionMS) * time.Millisecond,
-		untranslated: f.Film.Translation == "",
-		heard:        -1,
-		now:          time.Now,
-		toast:        ui.NewToaster(cx),
+		playing:   core.NewSignal(cx, f.HasVideo()),
+		at:        core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
+		length:    core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
+		aspect:    core.NewSignal(cx, float32(16.0/9)),
+		failed:    core.NewSignal(cx, false),
+		loop:      core.NewSignal(cx, -1),
+		mode:      core.NewPersisted(cx, modeKey, kcore.SubBilingual, core.PersistOptions{}),
+		rate:      core.NewPersisted(cx, speedKey, float32(1), core.PersistOptions{}),
+		follow:    core.NewPersisted(cx, followKey, false, core.PersistOptions{}),
+		audioOnly: core.NewPersisted(cx, audioOnlyKey, false, core.PersistOptions{}),
+		onPicture: core.NewPersisted(cx, onPictureKey, false, core.PersistOptions{}),
+		held:      core.NewSignal(cx, false),
+		delay:     core.NewSignal(cx, time.Duration(f.DelayMS)*time.Millisecond),
+		sleep:     core.NewSignal(cx, sleepOff),
+		autoNext:  core.NewPersisted(cx, autoNextKey, true, core.PersistOptions{}),
+		card:      core.NewSignal(cx, upNext{}),
+		revealed:  core.NewSignal(cx, -1),
+		cut:       core.NewSignal(cx, 0),
+		pip:       core.NewSignal(cx, core.PictureInPictureState{}),
+		saved:     time.Duration(f.PositionMS) * time.Millisecond,
+		heard:     -1,
+		now:       time.Now,
+		toast:     ui.NewToaster(cx),
 	}
-	p.cues = core.NewResource(cx, func() (string, bool) { return key, true }, func(_ context.Context, key string, _ core.ResourceInfo) ([]cues.Cue, error) {
-		list, _, err := s.Store().Cues(f.Desktop, f.Film.ID)
+	// The lines are those of the film the film takes them from (session.LinesFilm): its own, or for a film of a source, those of the computer's film of the same file, read again once it takes them. The memo keeps them from being read again at every change of the film's record, as its place is kept while it plays.
+	linesFrom := core.NewMemo(cx, func() [2]string {
+		lf, _ := s.LinesFilm(key)
+		return [2]string{lf.Desktop, lf.Film.ID}
+	})
+	p.cues = core.NewResource(cx, func() ([2]string, bool) { return linesFrom.Get(), true }, func(_ context.Context, from [2]string, _ core.ResourceInfo) ([]cues.Cue, error) {
+		list, _, err := s.Store().Cues(from[0], from[1])
 		return cues.FromSync(list), err
 	})
 	p.lines = core.NewMemoFunc(cx, func() []cues.Cue {
@@ -242,12 +244,18 @@ func (p *play) streamed() bool {
 	return ok && (f.Streamed || f.FromSource()) && !f.Done()
 }
 
+// untranslated reports whether the film's lines were not translated by its computer (sync.Film.Translation is empty), as a film heard in the language its subtitles are for: its lines are its own alone. Read it in a binding.
+func (p *play) untranslated() bool {
+	f, _ := p.s.LinesFilm(p.key)
+	return f.Film.Translation == ""
+}
+
 // subAt is where the playhead is in the lines' time: the picture's, less the delay.
 func (p *play) subAt() time.Duration { return p.at.Get() - p.delay.Get() }
 
 // shownMode is the mode the picture shows the lines in: the one chosen, but for a film the desktop did not translate, whose lines show as Original shows them rather than dimmed as lines not translated yet.
 func (p *play) shownMode() string {
-	if mode := p.mode.Get(); !p.untranslated || (mode != kcore.SubTranslation && mode != kcore.SubBilingual) {
+	if mode := p.mode.Get(); !p.untranslated() || (mode != kcore.SubTranslation && mode != kcore.SubBilingual) {
 		return mode
 	}
 	return kcore.SubOriginal

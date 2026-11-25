@@ -1142,6 +1142,40 @@ func TestPhoneSyncServesAnIndexedVideo(t *testing.T) {
 	}
 }
 
+// Phone Sync names the file of a NAS a film was made of by its source key (psync.Film.SourceKey), the one a phone that reaches the same NAS computes for it: an indexed film by the size the source gave, a copied one by its video's size here, and neither a film of a plugin's source, of a source no longer in the settings, nor one of the web.
+func TestPhoneSyncNamesTheSourceFile(t *testing.T) {
+	dir := t.TempDir()
+	nas := mediasource.Source{ID: "0123456789abcdef", Kind: mediasource.KindSMB, Name: "NAS", Config: map[string]string{mediasource.SMBHost: "nas.local", mediasource.SMBShare: "video", mediasource.SMBRoot: "Films", mediasource.SMBUser: "anna"}}
+	plugin := mediasource.Source{ID: "fedcba9876543210", Kind: "kando.webdav", Name: "DAV", Config: map[string]string{"url": "https://nas.local/dav"}}
+	indexed := filepath.Join(dir, "NAS", "River", "video.mp4")
+	copied := filepath.Join(dir, "NAS", "Lake.mp4")
+	if err := os.MkdirAll(filepath.Dir(copied), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(copied, []byte("seven b"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ps := phoneShelf{linked: map[string]shelf.Linked{indexed: {Source: nas.ID, Path: "River.mp4", Size: 1 << 20}}, sources: map[string]bool{nas.ID: true, plugin.ID: true}, sourceList: []mediasource.Source{nas, plugin}}
+	// smb ‖ nas.local ‖ 445 ‖ video ‖ Films/River.mp4 ‖ 1048576, the vector of remotefs's TestSourceKeyVectors.
+	if got := phoneFilmOf(films.Film{Key: indexed, VideoPath: indexed, Linked: nas.ID, Source: mediasource.Ref{Source: nas.ID, Path: "River.mp4"}.String()}, ps); got.SourceKey != "6aTKFGnkWxhnQ8vrl6Wj-G" {
+		t.Errorf("the indexed film has the key %q", got.SourceKey)
+	}
+	lake := films.Film{Key: "job1", JobID: "job1", VideoPath: copied, Source: mediasource.Ref{Source: nas.ID, Path: "Lake.mp4"}.String()}
+	if got, want := phoneFilmOf(lake, ps).SourceKey, remotefs.SourceKey(remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "video", Root: "Films"}, "Lake.mp4", 7); got != want || got == "" {
+		t.Errorf("the copied film has the key %q, want %q", got, want)
+	}
+	for name, item := range map[string]films.Film{
+		"of a plugin's source":   {Key: "job2", JobID: "job2", VideoPath: copied, Source: mediasource.Ref{Source: plugin.ID, Path: "Lake.mp4"}.String()},
+		"of a source gone":       {Key: "job3", JobID: "job3", VideoPath: copied, Source: mediasource.Ref{Source: "1111111111111111", Path: "Lake.mp4"}.String()},
+		"of the web":             {Key: "job4", JobID: "job4", VideoPath: copied, Source: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+		"whose video is no more": {Key: "job5", JobID: "job5", VideoPath: filepath.Join(dir, "gone.mp4"), Source: mediasource.Ref{Source: nas.ID, Path: "gone.mp4"}.String()},
+	} {
+		if got := phoneFilmOf(item, ps).SourceKey; got != "" {
+			t.Errorf("a film %s has the key %q", name, got)
+		}
+	}
+}
+
 // Two films indexed from the same folder of a source are said to be in the same folder of the library, where no video of either is: taking one off the shelf sends only its own files to the Trash, never the folder with the other's subtitles, and asks to remove its files rather than its folder.
 func TestTrashOneOfTwoIndexedFilmsKeepsTheOther(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})

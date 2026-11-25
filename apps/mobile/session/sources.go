@@ -363,6 +363,7 @@ func (s *Session) DownloadSource(id, p string, info remotefs.Info) {
 	}
 	s.films.Set(append([]store.Film{rec}, s.films.Get()...))
 	s.start(rec)
+	s.matchLines()
 }
 
 // sourceFilmSource is what a film downloaded from a source is filed under among the Library's chips: a file of the user's own, as one the computer imported from its disk (catalog.SourceLocal).

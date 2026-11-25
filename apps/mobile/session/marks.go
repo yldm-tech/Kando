@@ -39,7 +39,7 @@ func (s *Session) FilmMarks(key string) (sync.FilmMarks, bool) {
 
 // OpenMarks reads the marks kept with the film under key, off the engine's goroutine, then asks its computer for them on its network, which the phone keeps in their place: a computer out of reach, or one from before the marks, leaves those kept; one that marks nothing on the film, with its switches off, drops them. Called while an ask of the film is under way, it asks again once that one ends, as the film's lines changed meanwhile.
 func (s *Session) OpenMarks(key string) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok {
 		return
 	}

@@ -109,10 +109,12 @@ func (s *Session) forgetShelf(id string) {
 	s.shelves.Set(m)
 }
 
+// setShelf changes computer id's shelf, and gives the films of a source the lines of the films it lists of the same files (matchLines).
 func (s *Session) setShelf(id string, change func(Shelf) Shelf) {
 	m := maps.Clone(s.shelves.GetUntracked())
 	m[id] = change(m[id])
 	s.shelves.Set(m)
+	s.matchLines()
 }
 
 // Computers are the paired computers with what they last listed, in the order they were paired, for catalog.Merge.
@@ -128,14 +130,19 @@ func (s *Session) Computers() []catalog.Computer {
 // Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge).
 func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.films.Get()) }
 
-// LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on.
+// LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on, and for a film of a source that took a computer's film's lines, that film's key, whose folder they are in (store.Film.LinesFilm).
 func (s *Session) LinesKey() string {
 	var b strings.Builder
 	for _, f := range s.films.Get() {
 		if f.Done() {
+			lf := f.LinesFilm()
 			b.WriteString(f.Key())
 			b.WriteByte('@')
-			b.WriteString(strconv.FormatInt(f.Film.Updated.UnixNano(), 36))
+			b.WriteString(strconv.FormatInt(lf.Film.Updated.UnixNano(), 36))
+			if f.Lines != nil {
+				b.WriteByte('@')
+				b.WriteString(lf.Key())
+			}
 			b.WriteByte('\n')
 		}
 	}
@@ -146,8 +153,12 @@ func (s *Session) LinesKey() string {
 func (s *Session) Lines(ctx context.Context, key string) map[string][]sync.Cue {
 	out := map[string][]sync.Cue{}
 	for line := range strings.Lines(key) {
-		k, _, _ := strings.Cut(strings.TrimSuffix(line, "\n"), "@")
-		desktop, film, ok := strings.Cut(k, "/")
+		parts := strings.Split(strings.TrimSuffix(line, "\n"), "@")
+		k, from := parts[0], parts[0]
+		if len(parts) > 2 {
+			from = parts[2]
+		}
+		desktop, film, ok := strings.Cut(from, "/")
 		if !ok || ctx.Err() != nil {
 			continue
 		}

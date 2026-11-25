@@ -252,7 +252,7 @@ func (p *play) cutAgain() {
 
 // computer is the name of the film's computer, as the sheets say who answers.
 func computer(p *play) string {
-	f, _ := p.s.Film(p.key)
+	f, _ := p.s.LinesFilm(p.key)
 	if d, ok := p.s.Desktop(f.Desktop); ok {
 		return d.Name
 	}
@@ -363,7 +363,7 @@ func wordSheetBody(cx *core.Scope, p *play, w *words) core.Node {
 	colors := ui.ColorsOf(cx)
 	l := func() lookup { return w.lookup.Get() }
 	card := sheetCard(colors)
-	f, _ := p.s.Film(p.key)
+	f, _ := p.s.LinesFilm(p.key)
 	count := func() int {
 		x := l()
 		cut := make([][]kcore.WordToken, 0, len(p.list()))

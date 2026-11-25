@@ -36,7 +36,7 @@ func (s *Session) Glossary(key string) (sync.Glossary, bool) {
 
 // OpenGlossary asks the computer of the film under key for the film's glossary, off the engine's goroutine, once the phone knows the film's library (Studyable); a computer out of reach, or one that does not share it, leaves what the phone has.
 func (s *Session) OpenGlossary(key string) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" || s.gloss.asking[key] {
 		return
 	}
@@ -73,7 +73,7 @@ func (s *Session) readOnly(id string) bool {
 
 // CanCorrect reports whether the lines of the film under key can be fixed on the phone: its library is known (Studyable) and its computer did not make the phone read-only. Read it in a binding.
 func (s *Session) CanCorrect(key string) bool {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	return ok && f.LibraryID != "" && !s.readOnly(f.Desktop)
 }
 
@@ -85,7 +85,7 @@ func (s *Session) CanAddTerm(key string) bool {
 
 // Corrections are the fixes of the film under key's lines, the phone's not yet taken by the computer among them. Read it in a binding.
 func (s *Session) Corrections(key string) []study.Correction {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return nil
 	}
@@ -94,7 +94,7 @@ func (s *Session) Corrections(key string) []study.Correction {
 
 // Correct keeps translation as the translation of c, a line of the film under key as the player shows it, and sends it to the computer, and reports whether it did: a film whose library is not known yet, or whose computer made the phone read-only, keeps nothing (CanCorrect).
 func (s *Session) Correct(key string, c study.Cue, translation string) bool {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || !s.CanCorrect(key) || strings.TrimSpace(translation) == "" {
 		return false
 	}
@@ -108,7 +108,7 @@ var errNoGlossary = errors.New("the film's computer takes no term now")
 
 // AddTerm adds t to the glossary of the film under key through its computer, and calls done on the engine's goroutine with why it was not added, nil once it was; the glossary the computer answers is kept.
 func (s *Session) AddTerm(key string, t sync.Term, done func(error)) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	c := s.Client(f.Desktop)
 	if !ok || c == nil || !s.CanAddTerm(key) {
 		done(errNoGlossary)

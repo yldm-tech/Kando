@@ -284,7 +284,7 @@ func sourceName(cx *core.Scope, source string) string {
 // The design's rows of how the film was transcribed and translated (the model, the AI service) and of its subtitle files are left out: sync.Film does not say them.
 func infoPage(cx *core.Scope, p *play) core.Node {
 	film := func() (sync.Film, string) {
-		f, _ := p.s.Film(p.key)
+		f, _ := p.s.LinesFilm(p.key)
 		return f.Film, f.Library
 	}
 	first := true
@@ -333,7 +333,7 @@ func infoPage(cx *core.Scope, p *play) core.Node {
 
 // exportSubtitles has the film's computer write its subtitles as a file and shows the share sheet for it (session.ExportSubtitles, which says itself why it could not).
 func exportSubtitles(cx *core.Scope, p *play) {
-	f, _ := p.s.Film(p.key)
+	f, _ := p.s.LinesFilm(p.key)
 	p.s.ExportSubtitles(f.Desktop, f.Film, func(path string, err error) {
 		if err == nil {
 			cx.Share(core.ShareOptions{Files: []core.SharedFile{{Path: path}}}, nil)

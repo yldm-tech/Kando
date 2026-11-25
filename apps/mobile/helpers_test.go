@@ -182,6 +182,12 @@ func pairedWith(t *testing.T, d *synctest.Desktop, dir string) nsgotest.Option {
 // pairedWithAll is pairedWith for each of ds, kept in dir in their order.
 func pairedWithAll(t *testing.T, dir string, ds ...*synctest.Desktop) nsgotest.Option {
 	t.Helper()
+	return nsgotest.Secrets(pairedTokens(t, dir, ds...))
+}
+
+// pairedTokens keeps each of ds in dir as paired, in their order, as pairedWithAll does, and returns the tokens the phone's secure store holds, for a test that seeds other secrets besides.
+func pairedTokens(t *testing.T, dir string, ds ...*synctest.Desktop) map[string]string {
+	t.Helper()
 	var desks []store.Desktop
 	secrets := map[string]string{}
 	for _, d := range ds {
@@ -198,7 +204,7 @@ func pairedWithAll(t *testing.T, dir string, ds ...*synctest.Desktop) nsgotest.O
 	if err := store.Open(dir).SaveDesktops(desks); err != nil {
 		t.Fatal(err)
 	}
-	return nsgotest.Secrets(secrets)
+	return secrets
 }
 
 // fillPairing types the address and the code into the pairing page.

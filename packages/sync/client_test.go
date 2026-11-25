@@ -149,3 +149,30 @@ func isCode(err error, status int, code string) bool {
 	var e *Error
 	return errors.As(err, &e) && e.Status == status && e.Code == code
 }
+
+// A film's source key is an addition to v1: a desktop that has none for a film leaves it out of the JSON, so an older phone reads the same film as before; an older desktop's film, without it, reads as one of no key; and a phone that does not know SourceKey, as a phone before it, reads a newer desktop's film with the fields it knows.
+func TestSourceKeyIsAnAddition(t *testing.T) {
+	data, err := json.Marshal(Film{ID: "f1", Title: "River"})
+	if err != nil || strings.Contains(string(data), "source_key") {
+		t.Fatalf("a film without a source key reads %s, %v", data, err)
+	}
+	var f Film
+	if err := json.Unmarshal([]byte(`{"id":"f1","title":"River","source":"local","duration_ms":0,"spoken":"","translation":"","untranslated":0,"poster":"","video_size":7,"updated":"0001-01-01T00:00:00Z"}`), &f); err != nil || f.SourceKey != "" || f.VideoSize != 7 {
+		t.Fatalf("an older desktop's film reads %+v, %v", f, err)
+	}
+	data, err = json.Marshal(Film{ID: "f1", Title: "River", Source: "local", SourceKey: "6aTKFGnkWxhnQ8vrl6Wj-G"})
+	if err != nil || !strings.Contains(string(data), `"source_key":"6aTKFGnkWxhnQ8vrl6Wj-G"`) {
+		t.Fatalf("a film with a source key reads %s, %v", data, err)
+	}
+	var older struct {
+		ID     string `json:"id"`
+		Title  string `json:"title"`
+		Source string `json:"source"`
+	}
+	if err := json.Unmarshal(data, &older); err != nil || older.ID != "f1" || older.Title != "River" || older.Source != "local" {
+		t.Fatalf("an older phone reads %+v, %v", older, err)
+	}
+	if err := json.Unmarshal(data, &f); err != nil || f.SourceKey != "6aTKFGnkWxhnQ8vrl6Wj-G" {
+		t.Fatalf("a phone reads %+v, %v", f, err)
+	}
+}

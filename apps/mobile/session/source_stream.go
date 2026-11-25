@@ -50,6 +50,7 @@ func (s *Session) StreamSource(id, p string, info remotefs.Info, play func(key s
 	rec.Streamed = true
 	s.films.Set(append([]store.Film{rec}, s.films.Get()...))
 	s.saveFilm(rec)
+	s.matchLines()
 	play(key)
 }
 

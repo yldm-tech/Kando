@@ -34,7 +34,7 @@ func (p *play) filmWords() []filmWord {
 	if len(list) == 0 {
 		return nil
 	}
-	f, _ := p.s.Film(p.key)
+	f, _ := p.s.LinesFilm(p.key)
 	originals := make([]string, len(list))
 	for i, c := range list {
 		originals[i] = strings.TrimSpace(c.Original)

@@ -27,3 +27,18 @@ func Remote(s Source, secrets map[string]string) (remotefs.Remote, bool) {
 	}
 	return remotefs.Remote{}, false
 }
+
+// SourceKey is the key a phone knows the file at ref, of one of sources, by (remotefs.SourceKey, docs/media-sources.md 10.5), size being its size: "" for a source not among them, or of a kind the phone does not reach itself, as a plugin's. No secret goes into it.
+func SourceKey(sources []Source, ref Ref, size int64) string {
+	for _, s := range sources {
+		if s.ID != ref.Source {
+			continue
+		}
+		r, ok := Remote(s, nil)
+		if !ok {
+			return ""
+		}
+		return remotefs.SourceKey(r, ref.Path, size)
+	}
+	return ""
+}

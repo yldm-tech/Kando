@@ -451,6 +451,7 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 			f.SubtitlesOnly = true
 		}
 	}
+	f.SourceKey = phoneSourceKey(item, shelf)
 	if dest := posterDest(shelf.posterDir, item.VideoPath); dest != "" && fileExists(dest) {
 		f.Poster = dest
 	}
@@ -458,6 +459,24 @@ func phoneFilmOf(item films.Film, shelf phoneShelf) phonesync.Film {
 		f.Watched, f.WatchedAt = true, shelf.played[item.VideoPath]
 	}
 	return f
+}
+
+// phoneSourceKey names the file of a media source item was made of, so a phone that reaches the same NAS itself takes item's lines for it (psync.Film.SourceKey, docs/media-sources.md 10.5): an indexed film's by the size its source gave as it was indexed, a copied one's by the size of its video here, or of the one moved to a storage location; "" for a film of no source in the settings, of a kind a phone does not reach, or whose video is gone.
+func phoneSourceKey(item films.Film, shelf phoneShelf) string {
+	if l, ok := shelf.linked[item.VideoPath]; ok {
+		return mediasource.SourceKey(shelf.sourceList, mediasource.Ref{Source: l.Source, Path: l.Path}, l.Size)
+	}
+	ref, err := mediasource.ParseRef(item.Source)
+	if err != nil {
+		return ""
+	}
+	size := int64(-1)
+	if st, ok := shelf.stored[item.VideoPath]; ok {
+		size = st.Size
+	} else if info, err := os.Stat(item.VideoPath); err == nil && info.Mode().IsRegular() {
+		size = info.Size()
+	}
+	return mediasource.SourceKey(shelf.sourceList, ref, size)
 }
 
 // items are lib's films that are done (phoneDone), as the app files them, with what the app holds of them (listed). A library locked since it was listed, or whose folder cannot be read, is not found.

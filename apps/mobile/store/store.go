@@ -64,6 +64,28 @@ type Film struct {
 	// Source is, for a film downloaded from a NAS or a server the phone reaches itself, the source's ID, and Path the file's path in it; Desktop is then SourceOwner(Source), which names no desktop, and Film.ID is SourceFilmID(Path).
 	Source string `json:"source,omitempty"`
 	Path   string `json:"path,omitempty"`
+	// Lines is, for a film of a source, the film of a paired computer made of the same file, whose lines it plays with (LinesFilm); nil for none.
+	Lines *Lines `json:"lines,omitempty"`
+}
+
+// Lines is the film of a paired computer made of the same file as a film of a source, matched by their key (sync.Film.SourceKey, docs/media-sources.md 10.5), which the film of the source takes its subtitles, word marks and learning state from while its video plays from the source: the computer's ID, the ID and name of its library that lists the film, and the film as the computer listed it when the phone last took its subtitles, which are kept in the computer's film's folder, films/<desktop>/<film>, as a film kept by its lines alone (LinesFilm).
+type Lines struct {
+	Desktop     string    `json:"desktop"`
+	Library     string    `json:"library"`
+	LibraryName string    `json:"library_name,omitempty"`
+	Film        sync.Film `json:"film"`
+}
+
+// Key is the computer's film's key, which names its folder.
+func (l Lines) Key() string { return Key(l.Desktop, l.Film.ID) }
+
+// LinesFilm is the film f takes its lines from, and whose computer it asks of them: f itself, but for a film of a source matched to a computer's film (Lines), that film as if the phone kept it by its lines alone, its folder holding no film.json, so it is no film of the Library, with f's place, delay and the time f was added.
+func (f Film) LinesFilm() Film {
+	if f.Lines == nil {
+		return f
+	}
+	l := f.Lines
+	return Film{Desktop: l.Desktop, Library: l.LibraryName, LibraryID: l.Library, Film: l.Film, LinesOnly: true, PositionMS: f.PositionMS, PositionAt: f.PositionAt, DelayMS: f.DelayMS, Added: f.Added}
 }
 
 // Key names a film on the phone: its desktop's ID and its own.

@@ -25,10 +25,10 @@ func (f remoteSource) Films(ctx context.Context, lib Library) ([]Film, error) {
 	}
 	return append(films, Film{ID: "moved", Title: "Moved", Source: "youtube",
 		Video: filepath.Join(f.dir, "moved.mp4"), Subtitles: filepath.Join(f.dir, "moved.bilingual.srt"),
-		Remote: f.remote, RemoteSize: 26, RemoteAt: f.moved}), nil
+		Remote: f.remote, RemoteSize: 26, RemoteAt: f.moved, SourceKey: "6aTKFGnkWxhnQ8vrl6Wj-G"}), nil
 }
 
-// A film whose video was moved to a storage location is listed with the size the app noted, and its video is served by ranges from there, as one on disk is.
+// A film whose video was moved to a storage location is listed with the size the app noted, and its video is served by ranges from there, as one on disk is. The key of the file of a NAS it was made of goes with it to the phone (psync.Film.SourceKey), and a film of none has none.
 func TestServesAVideoMovedToAStorageLocation(t *testing.T) {
 	lib := t.TempDir()
 	for name, data := range map[string]string{"talk.mp4": "0123456789abcdefghij", "talk.bilingual.srt": "x", "moved.bilingual.srt": "1\n00:00:01,000 --> 00:00:02,000\n你好\nHello\n"} {
@@ -55,7 +55,10 @@ func TestServesAVideoMovedToAStorageLocation(t *testing.T) {
 	if err != nil || len(films) != 2 {
 		t.Fatalf("films %+v, %v", films, err)
 	}
-	if f := films[1]; f.ID != "moved" || f.SubtitlesOnly || f.VideoSize != 26 || f.Updated.Before(moved) {
+	if films[0].SourceKey != "" {
+		t.Fatalf("a film of no source has the key %q", films[0].SourceKey)
+	}
+	if f := films[1]; f.ID != "moved" || f.SubtitlesOnly || f.VideoSize != 26 || f.Updated.Before(moved) || f.SourceKey != "6aTKFGnkWxhnQ8vrl6Wj-G" {
 		t.Fatalf("film %+v", f)
 	}
 	part, err := c.Video(ctx, "moved", 2, 4, "")

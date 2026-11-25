@@ -56,6 +56,8 @@ type Film struct {
 	// Making is a film being made (Source.Making, psync.Film.Making): Video is where its video is or will be, which its lines are named after (films.PlayPath), "" while that is not known; ComingSound is a link's sound, which plays in its video's place until the video comes (core.Job.SoundPath, psync.PlaysSound).
 	Making      bool
 	ComingSound string
+	// SourceKey names the file of a media source the film was made of (psync.Film.SourceKey), "" for none.
+	SourceKey string
 }
 
 // ErrNotFound is a Source's error for a library or film it does not serve, or a film without what was asked for.
@@ -870,7 +872,7 @@ func playable(films []Film) []served {
 			}
 		}
 		p := psync.Film{ID: f.ID, Title: f.Title, Source: f.Source, DurationMS: f.Duration.Milliseconds(), Spoken: f.Spoken, Translation: f.Translation,
-			Untranslated: f.Untranslated, VideoSize: size, SubtitlesOnly: f.SubtitlesOnly, Sound: f.Sound, Next: f.Next, Updated: updated.UTC(), Making: f.Making}
+			Untranslated: f.Untranslated, VideoSize: size, SubtitlesOnly: f.SubtitlesOnly, Sound: f.Sound, Next: f.Next, Updated: updated.UTC(), Making: f.Making, SourceKey: f.SourceKey}
 		if f.Poster != "" {
 			if _, err := os.Stat(f.Poster); err == nil {
 				p.Poster = psync.PosterPath(f.ID)

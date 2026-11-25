@@ -396,3 +396,21 @@ func TestLinkedPath(t *testing.T) {
 		t.Fatalf("a taken folder: %q %v", again, err)
 	}
 }
+
+// TestSourceKeyOfASource checks that a file of a built-in source is named by its server's address (remotefs.SourceKey), the same as a phone that reaches the server with its own source computes, whatever the user or the source's ID, and that a source not among those given or a plugin's names none.
+func TestSourceKeyOfASource(t *testing.T) {
+	sources := []Source{
+		{ID: "0123456789abcdef", Kind: KindSMB, Name: "NAS", Config: map[string]string{SMBHost: "NAS.local", SMBShare: "video", SMBRoot: "Films", SMBUser: "anna"}},
+		{ID: "fedcba9876543210", Kind: "kando.webdav", Name: "Plugin", Config: map[string]string{"url": "https://nas.local/dav"}},
+	}
+	// smb ‖ nas.local ‖ 445 ‖ video ‖ Films/River.mp4 ‖ 1048576, the vector of remotefs's TestSourceKeyVectors.
+	if got := SourceKey(sources, Ref{Source: "0123456789abcdef", Path: "River.mp4"}, 1<<20); got != "6aTKFGnkWxhnQ8vrl6Wj-G" {
+		t.Errorf("SourceKey = %q, want the phone's key for the same file", got)
+	}
+	if got := SourceKey(sources, Ref{Source: "fedcba9876543210", Path: "River.mp4"}, 1<<20); got != "" {
+		t.Errorf("a plugin's source has the key %q", got)
+	}
+	if got := SourceKey(sources, Ref{Source: "1111111111111111", Path: "River.mp4"}, 1<<20); got != "" {
+		t.Errorf("a source not in the settings has the key %q", got)
+	}
+}

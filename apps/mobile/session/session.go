@@ -521,9 +521,14 @@ func (s *Session) Download(desktop, library string, f sync.Film) {
 // followFor is how long Follow waits for a desktop, which may be off or out of reach, as the phone is used away from it.
 const followFor = 15 * time.Second
 
-// Follow brings the film kept under key, a downloaded one, up to date with its desktop when the desktop can be reached (download.Follow): one translated again or proofread there since takes the desktop's subtitles and record, and changed runs on the engine's goroutine once they are kept, so a player showing the film reads its lines again. A film whose desktop is out of reach, or not paired any more, stays as it is, without a word: it plays as it was downloaded.
+// Follow brings the film kept under key, a downloaded one, up to date with its desktop when the desktop can be reached (download.Follow): one translated again or proofread there since takes the desktop's subtitles and record, and changed runs on the engine's goroutine once they are kept, so a player showing the film reads its lines again. A film whose desktop is out of reach, or not paired any more, stays as it is, without a word: it plays as it was downloaded. A film of a source follows the computer's film it takes its lines from, or looks for one (followLines).
 func (s *Session) Follow(key string, changed func()) {
 	f, ok := s.Film(key)
+	if ok && f.FromSource() {
+		// A film of a source follows the computer's film it took its lines from, downloaded or not.
+		s.followLines(key, f, changed)
+		return
+	}
 	if !ok || !f.Done() {
 		return
 	}
@@ -837,6 +842,11 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 		s.setTransfer(key, nil)
 		return
 	}
+	if cur, ok := s.Film(key); ok && cur.Lines != nil && got.Lines == nil {
+		// The lines a film of a source took from a computer while it downloaded stay with it (takeLines), which the download's saves of its record knew nothing of.
+		got.Lines = cur.Lines
+		s.saveFilm(got)
+	}
 	s.replace(got)
 	if j.again && err != nil {
 		s.start(got)
@@ -864,6 +874,10 @@ func (s *Session) remove(key string) {
 		return
 	}
 	s.dropFilm(key)
+	if f.Lines != nil {
+		// The lines it took from a computer's film go with it, unless another film keeps them.
+		s.dropLines(*f.Lines, key)
+	}
 	s.filmMu.Lock()
 	defer s.filmMu.Unlock()
 	if fs, busy := s.filmSaves[key]; busy {

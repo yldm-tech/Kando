@@ -10,8 +10,12 @@ import (
 
 	"kando/apps/mobile/nas"
 	"kando/apps/mobile/store"
+	"kando/packages/remotefs"
 	"kando/packages/remotefs/davtest"
+	"kando/packages/sync"
+	"kando/packages/sync/synctest"
 
+	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -142,4 +146,42 @@ func TestScreenshotsSourcesStream(t *testing.T) {
 	fetchRange(t, p.playerSource(), 0, 9)
 	p.app.WaitFor("id:player-failed-why", wait)
 	shot(p, "sources-stream-unreachable")
+}
+
+// A video of a WebDAV source that the paired computer made a film of, streamed into the player with the computer's lines, where TestScreenshotsSourcesStream streams one it made none of, which plays without.
+func TestScreenshotsSourcesLines(t *testing.T) {
+	shot := screenshots(t)
+	f := davFilms(t, false)
+	video := storeAsset(t, "talk.mp4")
+	if err := os.WriteFile(filepath.Join(f.Dir, "Films/Morning Talk.mp4"), video, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	src := davSource(f)
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Japanese Class")
+	d.AddFilm(synctest.Film{Library: "lib", Video: video, Cues: storeCues, Film: sync.Film{ID: "f2", Title: "Morning Talk", Source: "local", DurationMS: 10_000, Spoken: "ja", Translation: "English", Updated: now(),
+		SourceKey: remotefs.SourceKey(nas.Remote(src, nil), "Morning Talk.mp4", int64(len(video)))}})
+	d.Offer("123456")
+	p := startWithSourceAndDesktop(t, t.TempDir(), src, d)
+	p.app.WaitFor(filmRow(store.DesktopID(d.Fingerprint), "f2"), wait)
+	p.app.WaitFor("id:films-source-"+src.ID, wait)
+	p.app.Press("id:films-source-" + src.ID)
+	p.app.WaitFor("id:browse-video-Morning Talk.mp4", wait)
+	p.app.Press("id:browse-video-Morning Talk.mp4")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
+	// On a phone the system's player plays the talk from the loopback server into its first line, which the card shows with its translation. Headless the scene says where it played to.
+	if runtime.GOOS == "ios" || runtime.GOOS == "android" {
+		p.app.WaitUntil(wait, func() bool { return p.texts("id:player-left") == "-0:10" })
+		p.app.Press("id:player-play")
+		p.app.WaitUntil(wait, func() bool { at := p.texts("id:player-at"); return at >= "0:02" && len(at) == 4 })
+		p.app.Press("id:player-play")
+	} else {
+		p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * time.Second, Size: core.Size{Width: 1920, Height: 1080}})
+		p.at(2 * time.Second)
+	}
+	if got := p.texts("id:player-card-translation"); got == "" || runtime.GOOS != "ios" && runtime.GOOS != "android" && got != "Good morning." {
+		t.Fatalf("the card's translation is %q", got)
+	}
+	shot(p, "sources-stream-lines")
 }

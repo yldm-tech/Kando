@@ -42,7 +42,7 @@ func newFixer(cx *core.Scope, p *play) *fixer {
 // canFix reports whether line i's translation can be fixed: the film has one, and the computer takes the phone's fixes (session.CanCorrect). Read it in a binding.
 func (f *fixer) canFix(i int) bool {
 	p := f.p
-	return !p.untranslated && i >= 0 && i < len(p.list()) && p.s.CanCorrect(p.key)
+	return !p.untranslated() && i >= 0 && i < len(p.list()) && p.s.CanCorrect(p.key)
 }
 
 // start opens the sheet on line i, its translation in the field: the film holds while it shows.

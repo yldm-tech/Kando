@@ -33,13 +33,13 @@ const (
 
 // Studyable reports whether lines of the film under key can be saved: its library on the desktop is known, which the phone asks the desktop for the first time the film opens (OpenStudy). Read it in a binding.
 func (s *Session) Studyable(key string) bool {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	return ok && f.LibraryID != ""
 }
 
 // Saved are the lines saved from the film under key, in the order they play, the phone's changes not yet sent among them. Read it in a binding.
 func (s *Session) Saved(key string) []study.Line {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return nil
 	}
@@ -48,7 +48,7 @@ func (s *Session) Saved(key string) []study.Line {
 
 // SavedAt is the saved line of the film under key that starts at start, false for none.
 func (s *Session) SavedAt(key string, start time.Duration) (study.Line, bool) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return study.Line{}, false
 	}
@@ -57,7 +57,7 @@ func (s *Session) SavedAt(key string, start time.Duration) (study.Line, bool) {
 
 // OpenStudy reads the learning state of the library of the film under key, and syncs it with the desktop when it can be reached; a film whose library the phone does not know yet asks the desktop for it first.
 func (s *Session) OpenStudy(key string) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok {
 		return
 	}
@@ -183,7 +183,7 @@ func (s *Session) setStudy(desktop, lib string, l study.Library) {
 
 // ToggleSave saves c, a line of the film under key, or takes it back once it is saved, and reports whether it is saved now. A film whose library is not known yet saves nothing (Studyable).
 func (s *Session) ToggleSave(key string, c study.Cue) bool {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return false
 	}
@@ -197,7 +197,7 @@ func (s *Session) ToggleSave(key string, c study.Cue) bool {
 
 // SetNote writes note as the note of c, a line of the film under key, saving the line when it is not saved yet. A film whose library is not known yet keeps nothing (Studyable).
 func (s *Session) SetNote(key string, c study.Cue, note string) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || f.LibraryID == "" {
 		return
 	}
@@ -417,7 +417,7 @@ var errUnpaired = errors.New("the film's desktop is not paired")
 
 // LookUp looks word up, as it reads in line, a line of the film under key, through the film's desktop, and calls done on the engine's goroutine with what it means: from the words looked up before on the phone when it is among them, else as the desktop answers, which the phone then keeps.
 func (s *Session) LookUp(key, word, line string, done func(sync.WordEntry, error)) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	word = strings.TrimSpace(word)
 	if !ok || word == "" {
 		return
@@ -466,7 +466,7 @@ func (s *Session) keepLookup(lk string, e sync.WordEntry) {
 
 // Explain has the film's desktop explain line i of lines, the film under key's lines around it, and calls done on the engine's goroutine with the explanation.
 func (s *Session) Explain(key string, lines []sync.Cue, i int, done func(sync.Explanation, error)) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || i < 0 || i >= len(lines) {
 		return
 	}
@@ -486,7 +486,7 @@ func (s *Session) Explain(key string, lines []sync.Cue, i int, done func(sync.Ex
 
 // Ask has the film's desktop answer question about line i of lines, the film under key's lines around it, with what was explained of it and the questions asked before, the latest sync.MaxExplainAsked of them, and calls done on the engine's goroutine with the answer.
 func (s *Session) Ask(key string, lines []sync.Cue, i int, explained []sync.ExplainSection, asked []sync.ExplainQA, question string, done func(sync.ExplainAnswer, error)) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	question = strings.TrimSpace(question)
 	if !ok || i < 0 || i >= len(lines) || question == "" {
 		return
@@ -508,7 +508,7 @@ func (s *Session) Ask(key string, lines []sync.Cue, i int, explained []sync.Expl
 
 // Recap has the film's desktop sum up watched, the lines of the film under key watched, in the order they play, the latest of them that fit in a call (sync.RecapLines), and calls done on the engine's goroutine with the recap.
 func (s *Session) Recap(key string, watched []sync.Cue, done func(sync.Recap, error)) {
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok || len(watched) == 0 {
 		return
 	}

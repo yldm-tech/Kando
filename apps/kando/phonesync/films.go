@@ -403,7 +403,7 @@ func (f *films) persist(errs *[]error) {
 // described is l's film as the phones list it, with when its files last changed.
 func described(l listed) psync.Film {
 	film := l.film
-	p := psync.Film{ID: film.ID, Title: film.Title, Source: film.Source, DurationMS: film.Duration.Milliseconds(), Spoken: film.Spoken, Translation: film.Translation, Untranslated: film.Untranslated, Next: film.Next}
+	p := psync.Film{ID: film.ID, Title: film.Title, Source: film.Source, DurationMS: film.Duration.Milliseconds(), Spoken: film.Spoken, Translation: film.Translation, Untranslated: film.Untranslated, Next: film.Next, SourceKey: film.SourceKey}
 	var updated time.Time
 	for _, path := range []string{film.Video, film.Subtitles, film.Transcript, film.Corrections} {
 		if info, err := os.Stat(path); path != "" && err == nil && !info.IsDir() && info.ModTime().After(updated) {

@@ -116,6 +116,8 @@ type Film struct {
 	Updated time.Time `json:"updated"`
 	// Making is a film whose job is waiting or running, listed only to a phone that asks for such films (WithMaking): its lines grow while it is made, nearest where it is watched first (OpFilmWatch); PathVideo answers what plays of it so far (FilmWatching.Plays), not_found while nothing does; and once it is done it is listed as any other film, under the same ID.
 	Making bool `json:"making,omitempty"`
+	// SourceKey names the file of a NAS or a server the film was made of, for a film the desktop indexed or copied from one of its media sources of a kind a phone reaches itself (SMB, SFTP, WebDAV): remotefs.SourceKey of the file's place and size, which says neither where the server is nor what the file is called. A phone that reaches the same server computes the same key for the file and takes this film's subtitles and learning state for it while it plays the video from the server itself. "" for any other film. It is an addition to v1, left out of the JSON when empty, so a phone from before it reads the films as before (TestSourceKeyIsAnAddition).
+	SourceKey string `json:"source_key,omitzero"`
 }
 
 // Films is PathFilms' answer.

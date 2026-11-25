@@ -184,7 +184,7 @@ func (s *Session) placeWatched(key string) {
 	if len(spans) == 0 {
 		return
 	}
-	f, ok := s.Film(key)
+	f, ok := s.LinesFilm(key)
 	if !ok {
 		delete(s.learn.unplaced, key)
 		return

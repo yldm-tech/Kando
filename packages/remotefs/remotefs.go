@@ -1,4 +1,4 @@
-// Package remotefs is how Kando reaches files kept on another machine: the Provider every place files live is behind, a folder of a NAS or a server over SMB, SFTP or WebDAV (Remote, OpenRemote), why opening one failed (Diagnose), and a loopback proxy (Proxy) that serves a provider's file, or any Reader's, to the system player. It imports no package of the apps, so the desktop's storage locations and media sources and the phone use the same protocol code.
+// Package remotefs is how Kando reaches files kept on another machine: the Provider every place files live is behind, a folder of a NAS or a server over SMB, SFTP or WebDAV (Remote, OpenRemote), why opening one failed (Diagnose), the name of a file every device that reaches it agrees on (SourceKey), and a loopback proxy (Proxy) that serves a provider's file, or any Reader's, to the system player. It imports no package of the apps, so the desktop's storage locations and media sources and the phone use the same protocol code.
 package remotefs
 
 import (
