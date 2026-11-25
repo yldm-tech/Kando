@@ -1,13 +1,55 @@
-// The hero: the headline, the Download button, which downloads the disk image for a Mac with Apple silicon (the download panel has the Intel one), a line under it with the phone app's TestFlight beta and Google Play page, and the demo player in a window.
+// The hero: the headline, a row of downloads, one for each system Kando runs on (the disk image for a Mac with Apple silicon, the download panel's Windows and Linux tabs, the phone app's TestFlight beta and Google Play page), the one of the reader's own device the primary, and the demo player in a window.
 import site from "virtual:kando/site";
+import { useEffect, useState } from "react";
 import { Headline, useWords } from "../../i18n/content";
 import { googlePlayURL, macDisk, releaseFileURL, testFlightURL } from "../../lib/site";
-import { AppleMark } from "../common/marks";
+import { AndroidMark, AppleMark, LinuxMark, WindowsMark } from "../common/marks";
 import { Player } from "./player/Player";
 import { River } from "./river/River";
 
+// Device is the system whose download the hero makes its primary button: a Mac's until the page runs, and then the reader's own phone's when they read it on an iPhone or an Android phone.
+type Device = "mac" | "iphone" | "android";
+
+function deviceOf(userAgent: string): Device {
+  if (/iPhone|iPod/.test(userAgent)) {
+    return "iphone";
+  }
+  return /Android/.test(userAgent) ? "android" : "mac";
+}
+
 export function Hero() {
   const { t, tf } = useWords();
+  const [device, setDevice] = useState<Device>("mac");
+  useEffect(() => setDevice(deviceOf(navigator.userAgent)), []);
+  const kind = (d: Device) => (d === device ? "btn primary big" : "btn ghost big");
+  const shine = (d: Device) => (d === device ? <span className="shine" aria-hidden="true" /> : null);
+  // The computers' downloads and the phones', the reader's own first: on a phone its two lead the grid.
+  const computers = () => [
+    <a key="mac" className={kind("mac")} href={releaseFileURL(site.version, macDisk(site.version, "arm64"))}>
+      <AppleMark size={18} />
+      {t("heroDownload")}
+      {shine("mac")}
+    </a>,
+    <a key="pc" className="btn ghost big" href="#start" data-os="linux">
+      <WindowsMark size={15} />
+      <span className="hero-tux">
+        <LinuxMark size={17} />
+      </span>
+      {t("heroOtherSystems")}
+    </a>,
+  ];
+  const phones = () => [
+    <a key="iphone" className={kind("iphone")} href={testFlightURL}>
+      <AppleMark size={18} />
+      {t("heroIphone")}
+      {shine("iphone")}
+    </a>,
+    <a key="android" className={kind("android")} href={googlePlayURL}>
+      <AndroidMark size={18} />
+      {t("heroAndroid")}
+      {shine("android")}
+    </a>,
+  ];
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-sky" aria-hidden="true">
@@ -33,21 +75,9 @@ export function Hero() {
         <p className="lead" data-enter="">
           {t("heroLead")}
         </p>
-        <div className="actions" data-enter="">
-          <a className="btn primary big" href={releaseFileURL(site.version, macDisk(site.version, "arm64"))}>
-            <AppleMark size={18} />
-            {t("heroDownload")}
-            <span className="shine" aria-hidden="true" />
-          </a>
-          <a className="btn ghost big" href="#start" data-os="linux">
-            {t("heroOtherSystems")}
-          </a>
+        <div className="actions hero-actions" data-enter="">
+          {(device === "mac" ? [computers, phones] : [phones, computers]).map((group) => group())}
         </div>
-        <p className="meta phone-links" data-enter="">
-          {t("heroPhone")} <a href={testFlightURL}>{t("heroIphone")}</a>
-          <span aria-hidden="true"> · </span>
-          <a href={googlePlayURL}>{t("heroAndroid")}</a>
-        </p>
         <p className="meta" data-enter="">
           {tf("heroMeta", { version: site.version })}
         </p>

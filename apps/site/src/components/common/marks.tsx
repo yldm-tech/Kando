@@ -1,17 +1,45 @@
-// The small drawings the page uses beside its words: the GitHub and Apple marks, the globe and chevron of the language menu.
+// The brand marks the page draws beside its words, from AI Logo (github.com/yldm-tech/ai-logo), the collection Kando's own apps share, as buildtime/marks.ts takes the logo strip's: the GitHub mark, Apple's for macOS and the iPhone, Windows', Linux's, Android's and Google Play's. Each is AI Logo's one-color SVG, bundled with the page (?raw) and drawn in the text's color.
+import android from "@yldm-tech/ai-logo-static-svg/icons/android.svg?raw";
+import apple from "@yldm-tech/ai-logo-static-svg/icons/apple.svg?raw";
+import github from "@yldm-tech/ai-logo-static-svg/icons/github.svg?raw";
+import googlePlay from "@yldm-tech/ai-logo-static-svg/icons/googleplay.svg?raw";
+import linux from "@yldm-tech/ai-logo-static-svg/icons/linux.svg?raw";
+import windows from "@yldm-tech/ai-logo-static-svg/icons/microsoft.svg?raw";
 
-export function GitHubMark({ size }: { size: number }) {
-  return (
-    <svg className="mark" viewBox="0 0 16 16" width={size} height={size} aria-hidden="true">
-      <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z" />
-    </svg>
-  );
+type Drawing = { viewBox: string; fillRule?: "evenodd"; inner: string };
+
+// drawing takes from an AI Logo file what the page draws of it: its view box, its fill rule and its shapes, without its title and the style attribute it carries, which the page's Content Security Policy refuses.
+function drawing(svg: string): Drawing {
+  const open = /^<svg\b[^>]*>/.exec(svg)?.[0] ?? "";
+  const viewBox = /\sviewBox="([^"]+)"/.exec(open)?.[1];
+  if (!viewBox || !svg.endsWith("</svg>")) {
+    throw new Error("not an AI Logo SVG: " + svg.slice(0, 60));
+  }
+  const inner = svg.slice(open.length, -"</svg>".length).replace(/<title>[^<]*<\/title>/, "");
+  return { viewBox, fillRule: /\sfill-rule="evenodd"/.test(open) ? "evenodd" : undefined, inner };
 }
 
-export function AppleMark({ size }: { size: number }) {
-  return (
-    <svg className="mark" viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-      <path d="M16.37 12.6c-.02-2.27 1.86-3.37 1.94-3.42-1.06-1.55-2.7-1.76-3.28-1.78-1.4-.14-2.73.82-3.44.82-.71 0-1.8-.8-2.96-.78-1.52.02-2.93.89-3.71 2.25-1.59 2.75-.41 6.82 1.13 9.05.76 1.09 1.66 2.32 2.83 2.27 1.14-.04 1.57-.73 2.94-.73 1.37 0 1.76.73 2.96.71 1.22-.02 2-1.11 2.74-2.21.87-1.27 1.22-2.5 1.24-2.56-.03-.01-2.37-.91-2.39-3.62ZM14.12 5.93c.62-.76 1.04-1.81.93-2.86-.9.04-1.99.6-2.64 1.36-.58.67-1.09 1.74-.95 2.77 1 .08 2.03-.51 2.66-1.27Z" />
-    </svg>
-  );
+function mark(svg: string) {
+  const d = drawing(svg.trim());
+  return function Mark({ size }: { size: number }) {
+    return (
+      <svg
+        className="mark"
+        viewBox={d.viewBox}
+        width={size}
+        height={size}
+        fill="currentColor"
+        fillRule={d.fillRule}
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: d.inner }}
+      />
+    );
+  };
 }
+
+export const GitHubMark = mark(github);
+export const AppleMark = mark(apple);
+export const WindowsMark = mark(windows);
+export const LinuxMark = mark(linux);
+export const AndroidMark = mark(android);
+export const GooglePlayMark = mark(googlePlay);

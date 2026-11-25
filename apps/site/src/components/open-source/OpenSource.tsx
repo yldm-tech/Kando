@@ -15,7 +15,7 @@ import {
   windowsSetup,
 } from "../../lib/site";
 import { CodeBlock } from "../common/CodeBlock";
-import { AppleMark, GitHubMark } from "../common/marks";
+import { AppleMark, GitHubMark, GooglePlayMark, LinuxMark, WindowsMark } from "../common/marks";
 import { SlidingPill } from "../common/SlidingPill";
 import { useTabs } from "../common/tabs";
 
@@ -100,6 +100,7 @@ export function OpenSource() {
                 <p className="fine">{t("dlLinuxNote")}</p>
                 <p className="flex flex-wrap items-center gap-2.5">
                   <a className="btn soft" href={file(debPackage, "amd64")}>
+                    <LinuxMark size={16} />
                     {t("dlLinuxButton")}
                   </a>
                   <a className="btn soft" href={file(debPackage, "arm64")}>
@@ -112,6 +113,7 @@ export function OpenSource() {
                 <p>{t("dlWinBody")}</p>
                 <p className="flex flex-wrap items-center gap-2.5">
                   <a className="btn primary" href={file(windowsSetup, "amd64")}>
+                    <WindowsMark size={15} />
                     {t("dlWinButton")}
                   </a>
                   <a className="btn soft" href={file(windowsSetup, "arm64")}>
@@ -128,6 +130,7 @@ export function OpenSource() {
                     {t("dlIosButton")}
                   </a>
                   <a className="btn soft" href={googlePlayURL}>
+                    <GooglePlayMark size={15} />
                     {t("dlAndroidButton")}
                   </a>
                 </p>
