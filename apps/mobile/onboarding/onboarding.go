@@ -115,7 +115,7 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 	}
 	// The steps scroll under the picture, which scrolls away with them under the top bar, which stays; the button stays at the page's foot.
 	content := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		core.Scroll{TestID: "onboarding-scroll", Style: core.Style{FlexGrow: 1, FlexShrink: 1},
+		core.Scroll{TestID: "onboarding-scroll", Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
 			OnScroll: func(e core.ScrollEvent) { over.Set(e.Offset.Y > height()*0.55-barFoot()) },
 			Children: []core.Node{
 				hero(cx, height, phone),
