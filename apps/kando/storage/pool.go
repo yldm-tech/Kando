@@ -11,12 +11,13 @@ import (
 	"time"
 
 	"kando/apps/kando/cloud"
+	"kando/packages/remotefs"
 )
 
 // Target is a place files can be kept that a Pool opens, by an ID of the caller's: a folder on a NAS or a server (Remote), or an object store (Store).
 type Target struct {
 	ID     string
-	Remote *Remote
+	Remote *remotefs.Remote
 	Store  *cloud.Store
 }
 
@@ -32,10 +33,10 @@ func (t Target) key() string {
 }
 
 // OpenTarget opens t: a NAS location connects and checks its folder (OpenRemote), an object store only makes its client, and has nothing to close.
-func OpenTarget(ctx context.Context, t Target) (Provider, io.Closer, error) {
+func OpenTarget(ctx context.Context, t Target) (remotefs.Provider, io.Closer, error) {
 	switch {
 	case t.Remote != nil:
-		return OpenRemote(ctx, *t.Remote)
+		return remotefs.OpenRemote(ctx, *t.Remote)
 	case t.Store != nil:
 		store, err := OpenObjectStore(*t.Store, "")
 		return store, nil, err
@@ -53,20 +54,20 @@ const PoolOpenTimeout = 30 * time.Second
 type Pool struct {
 	mu     sync.Mutex
 	conns  map[string]poolConn
-	proxy  *Proxy
-	open   func(ctx context.Context, t Target) (Provider, io.Closer, error)
+	proxy  *remotefs.Proxy
+	open   func(ctx context.Context, t Target) (remotefs.Provider, io.Closer, error)
 	closed bool
 }
 
 // poolConn is a target opened: by settings key, its provider, and what closes it, nil for none.
 type poolConn struct {
 	key      string
-	provider Provider
+	provider remotefs.Provider
 	closer   io.Closer
 }
 
 // NewPool is a Pool that opens targets with open, OpenTarget when it is nil.
-func NewPool(open func(ctx context.Context, t Target) (Provider, io.Closer, error)) *Pool {
+func NewPool(open func(ctx context.Context, t Target) (remotefs.Provider, io.Closer, error)) *Pool {
 	if open == nil {
 		open = OpenTarget
 	}
@@ -74,7 +75,7 @@ func NewPool(open func(ctx context.Context, t Target) (Provider, io.Closer, erro
 }
 
 // Provider is t opened, opening it now when it is not, or when its settings changed since.
-func (p *Pool) Provider(ctx context.Context, t Target) (Provider, error) {
+func (p *Pool) Provider(ctx context.Context, t Target) (remotefs.Provider, error) {
 	key := t.key()
 	p.mu.Lock()
 	if p.closed {
@@ -123,7 +124,7 @@ func (p *Pool) URL(ctx context.Context, t Target, path string) (string, error) {
 		return "", ErrPoolClosed
 	}
 	if p.proxy == nil {
-		proxy, err := NewProxy()
+		proxy, err := remotefs.NewProxy()
 		if err != nil {
 			return "", err
 		}
@@ -152,7 +153,7 @@ func (p *Pool) Handler(t Target, path string) http.Handler {
 			http.Error(w, "the storage location cannot be reached", http.StatusBadGateway)
 			return
 		}
-		Handler(provider, path).ServeHTTP(w, r)
+		remotefs.Handler(provider, path).ServeHTTP(w, r)
 	})
 }
 

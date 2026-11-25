@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"bytes"
@@ -254,7 +254,7 @@ func sftpErr(err error) error {
 }
 
 func (s *sftpStore) Stat(ctx context.Context, p string) (Info, error) {
-	p, err := cleanPath(p)
+	p, err := CleanPath(p)
 	if err != nil {
 		return Info{}, err
 	}
@@ -264,7 +264,7 @@ func (s *sftpStore) Stat(ctx context.Context, p string) (Info, error) {
 		if err != nil {
 			return err
 		}
-		info = localInfo(path.Base(p), fi)
+		info = fileInfo(path.Base(p), fi)
 		if p == "" {
 			info.Name = ""
 		}
@@ -275,7 +275,7 @@ func (s *sftpStore) Stat(ctx context.Context, p string) (Info, error) {
 
 // List is what lies in the folder dir, leaving out the files a Write is still writing.
 func (s *sftpStore) List(ctx context.Context, dir string) ([]Info, error) {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +287,8 @@ func (s *sftpStore) List(ctx context.Context, dir string) ([]Info, error) {
 		}
 		out = out[:0]
 		for _, fi := range entries {
-			if !strings.HasPrefix(fi.Name(), tempPrefix) {
-				out = append(out, localInfo(fi.Name(), fi))
+			if !strings.HasPrefix(fi.Name(), TempPrefix) {
+				out = append(out, fileInfo(fi.Name(), fi))
 			}
 		}
 		return nil
@@ -300,7 +300,7 @@ func (s *sftpStore) Open(ctx context.Context, p string, offset, length int64) (i
 	if err := checkRange(p, offset, length); err != nil {
 		return nil, err
 	}
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (s *sftpStore) Open(ctx context.Context, p string, offset, length int64) (i
 
 // Write uploads r into a hidden file beside p and renames it over p.
 func (s *sftpStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func (s *sftpStore) Write(ctx context.Context, p string, r io.Reader, size int64
 		return err
 	}
 	c := conn.sftp
-	temp := path.Join(path.Dir(s.path(p)), tempPrefix+rand.Text())
+	temp := path.Join(path.Dir(s.path(p)), TempPrefix+rand.Text())
 	err = func() error {
 		f, err := c.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
 		if err != nil {
@@ -397,7 +397,7 @@ func (s *sftpStore) replace(c *sftp.Client, from, to string) error {
 
 // Remove removes the file or the empty folder at p.
 func (s *sftpStore) Remove(ctx context.Context, p string) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -427,11 +427,11 @@ func (s *sftpStore) Remove(ctx context.Context, p string) error {
 
 // Move renames from to to, making the folders above to; a file at to is replaced as Write replaces it.
 func (s *sftpStore) Move(ctx context.Context, from, to string) error {
-	from, err := cleanFile(from)
+	from, err := CleanFile(from)
 	if err != nil {
 		return err
 	}
-	to, err = cleanFile(to)
+	to, err = CleanFile(to)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (s *sftpStore) Move(ctx context.Context, from, to string) error {
 }
 
 func (s *sftpStore) MkdirAll(ctx context.Context, dir string) error {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return err
 	}

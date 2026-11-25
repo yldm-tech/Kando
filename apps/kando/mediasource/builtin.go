@@ -1,6 +1,6 @@
 package mediasource
 
-import "kando/apps/kando/storage"
+import "kando/packages/remotefs"
 
 // Builtin is the built-in kind of ID id, whatever the Registry holds, reporting false for any other ID, as a plugin's or one this version does not know.
 func Builtin(id string) (Kind, bool) {
@@ -16,7 +16,7 @@ func Builtin(id string) (Kind, bool) {
 }
 
 // Remote is how storage reaches s, a source of a built-in kind, with its secrets by key, reporting false for a source of another kind, as a plugin's.
-func Remote(s Source, secrets map[string]string) (storage.Remote, bool) {
+func Remote(s Source, secrets map[string]string) (remotefs.Remote, bool) {
 	switch s.Kind {
 	case KindSMB:
 		return SMBRemote(s, secrets[SMBPassword]), true
@@ -25,5 +25,5 @@ func Remote(s Source, secrets map[string]string) (storage.Remote, bool) {
 	case KindWebDAV:
 		return WebDAVRemote(s, secrets[WebDAVPassword]), true
 	}
-	return storage.Remote{}, false
+	return remotefs.Remote{}, false
 }

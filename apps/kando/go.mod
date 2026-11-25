@@ -13,7 +13,6 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nsgo-dev/nsgo v0.2.1-0.20261121221132-091984681603
 	github.com/pkg/sftp v1.13.12
-	github.com/studio-b12/gowebdav v0.13.0
 	github.com/yldm-tech/ai-logo/nsgo v1.22.0
 	github.com/yldm-tech/nodra v1.6.0
 	go.yaml.in/yaml/v3 v3.0.6
@@ -25,6 +24,7 @@ require (
 	golang.org/x/text v0.44.0
 	kando/packages/core v0.0.0
 	kando/packages/media v0.0.0
+	kando/packages/remotefs v0.0.0
 	kando/packages/study v0.0.0
 	kando/packages/sync v0.0.0
 	kando/packages/track v0.0.0
@@ -34,6 +34,7 @@ require (
 replace (
 	kando/packages/core => ../../packages/core
 	kando/packages/media => ../../packages/media
+	kando/packages/remotefs => ../../packages/remotefs
 	kando/packages/study => ../../packages/study
 	kando/packages/sync => ../../packages/sync
 	kando/packages/track => ../../packages/track
@@ -78,6 +79,7 @@ require (
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
+	github.com/studio-b12/gowebdav v0.13.0 // indirect
 	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.8.7 // indirect

@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	"kando/apps/kando/storage"
-	"kando/apps/kando/storage/sftptest"
+	"kando/packages/remotefs"
+	"kando/packages/remotefs/sftptest"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -44,17 +44,17 @@ func TestSFTPKindIsValid(t *testing.T) {
 	}
 }
 
-// An SFTP source's fields and secrets become storage's Remote: a port that is not one is SFTP's own, the key is trimmed and the passphrase kept as typed.
+// An SFTP source's fields and secrets become remotefs's Remote: a port that is not one is SFTP's own, the key is trimmed and the passphrase kept as typed.
 func TestSFTPRemote(t *testing.T) {
 	s := Source{ID: "0123456789abcdef", Kind: KindSFTP, Config: map[string]string{
 		SFTPHost: " nas.local ", SFTPPort: "2222", SFTPRoot: "films", SFTPUser: " kando ", SFTPHostKey: " ssh-ed25519 AAAA ",
 	}}
 	got := SFTPRemote(s, map[string]string{SFTPPassword: "pa55", SFTPPrivateKey: "\nKEY\n", SFTPPassphrase: " phrase "})
-	want := storage.Remote{Kind: storage.KindSFTP, Host: "nas.local", Port: 2222, Root: "films", User: "kando", Password: "pa55", PrivateKey: "KEY", Passphrase: " phrase ", HostKey: "ssh-ed25519 AAAA"}
+	want := remotefs.Remote{Kind: remotefs.KindSFTP, Host: "nas.local", Port: 2222, Root: "films", User: "kando", Password: "pa55", PrivateKey: "KEY", Passphrase: " phrase ", HostKey: "ssh-ed25519 AAAA"}
 	if got != want {
 		t.Fatalf("SFTPRemote = %+v, want %+v", got, want)
 	}
-	if r, ok := Remote(s, map[string]string{SFTPPassword: "pa55"}); !ok || r.Password != "pa55" || r.Kind != storage.KindSFTP {
+	if r, ok := Remote(s, map[string]string{SFTPPassword: "pa55"}); !ok || r.Password != "pa55" || r.Kind != remotefs.KindSFTP {
 		t.Fatalf("Remote = %+v, %v", r, ok)
 	}
 	for _, port := range []string{"", "ssh", "0", "70000"} {
@@ -89,12 +89,12 @@ func TestSFTPOpens(t *testing.T) {
 	password := map[string]string{SFTPPassword: sftptest.Password}
 
 	_, err := SFTP().Open(ctx, sftpSource(f, "films", ""), password)
-	var hk *storage.HostKeyError
-	if !errors.Is(err, storage.ErrUnknownHostKey) || !errors.As(err, &hk) || hk.Key != f.HostKey {
+	var hk *remotefs.HostKeyError
+	if !errors.Is(err, remotefs.ErrUnknownHostKey) || !errors.As(err, &hk) || hk.Key != f.HostKey {
 		t.Fatalf("without a key trusted = %v", err)
 	}
 	_, other := sftptest.NewKey(t)
-	if _, err := SFTP().Open(ctx, sftpSource(f, "films", sftptest.AuthorizedKey(other)), password); !errors.Is(err, storage.ErrHostKeyMismatch) {
+	if _, err := SFTP().Open(ctx, sftpSource(f, "films", sftptest.AuthorizedKey(other)), password); !errors.Is(err, remotefs.ErrHostKeyMismatch) {
 		t.Fatalf("with another key trusted = %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestSFTPOpens(t *testing.T) {
 			t.Fatalf("%s: Close: %v", name, err)
 		}
 	}
-	if _, err := SFTP().Open(ctx, sftpSource(f, "films", f.HostKey), map[string]string{SFTPPassword: "wrong"}); storage.Diagnose(err) != storage.FailSignIn {
+	if _, err := SFTP().Open(ctx, sftpSource(f, "films", f.HostKey), map[string]string{SFTPPassword: "wrong"}); remotefs.Diagnose(err) != remotefs.FailSignIn {
 		t.Fatalf("a wrong password = %v", err)
 	}
 }

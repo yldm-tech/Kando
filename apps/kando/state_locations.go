@@ -14,12 +14,12 @@ import (
 	"kando/apps/kando/feedback"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json); those removed while videos were moved to them (removed, without their secrets, also saved), so one added back at the same address gets its ID back and those videos play again (locationRelink); the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, storage.OpenRemote unless a test sets another. The locations' secrets are kept in the system's secure store (state_locations_secrets.go): plain are the IDs of those whose secrets settings.json keeps instead, as an earlier version wrote them or the store refused them; secretGen numbers each location's changes of its secrets, so a store's answer to an older one is dropped; secretsTail is where the store's work queued last ends, and secretsBusy how many of it are not done; secrets is the store a test sets, the app's own (locationSecretStore) when nil.
+// locationsUI is the state of 设置 › 账号与上传 › 存储位置: the folders on a NAS or a server films can be kept in (list, saved in settings.json); those removed while videos were moved to them (removed, without their secrets, also saved), so one added back at the same address gets its ID back and those videos play again (locationRelink); the dialog that adds or edits one (editing, editID "" for a new one, draft as typed, problem why Save refused it), how the last Test of each went (tests, by ID, the draft's under ""), and the question open over the page (alert). gen numbers the Tests, so the answer of one started before another, or before the dialog closed, is dropped. editRelease and alertRelease give back the modal flag the dialog and the alert hold (holdModal). open connects, remotefs.OpenRemote unless a test sets another. The locations' secrets are kept in the system's secure store (state_locations_secrets.go): plain are the IDs of those whose secrets settings.json keeps instead, as an earlier version wrote them or the store refused them; secretGen numbers each location's changes of its secrets, so a store's answer to an older one is dropped; secretsTail is where the store's work queued last ends, and secretsBusy how many of it are not done; secrets is the store a test sets, the app's own (locationSecretStore) when nil.
 type locationsUI struct {
 	list         []account.Location
 	removed      []account.Location
@@ -32,7 +32,7 @@ type locationsUI struct {
 	gen          int
 	editRelease  func()
 	alertRelease func()
-	open         func(context.Context, storage.Remote) (storage.Provider, io.Closer, error)
+	open         func(context.Context, remotefs.Remote) (remotefs.Provider, io.Closer, error)
 	plain        map[string]bool
 	secretGen    map[string]int
 	secretsTail  chan struct{}
@@ -52,11 +52,11 @@ type locationTest struct {
 type locationAlert struct {
 	kind   account.AlertKind
 	target string
-	hk     *storage.HostKeyError
+	hk     *remotefs.HostKeyError
 }
 
 func newLocationsUI() locationsUI {
-	return locationsUI{tests: map[string]locationTest{}, open: storage.OpenRemote, plain: map[string]bool{}, secretGen: map[string]int{}}
+	return locationsUI{tests: map[string]locationTest{}, open: remotefs.OpenRemote, plain: map[string]bool{}, secretGen: map[string]int{}}
 }
 
 // locationTestTimeout bounds a Test: connecting, signing in and reading the folder.
@@ -105,7 +105,7 @@ func cleanLocations(locations []savedLocation, seen map[string]bool) []savedLoca
 		l.ID, l.Name, l.Kind = strings.TrimSpace(l.ID), strings.TrimSpace(l.Name), strings.TrimSpace(l.Kind)
 		l.Host, l.Share, l.URL, l.Root = strings.TrimSpace(l.Host), strings.TrimSpace(l.Share), strings.TrimSpace(l.URL), strings.TrimSpace(l.Root)
 		l.User, l.Domain, l.PrivateKey, l.HostKey = strings.TrimSpace(l.User), strings.TrimSpace(l.Domain), strings.TrimSpace(l.PrivateKey), strings.TrimSpace(l.HostKey)
-		if l.ID == "" || l.Name == "" || seen[l.ID] || !slices.Contains(account.Kinds, storage.Kind(l.Kind)) {
+		if l.ID == "" || l.Name == "" || seen[l.ID] || !slices.Contains(account.Kinds, remotefs.Kind(l.Kind)) {
 			continue
 		}
 		if l.Port < 0 || l.Port > 65535 {
@@ -165,8 +165,8 @@ func (a *app) restoreLocations(saved savedSettings) {
 func locationsOfSaved(saved []savedLocation) []account.Location {
 	var out []account.Location
 	for _, l := range saved {
-		out = append(out, account.Location{ID: l.ID, Name: l.Name, Remote: storage.Remote{
-			Kind: storage.Kind(l.Kind), Host: l.Host, Port: l.Port, Share: l.Share, URL: l.URL, Root: l.Root,
+		out = append(out, account.Location{ID: l.ID, Name: l.Name, Remote: remotefs.Remote{
+			Kind: remotefs.Kind(l.Kind), Host: l.Host, Port: l.Port, Share: l.Share, URL: l.URL, Root: l.Root,
 			User: l.User, Password: l.Password, Domain: l.Domain, PrivateKey: l.PrivateKey, Passphrase: l.Passphrase, HostKey: l.HostKey}})
 	}
 	return out
@@ -297,7 +297,7 @@ func (a *app) removeLocation(id string) {
 	delete(a.locations.tests, id)
 	if a.storedCount(id) > 0 {
 		r := gone.Remote
-		gone.Remote = storage.Remote{Kind: r.Kind, Host: r.Host, Port: r.Port, Share: r.Share, URL: r.URL, Root: r.Root, User: r.User}
+		gone.Remote = remotefs.Remote{Kind: r.Kind, Host: r.Host, Port: r.Port, Share: r.Share, URL: r.URL, Root: r.Root, User: r.User}
 		a.locations.removed = append(a.locations.removed, gone)
 	}
 	if err := a.saveSettings(); err != nil {
@@ -320,23 +320,23 @@ func (a *app) locationRelink(loc *account.Location) {
 }
 
 // sameAddress reports whether a and b reach the same folder: the same kind of server, host (ignoring case) and port, share, address and folder, whatever the user and the secrets.
-func sameAddress(a, b storage.Remote) bool {
+func sameAddress(a, b remotefs.Remote) bool {
 	trim := func(s string) string { return strings.Trim(strings.TrimSpace(s), "/") }
 	return a.Kind == b.Kind && strings.EqualFold(strings.TrimSpace(a.Host), strings.TrimSpace(b.Host)) && a.Port == b.Port &&
 		trim(a.Share) == trim(b.Share) && trim(a.URL) == trim(b.URL) && trim(a.Root) == trim(b.Root)
 }
 
 // locationRemote is how to reach target: the location of that ID, or with "" the dialog's draft, and why it cannot be tried, nil when it can. ok is false for a location that is gone, or a draft whose dialog closed.
-func (a *app) locationRemote(target string) (r storage.Remote, problem func(locales.Messages) string, ok bool) {
+func (a *app) locationRemote(target string) (r remotefs.Remote, problem func(locales.Messages) string, ok bool) {
 	if target == "" {
 		if !a.locations.editing {
-			return storage.Remote{}, nil, false
+			return remotefs.Remote{}, nil, false
 		}
 		return a.locations.draft.Remote(), a.locations.draft.Problem(), true
 	}
 	i := a.locationIndex(target)
 	if i < 0 {
-		return storage.Remote{}, nil, false
+		return remotefs.Remote{}, nil, false
 	}
 	return a.locations.list[i].Remote, nil, true
 }
@@ -368,7 +368,7 @@ func (a *app) testLocation(target string) {
 }
 
 // locationTested records how the Test gen of target went, unless another Test took its place or its location or dialog went away. A host key Kando does not trust opens the question about it: trust it at the first connection, or the warning that it changed.
-func (a *app) locationTested(target string, gen int, r storage.Remote, err error) {
+func (a *app) locationTested(target string, gen int, r remotefs.Remote, err error) {
 	l := &a.locations
 	if t := l.tests[target]; !t.busy || t.gen != gen {
 		return
@@ -381,11 +381,11 @@ func (a *app) locationTested(target string, gen int, r storage.Remote, err error
 		l.tests[target] = locationTest{ok: true}
 		return
 	}
-	var hk *storage.HostKeyError
+	var hk *remotefs.HostKeyError
 	if errors.As(err, &hk) {
 		delete(l.tests, target)
 		kind := account.AlertTrust
-		if errors.Is(err, storage.ErrHostKeyMismatch) {
+		if errors.Is(err, remotefs.ErrHostKeyMismatch) {
 			kind = account.AlertKeyChanged
 		}
 		a.askLocation(locationAlert{kind: kind, target: target, hk: hk})
@@ -454,7 +454,7 @@ func (a *app) locationAlertView() account.Alert {
 		}
 		out.Films = a.storedCount(q.target)
 	case account.AlertTrust, account.AlertKeyChanged:
-		out.Host, out.Fingerprint, out.Trusted = q.hk.Host, q.hk.Fingerprint, storage.Fingerprint(q.hk.Trusted)
+		out.Host, out.Fingerprint, out.Trusted = q.hk.Host, q.hk.Fingerprint, remotefs.Fingerprint(q.hk.Trusted)
 	}
 	return out
 }

@@ -8,6 +8,8 @@ use ./packages/core
 
 use ./packages/media
 
+use ./packages/remotefs
+
 use ./packages/study
 
 use (

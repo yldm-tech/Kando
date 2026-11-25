@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // ErrSourceGone is the Pool's error for a source it does not hold: removed from the settings, or of a kind not registered.
@@ -30,7 +30,7 @@ type Pool struct {
 	sources map[string]poolSource
 	conns   map[string]Driver
 	// proxy serves the sources' videos on the loopback address to the system's player and ffmpeg (URL), started the first time one is asked for.
-	proxy *storage.Proxy
+	proxy *remotefs.Proxy
 }
 
 // poolSource is a source the Pool holds, with its kind.
@@ -141,7 +141,7 @@ func (p *Pool) Close() {
 	}
 }
 
-// URL is the address the system's player and ffmpeg read the video at path of the source id at, http://127.0.0.1:port/token/name, served by the Pool's loopback server (storage.Proxy) through its connection to the source, made anew when the one it had failed; once the file was found there (ErrNotExist when it is not). Each call is given back with Revoke once its holder moved on, as the player does when the page moves on from the film and a job when it ends.
+// URL is the address the system's player and ffmpeg read the video at path of the source id at, http://127.0.0.1:port/token/name, served by the Pool's loopback server (remotefs.Proxy) through its connection to the source, made anew when the one it had failed; once the file was found there (ErrNotExist when it is not). Each call is given back with Revoke once its holder moved on, as the player does when the page moves on from the film and a job when it ends.
 func (p *Pool) URL(ctx context.Context, id, path string) (string, error) {
 	r := p.Reader(id)
 	info, err := r.Stat(ctx, path)
@@ -154,7 +154,7 @@ func (p *Pool) URL(ctx context.Context, id, path string) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.proxy == nil {
-		proxy, err := storage.NewProxy()
+		proxy, err := remotefs.NewProxy()
 		if err != nil {
 			return "", err
 		}
@@ -163,7 +163,7 @@ func (p *Pool) URL(ctx context.Context, id, path string) (string, error) {
 	return p.proxy.URL(r, path)
 }
 
-// Revoke gives back link, an address URL gave, and the loopback server stops serving its video once every call that gave it was given back (storage.Proxy.Revoke).
+// Revoke gives back link, an address URL gave, and the loopback server stops serving its video once every call that gave it was given back (remotefs.Proxy.Revoke).
 func (p *Pool) Revoke(link string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -172,7 +172,7 @@ func (p *Pool) Revoke(link string) {
 	}
 }
 
-// Handler serves the video at path of the source id over HTTP as storage.Handler does, through the Pool's connection to it, as Phone Sync serves an indexed film's video to a phone: 502 when the source cannot be reached, 404 when it lacks the file.
+// Handler serves the video at path of the source id over HTTP as remotefs.Handler does, through the Pool's connection to it, as Phone Sync serves an indexed film's video to a phone: 502 when the source cannot be reached, 404 when it lacks the file.
 func (p *Pool) Handler(id, path string) http.Handler {
 	r := p.Reader(id)
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -184,12 +184,12 @@ func (p *Pool) Handler(id, path string) http.Handler {
 			http.Error(w, "the media source cannot be reached", http.StatusBadGateway)
 			return
 		}
-		storage.Handler(r, path).ServeHTTP(w, req)
+		remotefs.Handler(r, path).ServeHTTP(w, req)
 	})
 }
 
-// Reader is the source id as storage reads a file (storage.Reader), through the Pool's connection to it, made anew on each read after the one it had failed. It is comparable, so the loopback server gives one address to one file of it.
-func (p *Pool) Reader(id string) storage.Reader { return poolReader{pool: p, id: id} }
+// Reader is the source id as storage reads a file (remotefs.Reader), through the Pool's connection to it, made anew on each read after the one it had failed. It is comparable, so the loopback server gives one address to one file of it.
+func (p *Pool) Reader(id string) remotefs.Reader { return poolReader{pool: p, id: id} }
 
 // poolReader reads the source id through pool.
 type poolReader struct {
@@ -197,10 +197,10 @@ type poolReader struct {
 	id   string
 }
 
-func (r poolReader) Stat(ctx context.Context, path string) (storage.Info, error) {
+func (r poolReader) Stat(ctx context.Context, path string) (remotefs.Info, error) {
 	d, err := r.pool.Driver(ctx, r.id)
 	if err != nil {
-		return storage.Info{}, err
+		return remotefs.Info{}, err
 	}
 	info, err := StorageReader(d).Stat(ctx, path)
 	r.forgetAfter(err)
@@ -224,17 +224,17 @@ func (r poolReader) forgetAfter(err error) {
 	}
 }
 
-// StorageReader is d as storage reads a file (storage.Reader), so storage.Get copies a source's file into the library and storage.Handler serves one.
-func StorageReader(d Driver) storage.Reader { return storageReader{d} }
+// StorageReader is d as storage reads a file (remotefs.Reader), so storage.Get copies a source's file into the library and remotefs.Handler serves one.
+func StorageReader(d Driver) remotefs.Reader { return storageReader{d} }
 
 type storageReader struct{ d Driver }
 
-func (r storageReader) Stat(ctx context.Context, p string) (storage.Info, error) {
+func (r storageReader) Stat(ctx context.Context, p string) (remotefs.Info, error) {
 	e, err := r.d.Stat(ctx, p)
 	if err != nil {
-		return storage.Info{}, err
+		return remotefs.Info{}, err
 	}
-	return storage.Info{Name: e.Name, Size: e.Size, Modified: e.Modified, Dir: e.Dir, ETag: e.Version}, nil
+	return remotefs.Info{Name: e.Name, Size: e.Size, Modified: e.Modified, Dir: e.Dir, ETag: e.Version}, nil
 }
 
 func (r storageReader) Open(ctx context.Context, p string, offset, length int64) (io.ReadCloser, error) {

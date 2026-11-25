@@ -9,13 +9,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"kando/packages/remotefs"
+	"kando/packages/remotefs/providertest"
 )
 
 // TestPutAndGetCopyAFileWhole checks, against every provider, that Put copies a file up byte for byte and tells its progress up to the whole size, and that Get copies it back down whole, leaving no hidden file beside it, and does not write over a file already there.
 func TestPutAndGetCopyAFileWhole(t *testing.T) {
 	ctx := context.Background()
 	body := bytes.Repeat([]byte("0123456789abcdef"), 70_000)
-	for kind, p := range providers(t) {
+	for kind, p := range copyProviders(t) {
 		t.Run(kind, func(t *testing.T) {
 			dir := t.TempDir()
 			local := filepath.Join(dir, "video.mp4")
@@ -30,7 +33,7 @@ func TestPutAndGetCopyAFileWhole(t *testing.T) {
 			if size != int64(len(body)) || last != size || total != size {
 				t.Fatalf("Put = %d, progress %d of %d, want %d", size, last, total, len(body))
 			}
-			if got := read(t, p, "Kando/Talk/video.mp4", 0, -1); got != string(body) {
+			if got := providertest.Read(t, p, "Kando/Talk/video.mp4", 0, -1); got != string(body) {
 				t.Fatalf("the provider holds %d bytes that differ", len(got))
 			}
 			if _, err := os.Stat(local); err != nil {
@@ -53,7 +56,7 @@ func TestPutAndGetCopyAFileWhole(t *testing.T) {
 			if err := Get(ctx, p, "Kando/Talk/video.mp4", back, nil); !errors.Is(err, os.ErrExist) {
 				t.Fatalf("Get over a file = %v", err)
 			}
-			if err := Get(ctx, p, "Kando/Talk/missing.mp4", filepath.Join(dir, "missing.mp4"), nil); !errors.Is(err, ErrNotExist) {
+			if err := Get(ctx, p, "Kando/Talk/missing.mp4", filepath.Join(dir, "missing.mp4"), nil); !errors.Is(err, remotefs.ErrNotExist) {
 				t.Fatalf("Get of a missing file = %v", err)
 			}
 		})
@@ -78,14 +81,14 @@ func TestPutAndGetStopWithTheirContext(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("a stopped Put = %v", err)
 	}
-	if _, err := p.Stat(context.Background(), "video.mp4"); !errors.Is(err, ErrNotExist) {
+	if _, err := p.Stat(context.Background(), "video.mp4"); !errors.Is(err, remotefs.ErrNotExist) {
 		t.Fatalf("a stopped Put stored something: %v", err)
 	}
-	if names := names(t, p, ""); len(names) != 0 {
+	if names := providertest.Names(t, p, ""); len(names) != 0 {
 		t.Fatalf("a stopped Put left %v", names)
 	}
 
-	write(t, p, "video.mp4", body)
+	providertest.Write(t, p, "video.mp4", body)
 	ctx, cancel = context.WithCancel(context.Background())
 	back := filepath.Join(dir, "back", "video.mp4")
 	err = Get(ctx, p, "video.mp4", back, func(done, _ int64) {
@@ -102,7 +105,7 @@ func TestPutAndGetStopWithTheirContext(t *testing.T) {
 }
 
 // shortStore is a provider that stores one byte fewer than it is given, as a store that loses data would, so the size check of a copy fails.
-type shortStore struct{ Provider }
+type shortStore struct{ remotefs.Provider }
 
 func (s shortStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
 	data, err := io.ReadAll(io.LimitReader(r, size))
@@ -122,11 +125,25 @@ func TestPutRemovesACopyOfTheWrongSize(t *testing.T) {
 	if _, err := Put(context.Background(), shortStore{inner}, "video.mp4", local, nil); !errors.Is(err, ErrSizeMismatch) {
 		t.Fatalf("Put to a short store = %v", err)
 	}
-	if _, err := inner.Stat(context.Background(), "video.mp4"); !errors.Is(err, ErrNotExist) {
+	if _, err := inner.Stat(context.Background(), "video.mp4"); !errors.Is(err, remotefs.ErrNotExist) {
 		t.Fatalf("the short copy stayed: %v", err)
 	}
 	if _, err := os.Stat(local); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestGetCopiesFromAReaderThatIsNotAProvider copies down a file of a Reader alone, as a media source is, which has Stat and Open and nothing else of a Provider.
+func TestGetCopiesFromAReaderThatIsNotAProvider(t *testing.T) {
+	inner := NewLocal(t.TempDir())
+	providertest.Write(t, inner, "Films/Heat.mkv", "0123456789")
+	src := struct{ remotefs.Reader }{inner}
+	local := filepath.Join(t.TempDir(), "Heat.mkv")
+	if err := Get(t.Context(), src, "Films/Heat.mkv", local, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(local); err != nil || string(got) != "0123456789" {
+		t.Fatalf("Get copied %q, %v", got, err)
 	}
 }
 

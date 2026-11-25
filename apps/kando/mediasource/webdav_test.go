@@ -8,8 +8,8 @@ import (
 	"slices"
 	"testing"
 
-	"kando/apps/kando/storage"
-	"kando/apps/kando/storage/davtest"
+	"kando/packages/remotefs"
+	"kando/packages/remotefs/davtest"
 )
 
 // The WebDAV kind is one the Registry takes beside SMB and SFTP, a phone can reach it, and Builtin finds it by its ID alone; its password is its one secret.
@@ -31,10 +31,10 @@ func TestWebDAVKindIsValid(t *testing.T) {
 	}
 }
 
-// A WebDAV source's fields become storage's Remote, its server is its address's host, and an http:// address is one that sends the password unencrypted.
+// A WebDAV source's fields become remotefs's Remote, its server is its address's host, and an http:// address is one that sends the password unencrypted.
 func TestWebDAVRemote(t *testing.T) {
 	s := Source{ID: "0123456789abcdef", Kind: KindWebDAV, Config: map[string]string{WebDAVURL: " https://nas.local:5006/dav ", WebDAVRoot: "films", WebDAVUser: " kando "}}
-	want := storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local:5006/dav", Root: "films", User: "kando", Password: "pa55"}
+	want := remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local:5006/dav", Root: "films", User: "kando", Password: "pa55"}
 	if got := WebDAVRemote(s, "pa55"); got != want {
 		t.Fatalf("WebDAVRemote = %+v, want %+v", got, want)
 	}
@@ -86,7 +86,7 @@ func TestWebDAVOpens(t *testing.T) {
 	if _, err := d.Stat(ctx, "../.."); err == nil {
 		t.Fatal("a path out of the root was read")
 	}
-	if _, err := WebDAV().Open(ctx, s, map[string]string{WebDAVPassword: "wrong"}); storage.Diagnose(err) != storage.FailSignIn {
+	if _, err := WebDAV().Open(ctx, s, map[string]string{WebDAVPassword: "wrong"}); remotefs.Diagnose(err) != remotefs.FailSignIn {
 		t.Fatalf("a wrong password = %v", err)
 	}
 }

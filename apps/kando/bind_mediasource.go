@@ -7,7 +7,7 @@ import (
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sourcebrowser"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // The 媒体来源 page's reads and writes (settings.MediaSourcesApp). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself; what they say is in the interface's language. The state and what the actions do are in state_mediasource.go.
@@ -114,7 +114,7 @@ func (a *app) SaveMediaSource() { a.saveMediaSourceDraft() }
 func (a *app) CloseMediaSource() { a.closeMediaSourceDialog() }
 
 func (a *app) MediaSourceHostKey() string {
-	return storage.Fingerprint(a.sources.draft.Values[mediasource.SFTPHostKey])
+	return remotefs.Fingerprint(a.sources.draft.Values[mediasource.SFTPHostKey])
 }
 
 func (a *app) MediaSourceAlert() account.Alert { return a.mediaSourceAlertView() }

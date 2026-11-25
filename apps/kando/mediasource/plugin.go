@@ -40,7 +40,7 @@ func (e *PluginError) Error() string {
 	return "mediasource: the plugin failed with " + e.Code + ": " + e.Message
 }
 
-// Is makes a PluginError of PluginNotFound ErrNotExist, so a stat of nothing reads as storage's does.
+// Is makes a PluginError of PluginNotFound ErrNotExist, so a stat of nothing reads as remotefs's does.
 func (e *PluginError) Is(target error) bool { return target == ErrNotExist && e.Code == PluginNotFound }
 
 // PluginCall calls the export of the plugin with args and gives back what it answered: what the app gives a plugin's kind to reach its code, which runs on the engine's goroutine. A rejection with a code is a *PluginError.

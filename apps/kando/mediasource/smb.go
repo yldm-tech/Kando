@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"kando/apps/kando/locales"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // The keys of an SMB source's fields (SMB): the server, its port, the share and a folder in it, who signs in, the password, which is secret, and NoSigning, the switch that lets Kando read a NAS that does not sign its messages, or a share open to guests, which cannot.
@@ -28,7 +28,7 @@ const (
 // smbDefaultPort is the port SMB is reached at when the source names none.
 const smbDefaultPort = 445
 
-// SMB is the built-in kind of a share of a NAS or a Windows computer, read over SMB 2 or 3 and signed in with NTLM (storage's SMB). Every message is signed unless the source's NoSigning field is on. A source without a share is the whole server: its root lists the server's shares (storage.ListSMBShares), and a path's first name is the share it is in.
+// SMB is the built-in kind of a share of a NAS or a Windows computer, read over SMB 2 or 3 and signed in with NTLM (remotefs's SMB). Every message is signed unless the source's NoSigning field is on. A source without a share is the whole server: its root lists the server's shares (remotefs.ListSMBShares), and a path's first name is the share it is in.
 func SMB() Kind {
 	return Kind{
 		ID:    KindSMB,
@@ -49,7 +49,7 @@ func SMB() Kind {
 				}},
 		},
 		Open: func(ctx context.Context, s Source, secrets map[string]string) (Driver, error) {
-			return openSMB(ctx, SMBRemote(s, secrets[SMBPassword]), storage.OpenRemote, storage.ListSMBShares)
+			return openSMB(ctx, SMBRemote(s, secrets[SMBPassword]), remotefs.OpenRemote, remotefs.ListSMBShares)
 		},
 	}
 }
@@ -59,15 +59,15 @@ func msg(m func(locales.Messages) string) func(locale string) string {
 	return func(locale string) string { return m(locales.In(locale)) }
 }
 
-// SMBRemote is how storage reaches the SMB source s with password: its fields as a storage.Remote, the port 445 when it names none or one that is not a number, and signing required unless its NoSigning field is "true".
-func SMBRemote(s Source, password string) storage.Remote {
+// SMBRemote is how storage reaches the SMB source s with password: its fields as a remotefs.Remote, the port 445 when it names none or one that is not a number, and signing required unless its NoSigning field is "true".
+func SMBRemote(s Source, password string) remotefs.Remote {
 	c := s.Config
 	port, err := strconv.Atoi(strings.TrimSpace(c[SMBPort]))
 	if err != nil || port < 1 || port > 65535 {
 		port = 0
 	}
-	return storage.Remote{
-		Kind:           storage.KindSMB,
+	return remotefs.Remote{
+		Kind:           remotefs.KindSMB,
 		Host:           strings.TrimSpace(c[SMBHost]),
 		Port:           port,
 		Share:          strings.Trim(strings.TrimSpace(c[SMBShare]), `/\`),
@@ -79,14 +79,14 @@ func SMBRemote(s Source, password string) storage.Remote {
 	}
 }
 
-// The ways openSMB reaches a server, storage's unless a test gives its own.
+// The ways openSMB reaches a server, remotefs's unless a test gives its own.
 type (
-	openRemote func(ctx context.Context, cfg storage.Remote) (storage.Provider, io.Closer, error)
-	listShares func(ctx context.Context, cfg storage.Remote) ([]string, error)
+	openRemote func(ctx context.Context, cfg remotefs.Remote) (remotefs.Provider, io.Closer, error)
+	listShares func(ctx context.Context, cfg remotefs.Remote) ([]string, error)
 )
 
 // openSMB connects to cfg: one share with open when it names one, else the whole server, whose shares shares lists, each mounted with open as a path first reaches into it. Either is checked first, its root read or its shares listed.
-func openSMB(ctx context.Context, cfg storage.Remote, open openRemote, shares listShares) (Driver, error) {
+func openSMB(ctx context.Context, cfg remotefs.Remote, open openRemote, shares listShares) (Driver, error) {
 	if cfg.Share != "" {
 		p, c, err := open(ctx, cfg)
 		if err != nil {
@@ -103,9 +103,9 @@ func openSMB(ctx context.Context, cfg storage.Remote, open openRemote, shares li
 	return &serverDriver{cfg: cfg, open: open, shares: shares, mounted: map[string]*providerDriver{}}, nil
 }
 
-// providerDriver reads a storage.Provider: its List, Stat and Open, with nothing that writes. c closes it.
+// providerDriver reads a remotefs.Provider: its List, Stat and Open, with nothing that writes. c closes it.
 type providerDriver struct {
-	p storage.Provider
+	p remotefs.Provider
 	c io.Closer
 }
 
@@ -136,7 +136,7 @@ func (d *providerDriver) Open(ctx context.Context, p string, offset, length int6
 func (d *providerDriver) Close() error { return d.c.Close() }
 
 // entryOf is info as an Entry: its Version the ETag when the server gives one, else its size and time, which change when the file does.
-func entryOf(info storage.Info) Entry {
+func entryOf(info remotefs.Info) Entry {
 	e := Entry{Name: info.Name, Size: info.Size, Modified: info.Modified, Dir: info.Dir, Version: info.ETag}
 	if e.Version == "" && !e.Dir {
 		e.Version = strconv.FormatInt(info.Size, 10) + "-" + strconv.FormatInt(info.Modified.UnixNano(), 10)
@@ -146,7 +146,7 @@ func entryOf(info storage.Info) Entry {
 
 // serverDriver reads every share of an SMB server: its root lists the shares, and a path's first name is the share it is in, which is mounted the first time a path reaches into it and kept until Close.
 type serverDriver struct {
-	cfg    storage.Remote
+	cfg    remotefs.Remote
 	open   openRemote
 	shares listShares
 
@@ -234,7 +234,7 @@ func (d *serverDriver) Open(ctx context.Context, p string, offset, length int64)
 		return nil, err
 	}
 	if share == "" || rest == "" {
-		return nil, fmt.Errorf("%q: %w", p, storage.ErrIsDir)
+		return nil, fmt.Errorf("%q: %w", p, remotefs.ErrIsDir)
 	}
 	m, err := d.share(ctx, share)
 	if err != nil {

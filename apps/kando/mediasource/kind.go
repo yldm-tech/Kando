@@ -48,7 +48,7 @@ const (
 	FieldBool   FieldType = "bool"
 	// FieldURL is the address of the server a plugin's source reaches, whose key is EndpointKey; no other field is one.
 	FieldURL FieldType = "url"
-	// FieldHostKey is the server's key a built-in kind trusts, as SFTP's: a line of authorized_keys, which the form shows as its fingerprint and which only the question asked at the first connection, or when the server offers another key, sets (storage.HostKeyError). It is not secret, so settings.json keeps it; a plugin's kind has none.
+	// FieldHostKey is the server's key a built-in kind trusts, as SFTP's: a line of authorized_keys, which the form shows as its fingerprint and which only the question asked at the first connection, or when the server offers another key, sets (remotefs.HostKeyError). It is not secret, so settings.json keeps it; a plugin's kind has none.
 	FieldHostKey FieldType = "hostKey"
 )
 

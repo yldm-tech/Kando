@@ -10,6 +10,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"kando/packages/remotefs"
 )
 
 // ErrSizeMismatch is Put's and Get's error for a copy that does not come out as long as what it was copied from, as when a store kept less than it was sent; the copy is not used.
@@ -19,7 +21,7 @@ var ErrSizeMismatch = errors.New("storage: the copy's size does not match")
 type Progress func(done, total int64)
 
 // Put copies the file at local on this computer to p on provider, telling progress how far it got, and checks that the provider then holds as many bytes at p as the file has; it returns that size. The file is left as it is, whatever happens. A copy stopped by ctx, or one the provider stored fewer bytes of, fails: with the latter (ErrSizeMismatch) Put removes what the provider holds at p, as it is not the file.
-func Put(ctx context.Context, provider Provider, p, local string, progress Progress) (int64, error) {
+func Put(ctx context.Context, provider remotefs.Provider, p, local string, progress Progress) (int64, error) {
 	f, err := os.Open(local)
 	if err != nil {
 		return 0, err
@@ -30,7 +32,7 @@ func Put(ctx context.Context, provider Provider, p, local string, progress Progr
 		return 0, err
 	}
 	if info.IsDir() {
-		return 0, fmt.Errorf("%s: %w", local, ErrIsDir)
+		return 0, fmt.Errorf("%s: %w", local, remotefs.ErrIsDir)
 	}
 	size := info.Size()
 	if err := provider.Write(ctx, p, &watchedReader{ctx: ctx, r: f, total: size, progress: progress}, size); err != nil {
@@ -51,13 +53,13 @@ func Put(ctx context.Context, provider Provider, p, local string, progress Progr
 }
 
 // Get copies the file at p of reader, a provider or a media source, to local on this computer, telling progress how far it got: into a hidden file beside local, renamed to local once it holds as many bytes as the reader says the file has, so local is never a part of it. It does not write over a file already at local. On any failure, a stop by ctx among them, nothing is left beside local.
-func Get(ctx context.Context, reader Reader, p, local string, progress Progress) error {
+func Get(ctx context.Context, reader remotefs.Reader, p, local string, progress Progress) error {
 	info, err := reader.Stat(ctx, p)
 	if err != nil {
 		return err
 	}
 	if info.Dir {
-		return fmt.Errorf("%s: %w", p, ErrIsDir)
+		return fmt.Errorf("%s: %w", p, remotefs.ErrIsDir)
 	}
 	if _, err := os.Lstat(local); err == nil {
 		return fmt.Errorf("%s: %w", local, os.ErrExist)
@@ -70,7 +72,7 @@ func Get(ctx context.Context, reader Reader, p, local string, progress Progress)
 	if err := os.MkdirAll(filepath.Dir(local), 0o755); err != nil {
 		return err
 	}
-	temp := filepath.Join(filepath.Dir(local), tempPrefix+rand.Text())
+	temp := filepath.Join(filepath.Dir(local), remotefs.TempPrefix+rand.Text())
 	f, err := os.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
@@ -127,7 +129,7 @@ func FilmPath(library, rel string) string {
 	if library == "" || library == "." || library == ".." {
 		library = "Library"
 	}
-	p, err := cleanFile(path.Join("Kando", library, rel))
+	p, err := remotefs.CleanFile(path.Join("Kando", library, rel))
 	if err != nil || !strings.HasPrefix(p, "Kando/"+library+"/") {
 		return ""
 	}

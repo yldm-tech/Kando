@@ -13,8 +13,8 @@ import (
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
-	"kando/apps/kando/storage"
 	"kando/packages/core"
+	"kando/packages/remotefs"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -47,7 +47,7 @@ func TestScreenshotsMediaSources(t *testing.T) {
 	})
 	shootSettings(t, f, settings.SectionMediaSources, "settings-sources-trust", shown, models, turbo, func(a *app) {
 		sftp(a)
-		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &storage.HostKeyError{Host: "backup.lan", Key: shotHostKey(7), Fingerprint: storage.Fingerprint(shotHostKey(7))}})
+		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &remotefs.HostKeyError{Host: "backup.lan", Key: shotHostKey(7), Fingerprint: remotefs.Fingerprint(shotHostKey(7))}})
 	})
 	shootSettings(t, f, settings.SectionMediaSources, "settings-sources-add-webdav", shown, models, turbo, func(a *app) {
 		shotMediaSources(a)

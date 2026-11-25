@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"kando/apps/kando/locales"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // Location is a folder on a NAS or a server that films can be kept in, as the 存储位置 card lists it: the name it goes by and how to reach it. ID stays the same as it is edited.
 type Location struct {
 	ID     string
 	Name   string
-	Remote storage.Remote
+	Remote remotefs.Remote
 }
 
 // Status is how the last Test of a location went: running, connected, or why not, in the interface's language. The zero Status is no test yet.
@@ -49,7 +49,7 @@ type Alert struct {
 	Certificate bool
 }
 
-// Draft is a location as its dialog edits it, every field as typed: Kind is one of the storage.Kind values, Port is "" for the protocol's own.
+// Draft is a location as its dialog edits it, every field as typed: Kind is one of the remotefs.Kind values, Port is "" for the protocol's own.
 type Draft struct {
 	Name       string
 	Kind       string
@@ -67,14 +67,14 @@ type Draft struct {
 }
 
 // Kinds are the protocols the dialog's drop-down offers, in its order.
-var Kinds = []storage.Kind{storage.KindSMB, storage.KindWebDAV, storage.KindSFTP}
+var Kinds = []remotefs.Kind{remotefs.KindSMB, remotefs.KindWebDAV, remotefs.KindSFTP}
 
 // KindName is a protocol's name, which no language translates.
-func KindName(kind storage.Kind) string {
+func KindName(kind remotefs.Kind) string {
 	switch kind {
-	case storage.KindWebDAV:
+	case remotefs.KindWebDAV:
 		return "WebDAV"
-	case storage.KindSFTP:
+	case remotefs.KindSFTP:
 		return "SFTP"
 	default:
 		return "SMB"
@@ -82,11 +82,11 @@ func KindName(kind storage.Kind) string {
 }
 
 // defaultPort is the port a protocol uses when Port is left empty, "" for WebDAV, whose address holds it.
-func defaultPort(kind storage.Kind) string {
+func defaultPort(kind remotefs.Kind) string {
 	switch kind {
-	case storage.KindSMB:
+	case remotefs.KindSMB:
 		return "445"
-	case storage.KindSFTP:
+	case remotefs.KindSFTP:
 		return "22"
 	}
 	return ""
@@ -101,25 +101,25 @@ func DraftOf(l Location) Draft {
 		d.Port = strconv.Itoa(r.Port)
 	}
 	if d.Kind == "" {
-		d.Kind = string(storage.KindSMB)
+		d.Kind = string(remotefs.KindSMB)
 	}
 	return d
 }
 
 // Remote is how to reach the location d describes, with only the fields its kind uses. Call it once Problem is nil; a port that is not a number reads as the protocol's own.
-func (d Draft) Remote() storage.Remote {
-	kind := storage.Kind(d.Kind)
+func (d Draft) Remote() remotefs.Remote {
+	kind := remotefs.Kind(d.Kind)
 	port, _ := strconv.Atoi(strings.TrimSpace(d.Port))
-	r := storage.Remote{Kind: kind, Root: strings.TrimSpace(d.Root), User: strings.TrimSpace(d.User), Password: d.Password}
+	r := remotefs.Remote{Kind: kind, Root: strings.TrimSpace(d.Root), User: strings.TrimSpace(d.User), Password: d.Password}
 	switch kind {
-	case storage.KindWebDAV:
+	case remotefs.KindWebDAV:
 		r.URL = strings.TrimSpace(d.URL)
-	case storage.KindSFTP:
+	case remotefs.KindSFTP:
 		r.Host, r.Port = strings.TrimSpace(d.Host), port
 		r.PrivateKey, r.Passphrase = strings.TrimSpace(d.PrivateKey), d.Passphrase
 		r.HostKey = strings.TrimSpace(d.HostKey)
 	default:
-		r.Kind = storage.KindSMB
+		r.Kind = remotefs.KindSMB
 		r.Host, r.Port = strings.TrimSpace(d.Host), port
 		r.Share = strings.Trim(strings.TrimSpace(d.Share), `/\`)
 		r.Domain = strings.TrimSpace(d.Domain)
@@ -129,8 +129,8 @@ func (d Draft) Remote() storage.Remote {
 
 // Problem is what keeps d from being tried or saved, as a message in the language it is read in, nil when nothing does. The name is not needed to try it; Save checks it (NameProblem).
 func (d Draft) Problem() func(locales.Messages) string {
-	kind := storage.Kind(d.Kind)
-	if kind == storage.KindWebDAV {
+	kind := remotefs.Kind(d.Kind)
+	if kind == remotefs.KindWebDAV {
 		u, err := url.Parse(strings.TrimSpace(d.URL))
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return locales.Messages.AccountLocationNeedsURL
@@ -138,20 +138,20 @@ func (d Draft) Problem() func(locales.Messages) string {
 	} else if strings.TrimSpace(d.Host) == "" {
 		return locales.Messages.AccountLocationNeedsHost
 	}
-	if port := strings.TrimSpace(d.Port); port != "" && kind != storage.KindWebDAV {
+	if port := strings.TrimSpace(d.Port); port != "" && kind != remotefs.KindWebDAV {
 		if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
 			return locales.Messages.AccountLocationNeedsPort
 		}
 	}
-	if kind == storage.KindSMB || kind == "" {
+	if kind == remotefs.KindSMB || kind == "" {
 		if share := strings.Trim(strings.TrimSpace(d.Share), `/\`); share == "" || strings.ContainsAny(share, `/\`) {
 			return locales.Messages.AccountLocationNeedsShare
 		}
 	}
-	if kind != storage.KindWebDAV && strings.TrimSpace(d.User) == "" {
+	if kind != remotefs.KindWebDAV && strings.TrimSpace(d.User) == "" {
 		return locales.Messages.AccountLocationNeedsUser
 	}
-	if kind == storage.KindSFTP && d.Password == "" && strings.TrimSpace(d.PrivateKey) == "" {
+	if kind == remotefs.KindSFTP && d.Password == "" && strings.TrimSpace(d.PrivateKey) == "" {
 		return locales.Messages.AccountLocationNeedsSecret
 	}
 	return nil
@@ -166,15 +166,15 @@ func (d Draft) NameProblem() func(locales.Messages) string {
 }
 
 // Place is where r is, as a location's row says it: the server and the share or path, and the folder.
-func Place(r storage.Remote) string {
+func Place(r remotefs.Remote) string {
 	var at string
 	switch r.Kind {
-	case storage.KindWebDAV:
+	case remotefs.KindWebDAV:
 		at = r.URL
 		if u, err := url.Parse(r.URL); err == nil && u.Host != "" {
 			at = u.Host + strings.TrimSuffix(u.Path, "/")
 		}
-	case storage.KindSMB:
+	case remotefs.KindSMB:
 		at = r.Host + "/" + r.Share
 	default:
 		at = r.Host
@@ -186,8 +186,8 @@ func Place(r storage.Remote) string {
 }
 
 // host is the server r reaches, as the failure messages name it.
-func host(r storage.Remote) string {
-	if r.Kind == storage.KindWebDAV {
+func host(r remotefs.Remote) string {
+	if r.Kind == remotefs.KindWebDAV {
 		if u, err := url.Parse(r.URL); err == nil && u.Hostname() != "" {
 			return u.Hostname()
 		}
@@ -196,27 +196,27 @@ func host(r storage.Remote) string {
 }
 
 // Failure says why opening r failed with err, in m's language: never err's own words, which are English and may hold more of the server's address than the person typed. A host-key error is asked about instead (Alert), so it only reads here as the key not trusted.
-func Failure(m locales.Messages, r storage.Remote, err error) string {
-	switch storage.Diagnose(err) {
-	case storage.FailHostKey:
+func Failure(m locales.Messages, r remotefs.Remote, err error) string {
+	switch remotefs.Diagnose(err) {
+	case remotefs.FailHostKey:
 		return m.AccountLocationNotTrusted()
-	case storage.FailSignIn:
+	case remotefs.FailSignIn:
 		return m.AccountLocationFailSignIn()
-	case storage.FailDenied:
+	case remotefs.FailDenied:
 		return m.AccountLocationFailDenied()
-	case storage.FailNoShare:
+	case remotefs.FailNoShare:
 		return m.AccountLocationFailNoShare(r.Share)
-	case storage.FailNoRoot:
+	case remotefs.FailNoRoot:
 		return m.AccountLocationFailNoRoot()
-	case storage.FailBadRoot:
+	case remotefs.FailBadRoot:
 		return m.AccountLocationFailBadRoot()
-	case storage.FailUnreachable:
+	case remotefs.FailUnreachable:
 		return m.AccountLocationFailUnreachable(host(r))
-	case storage.FailTimeout:
+	case remotefs.FailTimeout:
 		return m.AccountLocationFailTimeout(host(r))
-	case storage.FailCertificate:
+	case remotefs.FailCertificate:
 		return m.AccountLocationFailCertificate(host(r))
-	case storage.FailPrivateKey:
+	case remotefs.FailPrivateKey:
 		return m.AccountLocationFailPrivateKey()
 	}
 	return m.AccountLocationFailOther()

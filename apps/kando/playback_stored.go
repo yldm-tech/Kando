@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
-// playerStored opens the video at path from the storage location it was moved to (state_stored.go), as startPlayback opens a file, held at at or playing from there when jump: off the engine's goroutine the location is opened and the video looked up there, and the system's player then plays it through the loopback proxy (storage.Proxy). It reports false for a video that was not moved. A location no longer in the settings, one that cannot be reached and one without the video say so on the page (playErr), which then shows the film's lines alone, as for a missing file.
+// playerStored opens the video at path from the storage location it was moved to (state_stored.go), as startPlayback opens a file, held at at or playing from there when jump: off the engine's goroutine the location is opened and the video looked up there, and the system's player then plays it through the loopback proxy (remotefs.Proxy). It reports false for a video that was not moved. A location no longer in the settings, one that cannot be reached and one without the video say so on the page (playErr), which then shows the film's lines alone, as for a missing file.
 func (a *app) playerStored(path string, at time.Duration, jump bool) bool {
 	s, ok := a.storedOf(path)
 	if !ok {
@@ -42,7 +43,7 @@ func (a *app) playerStored(path string, at time.Duration, jump bool) bool {
 				return
 			}
 			switch {
-			case errors.Is(err, storage.ErrNotExist):
+			case errors.Is(err, remotefs.ErrNotExist):
 				a.player.playErr = playerErrStoredMissing
 			case err != nil:
 				log.Printf("player: could not open the storage location of %s: %v", filepath.Base(path), err)

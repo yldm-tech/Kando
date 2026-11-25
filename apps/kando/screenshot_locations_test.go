@@ -9,7 +9,7 @@ import (
 	"kando/apps/kando/account"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -25,27 +25,27 @@ func TestScreenshotsStorageLocations(t *testing.T) {
 	})
 	shootSettings(t, f, settings.SectionAccount, "settings-account-location-dialog", shown, models, turbo, func(a *app) {
 		shotLocations(a)
-		a.openLocationDialog("", account.Draft{Name: "Studio", Kind: string(storage.KindSFTP), Host: "studio.lan", User: "reader", Password: "secret", Root: "films", HostKey: shotHostKey(1)})
+		a.openLocationDialog("", account.Draft{Name: "Studio", Kind: string(remotefs.KindSFTP), Host: "studio.lan", User: "reader", Password: "secret", Root: "films", HostKey: shotHostKey(1)})
 		a.locations.tests[""] = locationTest{ok: true}
 	})
 	shootSettings(t, f, settings.SectionAccount, "settings-account-location-trust", shown, models, turbo, func(a *app) {
 		shotLocations(a)
 		key := shotHostKey(1)
-		a.askLocation(locationAlert{kind: account.AlertTrust, target: "studio", hk: &storage.HostKeyError{Host: "studio.lan", Key: key, Fingerprint: storage.Fingerprint(key)}})
+		a.askLocation(locationAlert{kind: account.AlertTrust, target: "studio", hk: &remotefs.HostKeyError{Host: "studio.lan", Key: key, Fingerprint: remotefs.Fingerprint(key)}})
 	})
 	shootSettings(t, f, settings.SectionAccount, "settings-account-location-key-changed", shown, models, turbo, func(a *app) {
 		shotLocations(a)
 		key, old := shotHostKey(2), shotHostKey(1)
-		a.askLocation(locationAlert{kind: account.AlertKeyChanged, target: "studio", hk: &storage.HostKeyError{Host: "studio.lan", Key: key, Fingerprint: storage.Fingerprint(key), Trusted: old}})
+		a.askLocation(locationAlert{kind: account.AlertKeyChanged, target: "studio", hk: &remotefs.HostKeyError{Host: "studio.lan", Key: key, Fingerprint: remotefs.Fingerprint(key), Trusted: old}})
 	})
 }
 
 // shotLocations sets up three storage locations, one of each kind, as their Tests left them.
 func shotLocations(a *app) {
 	a.locations.list = []account.Location{
-		{ID: "nas", Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
-		{ID: "dav", Name: "Nextcloud", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", Root: "Kando", User: "reader", Password: "secret"}},
-		{ID: "studio", Name: "Studio", Remote: storage.Remote{Kind: storage.KindSFTP, Host: "studio.lan", Root: "films", User: "reader", Password: "secret", HostKey: shotHostKey(1)}},
+		{ID: "nas", Name: "Home NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
+		{ID: "dav", Name: "Nextcloud", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", Root: "Kando", User: "reader", Password: "secret"}},
+		{ID: "studio", Name: "Studio", Remote: remotefs.Remote{Kind: remotefs.KindSFTP, Host: "studio.lan", Root: "films", User: "reader", Password: "secret", HostKey: shotHostKey(1)}},
 	}
 	a.locations.tests["nas"] = locationTest{ok: true}
 	a.locations.tests["dav"] = locationTest{busy: true}

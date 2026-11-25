@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -84,7 +84,7 @@ func webdavErr(err error) error {
 }
 
 func webdavInfo(name string, fi os.FileInfo) Info {
-	info := localInfo(name, fi)
+	info := fileInfo(name, fi)
 	if f, ok := fi.(gowebdav.File); ok {
 		info.ETag = f.ETag()
 	} else if f, ok := fi.(*gowebdav.File); ok {
@@ -94,7 +94,7 @@ func webdavInfo(name string, fi os.FileInfo) Info {
 }
 
 func (w *webdavStore) Stat(ctx context.Context, p string) (Info, error) {
-	p, err := cleanPath(p)
+	p, err := CleanPath(p)
 	if err != nil {
 		return Info{}, err
 	}
@@ -115,7 +115,7 @@ func (w *webdavStore) Stat(ctx context.Context, p string) (Info, error) {
 
 // List is what lies in the folder dir, leaving out the files a Write is still writing.
 func (w *webdavStore) List(ctx context.Context, dir string) ([]Info, error) {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (w *webdavStore) List(ctx context.Context, dir string) ([]Info, error) {
 	}
 	out := make([]Info, 0, len(entries))
 	for _, fi := range entries {
-		if !strings.HasPrefix(fi.Name(), tempPrefix) {
+		if !strings.HasPrefix(fi.Name(), TempPrefix) {
 			out = append(out, webdavInfo(fi.Name(), fi))
 		}
 	}
@@ -137,7 +137,7 @@ func (w *webdavStore) Open(ctx context.Context, p string, offset, length int64) 
 	if err := checkRange(p, offset, length); err != nil {
 		return nil, err
 	}
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (w *webdavStore) Open(ctx context.Context, p string, offset, length int64) 
 
 // Write uploads r into a hidden file beside p and moves it over p.
 func (w *webdavStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (w *webdavStore) Write(ctx context.Context, p string, r io.Reader, size int
 	} else if _, err := c.Stat(""); err != nil {
 		return webdavErr(err)
 	}
-	temp := path.Join(parent(p), tempPrefix+rand.Text())
+	temp := path.Join(parent(p), TempPrefix+rand.Text())
 	body := &onceSeeker{countingReader: countingReader{r: io.LimitReader(r, size)}}
 	err = c.WriteStreamWithLength(temp, body, size, 0o644)
 	if n := body.n.Load(); err == nil && n < size {
@@ -212,7 +212,7 @@ func (o *onceSeeker) Seek(offset int64, whence int) (int64, error) {
 
 // Remove removes the file or the empty folder at p. DELETE removes a folder with all it holds, so a folder is listed first.
 func (w *webdavStore) Remove(ctx context.Context, p string) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -237,11 +237,11 @@ func (w *webdavStore) Remove(ctx context.Context, p string) error {
 
 // Move makes the folders above to, then moves from to to with MOVE and Overwrite: T.
 func (w *webdavStore) Move(ctx context.Context, from, to string) error {
-	from, err := cleanFile(from)
+	from, err := CleanFile(from)
 	if err != nil {
 		return err
 	}
-	to, err = cleanFile(to)
+	to, err = CleanFile(to)
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (w *webdavStore) Move(ctx context.Context, from, to string) error {
 }
 
 func (w *webdavStore) MkdirAll(ctx context.Context, dir string) error {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return err
 	}

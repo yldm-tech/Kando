@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/cloud"
+	"kando/packages/remotefs"
 )
 
 // ObjectStore is a Provider over a bucket of an object store, R2, S3, OSS, COS or another that speaks S3, under a key prefix. A folder is a key prefix: it exists while it holds an object, so MkdirAll makes nothing and an emptied folder is gone. Writes are whole objects, so a reader sees the old file or the new one. Moving a file copies it in the bucket and deletes the original, which the store does only for a file of up to 5 GiB: a larger one is cloud.ErrCopyTooLarge and stays where it was.
@@ -20,7 +21,7 @@ type ObjectStore struct {
 
 // NewObjectStore is an ObjectStore over bucket, rooted at the key prefix root ("" for the whole bucket, else a slash-separated folder such as "kando/films").
 func NewObjectStore(bucket *cloud.Bucket, root string) (*ObjectStore, error) {
-	root, err := cleanPath(root)
+	root, err := remotefs.CleanPath(root)
 	if err != nil {
 		return nil, err
 	}
@@ -57,40 +58,40 @@ func (o *ObjectStore) prefix(dir string) string {
 
 func objectErr(err error) error {
 	if errors.Is(err, cloud.ErrNoObject) {
-		return fmt.Errorf("%w: %v", ErrNotExist, err)
+		return fmt.Errorf("%w: %v", remotefs.ErrNotExist, err)
 	}
 	return err
 }
 
 // Stat is the object at p or, when there is none, the folder its key prefix makes.
-func (o *ObjectStore) Stat(ctx context.Context, p string) (Info, error) {
-	p, err := cleanPath(p)
+func (o *ObjectStore) Stat(ctx context.Context, p string) (remotefs.Info, error) {
+	p, err := remotefs.CleanPath(p)
 	if err != nil {
-		return Info{}, err
+		return remotefs.Info{}, err
 	}
 	if p == "" {
-		return Info{Dir: true}, nil
+		return remotefs.Info{Dir: true}, nil
 	}
 	obj, err := o.bucket.Head(ctx, o.key(p))
 	if err == nil {
-		return Info{Name: path.Base(p), Size: obj.Size, Modified: obj.Modified, ETag: obj.ETag}, nil
+		return remotefs.Info{Name: path.Base(p), Size: obj.Size, Modified: obj.Modified, ETag: obj.ETag}, nil
 	}
 	if !errors.Is(err, cloud.ErrNoObject) {
-		return Info{}, err
+		return remotefs.Info{}, err
 	}
 	dir, err := o.bucket.HasPrefix(ctx, o.prefix(p))
 	if err != nil {
-		return Info{}, err
+		return remotefs.Info{}, err
 	}
 	if !dir {
-		return Info{}, fmt.Errorf("%s: %w", p, ErrNotExist)
+		return remotefs.Info{}, fmt.Errorf("%s: %w", p, remotefs.ErrNotExist)
 	}
-	return Info{Name: path.Base(p), Dir: true}, nil
+	return remotefs.Info{Name: path.Base(p), Dir: true}, nil
 }
 
 // List is the objects and folders directly under dir's prefix. The root is never missing, only empty.
-func (o *ObjectStore) List(ctx context.Context, dir string) ([]Info, error) {
-	dir, err := cleanPath(dir)
+func (o *ObjectStore) List(ctx context.Context, dir string) ([]remotefs.Info, error) {
+	dir, err := remotefs.CleanPath(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -99,27 +100,27 @@ func (o *ObjectStore) List(ctx context.Context, dir string) ([]Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Info, 0, len(objects)+len(dirs))
+	out := make([]remotefs.Info, 0, len(objects)+len(dirs))
 	for _, obj := range objects {
 		name := strings.TrimPrefix(obj.Key, prefix)
 		if name == "" {
 			// A folder marker some tools write, an empty object whose key ends in a slash.
 			continue
 		}
-		out = append(out, Info{Name: name, Size: obj.Size, Modified: obj.Modified, ETag: obj.ETag})
+		out = append(out, remotefs.Info{Name: name, Size: obj.Size, Modified: obj.Modified, ETag: obj.ETag})
 	}
 	for _, d := range dirs {
-		out = append(out, Info{Name: strings.TrimSuffix(strings.TrimPrefix(d, prefix), "/"), Dir: true})
+		out = append(out, remotefs.Info{Name: strings.TrimSuffix(strings.TrimPrefix(d, prefix), "/"), Dir: true})
 	}
 	if len(out) == 0 && dir != "" && len(objects) == 0 {
-		return nil, fmt.Errorf("%s: %w", dir, ErrNotExist)
+		return nil, fmt.Errorf("%s: %w", dir, remotefs.ErrNotExist)
 	}
 	return out, nil
 }
 
 // Open reads the object at p with a ranged GET.
 func (o *ObjectStore) Open(ctx context.Context, p string, offset, length int64) (io.ReadCloser, error) {
-	p, err := cleanFile(p)
+	p, err := remotefs.CleanFile(p)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +130,7 @@ func (o *ObjectStore) Open(ctx context.Context, p string, offset, length int64) 
 
 // Write stores r as the object at p, in one PUT or, for a large one, in parts.
 func (o *ObjectStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
-	p, err := cleanFile(p)
+	p, err := remotefs.CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -138,7 +139,7 @@ func (o *ObjectStore) Write(ctx context.Context, p string, r io.Reader, size int
 
 // Remove deletes the object at p; with none there, a folder of that name that holds something is ErrNotEmpty.
 func (o *ObjectStore) Remove(ctx context.Context, p string) error {
-	p, err := cleanFile(p)
+	p, err := remotefs.CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -154,18 +155,18 @@ func (o *ObjectStore) Remove(ctx context.Context, p string) error {
 		return err
 	}
 	if full {
-		return fmt.Errorf("%s: %w", p, ErrNotEmpty)
+		return fmt.Errorf("%s: %w", p, remotefs.ErrNotEmpty)
 	}
 	return nil
 }
 
 // Move copies the object at from to to and deletes it; a folder moves object by object, after checking that none is too large to copy, and is not atomic: a failure part way leaves some objects moved.
 func (o *ObjectStore) Move(ctx context.Context, from, to string) error {
-	from, err := cleanFile(from)
+	from, err := remotefs.CleanFile(from)
 	if err != nil {
 		return err
 	}
-	to, err = cleanFile(to)
+	to, err = remotefs.CleanFile(to)
 	if err != nil {
 		return err
 	}
@@ -178,7 +179,7 @@ func (o *ObjectStore) Move(ctx context.Context, from, to string) error {
 		return err
 	}
 	if strings.HasPrefix(to+"/", from+"/") {
-		return fmt.Errorf("%s into itself: %w", from, ErrInvalidPath)
+		return fmt.Errorf("%s into itself: %w", from, remotefs.ErrInvalidPath)
 	}
 	src, dst := o.prefix(from), o.prefix(to)
 	objects, err := o.bucket.List(ctx, src)
@@ -186,7 +187,7 @@ func (o *ObjectStore) Move(ctx context.Context, from, to string) error {
 		return err
 	}
 	if len(objects) == 0 {
-		return fmt.Errorf("%s: %w", from, ErrNotExist)
+		return fmt.Errorf("%s: %w", from, remotefs.ErrNotExist)
 	}
 	for _, obj := range objects {
 		if obj.Size > cloud.MaxCopy {
@@ -210,13 +211,13 @@ func (o *ObjectStore) moveObject(ctx context.Context, from, to string) error {
 
 // MkdirAll makes nothing: a folder of an object store is there once something is stored in it.
 func (o *ObjectStore) MkdirAll(_ context.Context, dir string) error {
-	_, err := cleanPath(dir)
+	_, err := remotefs.CleanPath(dir)
 	return err
 }
 
 // Link presigns a GET of the object at p, good for ttl, at most cloud.MaxPresign. It does not talk to the network, nor check that the object is there.
 func (o *ObjectStore) Link(ctx context.Context, p string, ttl time.Duration) (string, error) {
-	p, err := cleanFile(p)
+	p, err := remotefs.CleanFile(p)
 	if err != nil {
 		return "", err
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // The SMB kind is one the Registry takes, and Builtin finds it by its ID alone.
@@ -32,13 +33,13 @@ func TestSMBKindIsValid(t *testing.T) {
 	}
 }
 
-// An SMB source's fields become storage's Remote: signing is required unless the source says its NAS does not support it, and a port that is not one is SMB's own.
+// An SMB source's fields become remotefs's Remote: signing is required unless the source says its NAS does not support it, and a port that is not one is SMB's own.
 func TestSMBRemote(t *testing.T) {
 	s := Source{ID: "0123456789abcdef", Kind: KindSMB, Config: map[string]string{
 		SMBHost: " nas.local ", SMBShare: "/media/", SMBRoot: "films", SMBUser: "kando", SMBDomain: "WORKGROUP", SMBPort: "4450",
 	}}
 	got := SMBRemote(s, "pa55")
-	want := storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Port: 4450, Share: "media", Root: "films", User: "kando", Domain: "WORKGROUP", Password: "pa55", RequireSigning: true}
+	want := remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Port: 4450, Share: "media", Root: "films", User: "kando", Domain: "WORKGROUP", Password: "pa55", RequireSigning: true}
 	if got != want {
 		t.Fatalf("SMBRemote = %+v, want %+v", got, want)
 	}
@@ -51,7 +52,7 @@ func TestSMBRemote(t *testing.T) {
 
 // fakeShare is one share of a fake SMB server: a storage.Local over a folder of the test's, which counts its closes.
 type fakeShare struct {
-	storage.Provider
+	remotefs.Provider
 	closed *int
 }
 
@@ -69,10 +70,10 @@ func TestSMBWithoutAShareReadsEveryShare(t *testing.T) {
 	}
 	var mounts []string
 	closed := 0
-	open := func(_ context.Context, cfg storage.Remote) (storage.Provider, io.Closer, error) {
+	open := func(_ context.Context, cfg remotefs.Remote) (remotefs.Provider, io.Closer, error) {
 		dir, ok := dirs[cfg.Share]
 		if !ok {
-			return nil, nil, storage.ErrNotExist
+			return nil, nil, remotefs.ErrNotExist
 		}
 		if !cfg.RequireSigning || cfg.Password != "pa55" {
 			t.Errorf("mounted with %+v", cfg)
@@ -81,8 +82,8 @@ func TestSMBWithoutAShareReadsEveryShare(t *testing.T) {
 		share := fakeShare{Provider: storage.NewLocal(dir), closed: &closed}
 		return share, share, nil
 	}
-	shares := func(context.Context, storage.Remote) ([]string, error) { return []string{"backup", "media"}, nil }
-	d, err := openSMB(ctx, storage.Remote{Host: "nas.local", User: "kando", Password: "pa55", RequireSigning: true}, open, shares)
+	shares := func(context.Context, remotefs.Remote) ([]string, error) { return []string{"backup", "media"}, nil }
+	d, err := openSMB(ctx, remotefs.Remote{Host: "nas.local", User: "kando", Password: "pa55", RequireSigning: true}, open, shares)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +113,7 @@ func TestSMBWithoutAShareReadsEveryShare(t *testing.T) {
 	if !slices.Equal(mounts, []string{"media"}) {
 		t.Fatalf("mounted %q, want media once", mounts)
 	}
-	if _, err := d.Open(ctx, "media", 0, -1); !errors.Is(err, storage.ErrIsDir) {
+	if _, err := d.Open(ctx, "media", 0, -1); !errors.Is(err, remotefs.ErrIsDir) {
 		t.Fatalf("opening a share = %v", err)
 	}
 	if _, err := d.List(ctx, "../etc"); !errors.Is(err, ErrInvalidPath) {
@@ -134,13 +135,13 @@ func TestSMBOpens(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
 	closed := 0
-	open := func(_ context.Context, cfg storage.Remote) (storage.Provider, io.Closer, error) {
+	open := func(_ context.Context, cfg remotefs.Remote) (remotefs.Provider, io.Closer, error) {
 		share := fakeShare{Provider: storage.NewLocal(dir), closed: &closed}
 		return share, share, nil
 	}
 	refused := errors.New("logon failure")
-	shares := func(context.Context, storage.Remote) ([]string, error) { return nil, refused }
-	d, err := openSMB(ctx, storage.Remote{Host: "nas", Share: "media", User: "kando"}, open, shares)
+	shares := func(context.Context, remotefs.Remote) ([]string, error) { return nil, refused }
+	d, err := openSMB(ctx, remotefs.Remote{Host: "nas", Share: "media", User: "kando"}, open, shares)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,10 +152,10 @@ func TestSMBOpens(t *testing.T) {
 	if closed != 1 {
 		t.Fatalf("closed %d", closed)
 	}
-	if _, err := openSMB(ctx, storage.Remote{Host: "nas", Root: "films", User: "kando"}, open, shares); !errors.Is(err, ErrInvalidPath) {
+	if _, err := openSMB(ctx, remotefs.Remote{Host: "nas", Root: "films", User: "kando"}, open, shares); !errors.Is(err, ErrInvalidPath) {
 		t.Fatalf("a folder without a share = %v", err)
 	}
-	if _, err := openSMB(ctx, storage.Remote{Host: "nas", User: "kando"}, open, shares); !errors.Is(err, refused) {
+	if _, err := openSMB(ctx, remotefs.Remote{Host: "nas", User: "kando"}, open, shares); !errors.Is(err, refused) {
 		t.Fatalf("a refused sign-in = %v", err)
 	}
 }
@@ -162,16 +163,16 @@ func TestSMBOpens(t *testing.T) {
 // A file's version is its ETag when the server gives one, else its size and time, so a file that changed reads as another version.
 func TestEntryVersion(t *testing.T) {
 	at := time.Date(2026, 11, 21, 9, 0, 0, 0, time.UTC)
-	a := entryOf(storage.Info{Name: "a.mkv", Size: 10, Modified: at})
-	b := entryOf(storage.Info{Name: "a.mkv", Size: 11, Modified: at})
-	c := entryOf(storage.Info{Name: "a.mkv", Size: 10, Modified: at.Add(time.Second)})
+	a := entryOf(remotefs.Info{Name: "a.mkv", Size: 10, Modified: at})
+	b := entryOf(remotefs.Info{Name: "a.mkv", Size: 11, Modified: at})
+	c := entryOf(remotefs.Info{Name: "a.mkv", Size: 10, Modified: at.Add(time.Second)})
 	if a.Version == "" || a.Version == b.Version || a.Version == c.Version {
 		t.Fatalf("versions %q %q %q", a.Version, b.Version, c.Version)
 	}
-	if e := entryOf(storage.Info{Name: "a.mkv", ETag: `"x"`}); e.Version != `"x"` {
+	if e := entryOf(remotefs.Info{Name: "a.mkv", ETag: `"x"`}); e.Version != `"x"` {
 		t.Fatalf("ETag version %q", e.Version)
 	}
-	if e := entryOf(storage.Info{Name: "dir", Dir: true}); e.Version != "" {
+	if e := entryOf(remotefs.Info{Name: "dir", Dir: true}); e.Version != "" {
 		t.Fatalf("folder version %q", e.Version)
 	}
 }

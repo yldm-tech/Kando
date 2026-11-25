@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -21,22 +21,22 @@ var locationSecretKeys = []string{"password", "privateKey", "passphrase"}
 func locationSecretAccount(id, key string) string { return id + "." + key }
 
 // locationSecretValues are r's secrets by key, the empty ones among them.
-func locationSecretValues(r storage.Remote) map[string]string {
+func locationSecretValues(r remotefs.Remote) map[string]string {
 	return map[string]string{"password": r.Password, "privateKey": r.PrivateKey, "passphrase": r.Passphrase}
 }
 
 // locationHasSecrets reports whether r holds any secret.
-func locationHasSecrets(r storage.Remote) bool {
+func locationHasSecrets(r remotefs.Remote) bool {
 	return r.Password != "" || r.PrivateKey != "" || r.Passphrase != ""
 }
 
 // locationSameSecrets reports whether a and b hold the same secrets.
-func locationSameSecrets(a, b storage.Remote) bool {
+func locationSameSecrets(a, b remotefs.Remote) bool {
 	return a.Password == b.Password && a.PrivateKey == b.PrivateKey && a.Passphrase == b.Passphrase
 }
 
 // locationSetSecrets puts values, by key, into r.
-func locationSetSecrets(r *storage.Remote, values map[string]string) {
+func locationSetSecrets(r *remotefs.Remote, values map[string]string) {
 	r.Password, r.PrivateKey, r.Passphrase = values["password"], values["privateKey"], values["passphrase"]
 }
 

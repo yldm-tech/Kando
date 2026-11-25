@@ -26,6 +26,7 @@ import (
 	"kando/apps/kando/storage"
 	"kando/packages/core"
 	"kando/packages/media"
+	"kando/packages/remotefs"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
@@ -36,7 +37,7 @@ import (
 const storedPlace = "Home NAS"
 
 // useStoredLocation gives f's app a NAS location, Home NAS of ID nas, reaching remote, opened by open (nil for storage.OpenTarget), and library.json in a file of its own, so what is saved can be read again.
-func useStoredLocation(t *testing.T, f *moveFixture, remote storage.Remote, open func(context.Context, storage.Target) (storage.Provider, io.Closer, error)) string {
+func useStoredLocation(t *testing.T, f *moveFixture, remote remotefs.Remote, open func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error)) string {
 	t.Helper()
 	a := f.a
 	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: remote}}
@@ -57,8 +58,8 @@ func useStoredLocation(t *testing.T, f *moveFixture, remote storage.Remote, open
 }
 
 // localOpen opens every location as a folder on this computer, dir.
-func localOpen(dir string) func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
-	return func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
+func localOpen(dir string) func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) {
+	return func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) {
 		return storage.NewLocal(dir), nil, nil
 	}
 }
@@ -113,7 +114,7 @@ func TestMoveVideoToALocationAndBack(t *testing.T) {
 	a, tt := f.a, f.tt
 	m := testlocale.Messages()
 	nas := t.TempDir()
-	path := useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
+	path := useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
 	item := must(films.Find(a.films(), "film"))
 
 	menu := a.StoredMenu(a.cx, item)
@@ -235,7 +236,7 @@ func TestMoveVideoToALocationAndBack(t *testing.T) {
 }
 
 // failingStore is a location whose writes fail, as a NAS that is full.
-type failingStore struct{ storage.Provider }
+type failingStore struct{ remotefs.Provider }
 
 var errStoreFull = errors.New("no space left on device")
 
@@ -256,7 +257,7 @@ func TestMoveVideoFailsOrStopsAndKeepsIt(t *testing.T) {
 		}
 	})
 	failing := true
-	open := func(ctx context.Context, _ storage.Target) (storage.Provider, io.Closer, error) {
+	open := func(ctx context.Context, _ storage.Target) (remotefs.Provider, io.Closer, error) {
 		if failing {
 			return failingStore{storage.NewLocal(nas)}, nil, nil
 		}
@@ -268,7 +269,7 @@ func TestMoveVideoFailsOrStopsAndKeepsIt(t *testing.T) {
 		}
 		return storage.NewLocal(nas), nil, nil
 	}
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, open)
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, open)
 	item := must(films.Find(a.films(), "film"))
 
 	a.MoveVideoTo(item, "nas")
@@ -315,7 +316,7 @@ func TestMoveVideoToWebDAVAndBack(t *testing.T) {
 	f := newMoveFixture(t)
 	a := f.a
 	m := testlocale.Messages()
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: url, Root: "films", User: "kando", Password: "secret"}, nil)
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: url, Root: "films", User: "kando", Password: "secret"}, nil)
 	item := must(films.Find(a.films(), "film"))
 
 	a.MoveVideoTo(item, "nas")
@@ -351,13 +352,13 @@ func TestStoredFilmWhoseLocationIsGoneOrUnreachable(t *testing.T) {
 	m := testlocale.Messages()
 	nas := t.TempDir()
 	reachable := true
-	open := func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
+	open := func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) {
 		if !reachable {
 			return nil, nil, errors.New("dial tcp: connection refused")
 		}
 		return storage.NewLocal(nas), nil, nil
 	}
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, open)
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, open)
 	if err := os.Remove(f.video); err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +425,7 @@ func TestPhoneSyncServesAMovedVideo(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(nas, "talk.mp4"), []byte("moved video"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}}}
+	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}}}
 	a.stored.pool = storage.NewPool(localOpen(nas))
 	t.Cleanup(a.stored.pool.Close)
 	moved := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
@@ -472,7 +473,7 @@ func TestStoredMarkOnPostersAndRows(t *testing.T) {
 		t.Fatal("a film whose video is in the library's folder has the mark")
 	}
 
-	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}}}
+	a.locations.list = []account.Location{{ID: "nas", Name: storedPlace, Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}}}
 	a.library.Stored = map[string]shelf.Stored{f.video: {Location: "nas", Path: "Kando/films/video.mp4", Size: 7}}
 	refresh(tt, a)
 	on := m.FilmsStoredOn(storedPlace)
@@ -526,7 +527,7 @@ func TestStoredMarkOnPostersAndRows(t *testing.T) {
 
 // pickyStore is a location whose writes of a path holding hold wait until they are stopped, and of one holding fail fail, as a NAS that fills up partway; it counts the writes begun.
 type pickyStore struct {
-	storage.Provider
+	remotefs.Provider
 	mu         sync.Mutex
 	hold, fail string
 	writes     int
@@ -562,14 +563,14 @@ func (s *pickyStore) Write(ctx context.Context, p string, r io.Reader, size int6
 }
 
 // storedSeries is newSeriesFixture with Home NAS, a folder nas on this computer, as its storage location, opened by open (localOpen(nas) when nil), and the three films selected on the library page: the talk a job made and the two episodes of Course no job processed.
-func storedSeries(t *testing.T, open func(context.Context, storage.Target) (storage.Provider, io.Closer, error)) (f *moveFixture, nas string, items []films.Film) {
+func storedSeries(t *testing.T, open func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error)) (f *moveFixture, nas string, items []films.Film) {
 	t.Helper()
 	f, ep1, ep2 := newSeriesFixture(t)
 	nas = t.TempDir()
 	if open == nil {
 		open = localOpen(nas)
 	}
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, open)
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, open)
 	a := f.a
 	items = []films.Film{must(films.Find(a.films(), "film")), must(films.Find(a.films(), ep1)), must(films.Find(a.films(), ep2))}
 	for _, item := range items {
@@ -646,7 +647,7 @@ func TestMoveSeveralVideosAtOnce(t *testing.T) {
 // TestMoveSeveralVideosStopsOrFails checks that 取消 while the second of three videos is copied stops it and leaves it and the third in the library, the first staying moved; and that a copy that fails partway leaves that video and the ones after it in the library, the message bar saying how many moved and why the others did not.
 func TestMoveSeveralVideosStopsOrFails(t *testing.T) {
 	store := &pickyStore{hold: "ep1"}
-	f, nas, items := storedSeries(t, func(context.Context, storage.Target) (storage.Provider, io.Closer, error) { return store, nil, nil })
+	f, nas, items := storedSeries(t, func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) { return store, nil, nil })
 	store.Provider = storage.NewLocal(nas)
 	a, tt := f.a, f.tt
 	m := testlocale.Messages()
@@ -703,7 +704,7 @@ func TestMoveAVideoNoJobProcessed(t *testing.T) {
 	m := testlocale.Messages()
 	nas := t.TempDir()
 	a.library.Names[ep1] = "Episode One"
-	path := useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
+	path := useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
 	item := must(films.Find(a.films(), ep1))
 	if item.JobID != "" || len(a.StoredMenu(a.cx, item)) != 1 {
 		t.Fatalf("the folder's film %+v offers %+v", item, a.StoredMenu(a.cx, item))
@@ -760,7 +761,7 @@ func TestRemoveALocationVideosAreOn(t *testing.T) {
 	m := testlocale.Messages()
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	nas := t.TempDir()
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav", User: "kando", Password: "secret"}, localOpen(nas))
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav", User: "kando", Password: "secret"}, localOpen(nas))
 	a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
 	waitStored(t, f)
 	a.library.Stored["/elsewhere/Other/video.mp4"] = shelf.Stored{Location: "nas", Path: "Other/video.mp4", Size: 5}
@@ -796,7 +797,7 @@ func TestRemoveALocationVideosAreOn(t *testing.T) {
 
 	// Added back at the same address, as another user: the videos are found again.
 	a.AddLocation()
-	*a.LocationDraft() = account.DraftOf(account.Location{Name: "NAS again", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav/", User: "other", Password: "pw"}})
+	*a.LocationDraft() = account.DraftOf(account.Location{Name: "NAS again", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav/", User: "other", Password: "pw"}})
 	a.SaveLocation()
 	if len(a.locations.list) != 1 || a.locations.list[0].ID != "nas" || len(a.locations.removed) != 0 {
 		t.Fatalf("added back: list %+v, removed %+v", a.locations.list, a.locations.removed)
@@ -807,7 +808,7 @@ func TestRemoveALocationVideosAreOn(t *testing.T) {
 
 	// A location at another address is a new one.
 	a.AddLocation()
-	*a.LocationDraft() = account.DraftOf(account.Location{Name: "Other", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://other.local/dav"}})
+	*a.LocationDraft() = account.DraftOf(account.Location{Name: "Other", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://other.local/dav"}})
 	a.SaveLocation()
 	if len(a.locations.list) != 2 || a.locations.list[1].ID == "nas" {
 		t.Fatalf("a new location: %+v", a.locations.list)
@@ -822,7 +823,7 @@ func TestRemuxAVideoFromALocation(t *testing.T) {
 	a.pipeline = media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
 	a.player.remuxDir = filepath.Join(t.TempDir(), "playback")
 	nas := t.TempDir()
-	useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
+	useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(nas))
 	a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
 	waitStored(t, f)
 	item := must(films.Find(a.films(), "film"))
@@ -935,7 +936,7 @@ func TestMovedVideoKeepsItsPathInAFolderOfTwo(t *testing.T) {
 		extra := filepath.Join(f.from, "Talk", "extra.mp4")
 		writeFiles(t, map[string]string{extra: "extra"})
 		a.refreshLibrary()
-		useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
+		useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
 		a.MoveVideoTo(must(films.Find(a.films(), "film")), "nas")
 		waitStored(t, f)
 		a.refreshLibrary()
@@ -957,7 +958,7 @@ func TestMovedVideoKeepsItsPathInAFolderOfTwo(t *testing.T) {
 	t.Run("videos found in the folder", func(t *testing.T) {
 		f, ep1, ep2 := newSeriesFixture(t)
 		a, tt := f.a, f.tt
-		useStoredLocation(t, f, storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
+		useStoredLocation(t, f, remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}, localOpen(t.TempDir()))
 		a.MoveVideoTo(must(films.Find(a.films(), ep1)), "nas")
 		waitStored(t, f)
 		read(t, ep2, "two")

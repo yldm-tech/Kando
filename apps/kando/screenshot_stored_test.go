@@ -18,6 +18,7 @@ import (
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -27,10 +28,10 @@ func TestScreenshotsStoredVideos(t *testing.T) {
 	f := newScreenshotFixture(t)
 	locations := func(a *app) {
 		a.locations.list = []account.Location{
-			{ID: "nas", Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
-			{ID: "dav", Name: "Nextcloud", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", User: "reader", Password: "secret"}},
+			{ID: "nas", Name: "Home NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
+			{ID: "dav", Name: "Nextcloud", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", User: "reader", Password: "secret"}},
 		}
-		a.stored.pool = storage.NewPool(func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
+		a.stored.pool = storage.NewPool(func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) {
 			return nil, nil, errors.New("dial tcp: connection refused")
 		})
 	}
@@ -128,10 +129,10 @@ func TestScreenshotsStoredSeveral(t *testing.T) {
 	f := newScreenshotFixture(t)
 	locations := func(a *app) {
 		a.locations.list = []account.Location{
-			{ID: "nas", Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
-			{ID: "dav", Name: "Nextcloud", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", User: "reader", Password: "secret"}},
+			{ID: "nas", Name: "Home NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "media", Root: "films", User: "reader", Password: "secret"}},
+			{ID: "dav", Name: "Nextcloud", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://cloud.example.com/remote.php/dav/files/reader", User: "reader", Password: "secret"}},
 		}
-		a.stored.pool = storage.NewPool(func(context.Context, storage.Target) (storage.Provider, io.Closer, error) {
+		a.stored.pool = storage.NewPool(func(context.Context, storage.Target) (remotefs.Provider, io.Closer, error) {
 			return nil, nil, errors.New("dial tcp: connection refused")
 		})
 	}

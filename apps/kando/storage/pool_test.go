@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"kando/packages/remotefs"
+	"kando/packages/remotefs/providertest"
 )
 
 // closeCounter counts the times it was closed.
@@ -21,10 +24,10 @@ func (c closeCounter) Close() error {
 func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 	ctx := context.Background()
 	local := NewLocal(t.TempDir())
-	write(t, local, "Kando/video.mp4", "picture")
+	providertest.Write(t, local, "Kando/video.mp4", "picture")
 	opened, closed := 0, 0
 	fail := false
-	p := NewPool(func(context.Context, Target) (Provider, io.Closer, error) {
+	p := NewPool(func(context.Context, Target) (remotefs.Provider, io.Closer, error) {
 		if fail {
 			return nil, nil, errors.New("connection refused")
 		}
@@ -32,7 +35,7 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 		return local, closeCounter{&closed}, nil
 	})
 	t.Cleanup(p.Close)
-	nas := Target{ID: "nas", Remote: &Remote{Kind: KindWebDAV, URL: "https://nas.local/dav"}}
+	nas := Target{ID: "nas", Remote: &remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/dav"}}
 	for range 2 {
 		if _, err := p.Provider(ctx, nas); err != nil {
 			t.Fatal(err)
@@ -41,7 +44,7 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 	if opened != 1 {
 		t.Fatalf("opened %d times", opened)
 	}
-	edited := Target{ID: "nas", Remote: &Remote{Kind: KindWebDAV, URL: "https://nas.local/other"}}
+	edited := Target{ID: "nas", Remote: &remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.local/other"}}
 	if _, err := p.Provider(ctx, edited); err != nil || opened != 2 || closed != 1 {
 		t.Fatalf("after an edit: opened %d, closed %d, %v", opened, closed, err)
 	}
@@ -72,21 +75,21 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 	if again, err := p.URL(ctx, edited, "Kando/video.mp4"); err != nil || again == url {
 		t.Fatalf("the URL after a revoke is %q, was %q, %v", again, url, err)
 	}
-	if _, err := p.URL(ctx, edited, "Kando/missing.mp4"); !errors.Is(err, ErrNotExist) {
+	if _, err := p.URL(ctx, edited, "Kando/missing.mp4"); !errors.Is(err, remotefs.ErrNotExist) {
 		t.Fatalf("URL of a missing file = %v", err)
 	}
 
 	rec := httptest.NewRecorder()
 	p.Handler(edited, "Kando/video.mp4").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec.Code != http.StatusOK || rec.Body.String() != "picture" {
-		t.Fatalf("Handler serves %d %q", rec.Code, rec.Body.String())
+		t.Fatalf("remotefs.Handler serves %d %q", rec.Code, rec.Body.String())
 	}
 	fail = true
-	other := Target{ID: "other", Remote: &Remote{Kind: KindWebDAV, URL: "https://off.local/dav"}}
+	other := Target{ID: "other", Remote: &remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://off.local/dav"}}
 	rec = httptest.NewRecorder()
 	p.Handler(other, "video.mp4").ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec.Code != http.StatusBadGateway {
-		t.Fatalf("Handler of a target that cannot open answers %d", rec.Code)
+		t.Fatalf("remotefs.Handler of a target that cannot open answers %d", rec.Code)
 	}
 	fail = false
 	if _, err := p.Provider(ctx, other); err != nil {
@@ -98,6 +101,6 @@ func TestPoolOpensATargetOnceAndAgainWhenItChanges(t *testing.T) {
 		t.Fatalf("Close closed %d connections in all, want 3", closed)
 	}
 	if _, err := p.Provider(ctx, nas); !errors.Is(err, ErrPoolClosed) {
-		t.Fatalf("Provider after Close = %v", err)
+		t.Fatalf("remotefs.Provider after Close = %v", err)
 	}
 }

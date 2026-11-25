@@ -39,7 +39,7 @@ release: { github: yldm-tech/Kando }
 # Kando's own modules of go.work, which nsgo build checks as third-party dependencies when it collects the license notices; core and media pass only because they embed a third-party license file (the segmenter's dictionary, silero).
 # TODO(nsgo#1814): nsgo build counts a go.work module (Module.Main) as a third-party dependency, so one with no recognized license file stops the build; drop this list once it counts them as the app's own https://github.com/nsgo-dev/nsgo/issues/1814
 licenses:
-  allow: [kando/packages/study, kando/packages/sync, kando/packages/track]
+  allow: [kando/packages/remotefs, kando/packages/study, kando/packages/sync, kando/packages/track]
 
 # The same Ed25519 key as Kando's MyGo builds verified their updates with: NSGO_UPDATES_KEY is the first 32 bytes, the seed, of the MYGO_UPDATER_PRIVATE_KEY secret's 64, which the Package workflow takes from it.
 # The script plugins' revocation list is published beside the appcasts, as kando-plugin-revocations.json of the latest release (script.RevocationsURL in plugins/script/script.go).

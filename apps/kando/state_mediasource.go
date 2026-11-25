@@ -15,7 +15,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -66,7 +66,7 @@ type mediaSourceTest struct {
 type mediaSourceAlert struct {
 	kind   account.AlertKind
 	target string
-	hk     *storage.HostKeyError
+	hk     *remotefs.HostKeyError
 	cert   *mediasource.CertError
 	host   string
 }
@@ -380,7 +380,7 @@ func mediaSourceProblem(k mediasource.Kind, s mediasource.Source, typed map[stri
 	c := s.Config
 	switch k.ID {
 	case mediasource.KindWebDAV:
-		return account.Draft{Kind: string(storage.KindWebDAV), URL: c[mediasource.WebDAVURL]}.Problem()
+		return account.Draft{Kind: string(remotefs.KindWebDAV), URL: c[mediasource.WebDAVURL]}.Problem()
 	case mediasource.KindSMB, mediasource.KindSFTP:
 	default:
 		return nil
@@ -727,11 +727,11 @@ func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, se
 		m.tests[target] = t
 		return
 	}
-	var hk *storage.HostKeyError
+	var hk *remotefs.HostKeyError
 	if errors.As(err, &hk) {
 		delete(m.tests, target)
 		kind := account.AlertTrust
-		if errors.Is(err, storage.ErrHostKeyMismatch) {
+		if errors.Is(err, remotefs.ErrHostKeyMismatch) {
 			kind = account.AlertKeyChanged
 		}
 		a.mediaSourceAsk(mediaSourceAlert{kind: kind, target: target, hk: hk})
@@ -758,8 +758,8 @@ func (a *app) mediaSourceTested(target string, gen int, s mediasource.Source, se
 }
 
 // mediaSourceFailure says why reaching r failed with err, in m's language: as a storage location's failure does (account.Failure), and that the server did not sign, which a source requires unless told otherwise.
-func mediaSourceFailure(m locales.Messages, r storage.Remote, err error) string {
-	if storage.Diagnose(err) == storage.FailSigning {
+func mediaSourceFailure(m locales.Messages, r remotefs.Remote, err error) string {
+	if remotefs.Diagnose(err) == remotefs.FailSigning {
 		return m.SettingsSourcesFailSigning()
 	}
 	return account.Failure(m, r, err)
@@ -806,7 +806,7 @@ func (a *app) mediaSourceSummary(s mediasource.Source) string {
 		}
 	}
 	// A whole SMB server, without a share, is its host alone.
-	if r, ok := mediasource.Remote(s, nil); ok && (r.Kind != storage.KindSMB || r.Share != "") {
+	if r, ok := mediasource.Remote(s, nil); ok && (r.Kind != remotefs.KindSMB || r.Share != "") {
 		place = account.Place(r)
 	}
 	return msg.AccountLocationSummary(kind, place)
@@ -882,5 +882,5 @@ func (a *app) mediaSourceAlertView() account.Alert {
 	if q.cert != nil {
 		return account.Alert{Kind: q.kind, Host: q.host, Fingerprint: q.cert.Fingerprint, Trusted: q.cert.Pinned, Certificate: true}
 	}
-	return account.Alert{Kind: q.kind, Host: q.hk.Host, Fingerprint: q.hk.Fingerprint, Trusted: storage.Fingerprint(q.hk.Trusted)}
+	return account.Alert{Kind: q.kind, Host: q.hk.Host, Fingerprint: q.hk.Fingerprint, Trusted: remotefs.Fingerprint(q.hk.Trusted)}
 }

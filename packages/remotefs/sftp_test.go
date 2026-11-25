@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"kando/apps/kando/storage/sftptest"
+	"kando/packages/remotefs/sftptest"
 
 	"golang.org/x/crypto/ssh"
 )

@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"kando/apps/kando/storage/davtest"
+	"kando/packages/remotefs/davtest"
 )
 
 // webdavProvider is a provider over the folder films of a new davtest.Server.

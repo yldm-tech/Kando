@@ -27,11 +27,11 @@ import (
 	"kando/apps/kando/saved"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
-	"kando/apps/kando/storage"
-	"kando/apps/kando/storage/davtest"
-	"kando/apps/kando/storage/sftptest"
 	"kando/packages/core"
 	"kando/packages/media"
+	"kando/packages/remotefs"
+	"kando/packages/remotefs/davtest"
+	"kando/packages/remotefs/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -749,7 +749,7 @@ func TestMediaSourceSFTPTrustsTheServersKey(t *testing.T) {
 		refresh(tt, a)
 	}
 	ask("", "id:media-source-dialog-test")
-	if !tt.Exists("id:media-source-trust") || a.sources.alert.target != "" || a.MediaSourceAlert().Fingerprint != storage.Fingerprint(server.HostKey) {
+	if !tt.Exists("id:media-source-trust") || a.sources.alert.target != "" || a.MediaSourceAlert().Fingerprint != remotefs.Fingerprint(server.HostKey) {
 		t.Fatalf("no question about the key: %+v", a.MediaSourceAlert())
 	}
 	tt.Press("id:media-source-alert-cancel")
@@ -762,7 +762,7 @@ func TestMediaSourceSFTPTrustsTheServersKey(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.tests[""].busy })
 	refresh(tt, a)
 	wantText(t, tt, msgs.AccountLocationConnected())
-	wantText(t, tt, storage.Fingerprint(server.HostKey))
+	wantText(t, tt, remotefs.Fingerprint(server.HostKey))
 	if a.MediaSourceDraft().Values[mediasource.SFTPHostKey] != server.HostKey {
 		t.Fatalf("the draft trusts %q", a.MediaSourceDraft().Values[mediasource.SFTPHostKey])
 	}
@@ -789,7 +789,7 @@ func TestMediaSourceSFTPTrustsTheServersKey(t *testing.T) {
 	_, other := sftptest.NewKey(t)
 	onEngine(a, func() { a.sources.list[0].Config[mediasource.SFTPHostKey] = sftptest.AuthorizedKey(other) })
 	ask(s.ID, "id:media-source-test-"+s.ID)
-	if !tt.Exists("id:media-source-key-changed") || a.MediaSourceAlert().Trusted != storage.Fingerprint(sftptest.AuthorizedKey(other)) {
+	if !tt.Exists("id:media-source-key-changed") || a.MediaSourceAlert().Trusted != remotefs.Fingerprint(sftptest.AuthorizedKey(other)) {
 		t.Fatalf("no warning that the key changed: %+v", a.MediaSourceAlert())
 	}
 	tt.Press("id:media-source-alert-replace")
@@ -810,7 +810,7 @@ func TestMediaSourceKeyQuestionClosesWithTheSettings(t *testing.T) {
 	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
 	tt.Press("id:media-source-add")
 	onEngine(a, func() {
-		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &storage.HostKeyError{Host: "nas", Key: "k", Fingerprint: "SHA256:x"}})
+		a.mediaSourceAsk(mediaSourceAlert{kind: account.AlertTrust, hk: &remotefs.HostKeyError{Host: "nas", Key: "k", Fingerprint: "SHA256:x"}})
 	})
 	refresh(tt, a)
 	if !tt.Exists("id:media-source-trust") || !a.modalOpen() {

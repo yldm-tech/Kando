@@ -11,12 +11,11 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"kando/packages/remotefs"
 )
 
-// tempPrefix starts the name of the file Local.Write writes into before it renames it into place; List does not show such files.
-const tempPrefix = ".kando-write-"
-
-// Local is a Provider over a folder of this computer, or of a NAS mounted on it. Every operation goes through an os.Root of the folder, so neither a path nor a symlink in the folder reaches outside it.
+// Local is a remotefs.Provider over a folder of this computer, or of a NAS mounted on it. Every operation goes through an os.Root of the folder, so neither a path nor a symlink in the folder reaches outside it.
 type Local struct {
 	dir string
 }
@@ -29,7 +28,7 @@ func (l *Local) Dir() string { return l.dir }
 
 // local is p cleaned and in the form os.Root takes, "." for the root.
 func local(p string) (string, error) {
-	p, err := cleanPath(p)
+	p, err := remotefs.CleanPath(p)
 	if err != nil {
 		return "", err
 	}
@@ -39,14 +38,14 @@ func local(p string) (string, error) {
 	name := filepath.FromSlash(p)
 	if !filepath.IsLocal(name) {
 		// A Windows device name such as NUL, or a drive-relative path such as C:x.
-		return "", fmt.Errorf("%q: %w", p, ErrInvalidPath)
+		return "", fmt.Errorf("%q: %w", p, remotefs.ErrInvalidPath)
 	}
 	return name, nil
 }
 
 // localFile is local for a path that must not be the root.
 func localFile(p string) (string, error) {
-	if _, err := cleanFile(p); err != nil {
+	if _, err := remotefs.CleanFile(p); err != nil {
 		return "", err
 	}
 	return local(p)
@@ -63,14 +62,14 @@ func (l *Local) within(fn func(root *os.Root) error) error {
 }
 
 func notExist(err error) error {
-	if err != nil && errors.Is(err, fs.ErrNotExist) && !errors.Is(err, ErrNotExist) {
-		return fmt.Errorf("%w: %v", ErrNotExist, err)
+	if err != nil && errors.Is(err, fs.ErrNotExist) && !errors.Is(err, remotefs.ErrNotExist) {
+		return fmt.Errorf("%w: %v", remotefs.ErrNotExist, err)
 	}
 	return err
 }
 
-func localInfo(name string, fi fs.FileInfo) Info {
-	info := Info{Name: name, Modified: fi.ModTime(), Dir: fi.IsDir()}
+func localInfo(name string, fi fs.FileInfo) remotefs.Info {
+	info := remotefs.Info{Name: name, Modified: fi.ModTime(), Dir: fi.IsDir()}
 	if !info.Dir {
 		info.Size = fi.Size()
 	}
@@ -78,12 +77,12 @@ func localInfo(name string, fi fs.FileInfo) Info {
 }
 
 // Stat is the file or folder at p.
-func (l *Local) Stat(_ context.Context, p string) (Info, error) {
+func (l *Local) Stat(_ context.Context, p string) (remotefs.Info, error) {
 	name, err := local(p)
 	if err != nil {
-		return Info{}, err
+		return remotefs.Info{}, err
 	}
-	var info Info
+	var info remotefs.Info
 	err = l.within(func(root *os.Root) error {
 		fi, err := root.Stat(name)
 		if err != nil {
@@ -99,12 +98,12 @@ func (l *Local) Stat(_ context.Context, p string) (Info, error) {
 }
 
 // List is what lies directly in the folder dir, leaving out the files a Write is still writing.
-func (l *Local) List(_ context.Context, dir string) ([]Info, error) {
+func (l *Local) List(_ context.Context, dir string) ([]remotefs.Info, error) {
 	name, err := local(dir)
 	if err != nil {
 		return nil, err
 	}
-	var out []Info
+	var out []remotefs.Info
 	err = l.within(func(root *os.Root) error {
 		f, err := root.Open(name)
 		if err != nil {
@@ -116,7 +115,7 @@ func (l *Local) List(_ context.Context, dir string) ([]Info, error) {
 			return err
 		}
 		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), tempPrefix) {
+			if strings.HasPrefix(e.Name(), remotefs.TempPrefix) {
 				continue
 			}
 			fi, err := e.Info()
@@ -154,7 +153,7 @@ func (l *Local) Open(_ context.Context, p string, offset, length int64) (io.Read
 	}
 	fi, err := f.Stat()
 	if err == nil && fi.IsDir() {
-		err = fmt.Errorf("%s: %w", p, ErrIsDir)
+		err = fmt.Errorf("%s: %w", p, remotefs.ErrIsDir)
 	}
 	if err == nil && offset > 0 {
 		_, err = f.Seek(offset, io.SeekStart)
@@ -189,7 +188,7 @@ func (l *Local) Write(_ context.Context, p string, r io.Reader, size int64) erro
 		if err := root.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
-		temp := filepath.Join(dir, tempPrefix+rand.Text())
+		temp := filepath.Join(dir, remotefs.TempPrefix+rand.Text())
 		f, err := root.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err != nil {
 			return err
@@ -233,7 +232,7 @@ func (l *Local) Remove(_ context.Context, p string) error {
 			names, err := f.Readdirnames(1)
 			f.Close()
 			if len(names) > 0 {
-				return fmt.Errorf("%s: %w", p, ErrNotEmpty)
+				return fmt.Errorf("%s: %w", p, remotefs.ErrNotEmpty)
 			}
 			if err != nil && err != io.EOF {
 				return err
@@ -241,7 +240,7 @@ func (l *Local) Remove(_ context.Context, p string) error {
 		}
 		return root.Remove(name)
 	})
-	if errors.Is(err, ErrNotExist) {
+	if errors.Is(err, remotefs.ErrNotExist) {
 		return nil
 	}
 	return err

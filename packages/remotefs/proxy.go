@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"kando/apps/kando/cloud"
+	psync "kando/packages/sync"
 )
 
 // Handler serves the file at p of reader, whatever the request's path, as a file server does: GET and HEAD, a Range or several (206), If-Range, If-Modified-Since and If-None-Match against the file's time and the store's ETag, and a Content-Type from the extension. A missing file or a folder is 404, and a reader that cannot be reached 502.
@@ -35,7 +35,7 @@ func Handler(reader Reader, p string) http.Handler {
 			http.Error(w, "storage unavailable", http.StatusBadGateway)
 			return
 		}
-		w.Header().Set("Content-Type", cloud.ContentType(p))
+		w.Header().Set("Content-Type", psync.MediaType(p))
 		if info.ETag != "" {
 			w.Header().Set("ETag", info.ETag)
 		}
@@ -132,7 +132,7 @@ func NewProxy() (*Proxy, error) {
 
 // URL is the address the file at path of reader is served at, http://127.0.0.1:port/token/name, the name being the file's own so a player can tell its kind; asking again for the same file gives the same URL until it is revoked (Revoke) as many times as it was given, and a new one after. reader must be comparable, as a pointer is.
 func (p *Proxy) URL(reader Reader, filePath string) (string, error) {
-	clean, err := cleanFile(filePath)
+	clean, err := CleanFile(filePath)
 	if err != nil {
 		return "", err
 	}

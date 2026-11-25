@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -178,7 +178,7 @@ func smbErr(err error) error {
 }
 
 func (s *smbStore) Stat(ctx context.Context, p string) (Info, error) {
-	p, err := cleanPath(p)
+	p, err := CleanPath(p)
 	if err != nil {
 		return Info{}, err
 	}
@@ -188,7 +188,7 @@ func (s *smbStore) Stat(ctx context.Context, p string) (Info, error) {
 		if err != nil {
 			return err
 		}
-		info = localInfo(baseName(p), fi)
+		info = fileInfo(baseName(p), fi)
 		return nil
 	})
 	return info, smbErr(err)
@@ -201,7 +201,7 @@ func baseName(p string) string {
 
 // List is what lies in the folder dir, leaving out the files a Write is still writing.
 func (s *smbStore) List(ctx context.Context, dir string) ([]Info, error) {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -213,8 +213,8 @@ func (s *smbStore) List(ctx context.Context, dir string) ([]Info, error) {
 		}
 		out = out[:0]
 		for _, fi := range entries {
-			if !strings.HasPrefix(fi.Name(), tempPrefix) {
-				out = append(out, localInfo(fi.Name(), fi))
+			if !strings.HasPrefix(fi.Name(), TempPrefix) {
+				out = append(out, fileInfo(fi.Name(), fi))
 			}
 		}
 		return nil
@@ -227,7 +227,7 @@ func (s *smbStore) Open(ctx context.Context, p string, offset, length int64) (io
 	if err := checkRange(p, offset, length); err != nil {
 		return nil, err
 	}
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func (s *smbStore) Open(ctx context.Context, p string, offset, length int64) (io
 
 // Write uploads r into a hidden file beside p and renames it over p.
 func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,7 @@ func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64)
 		return err
 	}
 	share := conn.WithContext(ctx)
-	temp := within(parent(s.path(p)), tempPrefix+rand.Text())
+	temp := within(parent(s.path(p)), TempPrefix+rand.Text())
 	err = func() error {
 		f, err := share.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		if err != nil {
@@ -308,7 +308,7 @@ func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64)
 
 // Remove removes the file or the empty folder at p.
 func (s *smbStore) Remove(ctx context.Context, p string) error {
-	p, err := cleanFile(p)
+	p, err := CleanFile(p)
 	if err != nil {
 		return err
 	}
@@ -337,11 +337,11 @@ func (s *smbStore) Remove(ctx context.Context, p string) error {
 
 // Move renames from to to, making the folders above to; a file at to is replaced in the same rename.
 func (s *smbStore) Move(ctx context.Context, from, to string) error {
-	from, err := cleanFile(from)
+	from, err := CleanFile(from)
 	if err != nil {
 		return err
 	}
-	to, err = cleanFile(to)
+	to, err = CleanFile(to)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (s *smbStore) Move(ctx context.Context, from, to string) error {
 }
 
 func (s *smbStore) MkdirAll(ctx context.Context, dir string) error {
-	dir, err := cleanPath(dir)
+	dir, err := CleanPath(dir)
 	if err != nil {
 		return err
 	}

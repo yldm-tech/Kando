@@ -1,10 +1,11 @@
-package storage
+package remotefs
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"strings"
 	"sync"
@@ -74,7 +75,7 @@ func OpenRemote(ctx context.Context, cfg Remote) (Provider, io.Closer, error) {
 
 // remoteRoot is a root folder as a person types it, "/films/" or "films" alike, made plain and relative, or ErrInvalidPath when it climbs above where it starts.
 func remoteRoot(root string) (string, error) {
-	return cleanPath(strings.Trim(strings.TrimSpace(root), "/"))
+	return CleanPath(strings.Trim(strings.TrimSpace(root), "/"))
 }
 
 // within is the clean path p below the clean root, "" for both being the top.
@@ -199,4 +200,19 @@ func (c *countingReader) Read(b []byte) (int, error) {
 // shortBody is Write's error for a reader that gave n of size bytes.
 func shortBody(p string, n, size int64) error {
 	return fmt.Errorf("%s: %d of %d bytes: %w", p, n, size, io.ErrUnexpectedEOF)
+}
+
+// fileInfo is what a server's fs.FileInfo tells of the file or folder name, as an Info.
+func fileInfo(name string, fi fs.FileInfo) Info {
+	info := Info{Name: name, Modified: fi.ModTime(), Dir: fi.IsDir()}
+	if !info.Dir {
+		info.Size = fi.Size()
+	}
+	return info
+}
+
+// limitedFile is a file read up to a length, closed as the file is.
+type limitedFile struct {
+	io.Reader
+	io.Closer
 }

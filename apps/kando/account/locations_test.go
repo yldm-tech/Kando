@@ -8,7 +8,7 @@ import (
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // fakeLocations is the locations as the app keeps them, plain fields, with the calls the page made.
@@ -29,7 +29,7 @@ func (f *fakeLocations) LocationStatus(id string) Status { return f.status[id] }
 func (f *fakeLocations) TestLocation(id string)          { f.lcalls = append(f.lcalls, "test "+id) }
 func (f *fakeLocations) AddLocation() {
 	f.lcalls = append(f.lcalls, "add")
-	f.editing, f.isNew, f.draft = true, true, Draft{Kind: string(storage.KindSMB)}
+	f.editing, f.isNew, f.draft = true, true, Draft{Kind: string(remotefs.KindSMB)}
 }
 func (f *fakeLocations) EditLocation(id string)      { f.lcalls = append(f.lcalls, "edit "+id) }
 func (f *fakeLocations) AskRemoveLocation(id string) { f.lcalls = append(f.lcalls, "remove "+id) }
@@ -74,11 +74,11 @@ func TestDraftProblemsAndRemote(t *testing.T) {
 		}
 	}
 	r := Draft{Kind: "smb", Host: " nas ", Share: "/films/", User: "u", Password: " pw ", Port: "4450", PrivateKey: "stray", URL: "stray"}.Remote()
-	if r != (storage.Remote{Kind: storage.KindSMB, Host: "nas", Port: 4450, Share: "films", User: "u", Password: " pw "}) {
+	if r != (remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas", Port: 4450, Share: "films", User: "u", Password: " pw "}) {
 		t.Fatalf("smb remote %+v", r)
 	}
 	r = Draft{Kind: "sftp", Host: "nas", User: "u", PrivateKey: " key \n", HostKey: "ssh-ed25519 AAAA ", Share: "stray"}.Remote()
-	if r != (storage.Remote{Kind: storage.KindSFTP, Host: "nas", User: "u", PrivateKey: "key", HostKey: "ssh-ed25519 AAAA"}) {
+	if r != (remotefs.Remote{Kind: remotefs.KindSFTP, Host: "nas", User: "u", PrivateKey: "key", HostKey: "ssh-ed25519 AAAA"}) {
 		t.Fatalf("sftp remote %+v", r)
 	}
 	if d := DraftOf(Location{Name: "n", Remote: r}); d.Kind != "sftp" || d.Port != "" || d.HostKey != r.HostKey || d.Remote() != r {
@@ -92,18 +92,18 @@ func TestDraftProblemsAndRemote(t *testing.T) {
 // A failure reads as a catalog message, never the library's own words with the server's address in them.
 func TestFailureNeverShowsTheLibrarysError(t *testing.T) {
 	m := testlocale.Messages()
-	r := storage.Remote{Kind: storage.KindWebDAV, URL: "https://nas.example:8443/dav"}
+	r := remotefs.Remote{Kind: remotefs.KindWebDAV, URL: "https://nas.example:8443/dav"}
 	secret := errors.New("PROPFIND https://user:hunter2@10.0.0.5/dav: something odd")
 	if got := Failure(m, r, secret); got != m.AccountLocationFailOther() || strings.Contains(got, "10.0.0.5") {
 		t.Fatalf("other = %q", got)
 	}
-	if got := Failure(m, r, fmt.Errorf("x: %w", &storage.HostKeyError{})); got != m.AccountLocationNotTrusted() {
+	if got := Failure(m, r, fmt.Errorf("x: %w", &remotefs.HostKeyError{})); got != m.AccountLocationNotTrusted() {
 		t.Fatalf("host key = %q", got)
 	}
 	if got := Place(r); got != "nas.example:8443/dav" {
 		t.Fatalf("place = %q", got)
 	}
-	if got := Place(storage.Remote{Kind: storage.KindSMB, Host: "nas", Share: "films", Root: "/kando/"}); got != "nas/films/kando" {
+	if got := Place(remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas", Share: "films", Root: "/kando/"}); got != "nas/films/kando" {
 		t.Fatalf("smb place = %q", got)
 	}
 }
@@ -116,7 +116,7 @@ func TestLocationsCard(t *testing.T) {
 	if !app.Exists(whole(msgs.AccountSectionLocations())) || !app.Exists(whole(msgs.AccountLocationsEmpty())) {
 		t.Fatalf("no empty card: %q", app.Texts())
 	}
-	nas := Location{ID: "n1", Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films"}}
+	nas := Location{ID: "n1", Name: "Home NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "films"}}
 	change(app, a, func() { a.list = []Location{nas} })
 	if app.Exists(whole(msgs.AccountLocationsEmpty())) || !app.Exists(whole("Home NAS")) || !app.Exists(whole(msgs.AccountLocationSummary("SMB", "nas.local/films"))) {
 		t.Fatalf("texts %q", app.Texts())
@@ -151,7 +151,7 @@ func TestLocationDialog(t *testing.T) {
 	if a.draft.Host != "nas.local" {
 		t.Fatalf("draft %+v", a.draft)
 	}
-	change(app, a, func() { a.draft.Kind = string(storage.KindSFTP) })
+	change(app, a, func() { a.draft.Kind = string(remotefs.KindSFTP) })
 	if app.Exists("id:location-share") || !app.Exists("id:location-key") || !app.Exists(whole(msgs.AccountLocationHostKeyNone())) {
 		t.Fatalf("sftp dialog: %q", app.Texts())
 	}

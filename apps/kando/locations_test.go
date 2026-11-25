@@ -25,7 +25,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -201,7 +201,7 @@ func TestLocationsPersistAndReload(t *testing.T) {
 
 	// The next start reads the password from the secure store, once the window exists.
 	b, bUpdates := restartedLocations(t, a)
-	want := account.Location{ID: id, Name: "Home NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films", User: "kando"}}
+	want := account.Location{ID: id, Name: "Home NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "films", User: "kando"}}
 	if len(b.locations.list) != 1 || b.locations.list[0] != want {
 		t.Fatalf("reloaded %+v", b.locations.list)
 	}
@@ -371,7 +371,7 @@ func TestLocationNewPasswordStaysInTheFileUntilTheStoreTookIt(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	b, bUpdates := restartedLocations(t, a)
 	b.settingsPath = a.settingsPath
-	b.locations.editID, b.locations.draft = "", account.DraftOf(account.Location{Name: "NAS", Remote: storage.Remote{Kind: storage.KindSMB, Host: "nas.local", Share: "films", User: "kando", Password: "pa55"}})
+	b.locations.editID, b.locations.draft = "", account.DraftOf(account.Location{Name: "NAS", Remote: remotefs.Remote{Kind: remotefs.KindSMB, Host: "nas.local", Share: "films", User: "kando", Password: "pa55"}})
 	b.saveLocationDraft()
 	if b.locations.problem != nil || len(b.locations.list) != 1 {
 		t.Fatalf("save refused, list %+v", b.locations.list)
@@ -507,9 +507,9 @@ func TestLocationTestAgainstWebDAV(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.locations.list = []account.Location{
-		{ID: "good", Name: "DAV", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: url, Root: "films", User: "kando", Password: "secret"}},
-		{ID: "bad", Name: "DAV wrong", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: url, User: "kando", Password: "wrong"}},
-		{ID: "gone", Name: "DAV missing", Remote: storage.Remote{Kind: storage.KindWebDAV, URL: url, Root: "missing", User: "kando", Password: "secret"}},
+		{ID: "good", Name: "DAV", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: url, Root: "films", User: "kando", Password: "secret"}},
+		{ID: "bad", Name: "DAV wrong", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: url, User: "kando", Password: "wrong"}},
+		{ID: "gone", Name: "DAV missing", Remote: remotefs.Remote{Kind: remotefs.KindWebDAV, URL: url, Root: "missing", User: "kando", Password: "secret"}},
 	}
 	msgs := testlocale.Messages()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
@@ -540,11 +540,11 @@ func TestLocationTrustsTheSFTPHostKey(t *testing.T) {
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	tt.Press("id:location-add")
 	apply(tt, a, func() {
-		*a.LocationDraft() = account.Draft{Name: "Server", Kind: string(storage.KindSFTP), Host: f.host, Port: strconv.Itoa(f.port), User: "kando", Password: "secret"}
+		*a.LocationDraft() = account.Draft{Name: "Server", Kind: string(remotefs.KindSFTP), Host: f.host, Port: strconv.Itoa(f.port), User: "kando", Password: "secret"}
 	})
 	tt.Press("id:location-dialog-test")
 	waitUpdate(t, tt, a, updates)
-	first := storage.Fingerprint(f.hostKey())
+	first := remotefs.Fingerprint(f.hostKey())
 	if !tt.Exists("id:location-trust") || !hasText(tt, msgs.AccountLocationTrustMessage(first)) || !hasText(tt, msgs.AccountLocationTrustTitle(f.host)) {
 		t.Fatalf("no trust question: %q", tt.Texts())
 	}
@@ -574,7 +574,7 @@ func TestLocationTrustsTheSFTPHostKey(t *testing.T) {
 	if !tt.Exists("id:location-key-changed") || tt.Exists("id:location-alert-trust") {
 		t.Fatalf("no warning: %q", tt.Texts())
 	}
-	wantText(t, tt, msgs.AccountLocationKeyChangedMessage(storage.Fingerprint(old), storage.Fingerprint(f.hostKey())))
+	wantText(t, tt, msgs.AccountLocationKeyChangedMessage(remotefs.Fingerprint(old), remotefs.Fingerprint(f.hostKey())))
 	tt.Key("enter")
 	if a.locations.list[0].Remote.HostKey != old || tt.Exists("id:location-key-changed") || a.modalOpen() {
 		t.Fatalf("Return replaced the key or left the warning: %q", a.locations.list[0].Remote.HostKey)

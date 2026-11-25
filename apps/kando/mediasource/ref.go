@@ -54,7 +54,7 @@ func ParseRef(raw string) (Ref, error) {
 	return Ref{Source: u.Host, Path: p}, nil
 }
 
-// CleanPath is p, a path on a source, made plain, "a/./b/../c" as "a/c" and the root as "", or ErrInvalidPath for one that leaves the root, as storage's paths do (an absolute path, one with a backslash or NUL, one that climbs above the root with ".."), and for a name that is not UTF-8, which Kando could not name the same way again.
+// CleanPath is p, a path on a source, made plain, "a/./b/../c" as "a/c" and the root as "", or ErrInvalidPath for one that leaves the root, as remotefs's paths do (an absolute path, one with a backslash or NUL, one that climbs above the root with ".."), and for a name that is not UTF-8, which Kando could not name the same way again.
 func CleanPath(p string) (string, error) {
 	if strings.HasPrefix(p, "/") || strings.ContainsAny(p, "\\\x00") || !utf8.ValidString(p) {
 		return "", fmt.Errorf("%q: %w", p, ErrInvalidPath)

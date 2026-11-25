@@ -6,7 +6,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -145,7 +145,7 @@ func (d locationDialog) Render(cx *core.Scope) core.Node {
 		status := core.NewMemo(cx, live.Func(a, func() Status { return a.LocationStatus("") }))
 		problem := live.Func(a, a.LocationProblem)
 		closeDialog := live.Do(a, a.CloseLocation)
-		fields := core.Dynamic(func(cx *core.Scope) core.Node { return draftFields(cx, a, storage.Kind(kind())) })
+		fields := core.Dynamic(func(cx *core.Scope) core.Node { return draftFields(cx, a, remotefs.Kind(kind())) })
 		test := form.Button{TestID: "location-dialog-test", Disabled: func() bool { return status.Get().Busy },
 			TextFunc: func() string { return locales.AccountLocationTest(cx) }, OnPress: live.Do(a, func() { a.TestLocation("") })}
 		footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
@@ -189,7 +189,7 @@ func (d locationDialog) Render(cx *core.Scope) core.Node {
 }
 
 // draftFields are the dialog's rows for a location of kind: the name and the kind, then what the kind is reached with.
-func draftFields(cx *core.Scope, a App, kind storage.Kind) core.Node {
+func draftFields(cx *core.Scope, a App, kind remotefs.Kind) core.Node {
 	text := func(message func(*core.Scope) string) func() string { return func() string { return message(cx) } }
 	str := func(get func(*Draft) *string) func() *string { return func() *string { return get(a.LocationDraft()) } }
 	port := func() string { return locales.AccountLocationPortHint(cx, defaultPort(kind)) }
@@ -202,12 +202,12 @@ func draftFields(cx *core.Scope, a App, kind storage.Kind) core.Node {
 		rows = append(rows, separator(), draftRow(a, test, title, hint, value, face, none))
 	}
 	switch kind {
-	case storage.KindWebDAV:
+	case remotefs.KindWebDAV:
 		add("location-url", text(locales.AccountLocationURL), none, str(func(d *Draft) *string { return &d.URL }), draftMono)
 		add("location-root", text(locales.AccountLocationRoot), text(locales.AccountLocationRootHintWebDAV), str(func(d *Draft) *string { return &d.Root }), draftMono)
 		add("location-user", text(locales.AccountLocationUser), none, str(func(d *Draft) *string { return &d.User }), draftMono)
 		add("location-password", text(locales.AccountLocationPassword), none, str(func(d *Draft) *string { return &d.Password }), draftSecret)
-	case storage.KindSFTP:
+	case remotefs.KindSFTP:
 		add("location-host", text(locales.AccountLocationHost), none, str(func(d *Draft) *string { return &d.Host }), draftMono)
 		add("location-port", text(locales.AccountLocationPort), port, str(func(d *Draft) *string { return &d.Port }), draftMono)
 		add("location-root", text(locales.AccountLocationRoot), text(locales.AccountLocationRootHintSFTP), str(func(d *Draft) *string { return &d.Root }), draftMono)
@@ -278,7 +278,7 @@ func kindSelect(cx *core.Scope, a App) core.Node {
 
 // hostKeyRow is the fingerprint of the SFTP server's key the draft trusts, or that the first Test asks about it. The key changes only through the questions Test asks (LocationAlert).
 func hostKeyRow(cx *core.Scope, a App) core.Node {
-	trusted := live.Func(a, func() string { return storage.Fingerprint(a.LocationDraft().HostKey) })
+	trusted := live.Func(a, func() string { return remotefs.Fingerprint(a.LocationDraft().HostKey) })
 	hint := func() string {
 		if trusted() != "" {
 			return locales.AccountLocationHostKeyHint(cx)

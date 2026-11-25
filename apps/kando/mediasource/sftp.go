@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/locales"
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // The keys of an SFTP source's fields (SFTP): the server, its port, the folder, who signs in, the password, the private key and its passphrase, which are secret, and the server's key Kando trusts.
@@ -24,7 +24,7 @@ const (
 // sftpDefaultPort is the port SFTP is reached at when the source names none.
 const sftpDefaultPort = 22
 
-// SFTP is the built-in kind of a folder of a server reached over SSH (storage's SFTP), signed in with a password, a private key or both. Kando connects only to a server whose key it trusts: the first connection asks the person to trust the key the server offers, and a key that changed afterwards is refused until the person replaces it (storage.HostKeyError), which the source keeps in its HostKey field.
+// SFTP is the built-in kind of a folder of a server reached over SSH (remotefs's SFTP), signed in with a password, a private key or both. Kando connects only to a server whose key it trusts: the first connection asks the person to trust the key the server offers, and a key that changed afterwards is refused until the person replaces it (remotefs.HostKeyError), which the source keeps in its HostKey field.
 func SFTP() Kind {
 	return Kind{
 		ID:    KindSFTP,
@@ -45,7 +45,7 @@ func SFTP() Kind {
 			{Key: SFTPHostKey, Type: FieldHostKey, Title: msg(locales.Messages.AccountLocationHostKey), Hint: msg(locales.Messages.AccountLocationHostKeyHint)},
 		},
 		Open: func(ctx context.Context, s Source, secrets map[string]string) (Driver, error) {
-			p, c, err := storage.OpenRemote(ctx, SFTPRemote(s, secrets))
+			p, c, err := remotefs.OpenRemote(ctx, SFTPRemote(s, secrets))
 			if err != nil {
 				return nil, err
 			}
@@ -54,15 +54,15 @@ func SFTP() Kind {
 	}
 }
 
-// SFTPRemote is how storage reaches the SFTP source s with its secrets by key: its fields as a storage.Remote, the port 22 when it names none or one that is not a number. The passphrase is kept as typed, as a space may be part of it.
-func SFTPRemote(s Source, secrets map[string]string) storage.Remote {
+// SFTPRemote is how storage reaches the SFTP source s with its secrets by key: its fields as a remotefs.Remote, the port 22 when it names none or one that is not a number. The passphrase is kept as typed, as a space may be part of it.
+func SFTPRemote(s Source, secrets map[string]string) remotefs.Remote {
 	c := s.Config
 	port, err := strconv.Atoi(strings.TrimSpace(c[SFTPPort]))
 	if err != nil || port < 1 || port > 65535 {
 		port = 0
 	}
-	return storage.Remote{
-		Kind:       storage.KindSFTP,
+	return remotefs.Remote{
+		Kind:       remotefs.KindSFTP,
 		Host:       strings.TrimSpace(c[SFTPHost]),
 		Port:       port,
 		Root:       strings.TrimSpace(c[SFTPRoot]),

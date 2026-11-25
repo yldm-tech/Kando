@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"kando/apps/kando/storage"
+	"kando/packages/remotefs"
 )
 
 // Driver reads one media source. Paths are slash-separated and relative to the source's root, "" being the root. It has no method that writes, removes or moves anything, so nothing Kando does through it changes the user's files on the source.
@@ -18,7 +18,7 @@ type Driver interface {
 	List(ctx context.Context, dir string) ([]Entry, error)
 	// Stat is the file or folder at p, ErrNotExist when there is none.
 	Stat(ctx context.Context, p string) (Entry, error)
-	// Open reads p from offset, length bytes or to its end with -1, as storage.Provider.Open does.
+	// Open reads p from offset, length bytes or to its end with -1, as remotefs.Provider.Open does.
 	Open(ctx context.Context, p string, offset, length int64) (io.ReadCloser, error)
 	// Close ends the driver's connection to the source.
 	Close() error
@@ -33,11 +33,11 @@ type Entry struct {
 	Version  string
 }
 
-// ErrNotExist is a Driver's error for a path that holds nothing, the same as storage's, so what serves and copies a storage location's files (storage.Handler, storage.Get) tells it apart alike. It is also fs.ErrNotExist.
-var ErrNotExist = storage.ErrNotExist
+// ErrNotExist is a Driver's error for a path that holds nothing, the same as remotefs's, so what serves and copies a storage location's files (remotefs.Handler, storage.Get) tells it apart alike. It is also fs.ErrNotExist.
+var ErrNotExist = remotefs.ErrNotExist
 
-// ErrInvalidPath is the error for a path that leaves the source's root, the same as storage's. It is also fs.ErrInvalid.
-var ErrInvalidPath = storage.ErrInvalidPath
+// ErrInvalidPath is the error for a path that leaves the source's root, the same as remotefs's. It is also fs.ErrInvalid.
+var ErrInvalidPath = remotefs.ErrInvalidPath
 
 // Source is a media source the user added: a connection to one share, folder or server. ID is random (NewID), made as the source is added and kept after, which films imported from it know it by, so renaming the source or moving it to another address leaves them its own. Kind is the ID of its Kind in the Registry. Name is the user's name for it, as 客厅 NAS. Config holds the values of its kind's fields that are not secret (Field), by key; the secret ones are kept in the system's secure storage, never here.
 type Source struct {

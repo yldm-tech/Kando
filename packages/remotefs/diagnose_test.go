@@ -1,4 +1,4 @@
-package storage
+package remotefs
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	"kando/apps/kando/storage/davtest"
-	"kando/apps/kando/storage/sftptest"
+	"kando/packages/remotefs/davtest"
+	"kando/packages/remotefs/sftptest"
 
 	"github.com/cloudsoda/go-smb2"
 )
