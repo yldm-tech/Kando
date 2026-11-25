@@ -1671,6 +1671,16 @@ playerCannotSave:
 playerCantPlay:
   message: "This video can't play on this phone."
   description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
+playerSourceFailed:
+  message: "Couldn't play this from {source}."
+  description: "Over the player when a video streamed from a NAS or server could not be read from it, at its start or midway; why shows under it."
+  placeholders:
+    source: { type: "String", example: "Home NAS" }
+playerSourceFileGone:
+  message: "This video is no longer on {source}."
+  description: "Over the player when the file of a video streamed from a NAS or server was moved or deleted there."
+  placeholders:
+    source: { type: "String", example: "Home NAS" }
 playerCapsuleLoop:
   message: "Loop Line"
   description: "Button in the controls over the picture of a phone on its side that plays the line playing over and over."

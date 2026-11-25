@@ -24,7 +24,7 @@ type making struct {
 	at *core.Signal[map[string]sync.FilmWatching]
 	// watchers are the films the player watches, by key. Engine goroutine only.
 	watchers map[string]*Watcher
-	// server is the loopback server, started the first time a film streams from its computer.
+	// server is the loopback server, started the first time a film streams from its computer or from a source (loopback).
 	server *loopback.Server
 	// fromStorage is the films the player could not open from their computer this session, by key, which stream from the storage instead (StreamFailed).
 	fromStorage *core.Signal[map[string]bool]
@@ -66,16 +66,25 @@ func (s *Session) lanLink(f store.Film) string {
 	case sync.PlaysSound:
 		name = "sound.m4a"
 	}
+	srv := s.loopback()
+	if srv == nil {
+		return ""
+	}
+	c, id := s.Client(f.Desktop), f.Film.ID
+	return srv.URL(f.Key()+"/"+plays, name, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { c.ServeVideo(w, r, id) }))
+}
+
+// loopback is the loopback server, started the first time a film streams from its computer or a source; nil when it cannot start. Engine goroutine only.
+func (s *Session) loopback() *loopback.Server {
 	m := s.making
 	if m.server == nil {
 		srv, err := loopback.Start()
 		if err != nil {
-			return ""
+			return nil
 		}
 		m.server = srv
 	}
-	c, id := s.Client(f.Desktop), f.Film.ID
-	return m.server.URL(f.Key()+"/"+plays, name, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { c.ServeVideo(w, r, id) }))
+	return m.server
 }
 
 // StreamFailed is the player failing to open the film kept under key from where it streams: one it could not open from its computer on its network streams from the storage for the rest of the session, when the storage holds its video, and StreamFailed reports true, as the player opens it again from there (StreamLink); otherwise it reports false, and the film cannot play. Engine goroutine only.

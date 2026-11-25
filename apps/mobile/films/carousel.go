@@ -184,9 +184,9 @@ func Resume(s *session.Session, act Actions, e catalog.Entry) {
 // playAt plays the film kept under key from at.
 func (v *view) playAt(key string, at time.Duration) { v.act.PlayAt(key, at) }
 
-// openFilm is what pressing a film's row does without a line found in it: a film whose video is on the phone opens in the player held where it was left (PlayHeld); one not on the phone yet opens its page, to download it or play it from the storage, and so does one kept by its lines alone, whose page says how to have its video.
+// openFilm is what pressing a film's row does without a line found in it: a film whose video is on the phone opens in the player held where it was left (PlayHeld); one not on the phone yet opens its page, to download it or play it from the storage, and so does one kept by its lines alone, whose page says how to have its video. A film of a NAS or a server opens in the player as well, streamed from there until it is downloaded.
 func (v *view) openFilm(e catalog.Entry) {
-	if k, ok := v.s.Film(e.Key()); ok && k.Done() && k.HasVideo() {
+	if k, ok := v.s.Film(e.Key()); ok && (k.Done() && k.HasVideo() || k.FromSource()) {
 		v.act.PlayHeld(e.Key())
 		return
 	}

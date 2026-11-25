@@ -451,6 +451,8 @@ playerAudioOnlyCover: "화면이 꺼지고, 잠금 상태에서도 계속 재생
 playerAudioOnlyNote: "화면을 숨기고 팟캐스트처럼 들을 수 있습니다."
 playerCannotSave: "컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 문장을 저장할 수 있습니다."
 playerCantPlay: "이 영상은 이 휴대폰에서 재생할 수 없습니다."
+playerSourceFailed: "{source}에서 재생할 수 없습니다."
+playerSourceFileGone: "이 영상은 더 이상 {source}에 없습니다."
 playerCapsuleLoop: "대사 반복"
 playerCardPlace: "{count}개 중 {index}번째 문장 · {time}"
 playerClose: "닫기"

@@ -104,3 +104,35 @@ func TestScreenshotsSourcesBrowse(t *testing.T) {
 	p.app.WaitFor("text:Weekend Market.mkv", wait)
 	shot(p, "sources-browse")
 }
+
+// A video of a WebDAV source streamed into the player as its row is pressed, then, the NAS switched off, the player saying it cannot play it from there and why. On a simulator the system's player really plays the talk's animation from the phone's loopback server, which the scene logs: what it asked the NAS for, and the time left before and after a few seconds of playing.
+func TestScreenshotsSourcesStream(t *testing.T) {
+	shot := screenshots(t)
+	f := davFilms(t, false)
+	if err := os.WriteFile(filepath.Join(f.Dir, "Films/Morning Talk.mp4"), storeAsset(t, "talk.mp4"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	src := davSource(f)
+	p := startPhone(t, dir, keepSource(t, dir, src, davtest.Password))
+	p.app.WaitFor("id:films-source-"+src.ID, wait)
+	p.app.Press("id:films-source-" + src.ID)
+	p.app.WaitFor("id:browse-video-Morning Talk.mp4", wait)
+	f.ForgetRanges()
+	p.app.Press("id:browse-video-Morning Talk.mp4")
+	p.app.WaitFor("id:player-video", wait)
+	// The system's player reads the talk's length from the loopback server, then plays it on: the time left counts down.
+	p.app.WaitUntil(wait, func() bool { return len(f.Ranges()) > 0 && p.texts("id:player-left") == "-0:10" })
+	p.app.Press("id:player-play")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:player-at") != "0:00" })
+	p.app.Press("id:player-play")
+	t.Logf("the player played %s from the loopback server, asking the NAS for %q; time left %q", p.playerSource(), f.Ranges(), p.texts("id:player-left"))
+	shot(p, "sources-stream")
+
+	f.Close()
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:browse-video-Holiday.mp4", wait)
+	p.app.Press("id:browse-video-Holiday.mp4")
+	p.app.WaitFor("id:player-failed-why", wait)
+	shot(p, "sources-stream-unreachable")
+}

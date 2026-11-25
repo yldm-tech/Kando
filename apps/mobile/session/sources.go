@@ -5,7 +5,6 @@ import (
 	"errors"
 	"maps"
 	"net/netip"
-	"path"
 	"slices"
 	"strings"
 	gosync "sync"
@@ -15,23 +14,25 @@ import (
 	"kando/apps/mobile/nas"
 	"kando/apps/mobile/store"
 	"kando/packages/remotefs"
-	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// sources are the NAS and servers the phone reaches itself, without the computer (docs/media-sources.md 10): the list as the screens read it, and, under mu, the list sources.json holds (saved), the connections open (readers, one per source, made when first needed and closed as a source changes, goes or the session ends) and the Dialer they are made with. mu also orders the writes of sources.json and the secrets, which run on goroutines of their own.
+// sources are the NAS and servers the phone reaches itself, without the computer (docs/media-sources.md 10): the list as the screens read it, why each film streamed from one could not be read (streamFail, by key, source_stream.go), and, under mu, the list sources.json holds (saved), the connections open (readers, one per source, made when first needed and closed as a source changes, goes or the session ends), the films the player streams from one, by key, each with a connection of its own (streams), and the Dialer they are made with. mu also orders the writes of sources.json and the secrets, which run on goroutines of their own.
 type sources struct {
-	list *core.Signal[[]store.Source]
+	list       *core.Signal[[]store.Source]
+	streamFail *core.Signal[map[string]error]
 
 	mu      gosync.Mutex
 	saved   []store.Source
 	readers map[string]nas.Reader
+	streams map[string]*sourceStream
 	dial    nas.Dialer
 }
 
 func newSources(cx *core.Scope) *sources {
-	return &sources{list: core.NewSignalFunc[[]store.Source](cx, nil, nil), readers: map[string]nas.Reader{}, dial: nas.Remotefs}
+	return &sources{list: core.NewSignalFunc[[]store.Source](cx, nil, nil), streamFail: core.NewSignalFunc(cx, map[string]error{}, nil),
+		readers: map[string]nas.Reader{}, streams: map[string]*sourceStream{}, dial: nas.Remotefs}
 }
 
 // sourceTimeout bounds a Test and a folder's listing: connecting, signing in and reading the folder.
@@ -137,7 +138,7 @@ func (s *Session) RemoveSource(id string) {
 	})
 }
 
-// writeSources changes the list sources.json holds with change and writes it, closing the connection of the source id, which changed; it returns the list written. It runs off the engine's goroutine, under the sources' lock, so writes land in the order they were made.
+// writeSources changes the list sources.json holds with change and writes it, closing the connection of the source id, which changed, and its streams' at their next request; it returns the list written. It runs off the engine's goroutine, under the sources' lock, so writes land in the order they were made.
 func (s *Session) writeSources(change func([]store.Source) ([]store.Source, error), id string) ([]store.Source, error) {
 	s.src.mu.Lock()
 	defer s.src.mu.Unlock()
@@ -152,6 +153,12 @@ func (s *Session) writeSources(change func([]store.Source) ([]store.Source, erro
 	if r := s.src.readers[id]; r != nil {
 		_ = r.Close()
 		delete(s.src.readers, id)
+	}
+	// A film streaming from it connects anew at its next request, with what the source is now, or not at all once it is removed.
+	for _, st := range s.src.streams {
+		if st.id == id {
+			st.stale.Store(true)
+		}
 	}
 	return slices.Clone(list), nil
 }
@@ -267,13 +274,17 @@ func (s *Session) reader(ctx context.Context, src store.Source) (nas.Reader, err
 	return r, nil
 }
 
-// closeSources closes every connection, as the session ends.
+// closeSources closes every connection, the streams' too, as the session ends.
 func (s *Session) closeSources() {
 	s.src.mu.Lock()
 	defer s.src.mu.Unlock()
 	for id, r := range s.src.readers {
 		_ = r.Close()
 		delete(s.src.readers, id)
+	}
+	for key, st := range s.src.streams {
+		st.close()
+		delete(s.src.streams, key)
 	}
 }
 
@@ -346,14 +357,10 @@ func (s *Session) DownloadSource(id, p string, info remotefs.Info) {
 		s.start(kept)
 		return
 	}
-	src, ok := s.Source(id)
+	rec, ok := s.sourceFilm(id, p, info)
 	if !ok {
 		return
 	}
-	name := path.Base(p)
-	title := strings.TrimSuffix(name, path.Ext(name))
-	rec := store.Film{Desktop: store.SourceOwner(id), Library: src.Name, Source: id, Path: p, Added: s.cfg.Now(),
-		Film: sync.Film{ID: store.SourceFilmID(p), Title: title, Source: sourceFilmSource, VideoSize: info.Size, Updated: info.Modified}}
 	s.films.Set(append([]store.Film{rec}, s.films.Get()...))
 	s.start(rec)
 }

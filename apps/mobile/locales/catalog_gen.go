@@ -621,6 +621,8 @@ var Parameters = map[string][]string{
 	"PairErrLocalNetwork":            {"address"},
 	"PairErrUnreachable":             {"address"},
 	"PlayerAsking":                   {"computer"},
+	"PlayerSourceFailed":             {"source"},
+	"PlayerSourceFileGone":           {"source"},
 	"PlayerCardPlace":                {"index", "count", "time_"},
 	"PlayerDelayPill":                {"seconds"},
 	"PlayerDelayReset":               {"seconds"},
@@ -857,6 +859,8 @@ type Translation struct {
 	PairErrLocalNetwork            func(address string) string
 	PairErrUnreachable             func(address string) string
 	PlayerAsking                   func(computer string) string
+	PlayerSourceFailed             func(source string) string
+	PlayerSourceFileGone           func(source string) string
 	PlayerCardPlace                func(index int, count int, time_ string) string
 	PlayerDelayPill                func(seconds string) string
 	PlayerDelayReset               func(seconds string) string
@@ -8924,6 +8928,12 @@ func Supply(lang string, t Translation) {
 	if t.PlayerAsking != nil {
 		s.PlayerAsking = t.PlayerAsking
 	}
+	if t.PlayerSourceFailed != nil {
+		s.PlayerSourceFailed = t.PlayerSourceFailed
+	}
+	if t.PlayerSourceFileGone != nil {
+		s.PlayerSourceFileGone = t.PlayerSourceFileGone
+	}
 	if t.PlayerCardPlace != nil {
 		s.PlayerCardPlace = t.PlayerCardPlace
 	}
@@ -16972,6 +16982,70 @@ func PlayerCantPlay(cx *core.Scope) string { return For(cx).PlayerCantPlay() }
 
 // PlayerCantPlay is the package's PlayerCantPlay in the language of msgs.
 func (msgs Messages) PlayerCantPlay() string { return msgs.text(textPlayerCantPlay) }
+
+// PlayerSourceFailed says "Couldn't play this from {source}."
+// in the language the app shows under cx.
+//
+// Over the player when a video streamed from a NAS or server could not be read from it, at its start or midway; why shows under it.
+func PlayerSourceFailed(cx *core.Scope, source string) string {
+	return For(cx).PlayerSourceFailed(source)
+}
+
+// PlayerSourceFailed is the package's PlayerSourceFailed in the language of msgs.
+func (msgs Messages) PlayerSourceFailed(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerSourceFailed(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerSourceFailed; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't play this from " + msgs.arg(source) + "."
+		case "ja":
+			return source + " から再生できませんでした。"
+		case "ko":
+			return source + "에서 재생할 수 없습니다."
+		case "zh-Hans":
+			return "无法从 " + source + " 播放。"
+		case "zh-Hant":
+			return "無法從 " + source + " 播放。"
+		}
+	}
+}
+
+// PlayerSourceFileGone says "This video is no longer on {source}."
+// in the language the app shows under cx.
+//
+// Over the player when the file of a video streamed from a NAS or server was moved or deleted there.
+func PlayerSourceFileGone(cx *core.Scope, source string) string {
+	return For(cx).PlayerSourceFileGone(source)
+}
+
+// PlayerSourceFileGone is the package's PlayerSourceFileGone in the language of msgs.
+func (msgs Messages) PlayerSourceFileGone(source string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerSourceFileGone(source))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerSourceFileGone; f != nil {
+			return f(source)
+		}
+		switch lang {
+		case "", "en":
+			return "This video is no longer on " + msgs.arg(source) + "."
+		case "ja":
+			return "この動画はもう " + source + " にありません。"
+		case "ko":
+			return "이 영상은 더 이상 " + source + "에 없습니다."
+		case "zh-Hans":
+			return source + " 上已经没有这个视频了。"
+		case "zh-Hant":
+			return source + " 上已經沒有這個影片了。"
+		}
+	}
+}
 
 // PlayerCapsuleLoop says "Loop Line"
 // in the language the app shows under cx.

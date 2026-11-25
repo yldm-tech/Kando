@@ -33,7 +33,7 @@ type listed struct {
 	err     error
 }
 
-// BrowsePage is the folder dir of the source id, its root for "": its folders, which open their own page, then its videos, each with its size and where its download to the phone stands, whose button downloads it, pauses its download or goes on with it, and which, once downloaded, plays offline. The folder is read as the page opens and as it is pulled; a folder that cannot be read says why, with Try Again and the way to the source's form, or to the system's settings for a local network the app may not reach.
+// BrowsePage is the folder dir of the source id, its root for "": its folders, which open their own page, then its videos, each with its size and where its download to the phone stands, which plays at once as it is pressed, streamed from the source until it is downloaded, and whose button downloads it, pauses its download or goes on with it. The folder is read as the page opens and as it is pulled; a folder that cannot be read says why, with Try Again and the way to the source's form, or to the system's settings for a local network the app may not reach.
 func BrowsePage(cx *core.Scope, s *session.Session, id, dir string, act Browse) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	list := core.NewSignalFunc(cx, listed{busy: true}, nil)
@@ -105,21 +105,18 @@ func BrowsePage(cx *core.Scope, s *session.Session, id, dir string, act Browse) 
 	}}, ui.NavHeader{OnBack: act.Back, Scroll: ref})
 }
 
-// videoRow is the video at p of the source id, as e lists it, at i in its folder: its name, its size and where its download to the phone stands, with the download's bar while it runs, and the button that downloads it, pauses or goes on with its download, or the mark that it is on the phone, where pressing the row plays it.
+// videoRow is the video at p of the source id, as e lists it, at i in its folder: its name, its size and where its download to the phone stands, with the download's bar while it runs, and the button that downloads it, pauses or goes on with its download, or the mark that it is on the phone. Pressing the row plays it at once, streamed from the source (session.StreamSource), or from the phone once it is downloaded.
 func videoRow(cx *core.Scope, s *session.Session, id, p string, e func() remotefs.Info, i func() int, play func(key string)) core.Node {
 	colors := ui.ColorsOf(cx)
 	key := session.SourceFilmKey(id, p)
 	done := func() bool { f, ok := s.Film(key); return ok && f.HasVideo() }
 	running := func() bool { t, ok := s.Transfer(key); return ok && t.State == session.Running }
 	press := func() {
-		switch {
-		case done():
-			play(key)
-		case running():
+		if running() {
 			s.Pause(key)
-		default:
-			s.DownloadSource(id, p, e())
+			return
 		}
+		s.DownloadSource(id, p, e())
 	}
 	detail := func() string {
 		parts := []string{look.Size(e().Size)}
@@ -154,5 +151,5 @@ func videoRow(cx *core.Scope, s *session.Session, id, p string, e func() remotef
 		Below: core.Show{When: running, Then: func(cx *core.Scope) core.Node {
 			return ui.Progress{LabelFunc: func() string { return locales.SourceDownload(cx, name()) }, Value: func() float32 { t, _ := s.Transfer(key); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 4}}}
 		}},
-		OnPress: press}
+		OnPress: func() { s.StreamSource(id, p, e(), play) }}
 }

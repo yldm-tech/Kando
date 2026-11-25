@@ -126,14 +126,14 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 
 	// A film kept by its lines alone, as its computer keeps no video of it, shows in the picture's place what can be done to have the video (film.VideoPrompt), and plays it once it is on the phone. A film kept to stream plays from its computer on its network, or from its storage away from it, and shows its lines alone when neither has its video (session.Stream); a film being made plays a link's sound until its video comes, then the video from where it was, as the link changes (session.StreamLink) and the player opens it anew (OnLoad).
 	video := func(cx *core.Scope) core.Node {
-		k, _ := s.Film(key)
-		kept := filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
 		return core.Video{TestID: "player-video", Ref: p.ref, Label: f.Film.Title,
+			// A film streamed until its download is done plays from the phone from then on, so its file is read as the record has it now.
 			SourceFunc: func() string {
 				if p.streamed() {
 					return s.StreamLink(key)
 				}
-				return kept
+				k, _ := s.Film(key)
+				return filepath.Join(s.Store().FilmDir(k.Desktop, k.Film.ID), k.Video)
 			},
 			PausedFunc:       func() bool { return !p.playing.Get() },
 			RateFunc:         p.speed,
@@ -189,9 +189,11 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			film.VideoPrompt(cx, s, f.Desktop, f.Film, "player-no-video"),
 		}}
 	}}
-	failed := core.Show{When: p.failed.Get, Then: func(cx *core.Scope) core.Node {
-		return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24)}), Children: []core.Node{
-			core.Text{TestID: "player-failed", ContentFunc: func() string { return locales.PlayerCantPlay(cx) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: theme.PlayerInk})},
+	// A film streamed from a source that cannot be reached says so, at its start or midway, and why (sourceFailed).
+	failed := core.Show{When: func() bool { return p.failed.Get() || s.StreamProblem(key) != nil }, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: fill.Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(24), Gap: 6}), Children: []core.Node{
+			core.Text{TestID: "player-failed", ContentFunc: func() string { return failedText(cx, s, key) }, Style: look.Body.Merge(core.Style{TextAlign: core.TextAlignCenter, Color: theme.PlayerInk})},
+			sourceFailed(cx, s, key),
 		}}
 	}}
 	overlaid := func() bool { return shape.Get() != full || controls.Get() }

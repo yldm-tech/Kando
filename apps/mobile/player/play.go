@@ -185,6 +185,8 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	// A film being made tells its computer where it is watched while it shows, so its lines are made there first, and reads them again as they come.
 	p.watcher = s.WatchMaking(key, p.at.GetUntracked(), p.cues.Refetch)
 	cx.Cleanup(func() { p.watcher.Stop() })
+	// A film streamed from a source lets its URL and its connection go with its player.
+	cx.Cleanup(func() { s.EndStream(key) })
 	// The lines' word marks, as the phone keeps them, then as the computer has them once it answers.
 	s.OpenMarks(key)
 	// The lines saved from the film and their notes, as the phone keeps them, then as the desktop has them once it answers.
@@ -234,10 +236,10 @@ func (p *play) hasVideo() bool {
 	return ok && f.HasVideo()
 }
 
-// streamed reports whether the film is kept to stream rather than downloaded (store.Film.Streamed): from its computer on its network, or from its storage away from it (session.StreamLink). Read it in a binding.
+// streamed reports whether the film is kept to stream rather than downloaded (store.Film.Streamed): from its computer on its network, or from its storage away from it (session.StreamLink). A film of a source streams from its file there until its download is done, even while it downloads. Read it in a binding.
 func (p *play) streamed() bool {
 	f, ok := p.s.Film(p.key)
-	return ok && f.Streamed && !f.Done()
+	return ok && (f.Streamed || f.FromSource()) && !f.Done()
 }
 
 // subAt is where the playhead is in the lines' time: the picture's, less the delay.
