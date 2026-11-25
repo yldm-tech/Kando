@@ -26,7 +26,7 @@ let held = 0
 const NODES_MAX = 50000
 
 // turn waits for a timer, so what follows runs as a piece of JS of its own, under a time budget of its own (Kando's half second a piece), rather than as the rest of the piece that was running.
-// TODO(nsgo): a piece of JS cut at its budget while tsx settles a host.call's answer is lost: tsx/host.go drops the interrupt that settling the promise returns, so the call never ends and holds Kando's runner until its deadline, a minute, rather than failing at once; one cut in a timer's piece tsx does report. get takes a turn after each answer, so what follows it never runs as part of settling it; drop that once tsx reports the cut.
+// TODO(nsgo#2390): a piece of JS cut at its budget while tsx settles a host.call's answer is lost: tsx/host.go drops the interrupt that settling the promise returns, so the call never ends and holds Kando's runner until its deadline, a minute, rather than failing at once; one cut in a timer's piece tsx does report. get takes a turn after each answer, so what follows it never runs as part of settling it; drop that once tsx reports the cut. https://github.com/nsgo-dev/nsgo/issues/2390
 function turn(): Promise<void> {
   return new Promise((done) => setTimeout(done, 0))
 }
