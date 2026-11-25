@@ -130,9 +130,14 @@ func Page(cx *core.Scope, s *session.Session, done func()) core.Node {
 		return look.Button{Kind: look.Primary, Tall: true, Text: text, TestID: testID, OnPress: press}
 	}
 	actions := core.View{
-		// The design's button is 40 points above the screen's foot, clear of a home indicator.
+		// The design's button is 40 points above the screen's foot, clear of a home indicator; on a phone, while the software keyboard shows, it sits just above the keyboard, so the button that goes on with what is typed (pairing's, the source's Save) is not under it.
 		StyleFunc: func() core.Style {
-			return core.Style{Padding: core.Edges{Top: 8, Right: 24, Bottom: max(40, cx.Env().SafeArea().Bottom+8), Left: 24}, PaddingEnv: sides(phone)}
+			env := sides(phone)
+			pad := core.Edges{Top: 8, Right: 24, Bottom: max(40, cx.Env().SafeArea().Bottom+8), Left: 24}
+			if phone && cx.Env().KeyboardHeight() > 0 {
+				pad.Bottom, env.Bottom = 8, core.EnvKeyboard
+			}
+			return core.Style{Padding: pad, PaddingEnv: env}
 		},
 		Children: []core.Node{
 			core.Show{When: func() bool { return step() == intro || step() == languages }, Then: func(cx *core.Scope) core.Node {

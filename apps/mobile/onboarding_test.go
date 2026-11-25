@@ -226,3 +226,21 @@ func TestTheIntroductionsWaysOnATablet(t *testing.T) {
 		t.Fatalf("Save is %v wide in a card %v wide", w, card.Width)
 	}
 }
+
+// On a phone the step's button stays above the software keyboard while it shows, so a form's Save is not under it.
+func TestTheIntroductionsButtonStaysAboveTheKeyboard(t *testing.T) {
+	p := startPhone(t, "")
+	p.toChoosing()
+	p.chooseWay("nas")
+	p.app.WaitFor("id:onboarding-adding", wait)
+	const keyboard = 336
+	p.app.SetEnvironment(core.Environment{Locale: lang, KeyboardHeight: keyboard})
+	save := p.app.WaitFor("id:source-save", wait).Bounds()
+	if bottom := save.Origin.Y + save.Size.Height; bottom > 844-keyboard {
+		t.Fatalf("Save ends at %v, under the keyboard from %v", bottom, 844-keyboard)
+	}
+	p.app.SetEnvironment(core.Environment{Locale: lang})
+	if save := p.app.Find("id:source-save").Bounds(); save.Origin.Y+save.Size.Height <= 844-keyboard {
+		t.Fatalf("Save stays up at %v once the keyboard is gone", save.Origin.Y+save.Size.Height)
+	}
+}
