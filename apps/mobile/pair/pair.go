@@ -159,7 +159,12 @@ func New(cx *core.Scope, s *session.Session, done func(store.Desktop), top func(
 		confirmed.Set(false)
 		at.Set(checking)
 		go func() {
-			f, err := reach(page, target.Addrs)
+			// A link with a mailbox goes on through the relay once no address answers within one connection's time, rather than waiting out iOS's question about the local network: a phone away from the computer's network would wait for nothing, and the relay pairs one that is on it all the same.
+			within := reachFor
+			if target.Relay != nil && target.Expected != nil {
+				within = connectTimeout
+			}
+			f, err := reach(page, target.Addrs, within)
 			cx.Post(func() {
 				switch {
 				case err != nil && target.Relay != nil && target.Expected != nil:
@@ -370,9 +375,9 @@ type found struct {
 	fingerprint []byte
 }
 
-// reach tries every address at once for the computer's certificate, and returns the first that answers. An address the phone is not let reach yet (blocked) is tried again until reachFor is up, as iOS refuses a connection to the local network while it asks the user whether the app may make one: the pairing goes on once they allow it, without their pressing Continue again. The error is of an address that failed for another reason when there is one, so blocked is true of it only when every address was blocked.
-func reach(ctx context.Context, addrs []netip.AddrPort) (found, error) {
-	ctx, cancel := context.WithTimeout(ctx, reachFor)
+// reach tries every address at once for the computer's certificate, and returns the first that answers. An address the phone is not let reach yet (blocked) is tried again until within is up, as iOS refuses a connection to the local network while it asks the user whether the app may make one: the pairing goes on once they allow it, without their pressing Continue again. The error is of an address that failed for another reason when there is one, so blocked is true of it only when every address was blocked.
+func reach(ctx context.Context, addrs []netip.AddrPort, within time.Duration) (found, error) {
+	ctx, cancel := context.WithTimeout(ctx, within)
 	defer cancel()
 	type result struct {
 		found found
@@ -399,7 +404,7 @@ func reach(ctx context.Context, addrs []netip.AddrPort) (found, error) {
 }
 
 // TODO(nsgo#2347): NSGo cannot ask for iOS's local network access before the first connection or say whether it was given, so reach waits out the question and unreachable guesses a refusal from the error; ask ahead and read the answer once NSGo can https://github.com/nsgo-dev/nsgo/issues/2347
-// reachFor is how long reach keeps trying an address the phone is not let reach: long enough to read iOS's question about the local network and answer it.
+// reachFor is how long reach keeps trying an address the phone is not let reach when there is no other way to the computer: long enough to read iOS's question about the local network and answer it.
 const reachFor = 30 * time.Second
 
 // fetchUntil fetches the certificate's fingerprint at a, again while the connection is blocked and ctx lasts, a little later each time.
