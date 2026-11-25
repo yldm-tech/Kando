@@ -1,0 +1,34 @@
+{
+  "schema": 2,
+  "id": "kando.plex",
+  "kind": "script",
+  "version": "1.0.0",
+  "kando": ">=0.54.0",
+  "license": "FSL-1.1-ALv2",
+  "author": "Kando",
+  "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/plex",
+  "name": {"en": "Plex", "zh-Hans": "Plex", "zh-Hant": "Plex", "ja": "Plex", "ko": "Plex"},
+  "description": {
+    "en": "Browses and imports films and episodes from a Plex Media Server, as their original files, never transcoded.",
+    "zh-Hans": "浏览并导入 Plex 媒体服务器上的电影和剧集，取原始文件，不经转码。",
+    "zh-Hant": "瀏覽並匯入 Plex 媒體伺服器上的電影和影集，取原始檔案，不經轉碼。",
+    "ja": "Plex Media Server の映画とエピソードを、トランスコードせず元のファイルのまま閲覧して読み込みます。",
+    "ko": "Plex 미디어 서버의 영화와 에피소드를 트랜스코딩 없이 원본 파일 그대로 둘러보고 가져옵니다."
+  },
+  "capabilities": {"host": ["kando.source.fetch"]},
+  "contributes": {
+    "sources": [{
+      "id": "plex",
+      "title": {"en": "Plex", "zh-Hans": "Plex", "zh-Hant": "Plex", "ja": "Plex", "ko": "Plex"},
+      "icon": "film",
+      "fields": [
+        {"key": "endpoint", "type": "url",
+          "title": {"en": "Server address", "zh-Hans": "服务器地址", "zh-Hant": "伺服器位址", "ja": "サーバーのアドレス", "ko": "서버 주소"},
+          "hint": {"en": "The Plex Media Server's address, such as http://nas.local:32400/", "zh-Hans": "Plex 媒体服务器的地址，例如 http://nas.local:32400/", "zh-Hant": "Plex 媒體伺服器的位址，例如 http://nas.local:32400/", "ja": "Plex Media Server のアドレス。例：http://nas.local:32400/", "ko": "Plex 미디어 서버 주소, 예: http://nas.local:32400/"}},
+        {"key": "token", "type": "secret", "auth": {"header": "X-Plex-Token", "format": "{secret}"},
+          "title": {"en": "Token", "zh-Hans": "令牌", "zh-Hant": "權杖", "ja": "トークン", "ko": "토큰"},
+          "hint": {"en": "In Plex Web, an item's ⋯ › Get Info › View XML: what follows X-Plex-Token= in the address", "zh-Hans": "在 Plex 网页版打开任一影片的 ⋯ › 获取信息 › 查看 XML，地址里 X-Plex-Token= 后面的那串", "zh-Hant": "在 Plex 網頁版開啟任一影片的 ⋯ › 取得資訊 › 檢視 XML，位址裡 X-Plex-Token= 後面的那串", "ja": "Plex Web で任意の項目の ⋯ › 情報を取得 › XML を表示 を開き、アドレスの X-Plex-Token= の後ろの文字列", "ko": "Plex 웹에서 항목의 ⋯ › 정보 보기 › XML 보기를 열고, 주소에서 X-Plex-Token= 뒤의 문자열"}}
+      ]
+    }]
+  }
+}
