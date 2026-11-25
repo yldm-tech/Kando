@@ -95,6 +95,8 @@
   "dlWinButton": "Windows용 다운로드",
   "dlWinArm": "ARM용",
   "dlWinNote": "Windows에서는 아직 yt-dlp, ffmpeg, whisper-cli를 자동으로 내려받지 않으니, 패키지 관리자로 설치하고 PATH에 넣어 주세요.",
+  "dlIosBody": "iPhone 앱은 TestFlight에서 공개 베타 중입니다. 컴퓨터의 Kando에 있는 영상을 보거나 NAS에서 바로 재생할 수 있습니다. App Store에서 TestFlight를 설치한 뒤, iPhone에서 이 페이지를 열고 버튼을 누르세요.",
+  "dlIosButton": "TestFlight 베타 참여",
   "dlReadme": "README의 자세한 안내",
   "copyLabel": "복사",
   "copiedLabel": "복사됨",

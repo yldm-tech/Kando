@@ -95,6 +95,8 @@
   "dlWinButton": "Download for Windows",
   "dlWinArm": "ARM64",
   "dlWinNote": "On Windows Kando doesn't download yt-dlp, ffmpeg and whisper-cli yet: install them with a package manager and put them on your PATH.",
+  "dlIosBody": "The iPhone app is in public beta on TestFlight. It plays the films in Kando on your computer, or straight from a NAS. Install TestFlight from the App Store, then open this page on your iPhone and tap the button.",
+  "dlIosButton": "Join the TestFlight beta",
   "dlReadme": "The full guide in the README",
   "copyLabel": "Copy",
   "copiedLabel": "Copied",

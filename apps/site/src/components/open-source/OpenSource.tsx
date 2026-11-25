@@ -2,14 +2,14 @@
 import site from "virtual:kando/site";
 import { useEffect } from "react";
 import { useWords } from "../../i18n/content";
-import { debPackage, installCommand, macDisk, readmeURL, releaseFileURL, releasesURL, repoURL, windowsSetup } from "../../lib/site";
+import { debPackage, installCommand, macDisk, readmeURL, releaseFileURL, releasesURL, repoURL, testFlightURL, windowsSetup } from "../../lib/site";
 import { CodeBlock } from "../common/CodeBlock";
 import { AppleMark, GitHubMark } from "../common/marks";
 import { SlidingPill } from "../common/SlidingPill";
 import { useTabs } from "../common/tabs";
 
 // systems are the download panel's tabs, by the name a link to the panel gives in its data-os.
-const systems = ["mac", "linux", "win"] as const;
+const systems = ["mac", "linux", "win", "ios"] as const;
 
 export function OpenSource() {
   const { t, lang } = useWords();
@@ -19,6 +19,7 @@ export function OpenSource() {
     ["tab-mac", "panel-mac"],
     ["tab-linux", "panel-linux"],
     ["tab-win", "panel-win"],
+    ["tab-ios", "panel-ios"],
   ]);
   const { select } = tabs;
   // A link to the download panel that names a system, as Windows and Linux under the headline, opens that system's tab.
@@ -64,6 +65,9 @@ export function OpenSource() {
               <button {...tabs.tab(2)} data-os="win">
                 Windows
               </button>
+              <button {...tabs.tab(3)} data-os="ios">
+                iPhone
+              </button>
             </div>
             <div {...tabs.stack}>
               <div className="dl-panel" {...tabs.panel(0)}>
@@ -104,6 +108,15 @@ export function OpenSource() {
                   </a>
                 </p>
                 <p className="fine">{t("dlWinNote")}</p>
+              </div>
+              <div className="dl-panel" {...tabs.panel(3)}>
+                <p>{t("dlIosBody")}</p>
+                <p className="flex flex-wrap items-center gap-2.5">
+                  <a className="btn primary" href={testFlightURL}>
+                    <AppleMark size={16} />
+                    {t("dlIosButton")}
+                  </a>
+                </p>
               </div>
             </div>
             <p className="dl-readme">

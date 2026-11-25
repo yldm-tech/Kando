@@ -193,7 +193,7 @@ async function main() {
   const own = content(pageData.lang);
   r = await call(tools, "get_started", {});
   assert.equal(r.data.lang, pageData.lang);
-  for (const key of ["openTitle", "dlMacBody", "dlMacButton", "dlFirstRun", "dlLinuxNote", "dlWinBody", "dlWinButton", "dlWinNote", "dlReadme"]) {
+  for (const key of ["openTitle", "dlMacBody", "dlMacButton", "dlFirstRun", "dlLinuxNote", "dlWinBody", "dlWinButton", "dlWinNote", "dlIosBody", "dlIosButton", "dlReadme"]) {
     assert.ok(r.text.includes(own[key]), "get_started does not say " + key + ": " + own[key]);
   }
   assert.ok(r.text.includes("install.sh | sh"), "get_started does not give the Linux install command");

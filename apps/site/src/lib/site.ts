@@ -18,6 +18,8 @@ export const everyAPIURL = "https://everyapi.ai";
 // pluginsRepoURL is the repository of Kando's community plugin directory, where plugins are added by pull request, and pluginsGuideURL its guide to adding one.
 export const pluginsRepoURL = "https://github.com/yldm-tech/kando-plugins";
 export const pluginsGuideURL = pluginsRepoURL + "/blob/main/CONTRIBUTING.md";
+// testFlightURL is the public TestFlight invitation to the iPhone app's beta (apps/mobile), which the download panel's iPhone tab links.
+export const testFlightURL = "https://testflight.apple.com/join/qG28jGT3";
 // pluginIndexPath is where the site serves the signed plugin index, the same file Kando downloads; a Worker answers it, so it is not one of the built files.
 export const pluginIndexPath = "/plugin/index.json";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.

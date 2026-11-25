@@ -95,6 +95,8 @@
   "dlWinButton": "下载 Windows 版",
   "dlWinArm": "ARM 版",
   "dlWinNote": "在 Windows 上，yt-dlp、ffmpeg 和 whisper-cli 暂时不会自动下载，请用包管理器装好，并放进 PATH。",
+  "dlIosBody": "iPhone 版正在 TestFlight 公开测试，能看电脑上看懂里的影片，也能直接连 NAS 播放。先从 App Store 安装 TestFlight，再在 iPhone 上打开本页，点下面的按钮加入。",
+  "dlIosButton": "加入 TestFlight 测试",
   "dlReadme": "README 里的完整说明",
   "copyLabel": "复制",
   "copiedLabel": "已复制",
