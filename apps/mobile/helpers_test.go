@@ -124,7 +124,16 @@ func (p *phone) startPairing() {
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-languages", wait)
 	p.app.Press("id:onboarding-continue")
+	p.chooseWay("computer")
 	p.app.WaitFor("id:onboarding-pairing", wait)
+}
+
+// chooseWay chooses the way the phone gets films at the introduction's choosing step, the one shown, by its card's ID (computer, nas or both), and goes on.
+func (p *phone) chooseWay(way string) {
+	p.t.Helper()
+	p.app.WaitFor("id:onboarding-choosing", wait)
+	p.app.Press("id:onboarding-way-" + way)
+	p.app.Press("id:onboarding-continue")
 }
 
 // pickTarget picks code as the language subtitles are translated into at the introduction's languages step: its row opens the list, which closes once one is picked.

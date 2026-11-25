@@ -10,6 +10,7 @@ import (
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -133,14 +134,17 @@ func sides(phone bool) core.EnvEdges {
 	return core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}
 }
 
-// topBar is the app's icon and name and the Skip pill, over the top of the page, which stay while the picture scrolls away under them: on the picture's dark top they are white, and once the page scrolls under them (over) they sit on the page in its ink. Skip leaves the introduction; it waits while a pairing code is out (sending), which cannot be called back. On a phone it keeps clear of the status bar and the safe area's sides; a tablet's card is clear of them already.
-func topBar(cx *core.Scope, skip func(), sending, over func() bool, phone bool) core.Node {
+// topBar is the app's icon and name and the Skip pill, over the top of the page, which stay while the picture scrolls away under them, and before the icon, past the first step (canBack), the round Back that goes to the step before: on the picture's dark top they are white, and once the page scrolls under them (over) they sit on the page in its ink. Skip leaves the introduction; it and Back wait while a pairing code is out or a source is saved (sending), which cannot be called back. On a phone it keeps clear of the status bar and the safe area's sides; a tablet's card is clear of them already.
+func topBar(cx *core.Scope, skip, back func(), canBack, sending, over func() bool, phone bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	env := sides(phone)
 	if phone {
 		env.Top = core.EnvSafeArea
 	}
 	onPicture := core.Style{TextShadowColor: ui.Black(0.4), TextShadowOffset: core.Point{Y: 1}, TextShadowRadius: 4}
+	// The pills are on the picture, so they are the picture's dark glass rather than one of the theme's fills; on the page the glass still reads.
+	glass := core.Style{Height: core.Pt(34), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+		Background: theme.PictureGlass, BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}, Disabled: ui.Dimmed()}
 	return core.View{TestID: "onboarding-top", Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: core.Pt(0), Direction: core.Row, AlignItems: core.AlignCenter,
 		Padding: core.Edges{Top: 14, Right: 16, Bottom: 8, Left: 16}, PaddingEnv: env, Transition: core.Transition{Duration: 200 * time.Millisecond, Properties: core.TransitionBackground}},
 		StyleFunc: func() core.Style {
@@ -151,6 +155,12 @@ func topBar(cx *core.Scope, skip func(), sending, over func() bool, phone bool) 
 		},
 		Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexGrow: 1}, Children: []core.Node{
+				core.Show{When: canBack, Then: func(cx *core.Scope) core.Node {
+					return base.Button{TestID: "onboarding-back", LabelFunc: func() string { return locales.OnboardingBack(cx) }, OnPress: func(core.PressEvent) { back() }, Disabled: sending,
+						Style:     glass.Merge(core.Style{Width: core.Pt(34), Margin: core.Edges{Right: 2}}),
+						StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, 2)} },
+						Children:  []core.Node{ui.Icon(lucide.ChevronLeft, 20, func() core.Color { return theme.OnPicture })}}
+				}},
 				// The design's icon is a 24-point tile in a 30-point box, its margin clear.
 				core.View{Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0}, Children: []core.Node{
 					core.Image{Source: brand.Icon(), ResizeMode: core.Cover, ElementsHidden: true, Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), CornerRadius: 5.5, BorderCurve: core.BorderCurveContinuous}},
@@ -163,10 +173,8 @@ func topBar(cx *core.Scope, skip func(), sending, over func() bool, phone bool) 
 						return onPicture.Merge(core.Style{Color: theme.OnPicture})
 					}},
 			}},
-			// The pill is on the picture, so it is the picture's dark glass rather than one of the theme's fills; on the page the glass still reads.
 			base.Button{TestID: "onboarding-skip", LabelFunc: func() string { return locales.OnboardingSkip(cx) }, OnPress: func(core.PressEvent) { skip() }, Disabled: sending,
-				Style: core.Style{Height: core.Pt(34), Padding: core.Symmetric(0, 14), CornerRadius: 17, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-					Background: theme.PictureGlass, BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}, Disabled: ui.Dimmed()},
+				Style:     glass.Merge(core.Style{Padding: core.Symmetric(0, 14)}),
 				StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, 2)} },
 				Children: []core.Node{core.Text{ContentFunc: func() string { return locales.OnboardingSkip(cx) }, MaxLines: 1,
 					Style: core.Style{Color: theme.OnPicture, FontSize: 14, LineHeight: 18, FontWeight: core.FontWeightSemibold}}}},

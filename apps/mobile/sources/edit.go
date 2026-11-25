@@ -25,30 +25,64 @@ type tested struct {
 	text     string
 }
 
-// form is the state of a source's form: the source edited (id, "" for a new one), its kind, name and values as typed, the secrets among them, how its last Test went, why Save refused it and whether it is saving.
+// form is the state of a source's form: the source edited (id, "" for a new one), its kind, name and values as typed, the secrets among them, how its last Test went, why Save refused it and whether it is saving; finished runs once it is saved, with the source, or removed, with none.
 type form struct {
-	cx       *core.Scope
-	s        *session.Session
-	id       string
-	kind     *core.Signal[string]
-	name     *core.Signal[string]
-	values   *core.Signal[map[string]string]
-	test     *core.Signal[tested]
-	problem  *core.Signal[string]
-	saving   *core.Signal[bool]
-	testGen  int
-	editing  bool
-	finished func()
+	cx      *core.Scope
+	s       *session.Session
+	id      string
+	kind    *core.Signal[string]
+	name    *core.Signal[string]
+	values  *core.Signal[map[string]string]
+	test    *core.Signal[tested]
+	problem *core.Signal[string]
+	saving  *core.Signal[bool]
+	testGen int
+	editing bool
+	// intro is the form on the introduction's white page.
+	intro    bool
+	finished func(store.Source)
 }
 
 // EditPage is the form of the source id, or with "" of a new one, as the computer's media source dialog has it: its name, its kind (a new one's alone, among SMB, SFTP and WebDAV), the kind's fields, what SMB and plain HTTP risk, Test, which connects and reads its root, asking to trust an SFTP server's key or a WebDAV server's certificate the first time and warning when it changed, Save, and Remove for a source saved, which asks first. back leaves the page, as Save and Remove do once done.
 func EditPage(cx *core.Scope, s *session.Session, id string, back func()) base.NavPage {
+	f, fields, check, save := newForm(cx, s, id, func(store.Source) { back() }, false)
+	title := func() string {
+		if f.editing {
+			return locales.SourceEditTitle(cx)
+		}
+		return locales.SourcesAdd(cx)
+	}
+	ref := &core.Ref{}
+	blocks := append(fields, core.View{Style: core.Style{Gap: 10}, Children: []core.Node{check, save}})
+	if f.editing {
+		blocks = append(blocks, look.Button{TestID: "source-remove", Kind: look.Danger, Text: func() string { return locales.SourceRemove(cx) }, Disabled: f.saving.Get, OnPress: f.remove})
+	}
+	return look.NavPage(cx, base.NavPage{TitleFunc: title, TestID: "source-page", Children: []core.Node{
+		core.Scroll{TestID: "source-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
+			Children: []core.Node{core.View{StyleFunc: formColumn(cx), Children: blocks}}},
+	}}, ui.NavHeader{OnBack: back, Scroll: ref})
+}
+
+// Form is a new source's form as a page lays it out, as the introduction does: Content, its name, kind and fields, what they risk, Test and what it says, and Save, the button that keeps it, for the page's foot. Saving is whether it is being saved, which a page's own ways out wait for.
+type Form struct {
+	Content, Save core.Node
+	Saving        func() bool
+}
+
+// NewForm is the form of a new source under cx; done runs once it is saved, with the source saved. intro lays it out for the introduction's white page: Save in the tall shape (look.Button's Tall), and its cards in the page grey rather than the white a card has on the grouped page.
+func NewForm(cx *core.Scope, s *session.Session, done func(store.Source), intro bool) Form {
+	f, fields, check, save := newForm(cx, s, "", done, intro)
+	return Form{Content: core.View{Style: core.Style{Gap: 18}, Children: append(fields, check)}, Save: save, Saving: f.saving.Get}
+}
+
+// newForm is the form of the source id, or with "" of a new one, in its parts: the fields down to the warnings, one block each; check, Test with what it and Save say; and save, the button. done runs once the source is saved, with it, or removed, with an empty one.
+func newForm(cx *core.Scope, s *session.Session, id string, done func(store.Source), intro bool) (f *form, fields []core.Node, check, save core.Node) {
 	colors := ui.ColorsOf(cx)
 	src, editing := s.Source(id)
 	if !editing {
 		src = store.Source{Kind: nas.KindSMB}
 	}
-	f := &form{cx: cx, s: s, id: src.ID, editing: editing, finished: back,
+	f = &form{cx: cx, s: s, id: src.ID, editing: editing, intro: intro, finished: done,
 		kind:    core.NewSignal(cx, src.Kind),
 		name:    core.NewSignal(cx, src.Name),
 		values:  core.NewSignalFunc(cx, maps.Clone(src.Config), nil),
@@ -56,14 +90,7 @@ func EditPage(cx *core.Scope, s *session.Session, id string, back func()) base.N
 		problem: core.NewSignal(cx, ""),
 		saving:  core.NewSignal(cx, false),
 	}
-	title := func() string {
-		if editing {
-			return locales.SourceEditTitle(cx)
-		}
-		return locales.SourcesAdd(cx)
-	}
-	ref := &core.Ref{}
-	blocks := []core.Node{
+	fields = []core.Node{
 		field(cx, func() string { return locales.SourceName(cx) }, "", ui.Input{TestID: "source-name", LabelFunc: func() string { return locales.SourceName(cx) },
 			Value: f.name.Get, OnChange: func(v string) { f.name.Set(v); f.changed() }, PlaceholderFunc: func() string { return locales.SourceNamePlaceholder(cx) },
 			Style: inputStyle}),
@@ -73,44 +100,37 @@ func EditPage(cx *core.Scope, s *session.Session, id string, back func()) base.N
 		for _, k := range nas.Kinds {
 			segs = append(segs, look.Segment{Value: k, Text: func() string { return KindName(cx, k) }, TestID: "source-kind-" + k})
 		}
-		blocks = append(blocks, field(cx, func() string { return locales.SourceKind(cx) }, "",
+		fields = append(fields, field(cx, func() string { return locales.SourceKind(cx) }, "",
 			look.Segmented{Segments: segs, Value: f.kind.Get, Label: func() string { return locales.SourceKind(cx) }, OnChange: func(k string) { f.kind.Set(k); f.changed() }}))
 	}
 	for _, k := range nas.Kinds {
-		blocks = append(blocks, core.Show{When: func() bool { return f.kind.Get() == k }, Then: func(cx *core.Scope) core.Node { return f.fields(cx, k) }})
+		fields = append(fields, core.Show{When: func() bool { return f.kind.Get() == k }, Then: func(cx *core.Scope) core.Node { return f.fields(cx, k) }})
 	}
-	blocks = append(blocks,
+	fields = append(fields,
 		core.Each(f.warnings, func(w string) string { return w }, func(cx *core.Scope, w func() string, _ func() int) core.Node {
 			return core.View{Style: core.Style{Direction: core.Row, Gap: 8, Padding: core.Symmetric(0, 4)}, Children: []core.Node{
 				ui.Icon(lucide.TriangleAlert, 15, colors.Warn),
 				core.Text{ContentFunc: w, Style: look.Caption.Merge(core.Style{FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 			}}
-		}),
-		core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
-			look.Button{TestID: "source-test", Kind: look.Tinted, Icon: lucide.PlugZap, Text: func() string { return locales.SourceTest(cx) },
-				Busy: func() bool { return f.test.Get().busy }, BusyLabel: func() string { return locales.SourceTesting(cx) }, Disabled: f.saving.Get, OnPress: f.runTest},
-			core.Show{When: func() bool { return f.test.Get().text != "" }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{TestID: "source-test-result", ContentFunc: func() string { return f.test.Get().text }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead,
-					StyleFunc: func() core.Style {
-						if f.test.Get().ok {
-							return core.Style{Color: colors.Up()}
-						}
-						return core.Style{Color: colors.Danger()}
-					}}
-			}},
-			core.Show{When: func() bool { return f.problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
-				return core.Text{TestID: "source-problem", ContentFunc: f.problem.Get, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
-			}},
-			look.Button{TestID: "source-save", Text: func() string { return locales.SourceSave(cx) }, Busy: f.saving.Get, BusyLabel: func() string { return locales.SourceSaving(cx) }, OnPress: f.save},
+		}))
+	check = core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
+		look.Button{TestID: "source-test", Kind: look.Tinted, Icon: lucide.PlugZap, Text: func() string { return locales.SourceTest(cx) },
+			Busy: func() bool { return f.test.Get().busy }, BusyLabel: func() string { return locales.SourceTesting(cx) }, Disabled: f.saving.Get, OnPress: f.runTest},
+		core.Show{When: func() bool { return f.test.Get().text != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "source-test-result", ContentFunc: func() string { return f.test.Get().text }, LiveRegion: core.LiveRegionPolite, Style: look.Subhead,
+				StyleFunc: func() core.Style {
+					if f.test.Get().ok {
+						return core.Style{Color: colors.Up()}
+					}
+					return core.Style{Color: colors.Danger()}
+				}}
 		}},
-	)
-	if editing {
-		blocks = append(blocks, look.Button{TestID: "source-remove", Kind: look.Danger, Text: func() string { return locales.SourceRemove(cx) }, Disabled: f.saving.Get, OnPress: f.remove})
-	}
-	return look.NavPage(cx, base.NavPage{TitleFunc: title, TestID: "source-page", Children: []core.Node{
-		core.Scroll{TestID: "source-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
-			Children: []core.Node{core.View{StyleFunc: formColumn(cx), Children: blocks}}},
-	}}, ui.NavHeader{OnBack: back, Scroll: ref})
+		core.Show{When: func() bool { return f.problem.Get() != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "source-problem", ContentFunc: f.problem.Get, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
+		}},
+	}}
+	save = look.Button{TestID: "source-save", Tall: intro, Text: func() string { return locales.SourceSave(cx) }, Busy: f.saving.Get, BusyLabel: func() string { return locales.SourceSaving(cx) }, OnPress: f.save}
+	return f, fields, check, save
 }
 
 // inputStyle is a field's input: the design's 50 tall, 12 round, 17pt.
@@ -173,7 +193,13 @@ func (f *form) fields(cx *core.Scope, kind string) core.Node {
 		case nas.Switch:
 			out = append(out, core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Symmetric(12, 16), MinHeight: core.Pt(52)},
-					StyleFunc: func() core.Style { return look.Card(cx) },
+					StyleFunc: func() core.Style {
+						if f.intro {
+							// On the introduction's white page a card is the grouped page's grey, as its other cards are.
+							return look.Card(cx).Merge(core.Style{Background: colors.Background()})
+						}
+						return look.Card(cx)
+					},
 					Children: []core.Node{
 						core.Text{ContentFunc: title, Style: look.Body.Merge(core.Style{FlexGrow: 1, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Text)},
 						look.Switch{TestID: testID, Label: title, Checked: func() bool { return f.value(key) == "true" }, OnChange: func(on bool) {
@@ -342,7 +368,7 @@ func (f *form) save() {
 	}
 	f.problem.Set("")
 	f.saving.Set(true)
-	f.s.SaveSource(src, typed, func(_ store.Source, err error) {
+	f.s.SaveSource(src, typed, func(saved store.Source, err error) {
 		f.saving.Set(false)
 		switch {
 		case errors.Is(err, core.ErrSecretsUnavailable):
@@ -350,7 +376,7 @@ func (f *form) save() {
 		case err != nil:
 			f.problem.Set(locales.SourceSaveFailed(f.cx))
 		default:
-			f.finished()
+			f.finished(saved)
 		}
 	})
 }
@@ -366,7 +392,7 @@ func (f *form) remove() {
 		Actions: []core.AlertAction{{Label: locales.CommonCancel(cx), Role: core.AlertCancel}, {Label: locales.SourceRemoveConfirm(cx), Role: core.AlertDestructive}}}, func(i int) {
 		if i == 1 {
 			f.s.RemoveSource(f.id)
-			f.finished()
+			f.finished(store.Source{})
 		}
 	})
 }

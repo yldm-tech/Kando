@@ -376,6 +376,7 @@ func TestTheIntroductionsLanguageGoesToTheComputer(t *testing.T) {
 	p.app.WaitFor("id:onboarding-languages", wait)
 	p.pickTarget("ko")
 	p.app.Press("id:onboarding-continue")
+	p.chooseWay("computer")
 	p.app.WaitFor("id:onboarding-pairing", wait)
 	p.fillPairing(d.Addr.String(), "123456")
 	p.app.Press("id:pair-continue")

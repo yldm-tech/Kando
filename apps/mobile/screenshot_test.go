@@ -51,6 +51,10 @@ func TestScreenshotsOnboarding(t *testing.T) {
 	p.app.WaitForGone("id:onboarding-target-sheet", wait)
 	shot(p, "onboarding-languages")
 	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-choosing", wait)
+	p.app.Press("id:onboarding-way-computer")
+	shot(p, "onboarding-choosing")
+	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-pairing", wait)
 	p.fillPairing(d.Addr.String(), "123456")
 	shot(p, "onboarding-pair")
@@ -79,6 +83,28 @@ func TestScreenshotsOnboardingConnecting(t *testing.T) {
 	shot(p, "onboarding-connecting")
 }
 
+// The NAS way: the choice, the form that adds one with Save at the page's foot, and the source added. The source is never reached, so its address is written here.
+func TestScreenshotsOnboardingNAS(t *testing.T) {
+	shot := screenshots(t)
+	p := startPhone(t, "")
+	p.toChoosing()
+	p.app.Press("id:onboarding-way-nas")
+	shot(p, "onboarding-choosing-nas")
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-adding", wait)
+	p.app.Press("id:source-kind-webdav")
+	p.app.WaitFor("id:source-field-url", wait)
+	p.app.Type("id:source-name", "Home NAS")
+	p.app.Type("id:source-field-url", "https://nas.local:5006")
+	p.app.Type("id:source-field-root", "Films")
+	p.app.Type("id:source-field-user", "family")
+	p.app.Type("id:source-field-password", "secret")
+	shot(p, "onboarding-adding")
+	p.app.Press("id:source-save")
+	p.app.WaitFor("id:onboarding-added", wait)
+	shot(p, "onboarding-added")
+}
+
 // The introduction on a tablet, the design's card over the screen dimmed, on its side and upright.
 func TestScreenshotsTabletOnboarding(t *testing.T) {
 	shot := screenshots(t)
@@ -94,6 +120,10 @@ func TestScreenshotsTabletOnboarding(t *testing.T) {
 	p.app.Resize(820, 1180)
 	p.app.WaitFor("id:onboarding-card", wait)
 	shot(p, "tablet-onboarding-upright")
+	p.app.Press("id:onboarding-continue")
+	p.app.WaitFor("id:onboarding-choosing", wait)
+	p.app.Press("id:onboarding-way-both")
+	shot(p, "tablet-onboarding-choosing")
 }
 
 func TestScreenshotsSettings(t *testing.T) {

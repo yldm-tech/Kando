@@ -615,6 +615,7 @@ var Parameters = map[string][]string{
 	"LearnWeekBars":                  {"count"},
 	"LearnWordsDue":                  {"total", "due"},
 	"LearnWordsUnit":                 {"count"},
+	"OnboardingAdded":                {"name"},
 	"OnboardingPaired":               {"name"},
 	"OnboardingPairedFilms":          {"count"},
 	"OnboardingStep":                 {"step", "count"},
@@ -851,6 +852,7 @@ type Translation struct {
 	LearnWeekBars                  func(count int) string
 	LearnWordsDue                  func(total int, due int) string
 	LearnWordsUnit                 func(count int) string
+	OnboardingAdded                func(name string) string
 	OnboardingPaired               func(name string) string
 	OnboardingPairedFilms          func(count int) string
 	OnboardingStep                 func(step int, count int) string
@@ -1195,6 +1197,9 @@ const (
 	textLinesRemoveTitle
 	textNSCameraUsageDescription
 	textNSLocalNetworkUsageDescription
+	textOnboardingAddBody
+	textOnboardingAddTitle
+	textOnboardingBack
 	textOnboardingContinue
 	textOnboardingCue1
 	textOnboardingCue2
@@ -1219,8 +1224,17 @@ const (
 	textOnboardingPairTitle
 	textOnboardingSkip
 	textOnboardingSkipPairing
+	textOnboardingSkipSource
 	textOnboardingStart
 	textOnboardingTarget
+	textOnboardingWayBody
+	textOnboardingWayBoth
+	textOnboardingWayBothLine
+	textOnboardingWayComputer
+	textOnboardingWayComputerLine
+	textOnboardingWayNAS
+	textOnboardingWayNASLine
+	textOnboardingWayTitle
 	textPairAddress
 	textPairAddressExample
 	textPairCode
@@ -1822,6 +1836,9 @@ var keyOfText = [numTexts]string{
 	"linesRemoveTitle",
 	"NSCameraUsageDescription",
 	"NSLocalNetworkUsageDescription",
+	"onboardingAddBody",
+	"onboardingAddTitle",
+	"onboardingBack",
 	"onboardingContinue",
 	"onboardingCue1",
 	"onboardingCue2",
@@ -1846,8 +1863,17 @@ var keyOfText = [numTexts]string{
 	"onboardingPairTitle",
 	"onboardingSkip",
 	"onboardingSkipPairing",
+	"onboardingSkipSource",
 	"onboardingStart",
 	"onboardingTarget",
+	"onboardingWayBody",
+	"onboardingWayBoth",
+	"onboardingWayBothLine",
+	"onboardingWayComputer",
+	"onboardingWayComputerLine",
+	"onboardingWayNAS",
+	"onboardingWayNASLine",
+	"onboardingWayTitle",
 	"pairAddress",
 	"pairAddressExample",
 	"pairCode",
@@ -2447,6 +2473,9 @@ var textsEn = i18n.NewTexts(""+
 	"Remove this line?"+
 	"Kando uses the camera to read the QR code your computer shows, to pair with it."+
 	"Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films."+
+	"Kando only reads from it, and keeps its password in your phone's secure store."+
+	"Add your NAS or cloud drive"+
+	"Back"+
 	"Continue"+
 	"每条河都始于高山上的一股细流。"+
 	"水往低处流，沿途裹挟起泥沙和石块。"+
@@ -2471,8 +2500,17 @@ var textsEn = i18n.NewTexts(""+
 	"Connect your computer"+
 	"Skip"+
 	"Skip for Now"+
+	"Skip for Now"+
 	"Get Started"+
 	"Translate subtitles into"+
+	"You can add either one later in Settings."+
+	"Both"+
+	"Subtitled films from your computer, everything else straight from your NAS."+
+	"Kando on your computer"+
+	"Makes the subtitles your phone plays and studies, away from home too once it syncs through your storage."+
+	"NAS or cloud drive"+
+	"SMB, SFTP or WebDAV, such as Nextcloud. Plays straight from it, without subtitles: those need Kando on a computer."+
+	"Where are your films?"+
 	"Address"+
 	"192.168.1.20:47123"+
 	"Code"+
@@ -3069,6 +3107,9 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		79,
 		134,
+		78,
+		27,
+		4,
 		8,
 		45,
 		51,
@@ -3093,8 +3134,17 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		4,
 		12,
+		12,
 		11,
 		24,
+		41,
+		4,
+		75,
+		22,
+		104,
+		18,
+		114,
+		21,
 		7,
 		18,
 		4,
@@ -3694,6 +3744,9 @@ var textsJa = i18n.NewTexts(""+
 	"この文を削除しますか？"+
 	"Kando はコンピュータに表示された QR コードをカメラで読み取り、ペアリングします。"+
 	"Kando はローカルネットワーク経由でコンピュータの Kando や追加した NAS・サーバに接続し、映画の一覧を表示してダウンロードします。"+
+	"Kando は読み取るだけで、パスワードはこの端末の安全な保管場所に保存します。"+
+	"NAS またはクラウドドライブを追加"+
+	"戻る"+
 	"続ける"+
 	"すべての川は、山の高いところの細い流れから始まります。"+
 	"水は下りながら、砂や石を運んでいきます。"+
@@ -3718,8 +3771,17 @@ var textsJa = i18n.NewTexts(""+
 	"コンピュータに接続"+
 	"スキップ"+
 	"今はスキップ"+
+	"今はスキップ"+
 	"はじめる"+
 	"字幕の翻訳先"+
+	"もう一方はあとから設定で追加できます。"+
+	"両方"+
+	"字幕付きの映画はコンピュータから、それ以外は NAS から直接再生します。"+
+	"コンピュータの Kando"+
+	"コンピュータが字幕を作り、スマートフォンで再生と学習。「ストレージ経由で同期」をオンにすれば外出先でも使えます。"+
+	"NAS またはクラウドドライブ"+
+	"SMB、SFTP、WebDAV（Nextcloud など）から直接再生します。字幕はありません。字幕にはコンピュータの Kando が必要です。"+
+	"映画はどこにありますか？"+
 	"アドレス"+
 	"192.168.1.20:47123"+
 	"ペアリングコード"+
@@ -4316,6 +4378,9 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		115,
 		182,
+		108,
+		46,
+		6,
 		9,
 		81,
 		60,
@@ -4340,8 +4405,17 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		12,
 		18,
+		18,
 		12,
 		18,
+		57,
+		6,
+		101,
+		27,
+		168,
+		37,
+		156,
+		36,
 		12,
 		18,
 		24,
@@ -4941,6 +5015,9 @@ var textsKo = i18n.NewTexts(""+
 	"이 문장을 삭제할까요?"+
 	"Kando는 카메라로 컴퓨터에 표시된 QR 코드를 읽어 페어링합니다."+
 	"Kando는 로컬 네트워크를 통해 컴퓨터의 Kando와 추가한 NAS 및 서버에 연결하여 영화 목록을 보고 다운로드합니다."+
+	"Kando는 읽기만 하며, 암호는 이 휴대폰의 보안 저장소에 보관합니다."+
+	"NAS 또는 클라우드 드라이브 추가"+
+	"뒤로"+
 	"계속"+
 	"모든 강은 높은 산의 가느다란 물줄기에서 시작됩니다."+
 	"물은 아래로 흐르며 모래와 돌을 실어 나릅니다."+
@@ -4965,8 +5042,17 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터 연결하기"+
 	"건너뛰기"+
 	"나중에 하기"+
+	"나중에 하기"+
 	"시작하기"+
 	"자막 번역 언어"+
+	"다른 하나는 나중에 설정에서 추가할 수 있습니다."+
+	"둘 다"+
+	"자막이 있는 영화는 컴퓨터에서, 나머지는 NAS에서 바로 재생합니다."+
+	"컴퓨터의 Kando"+
+	"컴퓨터가 자막을 만들고 휴대폰에서 재생하며 공부합니다. '내 스토리지를 거쳐 동기화'를 켜면 밖에서도 쓸 수 있습니다."+
+	"NAS 또는 클라우드 드라이브"+
+	"SMB, SFTP, WebDAV(Nextcloud 등)에서 바로 재생합니다. 자막은 없습니다. 자막에는 컴퓨터의 Kando가 필요합니다."+
+	"영화는 어디에 있나요?"+
 	"주소"+
 	"192.168.1.20:47123"+
 	"페어링 코드"+
@@ -5563,6 +5649,9 @@ var textsKo = i18n.NewTexts(""+
 		30,
 		84,
 		148,
+		90,
+		43,
+		6,
 		6,
 		73,
 		64,
@@ -5587,8 +5676,17 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		12,
 		16,
+		16,
 		12,
 		20,
+		67,
+		7,
+		90,
+		18,
+		162,
+		36,
+		138,
+		30,
 		6,
 		18,
 		16,
@@ -6188,6 +6286,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"移除这句？"+
 	"看懂用相机读取电脑上显示的二维码，与电脑配对。"+
 	"看懂通过局域网连接你电脑上的看懂，以及你添加的 NAS 和服务器，列出并下载你的影片。"+
+	"看懂只读取里面的文件，密码保存在手机的安全存储里。"+
+	"添加 NAS 或网盘"+
+	"返回"+
 	"继续"+
 	"每条河都始于高山上的一股细流。"+
 	"水往低处流，沿途裹挟起泥沙和石块。"+
@@ -6212,8 +6313,17 @@ var textsZhHans = i18n.NewTexts(""+
 	"连上你的电脑"+
 	"跳过"+
 	"先跳过"+
+	"先跳过"+
 	"开始使用"+
 	"字幕翻译成"+
+	"另一种之后也可以在设置里添加。"+
+	"两者都用"+
+	"带字幕的影片来自电脑，其余直接从 NAS 播放。"+
+	"电脑上的看懂"+
+	"电脑生成字幕，手机播放和学习；电脑打开“经你的存储同步”后，出门在外也能用。"+
+	"NAS 或网盘"+
+	"SMB、SFTP 或 WebDAV（如 Nextcloud、坚果云），手机直接播放，但没有字幕：字幕需要电脑上的看懂。"+
+	"你的影片在哪里？"+
 	"地址"+
 	"192.168.1.20:47123"+
 	"配对码"+
@@ -6810,6 +6920,9 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		69,
 		119,
+		75,
+		20,
+		6,
 		6,
 		45,
 		51,
@@ -6834,8 +6947,17 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		6,
 		9,
+		9,
 		12,
 		15,
+		45,
+		12,
+		62,
+		18,
+		114,
+		13,
+		127,
+		24,
 		6,
 		18,
 		9,
@@ -7435,6 +7557,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"移除這句？"+
 	"看懂使用相機讀取電腦上顯示的 QR 碼，與電腦配對。"+
 	"看懂透過區域網路連線到你電腦上的看懂，以及你新增的 NAS 和伺服器，列出並下載你的影片。"+
+	"看懂只讀取裡面的檔案，密碼儲存在手機的安全儲存區裡。"+
+	"新增 NAS 或雲端硬碟"+
+	"返回"+
 	"繼續"+
 	"每條河都始於高山上的一股細流。"+
 	"水往低處流，沿途裹挾起泥沙和石塊。"+
@@ -7459,8 +7584,17 @@ var textsZhHant = i18n.NewTexts(""+
 	"連上你的電腦"+
 	"略過"+
 	"先略過"+
+	"先略過"+
 	"開始使用"+
 	"字幕翻譯成"+
+	"另一種之後也可以在設定裡新增。"+
+	"兩者都用"+
+	"有字幕的影片來自電腦，其餘直接從 NAS 播放。"+
+	"電腦上的看懂"+
+	"電腦產生字幕，手機播放和學習；電腦開啟「經你的儲存空間同步」後，出門在外也能用。"+
+	"NAS 或雲端硬碟"+
+	"SMB、SFTP 或 WebDAV（如 Nextcloud），手機直接播放，但沒有字幕：字幕需要電腦上的看懂。"+
+	"你的影片在哪裡？"+
 	"位址"+
 	"192.168.1.20:47123"+
 	"配對碼"+
@@ -8057,6 +8191,9 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		70,
 		125,
+		78,
+		26,
+		6,
 		6,
 		45,
 		51,
@@ -8081,8 +8218,17 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		6,
 		9,
+		9,
 		12,
 		15,
+		45,
+		12,
+		62,
+		18,
+		120,
+		19,
+		115,
+		24,
 		6,
 		18,
 		9,
@@ -8905,6 +9051,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LearnWordsUnit != nil {
 		s.LearnWordsUnit = t.LearnWordsUnit
+	}
+	if t.OnboardingAdded != nil {
+		s.OnboardingAdded = t.OnboardingAdded
 	}
 	if t.OnboardingPaired != nil {
 		s.OnboardingPaired = t.OnboardingPaired
@@ -16234,6 +16383,63 @@ func (msgs Messages) NSLocalNetworkUsageDescription() string {
 	return msgs.text(textNSLocalNetworkUsageDescription)
 }
 
+// OnboardingAddBody says "Kando only reads from it, and keeps its password in your phone's secure store."
+// in the language the app shows under cx.
+//
+// Body of the introduction's step that adds a NAS or cloud drive, above its form.
+func OnboardingAddBody(cx *core.Scope) string { return For(cx).OnboardingAddBody() }
+
+// OnboardingAddBody is the package's OnboardingAddBody in the language of msgs.
+func (msgs Messages) OnboardingAddBody() string { return msgs.text(textOnboardingAddBody) }
+
+// OnboardingAddTitle says "Add your NAS or cloud drive"
+// in the language the app shows under cx.
+//
+// Title of the introduction's step that adds a NAS or cloud drive.
+func OnboardingAddTitle(cx *core.Scope) string { return For(cx).OnboardingAddTitle() }
+
+// OnboardingAddTitle is the package's OnboardingAddTitle in the language of msgs.
+func (msgs Messages) OnboardingAddTitle() string { return msgs.text(textOnboardingAddTitle) }
+
+// OnboardingAdded says "Added {name}"
+// in the language the app shows under cx.
+//
+// On the introduction's step that adds a NAS or cloud drive once it was saved, by the name the user gave it.
+func OnboardingAdded(cx *core.Scope, name string) string { return For(cx).OnboardingAdded(name) }
+
+// OnboardingAdded is the package's OnboardingAdded in the language of msgs.
+func (msgs Messages) OnboardingAdded(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.OnboardingAdded(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].OnboardingAdded; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Added " + msgs.arg(name)
+		case "ja":
+			return name + " を追加しました"
+		case "ko":
+			return name + " 추가됨"
+		case "zh-Hans":
+			return "已添加 " + name
+		case "zh-Hant":
+			return "已新增 " + name
+		}
+	}
+}
+
+// OnboardingBack says "Back"
+// in the language the app shows under cx.
+//
+// Spoken name of the round button at the top of the introduction that goes to the step before.
+func OnboardingBack(cx *core.Scope) string { return For(cx).OnboardingBack() }
+
+// OnboardingBack is the package's OnboardingBack in the language of msgs.
+func (msgs Messages) OnboardingBack() string { return msgs.text(textOnboardingBack) }
+
 // OnboardingContinue says "Continue"
 // in the language the app shows under cx.
 //
@@ -16517,16 +16723,25 @@ func (msgs Messages) OnboardingSkip() string { return msgs.text(textOnboardingSk
 // OnboardingSkipPairing says "Skip for Now"
 // in the language the app shows under cx.
 //
-// Button on the introduction's last step that leaves it without pairing.
+// Button on the introduction's pairing step that goes on without pairing: to the step adding a NAS when both were chosen, else out of the introduction.
 func OnboardingSkipPairing(cx *core.Scope) string { return For(cx).OnboardingSkipPairing() }
 
 // OnboardingSkipPairing is the package's OnboardingSkipPairing in the language of msgs.
 func (msgs Messages) OnboardingSkipPairing() string { return msgs.text(textOnboardingSkipPairing) }
 
+// OnboardingSkipSource says "Skip for Now"
+// in the language the app shows under cx.
+//
+// Button on the introduction's step that adds a NAS or cloud drive, which leaves the introduction without adding one.
+func OnboardingSkipSource(cx *core.Scope) string { return For(cx).OnboardingSkipSource() }
+
+// OnboardingSkipSource is the package's OnboardingSkipSource in the language of msgs.
+func (msgs Messages) OnboardingSkipSource() string { return msgs.text(textOnboardingSkipSource) }
+
 // OnboardingStart says "Get Started"
 // in the language the app shows under cx.
 //
-// Button that leaves the introduction once a computer is paired.
+// Button that leaves the introduction once a computer is paired or a NAS added at its last step.
 func OnboardingStart(cx *core.Scope) string { return For(cx).OnboardingStart() }
 
 // OnboardingStart is the package's OnboardingStart in the language of msgs.
@@ -16572,6 +16787,80 @@ func OnboardingTarget(cx *core.Scope) string { return For(cx).OnboardingTarget()
 
 // OnboardingTarget is the package's OnboardingTarget in the language of msgs.
 func (msgs Messages) OnboardingTarget() string { return msgs.text(textOnboardingTarget) }
+
+// OnboardingWayBody says "You can add either one later in Settings."
+// in the language the app shows under cx.
+//
+// Line under 'Where are your films?' on the introduction's step that asks how the phone gets films.
+func OnboardingWayBody(cx *core.Scope) string { return For(cx).OnboardingWayBody() }
+
+// OnboardingWayBody is the package's OnboardingWayBody in the language of msgs.
+func (msgs Messages) OnboardingWayBody() string { return msgs.text(textOnboardingWayBody) }
+
+// OnboardingWayBoth says "Both"
+// in the language the app shows under cx.
+//
+// Title of the third choice on the introduction's 'Where are your films?' step: Kando on a computer and a NAS or cloud drive.
+func OnboardingWayBoth(cx *core.Scope) string { return For(cx).OnboardingWayBoth() }
+
+// OnboardingWayBoth is the package's OnboardingWayBoth in the language of msgs.
+func (msgs Messages) OnboardingWayBoth() string { return msgs.text(textOnboardingWayBoth) }
+
+// OnboardingWayBothLine says "Subtitled films from your computer, everything else straight from your NAS."
+// in the language the app shows under cx.
+//
+// Line under 'Both' on the introduction's 'Where are your films?' step.
+func OnboardingWayBothLine(cx *core.Scope) string { return For(cx).OnboardingWayBothLine() }
+
+// OnboardingWayBothLine is the package's OnboardingWayBothLine in the language of msgs.
+func (msgs Messages) OnboardingWayBothLine() string { return msgs.text(textOnboardingWayBothLine) }
+
+// OnboardingWayComputer says "Kando on your computer"
+// in the language the app shows under cx.
+//
+// Title of the first choice on the introduction's 'Where are your films?' step: the desktop app, which the phone pairs with.
+func OnboardingWayComputer(cx *core.Scope) string { return For(cx).OnboardingWayComputer() }
+
+// OnboardingWayComputer is the package's OnboardingWayComputer in the language of msgs.
+func (msgs Messages) OnboardingWayComputer() string { return msgs.text(textOnboardingWayComputer) }
+
+// OnboardingWayComputerLine says "Makes the subtitles your phone plays and studies, away from home too once it syncs through your storage."
+// in the language the app shows under cx.
+//
+// Line under 'Kando on your computer' on the introduction's 'Where are your films?' step. 'Syncs through your storage' is the desktop app's switch in Settings › Phone Sync (settingsPhoneRelay there); use its translation.
+func OnboardingWayComputerLine(cx *core.Scope) string { return For(cx).OnboardingWayComputerLine() }
+
+// OnboardingWayComputerLine is the package's OnboardingWayComputerLine in the language of msgs.
+func (msgs Messages) OnboardingWayComputerLine() string {
+	return msgs.text(textOnboardingWayComputerLine)
+}
+
+// OnboardingWayNAS says "NAS or cloud drive"
+// in the language the app shows under cx.
+//
+// Title of the second choice on the introduction's 'Where are your films?' step: a NAS or a cloud drive the phone reaches itself.
+func OnboardingWayNAS(cx *core.Scope) string { return For(cx).OnboardingWayNAS() }
+
+// OnboardingWayNAS is the package's OnboardingWayNAS in the language of msgs.
+func (msgs Messages) OnboardingWayNAS() string { return msgs.text(textOnboardingWayNAS) }
+
+// OnboardingWayNASLine says "SMB, SFTP or WebDAV, such as Nextcloud. Plays straight from it, without subtitles: those need Kando on a computer."
+// in the language the app shows under cx.
+//
+// Line under 'NAS or cloud drive' on the introduction's 'Where are your films?' step. It must say plainly that films played this way have no subtitles. Name a WebDAV service common where the language is spoken.
+func OnboardingWayNASLine(cx *core.Scope) string { return For(cx).OnboardingWayNASLine() }
+
+// OnboardingWayNASLine is the package's OnboardingWayNASLine in the language of msgs.
+func (msgs Messages) OnboardingWayNASLine() string { return msgs.text(textOnboardingWayNASLine) }
+
+// OnboardingWayTitle says "Where are your films?"
+// in the language the app shows under cx.
+//
+// Title of the introduction's step that asks how the phone gets films: from Kando on a computer, a NAS or cloud drive, or both.
+func OnboardingWayTitle(cx *core.Scope) string { return For(cx).OnboardingWayTitle() }
+
+// OnboardingWayTitle is the package's OnboardingWayTitle in the language of msgs.
+func (msgs Messages) OnboardingWayTitle() string { return msgs.text(textOnboardingWayTitle) }
 
 // PairAddress says "Address"
 // in the language the app shows under cx.

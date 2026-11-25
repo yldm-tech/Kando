@@ -1460,6 +1460,20 @@ NSCameraUsageDescription:
 NSLocalNetworkUsageDescription:
   message: "Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films."
   description: "iOS: the reason the system shows as it asks to let the app reach devices on the local network (the Info.plist's NSLocalNetworkUsageDescription, which nsgo.yaml's apple.info gives in English); the app reaches the computers it is paired with that way, and the NAS shares and servers added in Settings › NAS & Servers."
+onboardingAddBody:
+  message: "Kando only reads from it, and keeps its password in your phone's secure store."
+  description: "Body of the introduction's step that adds a NAS or cloud drive, above its form."
+onboardingAddTitle:
+  message: "Add your NAS or cloud drive"
+  description: "Title of the introduction's step that adds a NAS or cloud drive."
+onboardingAdded:
+  message: "Added {name}"
+  description: "On the introduction's step that adds a NAS or cloud drive once it was saved, by the name the user gave it."
+  placeholders:
+    name: { type: "String", example: "Home NAS" }
+onboardingBack:
+  message: "Back"
+  description: "Spoken name of the round button at the top of the introduction that goes to the step before."
 onboardingContinue:
   message: "Continue"
   description: "Button that goes to the introduction's next step."
@@ -1541,10 +1555,13 @@ onboardingSkip:
   description: "Button at the top of the introduction that leaves it."
 onboardingSkipPairing:
   message: "Skip for Now"
-  description: "Button on the introduction's last step that leaves it without pairing."
+  description: "Button on the introduction's pairing step that goes on without pairing: to the step adding a NAS when both were chosen, else out of the introduction."
+onboardingSkipSource:
+  message: "Skip for Now"
+  description: "Button on the introduction's step that adds a NAS or cloud drive, which leaves the introduction without adding one."
 onboardingStart:
   message: "Get Started"
-  description: "Button that leaves the introduction once a computer is paired."
+  description: "Button that leaves the introduction once a computer is paired or a NAS added at its last step."
 onboardingStep:
   message: "Step {step} of {count}"
   description: "Spoken name of the introduction's step dots."
@@ -1554,6 +1571,30 @@ onboardingStep:
 onboardingTarget:
   message: "Translate subtitles into"
   description: "Heading of the languages subtitles can be translated into, on the introduction's languages step."
+onboardingWayBody:
+  message: "You can add either one later in Settings."
+  description: "Line under 'Where are your films?' on the introduction's step that asks how the phone gets films."
+onboardingWayBoth:
+  message: "Both"
+  description: "Title of the third choice on the introduction's 'Where are your films?' step: Kando on a computer and a NAS or cloud drive."
+onboardingWayBothLine:
+  message: "Subtitled films from your computer, everything else straight from your NAS."
+  description: "Line under 'Both' on the introduction's 'Where are your films?' step."
+onboardingWayComputer:
+  message: "Kando on your computer"
+  description: "Title of the first choice on the introduction's 'Where are your films?' step: the desktop app, which the phone pairs with."
+onboardingWayComputerLine:
+  message: "Makes the subtitles your phone plays and studies, away from home too once it syncs through your storage."
+  description: "Line under 'Kando on your computer' on the introduction's 'Where are your films?' step. 'Syncs through your storage' is the desktop app's switch in Settings › Phone Sync (settingsPhoneRelay there); use its translation."
+onboardingWayNAS:
+  message: "NAS or cloud drive"
+  description: "Title of the second choice on the introduction's 'Where are your films?' step: a NAS or a cloud drive the phone reaches itself."
+onboardingWayNASLine:
+  message: "SMB, SFTP or WebDAV, such as Nextcloud. Plays straight from it, without subtitles: those need Kando on a computer."
+  description: "Line under 'NAS or cloud drive' on the introduction's 'Where are your films?' step. It must say plainly that films played this way have no subtitles. Name a WebDAV service common where the language is spoken."
+onboardingWayTitle:
+  message: "Where are your films?"
+  description: "Title of the introduction's step that asks how the phone gets films: from Kando on a computer, a NAS or cloud drive, or both."
 pairAddress:
   message: "Address"
   description: "Label of the field for the computer's address (IP and port), as its Phone Sync settings show it."

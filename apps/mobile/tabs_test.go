@@ -219,7 +219,7 @@ func TestUnpairingInSettingsClosesTheComputersFilms(t *testing.T) {
 	}
 }
 
-// The languages chosen in the introduction are kept as they are chosen: a phone closed before the introduction ends keeps them, and so does an introduction shown again from Settings and left by the back gesture.
+// The languages chosen in the introduction are kept as they are chosen: a phone closed before the introduction ends keeps them, and so does an introduction shown again from Settings and left by going back, which goes to the step before and, from the first, leaves.
 func TestTheIntroductionKeepsTheLanguagesHoweverItIsLeft(t *testing.T) {
 	p := startPhone(t, "")
 	p.app.WaitFor("id:onboarding-intro", wait)
@@ -243,6 +243,8 @@ func TestTheIntroductionKeepsTheLanguagesHoweverItIsLeft(t *testing.T) {
 	p.app.Press("id:onboarding-continue")
 	p.app.WaitFor("id:onboarding-languages", wait)
 	p.pickTarget("ko")
+	p.app.Back()
+	p.app.WaitFor("id:onboarding-intro", wait)
 	p.app.Back()
 	p.app.WaitForGone("id:onboarding", wait)
 	p.app.WaitUntil(wait, func() bool { prefs, _ = store.Open(p.dir).Prefs(); return prefs.Target == "ko" })
@@ -314,6 +316,7 @@ func TestTheIntroductionKeepsTheLanguages(t *testing.T) {
 	p.app.Press("id:onboarding-spoken-fr")
 	p.app.Press("id:onboarding-spoken-en")
 	p.app.Press("id:onboarding-continue")
+	p.chooseWay("computer")
 	p.app.WaitFor("id:onboarding-pairing", wait)
 	p.app.Press("id:onboarding-later")
 	p.app.WaitFor("id:films-unpaired", wait)
