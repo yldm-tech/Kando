@@ -29,9 +29,21 @@ type Server struct {
 // New starts a Server over a new folder, which stops as the test ends.
 func New(t testing.TB) *Server {
 	t.Helper()
+	return start(t, httptest.NewServer)
+}
+
+// NewTLS is New over HTTPS, with httptest's own certificate, which no system trusts, as a NAS's self-signed one: its URL starts with https://.
+func NewTLS(t testing.TB) *Server {
+	t.Helper()
+	return start(t, httptest.NewTLSServer)
+}
+
+// start is New with serve starting the server.
+func start(t testing.TB, serve func(http.Handler) *httptest.Server) *Server {
+	t.Helper()
 	f := &Server{Dir: t.TempDir()}
 	dav := &webdav.Handler{Prefix: "/dav", FileSystem: webdav.Dir(f.Dir), LockSystem: webdav.NewMemLS()}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := serve(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if user, password, ok := r.BasicAuth(); !ok || user != User || password != Password {
 			w.Header().Set("WWW-Authenticate", `Basic realm="nas"`)
 			http.Error(w, "who are you", http.StatusUnauthorized)

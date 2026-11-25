@@ -37,7 +37,7 @@ const (
 	FailUnreachable
 	// FailTimeout is a server that did not answer in time.
 	FailTimeout
-	// FailCertificate is an HTTPS server whose certificate is not trusted.
+	// FailCertificate is an HTTPS server whose certificate is not trusted: a CertError, which holds the certificate's fingerprint to trust, unless the error came from elsewhere.
 	FailCertificate
 	// FailPrivateKey is an SFTP private key that cannot be read (ErrPrivateKey).
 	FailPrivateKey
@@ -64,6 +64,7 @@ func Diagnose(err error) Failure {
 	}
 	var (
 		hk   *HostKeyError
+		cert *CertError
 		smb  *smb2.ResponseError
 		bad  *smb2.InvalidResponseError
 		dav  gowebdav.StatusError
@@ -74,6 +75,8 @@ func Diagnose(err error) Failure {
 	switch {
 	case errors.As(err, &hk):
 		return FailHostKey
+	case errors.As(err, &cert):
+		return FailCertificate
 	case errors.Is(err, ErrPrivateKey):
 		return FailPrivateKey
 	case errors.Is(err, ErrInvalidPath):

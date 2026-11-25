@@ -3,6 +3,8 @@ package remotefs
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -24,6 +26,8 @@ type webdavStore struct {
 	base      string
 	auth      gowebdav.Authorizer
 	transport *http.Transport
+	// host is the server's, which a CertError names.
+	host string
 }
 
 func openWebDAV(ctx context.Context, cfg Remote) (*webdavStore, error) {
@@ -51,6 +55,10 @@ func openWebDAV(ctx context.Context, cfg Remote) (*webdavStore, error) {
 		base:      base,
 		auth:      gowebdav.NewAutoAuth(cfg.User, cfg.Password),
 		transport: http.DefaultTransport.(*http.Transport).Clone(),
+		host:      u.Hostname(),
+	}
+	if pin := strings.TrimSpace(cfg.CertFingerprint); pin != "" && u.Scheme == "https" {
+		w.transport.TLSClientConfig = pinnedTLS(u.Hostname(), pin)
 	}
 	if _, err := w.Stat(ctx, ""); err != nil {
 		w.Close()
@@ -62,17 +70,73 @@ func openWebDAV(ctx context.Context, cfg Remote) (*webdavStore, error) {
 // client is a client whose requests run under ctx: the library takes no context, so its transport puts ctx on each request.
 func (w *webdavStore) client(ctx context.Context) *gowebdav.Client {
 	c := gowebdav.NewAuthClient(w.base, w.auth)
-	c.SetTransport(ctxTransport{ctx: ctx, next: w.transport})
+	c.SetTransport(ctxTransport{ctx: ctx, next: w.transport, host: w.host})
 	return c
 }
 
+// ctxTransport puts ctx on each request, and tells a certificate the system refused as a CertError, with its fingerprint for the person to trust.
 type ctxTransport struct {
 	ctx  context.Context
 	next http.RoundTripper
+	host string
 }
 
 func (t ctxTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	return t.next.RoundTrip(r.WithContext(t.ctx))
+	resp, err := t.next.RoundTrip(r.WithContext(t.ctx))
+	var refused *tls.CertificateVerificationError
+	if err != nil && errors.As(err, &refused) && len(refused.UnverifiedCertificates) > 0 {
+		return nil, &CertError{Host: t.host, Fingerprint: CertFingerprint(refused.UnverifiedCertificates[0].Raw), Err: refused.Err}
+	}
+	var cert *CertError
+	if errors.As(err, &cert) && cert.Host == "" {
+		cert.Host = t.host
+	}
+	return resp, err
+}
+
+// CertError is the error of a WebDAV server over HTTPS whose certificate the system does not trust, as a NAS's own self-signed one (Err says why, Pinned is ""), or, once the person trusted one (Remote.CertFingerprint, Pinned here), whose certificate is not that one: it was renewed, or another machine answers in its place. Fingerprint is the certificate the server offered (CertFingerprint), which becomes Remote.CertFingerprint once the person compared it with the server's and trusted it, as an SFTP server's key does (HostKeyError); Host is the server's.
+type CertError struct {
+	Host        string
+	Fingerprint string
+	Pinned      string
+	Err         error
+}
+
+func (e *CertError) Error() string {
+	if e.Pinned != "" {
+		return "storage: the certificate of " + e.Host + ", " + e.Fingerprint + ", is not the one trusted, " + e.Pinned
+	}
+	return fmt.Sprintf("storage: the certificate of %s, %s, is not trusted: %v", e.Host, e.Fingerprint, e.Err)
+}
+
+func (e *CertError) Unwrap() error { return e.Err }
+
+// CertFingerprint is a certificate's SHA-256 fingerprint as browsers show it, its DER bytes hashed: the hexadecimal pairs in capitals joined by colons, after "SHA256 ".
+func CertFingerprint(der []byte) string {
+	sum := sha256.Sum256(der)
+	pairs := make([]string, len(sum))
+	for i, b := range sum {
+		pairs[i] = fmt.Sprintf("%02X", b)
+	}
+	return "SHA256 " + strings.Join(pairs, ":")
+}
+
+// pinnedTLS is how a server whose certificate the person trusted (pin, a CertFingerprint) is reached: that certificate alone, by its fingerprint, in place of the system's verification, as a NAS's own certificate rarely names the address it is reached by.
+func pinnedTLS(host, pin string) *tls.Config {
+	return &tls.Config{
+		ServerName:         host,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // The certificate is checked against the fingerprint trusted, in VerifyConnection.
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("storage: the server sent no certificate")
+			}
+			if got := CertFingerprint(cs.PeerCertificates[0].Raw); got != pin {
+				return &CertError{Host: host, Fingerprint: got, Pinned: pin}
+			}
+			return nil
+		},
+	}
 }
 
 // webdavErr is err with a 404 read as ErrNotExist.

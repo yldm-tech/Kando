@@ -2,6 +2,7 @@ package remotefs
 
 import (
 	"context"
+	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -63,5 +64,36 @@ func TestWebDAVRefusesAWrongPasswordAndABadAddress(t *testing.T) {
 	}
 	if _, _, err := OpenRemote(ctx, Remote{Kind: KindWebDAV, URL: f.URL, Root: "../x"}); err == nil {
 		t.Error("a root above the address opened")
+	}
+}
+
+// A server whose certificate the system does not trust, as a NAS's self-signed one, is refused with the certificate's fingerprint; once that fingerprint is trusted the server is read, and a certificate other than the one trusted is refused again, naming both.
+func TestWebDAVTrustsACertificateByItsFingerprint(t *testing.T) {
+	f := davtest.NewTLS(t)
+	cfg := Remote{Kind: KindWebDAV, URL: f.URL, User: davtest.User, Password: davtest.Password}
+	_, _, err := OpenRemote(context.Background(), cfg)
+	var cert *CertError
+	if !errors.As(err, &cert) || cert.Pinned != "" || !strings.HasPrefix(cert.Fingerprint, "SHA256 ") || cert.Host != "127.0.0.1" {
+		t.Fatalf("untrusted: %v (%#v)", err, cert)
+	}
+	if got := Diagnose(err); got != FailCertificate {
+		t.Fatalf("Diagnose = %d", got)
+	}
+	cfg.CertFingerprint = cert.Fingerprint
+	p, closer, err := OpenRemote(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("trusted: %v", err)
+	}
+	if _, err := p.List(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	closer.Close()
+	cfg.CertFingerprint = "SHA256 00:11"
+	_, _, err = OpenRemote(context.Background(), cfg)
+	if !errors.As(err, &cert) || cert.Pinned != "SHA256 00:11" || cert.Fingerprint == "" || cert.Fingerprint == cert.Pinned {
+		t.Fatalf("another certificate: %v (%#v)", err, cert)
+	}
+	if got := Diagnose(err); got != FailCertificate {
+		t.Fatalf("Diagnose of another = %d", got)
 	}
 }

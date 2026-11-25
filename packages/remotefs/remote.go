@@ -27,7 +27,7 @@ const (
 // Remote is where a provider on another machine keeps its files and how to reach it. Which fields count depends on Kind:
 //
 //   - KindSMB: Host, Port (445 when 0), Share, Root (a folder in the share, "" for the share's top), User, Password and Domain (often "" or "WORKGROUP"), and RequireSigning, which refuses a server that does not sign every message (SMB message signing, whose key comes from the password, so a machine in the middle that does not know it cannot change what is read); a guest session cannot sign, so it needs RequireSigning off.
-//   - KindWebDAV: URL (the server's https:// or http:// address, with any path the server puts its files under), Root (a folder below URL), User and Password.
+//   - KindWebDAV: URL (the server's https:// or http:// address, with any path the server puts its files under), Root (a folder below URL), User and Password, and CertFingerprint, the fingerprint (CertFingerprint) of the certificate the person trusted for an https:// server whose certificate the system does not trust, as a NAS's own self-signed one: with it set, that certificate alone is taken, in place of the system's verification; see CertError.
 //   - KindSFTP: Host, Port (22 when 0), Root (an absolute folder, or one relative to the user's home folder, "" for the home folder itself), User, Password or PrivateKey (PEM, with Passphrase when it is encrypted) or both, and HostKey, the server's public key as a line of authorized_keys ("ssh-ed25519 AAAA..."), without which no connection is made: see HostKeyError.
 //
 // Password, PrivateKey and Passphrase are secrets.
@@ -46,6 +46,8 @@ type Remote struct {
 	HostKey    string
 	// RequireSigning is SMB's: see KindSMB.
 	RequireSigning bool
+	// CertFingerprint is WebDAV's: see KindWebDAV.
+	CertFingerprint string
 }
 
 // OpenRemote connects to the provider cfg describes and checks that its root can be read: an SMB share is mounted and an SFTP session started with the server's key checked against cfg.HostKey, a WebDAV folder is asked for its properties. The provider and the Closer are the same value; closing it ends the connection, and the provider cannot be used after. A provider that keeps a connection makes it again once when an operation finds it broken.
