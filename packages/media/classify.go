@@ -23,7 +23,8 @@ var failSigns = []struct {
 	{core.FailAge, []string{"confirm your age", "age-restricted", "age restricted", "inappropriate for some users"}},
 	{core.FailMembers, []string{"members-only", "members only", "premium members", "Join this channel", "channel members", "大会员"}},
 	{core.FailPrivate, []string{"Private video", "This video is private", "video is unavailable", "Video unavailable", "has been removed", "does not exist", "HTTP Error 404", "HTTP Error 410"}},
-	{core.FailRateLimit, []string{"HTTP Error 429", "Too Many Requests", "rate-limit", "rate limit", "not a bot", "try again later"}},
+	// Bilibili's video CDN answers a client that fetched too much in a short while with its own status 567 rather than 429, which yt-dlp prints as "HTTP Error 567: Unknown Status"; the same file downloads again a while later.
+	{core.FailRateLimit, []string{"HTTP Error 429", "Too Many Requests", "HTTP Error 567", "rate-limit", "rate limit", "not a bot", "try again later"}},
 	// yt-dlp's _login_hint ends a login error with a hint of the ways to log in, "Use --cookies, --cookies-from-browser, --username and --password, ... to provide account credentials" for a site that also takes a password; the errors above that carry it are told apart first.
 	{core.FailLogin, []string{"registered users", "login required", "log in", "logged-in", "to provide account credentials", "Use --cookies for the authentication", "--cookies-from-browser"}},
 	// A name that does not resolve for now (EAI_AGAIN) is the network; one that does not resolve at all (EAI_NONAME, macOS's "nodename nor servname") is a host that does not exist, or a network that is down.

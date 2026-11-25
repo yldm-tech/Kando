@@ -49,7 +49,9 @@ func TestClassifyMessagesFromTheYTDLPSource(t *testing.T) {
 		"ERROR: [youtube] abc: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication.":              core.FailRateLimit,
 		"ERROR: [youtube] abc: This content isn't available, try again later. The current session has been rate-limited by YouTube":               core.FailRateLimit,
 		"ERROR: unable to download video data: HTTP Error 429: Too Many Requests":                                                                 core.FailRateLimit,
-		"ERROR: [vimeo] 1: This video is only available for registered users. Use --cookies-from-browser or --cookies for the authentication.":    core.FailLogin,
+		// What Kando logged on 2026-11-24 from yt-dlp 2026.08.19 for a part of a Bilibili list: the CDN's own rate-limit status; the same part downloaded the next day.
+		"ERROR: \r[download] Got error: HTTP Error 567: Unknown Status. Giving up after 10 retries":                                            core.FailRateLimit,
+		"ERROR: [vimeo] 1: This video is only available for registered users. Use --cookies-from-browser or --cookies for the authentication.": core.FailLogin,
 		// _login_hint's other wordings: "password" and "session_cookies", and a message of its own before the "cookies" one.
 		"ERROR: [niconico] sm9: This video is only available for registered users. Use --username and --password, --netrc-cmd, or --netrc (niconico) to provide account credentials": core.FailLogin,
 		"ERROR: [patreon] 1: You need to log in to access this content. Use --cookies for the authentication (--cookies-from-browser might not work).":                               core.FailLogin,

@@ -75,6 +75,16 @@ func TestScreenshotsQueue(t *testing.T) {
 	f.shoot(t, "queue-x-hidden-signed-in", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		queueShotHiddenX(t, f, a, tt, "firefox")
 	})
+	// A Bilibili part whose download the site's CDN refused with its own rate-limit status, 567, after borrowing Chrome's sign-in.
+	f.shoot(t, "queue-bilibili-rate-limited", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		job := f.job(t, "j5")
+		stderr := "download: yt-dlp: exit status 101: ERROR: \r[download] Got error: HTTP Error 567: Unknown Status. Giving up after 10 retries"
+		job.Source, job.Cookies = "https://www.bilibili.com/video/BV1GJ411x7h7?p=17", "chrome"
+		job.Err, job.FailKind = media.ReadStageError(stderr), media.ClassifyDownload(stderr)
+		a.library.Upsert(job)
+		a.queue.ytdlp.browsers = []media.Browser{media.Browsers[0], media.Browsers[1]}
+		queueShotScroll(t, a, tt)
+	})
 }
 
 // screenshotQueueDownloading adds three links at once while the pipeline holds the first in its download, and returns once that one is downloading.
