@@ -93,9 +93,10 @@ func TestTheComputerPagePicksWhereNewLinksGo(t *testing.T) {
 	first := store.DesktopID(d.Fingerprint)
 	p.openComputers()
 	p.app.WaitFor("id:settings-computer-laptop", wait)
-	if !p.app.Find("id:settings-computer-"+first).Props.Checked || p.app.Find("id:settings-computer-laptop").Props.Checked {
-		t.Fatal("the first computer paired is not the one new links go to")
-	}
+	// With nothing picked, new links go to the first computer that answers (session.SendTo), and the two answer in either order: the laptop may be checked until the first one answers too, after which the first paired is.
+	p.app.WaitUntil(wait, func() bool {
+		return p.app.Find("id:settings-computer-"+first).Props.Checked && !p.app.Find("id:settings-computer-laptop").Props.Checked
+	})
 	p.app.Press("id:settings-computer-laptop")
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-computer-laptop").Props.Checked })
 	if p.app.Find("id:settings-computer-" + first).Props.Checked {
