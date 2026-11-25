@@ -146,14 +146,7 @@ func (s *Session) RemoveSource(id string) {
 func (s *Session) writeSources(change func([]store.Source) ([]store.Source, error), id string) ([]store.Source, error) {
 	s.src.mu.Lock()
 	defer s.src.mu.Unlock()
-	list, err := change(slices.Clone(s.src.saved))
-	if err == nil {
-		err = s.st.SaveSources(list)
-	}
-	if err != nil {
-		return nil, err
-	}
-	s.src.saved = list
+	// The connection closes and the streams go stale before the file is written, under the lock a stream takes to reconnect: so a request made once sources.json no longer holds a source never reads through the connection made before, as one made while it is written waits for the lock and finds the source as it is then. A write that fails has only closed a connection the next request makes again.
 	if r := s.src.readers[id]; r != nil {
 		_ = r.Close()
 		delete(s.src.readers, id)
@@ -164,6 +157,14 @@ func (s *Session) writeSources(change func([]store.Source) ([]store.Source, erro
 			st.stale.Store(true)
 		}
 	}
+	list, err := change(slices.Clone(s.src.saved))
+	if err == nil {
+		err = s.st.SaveSources(list)
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.src.saved = list
 	return slices.Clone(list), nil
 }
 
