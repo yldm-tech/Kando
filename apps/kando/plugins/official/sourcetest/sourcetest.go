@@ -82,6 +82,8 @@ type Plugin struct {
 	// Verified is the plugin as Kando verified it, its manifest included.
 	Verified script.Verified
 
+	// t is the test that loaded the plugin, which hears what was going on when a call timed out (Call).
+	t  testing.TB
 	e  *engine
 	r  *script.Runner
 	pl *script.Plugin
@@ -163,7 +165,7 @@ func Load(t testing.TB, dir, want string) *Plugin {
 	if err != nil {
 		t.Fatalf("what the code says of itself is not its manifest: %v", err)
 	}
-	out := &Plugin{Verified: v, e: e, fetchers: map[string]*mediasource.Fetcher{}}
+	out := &Plugin{Verified: v, t: t, e: e, fetchers: map[string]*mediasource.Fetcher{}}
 	// The runner's deadline and pauses are Kando's (script.DefaultWatch); only the heartbeat is lenient, as the race detector slows the engine down.
 	w := script.DefaultWatch
 	w.Stall = time.Minute
@@ -254,8 +256,22 @@ func (p *Plugin) Call(ctx context.Context, export string, args ...any) (any, err
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-timer.C:
+		p.logTimeout(export)
 		return nil, &mediasource.PluginError{Code: "timeout"}
 	}
+}
+
+// logTimeout tells the test what was going on when a call of export timed out: the requests the plugin had sent through kando.source.fetch and every goroutine's stack, the engine's, the runner's and the fetches' among them, so a call whose answer was lost (the official plugins' turn) can be told from a fetch that hung or an engine that was busy.
+func (p *Plugin) logTimeout(export string) {
+	p.mu.Lock()
+	sent := make([]string, len(p.sent))
+	for i, s := range p.sent {
+		sent[i] = s.Method + " " + s.Path + " " + fmt.Sprint(s.Query)
+	}
+	p.mu.Unlock()
+	buf := make([]byte, 8<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	p.t.Logf("%s timed out; the plugin had sent %d requests: %v\n%s", export, len(sent), sent, buf)
 }
 
 // coded is err as Kando gives a source's failure to the app: a rejection with a code as that code, anything else as failed.
