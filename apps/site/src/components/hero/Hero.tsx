@@ -1,7 +1,7 @@
-// The hero: the headline, the Download button, which downloads the disk image for a Mac with Apple silicon (the download panel has the Intel one), and the demo player in a window.
+// The hero: the headline, the Download button, which downloads the disk image for a Mac with Apple silicon (the download panel has the Intel one), the phone app's TestFlight beta and Google Play page under it, and the demo player in a window.
 import site from "virtual:kando/site";
 import { Headline, useWords } from "../../i18n/content";
-import { macDisk, releaseFileURL } from "../../lib/site";
+import { googlePlayURL, macDisk, releaseFileURL, testFlightURL } from "../../lib/site";
 import { AppleMark } from "../common/marks";
 import { Player } from "./player/Player";
 import { River } from "./river/River";
@@ -41,6 +41,15 @@ export function Hero() {
           </a>
           <a className="btn ghost big" href="#start" data-os="linux">
             {t("heroOtherSystems")}
+          </a>
+        </div>
+        <div className="actions phone-actions" data-enter="">
+          <a className="btn ghost" href={testFlightURL}>
+            <AppleMark size={15} />
+            {t("heroIphone")}
+          </a>
+          <a className="btn ghost" href={googlePlayURL}>
+            {t("heroAndroid")}
           </a>
         </div>
         <p className="meta" data-enter="">

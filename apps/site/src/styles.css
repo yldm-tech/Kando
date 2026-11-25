@@ -567,6 +567,9 @@
     gap: 12px;
     margin-top: 34px;
   }
+  .phone-actions {
+    margin-top: 12px;
+  }
   .meta {
     margin: 14px 0 0;
     color: var(--ink-3);

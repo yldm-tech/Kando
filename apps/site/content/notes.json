@@ -18,6 +18,8 @@
   "heroLead": "One or two sentences under the headline: what Kando does with a link, in the order it happens.",
   "heroDownload": "Primary button with an Apple logo; it downloads the disk image for a Mac with Apple silicon.",
   "heroOtherSystems": "Secondary button next to it, which leads to the download panel's other systems.",
+  "heroIphone": "Hero's small button with an Apple logo under the download buttons, which opens the TestFlight invitation to the phone app's beta for iPhone.",
+  "heroAndroid": "Hero's small button beside heroIphone, which opens the phone app's Google Play page.",
   "heroMeta": "Small line under the buttons. {version} is the app's version, such as 0.6.0. FSL stays as is; keep the system names in Latin letters.",
   "heroBadgeTranscribe": "Small label on a card floating by the player screenshot, above the words whisper.cpp: the speech is transcribed on the reader's own computer. Keep it to two to four words.",
   "heroBadgeExport": "Small label on a card floating by the player screenshot, above the file name video.bilingual.srt, with a check mark: the subtitles have been written to that file.",
