@@ -3,7 +3,7 @@
   "id": "kando.plex",
   "kind": "script",
   "version": "1.1.0",
-  "kando": ">=0.63.0",
+  "kando": ">=0.64.0",
   "license": "FSL-1.1-ALv2",
   "author": "Kando",
   "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/plex",
