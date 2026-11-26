@@ -9489,6 +9489,27 @@ settingsSourcesBrowseLabel:
   description: "Accessible name of a media source's Browse button on the Media Sources settings page, read by screen readers."
   placeholders:
     name: { type: "String", example: "Living Room NAS" }
+settingsSourcesKindOffered:
+  message: "{name} (official plugin, not installed)"
+  description: "Choice of the Kind drop-down in the dialog adding a media source, for one of Kando's official plugins that adds a kind of source while it is not installed or not turned on, named after the product it reaches."
+  placeholders:
+    name: { type: "String", example: "Plex" }
+settingsSourcesOfferInstall:
+  message: "{name} sources come from Kando's official {name} plugin. Install it first: Kando asks before installing it, then turns it on, and it reaches only the server you fill in here."
+  description: "Shown in place of the fields in the dialog adding a media source, when the kind chosen is an official plugin that is not installed."
+  placeholders:
+    name: { type: "String", example: "Plex" }
+settingsSourcesOfferInstallButton:
+  message: "Install Plugin…"
+  description: "Button in the dialog adding a media source that downloads the official plugin of the kind chosen and asks to install it."
+settingsSourcesOfferTurnOn:
+  message: "Kando's official {name} plugin is installed but turned off. Turned on, it reaches only the server you fill in here."
+  description: "Shown in place of the fields in the dialog adding a media source, when the kind chosen is an official plugin that is installed but turned off."
+  placeholders:
+    name: { type: "String", example: "Plex" }
+settingsSourcesOfferTurnOnButton:
+  message: "Turn On Plugin"
+  description: "Button in the dialog adding a media source that turns on the installed official plugin of the kind chosen and lets it reach the source's server."
 settingsSourcesEmpty:
   message: "No media sources yet"
   description: "Row of the Media Sources card while no source was added."

@@ -1223,6 +1223,9 @@ var Parameters = map[string][]string{
 	"PlayerRemuxingFrom":                       {"place", "percent"},
 	"FilmNextIn":                               {"seconds"},
 	"SettingsSourcesBrowseLabel":               {"name"},
+	"SettingsSourcesKindOffered":               {"name"},
+	"SettingsSourcesOfferInstall":              {"name"},
+	"SettingsSourcesOfferTurnOn":               {"name"},
 	"SettingsSourcesShares":                    {"names"},
 	"SettingsSourcesRemoveConfirm":             {"count"},
 	"SettingsSourcesKindPlugin":                {"kind", "plugin"},
@@ -1999,6 +2002,9 @@ type Translation struct {
 	PlayerRemuxingFrom                       func(place string, percent int) string
 	FilmNextIn                               func(seconds int) string
 	SettingsSourcesBrowseLabel               func(name string) string
+	SettingsSourcesKindOffered               func(name string) string
+	SettingsSourcesOfferInstall              func(name string) string
+	SettingsSourcesOfferTurnOn               func(name string) string
 	SettingsSourcesShares                    func(names string) string
 	SettingsSourcesRemoveConfirm             func(count int) string
 	SettingsSourcesKindPlugin                func(kind string, plugin string) string
@@ -3882,6 +3888,8 @@ const (
 	textSettingsKeywordsMediaSources
 	textSettingsSourcesLabel
 	textSettingsSourcesBrowse
+	textSettingsSourcesOfferInstallButton
+	textSettingsSourcesOfferTurnOnButton
 	textSettingsSourcesEmpty
 	textSettingsSourcesAdd
 	textSettingsSourcesNote
@@ -5791,6 +5799,8 @@ var keyOfText = [numTexts]string{
 	"settingsKeywordsMediaSources",
 	"settingsSourcesLabel",
 	"settingsSourcesBrowse",
+	"settingsSourcesOfferInstallButton",
+	"settingsSourcesOfferTurnOnButton",
 	"settingsSourcesEmpty",
 	"settingsSourcesAdd",
 	"settingsSourcesNote",
@@ -7698,6 +7708,8 @@ var textsEn = i18n.NewTexts(""+
 	"NAS SMB share server network import Windows sharing"+
 	"Sources"+
 	"Browse"+
+	"Install Plugin…"+
+	"Turn On Plugin"+
 	"No media sources yet"+
 	"Add…"+
 	"Kando only reads your media sources: it never writes, moves or deletes anything on them. Their passwords are kept in the system's keychain, not in Kando's settings file."+
@@ -9602,6 +9614,8 @@ var textsEn = i18n.NewTexts(""+
 		51,
 		7,
 		6,
+		17,
+		14,
 		20,
 		6,
 		169,
@@ -11509,6 +11523,8 @@ var textsJa = i18n.NewTexts(""+
 	"NAS SMB 共有 サーバー ネットワーク 読み込み Windows 共有"+
 	"ソース"+
 	"表示"+
+	"プラグインをインストール…"+
+	"プラグインをオンにする"+
 	"メディアソースはまだありません"+
 	"追加…"+
 	"Kando はメディアソースを読み取るだけで、書き込み・移動・削除は一切しません。パスワードは Kando の設定ファイルではなく、システムのキーチェーンに保存されます。"+
@@ -13413,6 +13429,8 @@ var textsJa = i18n.NewTexts(""+
 		74,
 		9,
 		6,
+		39,
+		33,
 		45,
 		9,
 		229,
@@ -15320,6 +15338,8 @@ var textsKo = i18n.NewTexts(""+
 	"NAS SMB 공유 서버 네트워크 가져오기 Windows 공유"+
 	"소스"+
 	"둘러보기"+
+	"플러그인 설치…"+
+	"플러그인 켜기"+
 	"아직 미디어 소스가 없습니다"+
 	"추가…"+
 	"Kando는 미디어 소스를 읽기만 하며, 그 위의 파일을 쓰거나 옮기거나 삭제하지 않습니다. 소스의 암호는 Kando의 설정 파일이 아니라 시스템 키체인에 보관됩니다."+
@@ -17224,6 +17244,8 @@ var textsKo = i18n.NewTexts(""+
 		62,
 		6,
 		12,
+		22,
+		19,
 		39,
 		9,
 		213,
@@ -19131,6 +19153,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"NAS SMB 共享 服务器 网络 导入 局域网 Windows 共享"+
 	"来源"+
 	"浏览"+
+	"安装插件…"+
+	"启用插件"+
 	"还没有媒体来源"+
 	"添加…"+
 	"看懂只读取你的媒体来源，从不在上面写入、移动或删除文件。来源的密码保存在系统的钥匙串里，不写进看懂的设置文件。"+
@@ -21035,6 +21059,8 @@ var textsZhHans = i18n.NewTexts(""+
 		63,
 		6,
 		6,
+		15,
+		12,
 		21,
 		9,
 		165,
@@ -22942,6 +22968,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"NAS SMB 共用 伺服器 網路 匯入 區域網路 Windows 共用"+
 	"來源"+
 	"瀏覽"+
+	"安裝外掛…"+
+	"啟用外掛"+
 	"還沒有媒體來源"+
 	"新增…"+
 	"看懂只讀取你的媒體來源，從不在上面寫入、移動或刪除檔案。來源的密碼儲存在系統的鑰匙圈裡，不寫進看懂的設定檔。"+
@@ -24846,6 +24874,8 @@ var textsZhHant = i18n.NewTexts(""+
 		66,
 		6,
 		6,
+		15,
+		12,
 		21,
 		9,
 		162,
@@ -27187,6 +27217,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSourcesBrowseLabel != nil {
 		s.SettingsSourcesBrowseLabel = t.SettingsSourcesBrowseLabel
+	}
+	if t.SettingsSourcesKindOffered != nil {
+		s.SettingsSourcesKindOffered = t.SettingsSourcesKindOffered
+	}
+	if t.SettingsSourcesOfferInstall != nil {
+		s.SettingsSourcesOfferInstall = t.SettingsSourcesOfferInstall
+	}
+	if t.SettingsSourcesOfferTurnOn != nil {
+		s.SettingsSourcesOfferTurnOn = t.SettingsSourcesOfferTurnOn
 	}
 	if t.SettingsSourcesShares != nil {
 		s.SettingsSourcesShares = t.SettingsSourcesShares
@@ -71950,6 +71989,128 @@ func (msgs Messages) SettingsSourcesBrowseLabel(name string) string {
 			return "瀏覽" + name
 		}
 	}
+}
+
+// SettingsSourcesKindOffered says "{name} (official plugin, not installed)"
+// in the language the app shows under cx.
+//
+// Choice of the Kind drop-down in the dialog adding a media source, for one of Kando's official plugins that adds a kind of source while it is not installed or not turned on, named after the product it reaches.
+func SettingsSourcesKindOffered(cx *core.Scope, name string) string {
+	return For(cx).SettingsSourcesKindOffered(name)
+}
+
+// SettingsSourcesKindOffered is the package's SettingsSourcesKindOffered in the language of msgs.
+func (msgs Messages) SettingsSourcesKindOffered(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesKindOffered(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesKindOffered; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " (official plugin, not installed)"
+		case "ja":
+			return name + "（公式プラグイン、未インストール）"
+		case "ko":
+			return name + " (공식 플러그인, 설치 안 됨)"
+		case "zh-Hans":
+			return name + "（官方插件，未安装）"
+		case "zh-Hant":
+			return name + "（官方外掛，未安裝）"
+		}
+	}
+}
+
+// SettingsSourcesOfferInstall says "{name} sources come from Kando's official {name} plugin. Install it first: Kando asks before installing it, then turns it on, and it reaches only the server you fill in here."
+// in the language the app shows under cx.
+//
+// Shown in place of the fields in the dialog adding a media source, when the kind chosen is an official plugin that is not installed.
+func SettingsSourcesOfferInstall(cx *core.Scope, name string) string {
+	return For(cx).SettingsSourcesOfferInstall(name)
+}
+
+// SettingsSourcesOfferInstall is the package's SettingsSourcesOfferInstall in the language of msgs.
+func (msgs Messages) SettingsSourcesOfferInstall(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesOfferInstall(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesOfferInstall; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " sources come from Kando's official " + msgs.arg(name) + " plugin. Install it first: Kando asks before installing it, then turns it on, and it reaches only the server you fill in here."
+		case "ja":
+			return name + " のソースはKandoの公式 " + name + " プラグインが提供します。先にインストールしてください。インストール前に確認があり、インストール後は自動で有効になります。アクセスできるのはここに入力したサーバーだけです。"
+		case "ko":
+			return name + " 소스는 Kando의 공식 " + name + " 플러그인이 제공합니다. 먼저 설치하세요. 설치 전에 확인을 받고, 설치 후 자동으로 켜지며, 여기에 입력한 서버에만 접근합니다."
+		case "zh-Hans":
+			return name + " 来源由看懂的官方 " + name + " 插件提供，需要先安装：安装前会先问你，装好后自动启用，它只能访问你在这里填写的服务器。"
+		case "zh-Hant":
+			return name + " 來源由看懂的官方 " + name + " 外掛提供，需要先安裝：安裝前會先問你，裝好後自動啟用，它只能存取你在這裡填寫的伺服器。"
+		}
+	}
+}
+
+// SettingsSourcesOfferInstallButton says "Install Plugin…"
+// in the language the app shows under cx.
+//
+// Button in the dialog adding a media source that downloads the official plugin of the kind chosen and asks to install it.
+func SettingsSourcesOfferInstallButton(cx *core.Scope) string {
+	return For(cx).SettingsSourcesOfferInstallButton()
+}
+
+// SettingsSourcesOfferInstallButton is the package's SettingsSourcesOfferInstallButton in the language of msgs.
+func (msgs Messages) SettingsSourcesOfferInstallButton() string {
+	return msgs.text(textSettingsSourcesOfferInstallButton)
+}
+
+// SettingsSourcesOfferTurnOn says "Kando's official {name} plugin is installed but turned off. Turned on, it reaches only the server you fill in here."
+// in the language the app shows under cx.
+//
+// Shown in place of the fields in the dialog adding a media source, when the kind chosen is an official plugin that is installed but turned off.
+func SettingsSourcesOfferTurnOn(cx *core.Scope, name string) string {
+	return For(cx).SettingsSourcesOfferTurnOn(name)
+}
+
+// SettingsSourcesOfferTurnOn is the package's SettingsSourcesOfferTurnOn in the language of msgs.
+func (msgs Messages) SettingsSourcesOfferTurnOn(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesOfferTurnOn(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesOfferTurnOn; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando's official " + msgs.arg(name) + " plugin is installed but turned off. Turned on, it reaches only the server you fill in here."
+		case "ja":
+			return "Kandoの公式 " + name + " プラグインはインストール済みですが、オフになっています。オンにしても、アクセスできるのはここに入力したサーバーだけです。"
+		case "ko":
+			return "Kando의 공식 " + name + " 플러그인이 설치되어 있지만 꺼져 있습니다. 켜도 여기에 입력한 서버에만 접근합니다."
+		case "zh-Hans":
+			return "看懂的官方 " + name + " 插件已安装，但没有启用。启用后，它只能访问你在这里填写的服务器。"
+		case "zh-Hant":
+			return "看懂的官方 " + name + " 外掛已安裝，但沒有啟用。啟用後，它只能存取你在這裡填寫的伺服器。"
+		}
+	}
+}
+
+// SettingsSourcesOfferTurnOnButton says "Turn On Plugin"
+// in the language the app shows under cx.
+//
+// Button in the dialog adding a media source that turns on the installed official plugin of the kind chosen and lets it reach the source's server.
+func SettingsSourcesOfferTurnOnButton(cx *core.Scope) string {
+	return For(cx).SettingsSourcesOfferTurnOnButton()
+}
+
+// SettingsSourcesOfferTurnOnButton is the package's SettingsSourcesOfferTurnOnButton in the language of msgs.
+func (msgs Messages) SettingsSourcesOfferTurnOnButton() string {
+	return msgs.text(textSettingsSourcesOfferTurnOnButton)
 }
 
 // SettingsSourcesEmpty says "No media sources yet"

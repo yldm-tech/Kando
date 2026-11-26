@@ -45,6 +45,8 @@ type pluginsUI struct {
 	inboxBusy bool
 	err       error
 	pending   *pluginsPending
+	// installed is the pack the last confirmation installed, by id and content, which 设置 › 媒体来源 waits for when it asked for the install (state_mediasource_install.go).
+	installed pluginsInstalled
 	gone      pluginsGone
 	dicts     map[string]*pluginsDict
 	opening   map[string]bool
@@ -499,6 +501,9 @@ func pluginsStagedSize(pack plugins.Pack, staged string, err error) int64 {
 	return n
 }
 
+// pluginsInstalled is a pack a confirmation installed: its id and its content's hash.
+type pluginsInstalled struct{ id, hash string }
+
 // pluginsAskStaged opens the install confirmation of the pack staged in staged, size bytes for a script plugin (pluginsStagedSize), after a script plugin passed the checks of the engine's goroutine (pluginsStagedCheck), or says why it cannot be installed, throwing the staged copy away.
 func (a *app) pluginsAskStaged(pack plugins.Pack, staged string, v script.Verified, size int64, err error) {
 	if err == nil {
@@ -607,6 +612,7 @@ func (a *app) pluginsInstall() {
 				if !slices.Contains(a.plugins.order, pack.ID) {
 					a.plugins.order = append(a.plugins.order, pack.ID)
 				}
+				a.plugins.installed = pluginsInstalled{pack.ID, pack.Hash}
 				if a.plugins.pending == p {
 					a.pluginsClose(true)
 				}

@@ -62,13 +62,19 @@ func (a *app) MediaSourceKinds() []settings.MediaSourceKind {
 	for _, k := range a.sources.kinds.Kinds() {
 		out = append(out, settings.MediaSourceKind{ID: k.ID, Title: a.mediaSourceKindTitle(k)})
 	}
+	m := a.messages()
+	for _, o := range a.mediaSourceOffered() {
+		out = append(out, settings.MediaSourceKind{ID: mediaSourceInstallPrefix + o.ID, Title: m.SettingsSourcesKindOffered(o.Name)})
+	}
 	return out
 }
 
 func (a *app) MediaSourceDraft() *settings.MediaSourceDraft { return &a.sources.draft }
 
 func (a *app) SetMediaSourceKind(kind string) {
-	if _, ok := a.sources.kinds.Kind(kind); ok && kind != a.sources.draft.Kind {
+	_, known := a.sources.kinds.Kind(kind)
+	_, offered := a.mediaSourceOfferOf(kind)
+	if (known || offered) && kind != a.sources.draft.Kind {
 		a.sources.draft.Kind, a.sources.draft.Values = kind, map[string]string{}
 		delete(a.sources.tests, "")
 	}
@@ -112,6 +118,18 @@ func (a *app) MediaSourceProblem() string {
 func (a *app) MediaSourceSaving() bool { return a.sources.saving }
 
 func (a *app) SaveMediaSource() { a.saveMediaSourceDraft() }
+
+// MediaSourceOffer is the plugin the draft's kind offers to install or turn on, its Name "" while the kind is one of source.
+func (a *app) MediaSourceOffer() settings.MediaSourceOffer {
+	o, ok := a.mediaSourceOfferOf(a.sources.draft.Kind)
+	if !ok {
+		return settings.MediaSourceOffer{}
+	}
+	_, installed := a.mediaSourceInstalledPack(o.ID)
+	return settings.MediaSourceOffer{Name: o.Name, Installed: installed}
+}
+
+func (a *app) InstallMediaSourceOffer() { a.mediaSourceInstallOffered() }
 
 func (a *app) CloseMediaSource() { a.closeMediaSourceDialog() }
 

@@ -369,3 +369,86 @@ func TestPluginSourceSecretsStayWithTheirServer(t *testing.T) {
 		t.Errorf("the old server's certificate is still trusted: %+v", saved.Config)
 	}
 }
+
+// TestPluginSourceInstalledFromTheDialog checks Kando's official media-source plugins as 设置 › 媒体来源's dialog offers them, acme.nas standing in for one: while it is not installed its kind is offered as one to install, with no fields and Test and Save off; 安装插件… goes to Settings › 插件 and its install confirmation, from the index; 取消 there comes back to 设置 › 媒体来源 with nothing installed; confirming installs it, turns it on and grants it kando.source.fetch alone, and opens the dialog again on its kind, from the 媒体来源 page still if it was asked from there.
+func TestPluginSourceInstalledFromTheDialog(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates, _ := scriptsApp(t, key)
+	srv := newPluginsIndexServer(t)
+	srv.point(a)
+	srv.list(t, srv.entry(t, "nas.zip", pluginsZipFolder(t, pluginScriptFolderAbout(t, key, "acme.nas", "1.0.0", pluginNASAbout, pluginNASFields, pluginNASLiveCode)), plugins.SourceVerified))
+	a.sources.offers = []mediaSourceOffer{{ID: "acme.nas", Name: "NAS"}}
+	m := testlocale.Messages()
+	offer := mediaSourceInstallPrefix + "acme.nas"
+
+	choose := func() {
+		t.Helper()
+		onEngine(a, func() { a.AddMediaBrowseSource() })
+		refresh(tt, a)
+		var kinds []settings.MediaSourceKind
+		onEngine(a, func() { kinds = a.MediaSourceKinds(); a.SetMediaSourceKind(offer) })
+		refresh(tt, a)
+		if !slices.Contains(kinds, settings.MediaSourceKind{ID: offer, Title: m.SettingsSourcesKindOffered("NAS")}) {
+			t.Fatalf("kinds %+v", kinds)
+		}
+		if !hasText(tt, m.SettingsSourcesOfferInstall("NAS")) || tt.Exists("id:media-source-field-endpoint") || tt.Enabled("id:media-source-dialog-save") || tt.Enabled("id:media-source-dialog-test") {
+			t.Fatalf("the offer; texts %q", tt.Texts())
+		}
+		tt.Press("id:media-source-offer-install")
+		waitUntil(t, tt, a, updates, func() bool { return a.plugins.pending != nil && !a.plugins.busy })
+		wantSettings(t, a, settings.SectionPlugins)
+		if a.plugins.pending.err != nil || a.plugins.pending.pack.ID != "acme.nas" || a.sources.editing {
+			t.Fatalf("the confirmation: %v, dialog %v", a.plugins.pending.err, a.sources.editing)
+		}
+	}
+
+	onEngine(a, func() { a.Select(pageMediaSources) })
+	choose()
+	tt.Press("id:plugins-install-cancel")
+	scriptsSettle(t, a, tt, updates, func() bool { return a.sources.install.id == "" && a.plugins.pending == nil })
+	wantSettings(t, a, settings.SectionMediaSources)
+	if len(a.pluginsScriptPacks()) != 0 || a.sources.editing {
+		t.Fatalf("cancelled: packs %d, dialog %v", len(a.pluginsScriptPacks()), a.sources.editing)
+	}
+
+	choose()
+	tt.Press("id:plugins-install-ok")
+	scriptsSettleWithin(t, a, tt, updates, scriptsWait, func() bool { return a.sources.install.id == "" && a.sources.editing }, func() string {
+		return fmt.Sprintf("install %+v, installed %+v, pending %v, busy %v, saving %v, err %v, settings at %q", a.sources.install, a.plugins.installed, a.plugins.pending != nil, a.plugins.busy, a.plugins.saving, a.plugins.err, a.prefs.section)
+	})
+	wantSettings(t, a, settings.SectionMediaSources)
+	if a.MediaSourceDraft().Kind != pluginKindID || !a.MediaSourceIsNew() || !a.sources.thenBrowse || !tt.Exists("id:media-source-field-endpoint") {
+		t.Fatalf("the dialog on %q, new %v, then browse %v", a.MediaSourceDraft().Kind, a.MediaSourceIsNew(), a.sources.thenBrowse)
+	}
+	p := a.pluginsScriptPacks()[0]
+	if g := a.plugins.state.Effective(p, false, false); !a.plugins.state.EnabledPack(p) || !slices.Equal(g.Perms, []plugins.Perm{plugins.PermSourceFetch}) {
+		t.Fatalf("installed on %v, granted %+v", a.plugins.state.EnabledPack(p), g)
+	}
+	var kinds []settings.MediaSourceKind
+	onEngine(a, func() { kinds = a.MediaSourceKinds() })
+	if slices.ContainsFunc(kinds, func(k settings.MediaSourceKind) bool { return k.ID == offer }) {
+		t.Errorf("the plugin is still offered: %+v", kinds)
+	}
+}
+
+// TestPluginSourceTurnedOnFromTheDialog checks an official media-source plugin installed and off: the dialog offers to turn it on, which does so and grants it kando.source.fetch without the index or a confirmation, and opens the dialog again on its kind.
+func TestPluginSourceTurnedOnFromTheDialog(t *testing.T) {
+	key := newPluginsKey(t)
+	a, tt, updates, _ := scriptsApp(t, key, pluginScriptFolderAbout(t, key, "acme.nas", "1.0.0", pluginNASAbout, pluginNASFields, pluginNASLiveCode))
+	a.sources.offers = []mediaSourceOffer{{ID: "acme.nas", Name: "NAS"}}
+	m := testlocale.Messages()
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	onEngine(a, func() { a.SetMediaSourceKind(mediaSourceInstallPrefix + "acme.nas") })
+	refresh(tt, a)
+	if !hasText(tt, m.SettingsSourcesOfferTurnOn("NAS")) {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	tt.Press("id:media-source-offer-install")
+	scriptsSettle(t, a, tt, updates, func() bool { return a.sources.install.id == "" && a.sources.editing })
+	wantSettings(t, a, settings.SectionMediaSources)
+	p := a.pluginsScriptPacks()[0]
+	if a.MediaSourceDraft().Kind != pluginKindID || a.sources.thenBrowse || !a.plugins.state.EnabledPack(p) || !slices.Contains(a.plugins.state.Effective(p, false, false).Perms, plugins.PermSourceFetch) {
+		t.Fatalf("the dialog on %q; on %v", a.MediaSourceDraft().Kind, a.plugins.state.EnabledPack(p))
+	}
+}

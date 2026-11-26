@@ -34,8 +34,11 @@ type MediaSourcesApp interface {
 	// MediaSourceEditing is whether the dialog is open, MediaSourceIsNew whether it adds a source rather than edits one.
 	MediaSourceEditing() bool
 	MediaSourceIsNew() bool
-	// MediaSourceKinds are the kinds of source the dialog's drop-down offers: the built-in ones, then the plugins'.
+	// MediaSourceKinds are the kinds of source the dialog's drop-down offers: the built-in ones, the plugins', then Kando's official plugins that add one while they are not on, which MediaSourceOffer names once chosen.
 	MediaSourceKinds() []MediaSourceKind
+	// MediaSourceOffer is the official plugin the draft's kind offers to install or turn on, its Name "" for a kind of source; InstallMediaSourceOffer installs it, through the install confirmation, or turns it on, then opens the dialog again on its kind.
+	MediaSourceOffer() MediaSourceOffer
+	InstallMediaSourceOffer()
 	// MediaSourceDraft is the dialog's source as typed, which its fields change in place; SetMediaSourceKind chooses another kind for it.
 	MediaSourceDraft() *MediaSourceDraft
 	SetMediaSourceKind(kind string)
@@ -75,6 +78,12 @@ type MediaSourceStatus struct {
 // MediaSourceKind is a kind of source the dialog offers: its ID and its name.
 type MediaSourceKind struct {
 	ID, Title string
+}
+
+// MediaSourceOffer is an official plugin the dialog offers in place of a kind's fields: its name, and whether it is installed already, only off, which turning it on is enough for.
+type MediaSourceOffer struct {
+	Name      string
+	Installed bool
 }
 
 // MediaSourceDraft is a source as its dialog edits it: its name, its kind's ID and the values of its fields by key, each as typed, a switch's as "true" or "".
@@ -227,7 +236,9 @@ func (d mediaSourceDialog) Render(cx *core.Scope) core.Node {
 		notes := core.Each(warnings.Get, func(s string) string { return s }, func(cx *core.Scope, s func() string, _ func() int) core.Node {
 			return core.Text{ContentFunc: s, Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 0, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Muted)}
 		})
-		test := form.Button{TestID: "media-source-dialog-test", Text: locales.AccountLocationTest(cx), Disabled: func() bool { return status.Get().Busy },
+		offer := core.NewMemo(cx, live.Func(a, a.MediaSourceOffer))
+		offered := func() bool { return offer.Get().Name != "" }
+		test := form.Button{TestID: "media-source-dialog-test", Text: locales.AccountLocationTest(cx), Disabled: func() bool { return status.Get().Busy || offered() },
 			OnPress: live.Do(a, func() { a.TestMediaSource("") })}
 		said := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 			core.Show{When: func() bool { return problem() != "" }, Then: func(*core.Scope) core.Node {
@@ -265,19 +276,22 @@ func (d mediaSourceDialog) Render(cx *core.Scope) core.Node {
 			}}},
 			Footer: []core.Node{
 				ui.Button{Text: locales.AccountLocationCancel(cx), Variant: ui.ButtonSecondary, TestID: "media-source-dialog-cancel", OnPress: closeDialog},
-				ui.Button{Text: locales.AccountLocationSave(cx), TestID: "media-source-dialog-save", Disabled: saving, OnPress: live.Do(a, a.SaveMediaSource)},
+				ui.Button{Text: locales.AccountLocationSave(cx), TestID: "media-source-dialog-save", Disabled: func() bool { return saving() || offered() }, OnPress: live.Do(a, a.SaveMediaSource)},
 			},
 		}
 	}}
 }
 
-// mediaSourceFields are the dialog's rows: the name and the kind, then the fields of the draft's kind (MediaSourceFields), each a text field, or a switch for a bool.
+// mediaSourceFields are the dialog's rows: the name and the kind, then the fields of the draft's kind (MediaSourceFields), each a text field, or a switch for a bool; or, for an official plugin to install or turn on, what it takes and the button that does it.
 func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 	rows := []core.Node{
 		form.Row{Title: locales.AccountLocationName(cx), NoGroup: true, Trailing: []core.Node{mediaSourceInput(a, "media-source-name", locales.AccountLocationName(cx), locales.AccountLocationNamePlaceholder(cx), false,
 			func() string { return a.MediaSourceDraft().Name }, func(s string) { a.MediaSourceDraft().Name = s })}},
 		form.Separator(true),
 		form.Row{Title: locales.AccountLocationKind(cx), NoGroup: true, Trailing: []core.Node{mediaSourceKindSelect(cx, a)}},
+	}
+	if o := core.Untracked(cx, live.Func(a, a.MediaSourceOffer)); o.Name != "" {
+		return core.Group(append(rows, form.Separator(true), mediaSourceOfferRow(cx, a, o)))
 	}
 	for _, f := range core.Untracked(cx, live.Func(a, a.MediaSourceFields)) {
 		key := f.Key
@@ -308,6 +322,19 @@ func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 		rows = append(rows, form.Row{Title: f.Title, Subtitle: f.Hint, NoGroup: true, Trailing: []core.Node{in}})
 	}
 	return core.Group(rows)
+}
+
+// mediaSourceOfferRow is the row of an official plugin the draft's kind offers: that the kind comes from Kando's official plugin, which reaches only the server filled in here, and 安装插件…, which asks before installing it, or 启用插件 for one installed and off.
+func mediaSourceOfferRow(cx *core.Scope, a MediaSourcesApp, o MediaSourceOffer) core.Node {
+	colors := ui.ColorsOf(cx)
+	note, button := locales.SettingsSourcesOfferInstall(cx, o.Name), locales.SettingsSourcesOfferInstallButton(cx)
+	if o.Installed {
+		note, button = locales.SettingsSourcesOfferTurnOn(cx, o.Name), locales.SettingsSourcesOfferTurnOnButton(cx)
+	}
+	return core.View{TestID: "media-source-offer", Style: core.Style{Gap: 10, Padding: core.Symmetric(12, 14), AlignItems: core.AlignStart, FlexShrink: 0}, Children: []core.Node{
+		core.Text{TestID: "media-source-offer-note", Content: note, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
+		ui.Button{TestID: "media-source-offer-install", Text: button, OnPress: live.Do(a, a.InstallMediaSourceOffer)},
+	}}
 }
 
 // mediaSourceHostKeyRow is the fingerprint of the server's key the draft trusts, with the field's hint under it, or what an empty field shows before the first Test asks about the key: the key changes only through that question (MediaSourceAlert).

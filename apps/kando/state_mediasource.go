@@ -39,6 +39,9 @@ type mediaSourceUI struct {
 	removeRelease func()
 	// thenBrowse is set while the dialog adds a source the 媒体来源 page asked for (AddMediaBrowseSource): once it is saved, the settings close and the page shows it.
 	thenBrowse bool
+	// offers are the official plugins the dialog offers as kinds of source while they are not on (mediaSourceOffers; a test sets its own), and install the one being installed or turned on from it (state_mediasource_install.go).
+	offers  []mediaSourceOffer
+	install mediaSourceInstall
 	// secretsHeld is held by whoever is changing the sources' secrets in the secure store, from a save's first write until settings.json took the save or its secrets were put back as they were (mediaSourceSecretWrite), and by a removal's forgetting, so a save started after another that was abandoned reads the secrets that one put back, and nothing puts back a secret a removal forgot.
 	secretsHeld chan struct{}
 	open        func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
@@ -80,7 +83,7 @@ func newMediaSourceUI() mediaSourceUI {
 			panic(err)
 		}
 	}
-	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}, secretsHeld: make(chan struct{}, 1)}
+	return mediaSourceUI{kinds: kinds, tests: map[string]mediaSourceTest{}, open: mediaSourceOpen, pool: &mediasource.Pool{}, secretsHeld: make(chan struct{}, 1), offers: mediaSourceOffers}
 }
 
 // mediaSourceOpen connects to s, a source of kind k, with its secrets by key, as the kind does.
@@ -261,7 +264,8 @@ func (a *app) mediaSourceHooks() areaHooks {
 		ready:       a.mediaSourcePoolSync,
 		afterChange: func() bool {
 			modals := a.mediaSourceModals()
-			return a.mediaSourceBrowseFollow() || modals
+			install := a.mediaSourceInstallFollow()
+			return a.mediaSourceBrowseFollow() || modals || install
 		},
 		quitStarting: a.linkedStopCopies,
 		quitting:     a.sources.pool.Close,
