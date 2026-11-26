@@ -255,6 +255,7 @@ func sidebarMaterial() core.WindowMaterial {
 	return desktop.WindowMaterialNone
 }
 
-// windowsMica is whether the window shows Mica on Windows. It does not for now: under a hidden title bar the material lets DWM's own caption buttons show through the transparent bar behind NSGo's, offset from them once the window is maximized (#501), so the window paints the gutter as on Windows 10, which has no Mica.
+// windowsMica is whether the window shows Mica on Windows. It does not for now: under a hidden title bar the material lets DWM's own caption buttons show through the transparent bar behind NSGo's, offset from them once the window is maximized (#501), and Mica keeps its initial light or dark tint when the appearance changes in Settings › 通用, so the window paints the gutter as on Windows 10, which has no Mica.
 // TODO(nsgo#2483): turn Mica back on once NSGo keeps DWM's caption buttons from showing under a hidden title bar over a material https://github.com/nsgo-dev/nsgo/issues/2483
+// TODO(nsgo#2487): Mica also keeps its light or dark tint when the appearance changes in Settings › 通用, so the page and its backdrop disagree; this must be fixed too before Mica comes back https://github.com/nsgo-dev/nsgo/issues/2487
 const windowsMica = false
