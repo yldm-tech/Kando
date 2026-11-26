@@ -35,6 +35,7 @@ import (
 
 	"github.com/cloudsoda/go-smb2"
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -577,6 +578,65 @@ func TestMediaSourceChooseAllAndFolders(t *testing.T) {
 	}
 	if a.MediaBrowseChosen() != 0 {
 		t.Errorf("chosen after the import: %d", a.MediaBrowseChosen())
+	}
+}
+
+// The filter narrows the folder's rows to the names holding its words, says when none does, and 全选 takes the rows it shows alone; a press with Shift chooses the rows from the one chosen last, past a video imported already, and back off again from the state of the row pressed; Edit › 全选 (⌘A) chooses every row shown.
+func TestMediaSourceFilterShiftAndSelectAll(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	files := map[string]fakeSourceFile{}
+	for i := 1; i <= 6; i++ {
+		files[fmt.Sprintf("Season 1/S01E0%d.mkv", i)] = fakeSourceFile{data: "x"}
+	}
+	s, _ := browseSource(a, files)
+	refresh(tt, a)
+	tt.Press("id:source-" + pageMediaSources)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	tt.Press("id:media-sources-entry-Season 1")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	if _, err := a.queueEnqueue([]string{mediasource.Ref{Source: s.ID, Path: "Season 1/S01E03.mkv"}.String()}); err != nil {
+		t.Fatal(err)
+	}
+	refresh(tt, a)
+	ep := func(n int) string { return fmt.Sprintf("Season 1/S01E0%d.mkv", n) }
+	chosen := func() []string { return slices.Sorted(maps.Keys(a.sources.browse.chosen)) }
+
+	tt.Press("id:media-sources-choose-" + ep(1))
+	tt.PressWith("id:media-sources-choose-"+ep(5), ns.Modifiers{Shift: true})
+	if got := chosen(); !slices.Equal(got, []string{ep(1), ep(2), ep(4), ep(5)}) {
+		t.Fatalf("Shift from 1 to 5: %q", got)
+	}
+	tt.PressWith("id:media-sources-entry-"+ep(2), ns.Modifiers{Shift: true})
+	if got := chosen(); !slices.Equal(got, []string{ep(1)}) {
+		t.Fatalf("Shift back from 5 to 2: %q", got)
+	}
+
+	tt.Type("id:media-sources-filter", "e06")
+	if !tt.Exists("id:media-sources-entry-"+ep(6)) || tt.Exists("id:media-sources-entry-"+ep(1)) {
+		t.Fatalf("filtered: %q", tt.Texts())
+	}
+	tt.Press("id:media-sources-choose-all")
+	if got := chosen(); !slices.Equal(got, []string{ep(1), ep(6)}) {
+		t.Fatalf("全选 of what the filter shows: %q", got)
+	}
+	tt.Clear("id:media-sources-filter")
+	tt.Type("id:media-sources-filter", "zzz")
+	wantText(t, tt, msgs.MediaSourceNoMatch("zzz"))
+	tt.Clear("id:media-sources-filter")
+
+	item := findMenuItem(t, a.menuBar(a.cx), "编辑", msgs.MenuSelectAll())
+	if item.Role != nsdesktop.MenuSelectAll || item.Shortcut != "mod+a" || item.OnSelect == nil {
+		t.Fatalf("编辑 › 全选 is %+v", item)
+	}
+	item.OnSelect()
+	refresh(tt, a)
+	if got := chosen(); len(got) != 5 || slices.Contains(got, ep(3)) {
+		t.Fatalf("⌘A: %q", got)
+	}
+	item.OnSelect()
+	if len(chosen()) != 5 {
+		t.Fatal("⌘A again let the rows go")
 	}
 }
 

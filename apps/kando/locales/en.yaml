@@ -9666,6 +9666,14 @@ mediaSourceListingFolders:
 mediaSourceChooseAll:
   message: "Select All"
   description: "Check box at the top of the Media Sources page's folder that chooses every folder and every video not imported yet of it, or none once all are."
+mediaSourceFilter:
+  message: "Filter"
+  description: "Field at the top of the Media Sources page's folder, and its placeholder, that narrows the folder's rows to the names holding the words typed."
+mediaSourceNoMatch:
+  message: "No name here holds “{query}”."
+  description: "Shown on the Media Sources page in place of the folder's rows when the filter keeps none of them."
+  placeholders:
+    query: { type: "String", example: "season 2" }
 mediaSourceFoldersFailed:
   message: "The folders chosen could not be listed. Try again in a moment."
   description: "Said on the Media Sources page when the videos of the folders chosen to import could not be listed."

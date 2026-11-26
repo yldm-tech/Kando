@@ -171,16 +171,16 @@ func (a *app) OpenMediaBrowseCrumb(index int) {
 func (a *app) MediaBrowseEntries() []sourcebrowser.Entry {
 	b := a.sources.browse
 	share := b.dir == "" && a.mediaSourceServer()
-	out := make([]sourcebrowser.Entry, 0, len(b.entries))
-	for _, e := range b.entries {
+	shown := a.mediaSourceShown()
+	out := make([]sourcebrowser.Entry, 0, len(shown))
+	for _, e := range shown {
 		p := b.entryPath(e.Name)
 		_, chosen := b.chosen[p]
 		x := sourcebrowser.Entry{Path: p, Name: e.Name, Dir: e.Dir, Share: share && e.Dir, Size: e.Size, Modified: e.Modified, Subtitles: b.subtitled[e.Name], Chosen: chosen || b.chosenDirs[p]}
 		if !e.Dir {
 			x.InLibrary = a.mediaSourceIn(a.mediaSourceRef(p))
 		}
-		// A folder is chosen whole, but not while a film's video is looked for, which picks one video.
-		x.Choosable = !x.InLibrary && (!e.Dir || b.relink == "")
+		x.Choosable = a.mediaSourceChoosable(e, p)
 		out = append(out, x)
 	}
 	return out
@@ -212,7 +212,15 @@ func (a *app) MediaBrowseFoldersChosen() bool { return len(a.sources.browse.chos
 
 func (a *app) MediaBrowseChoice() (chosen, choosable int) { return a.mediaSourceChoice() }
 
-func (a *app) ToggleMediaBrowseAll() { a.mediaSourceChooseAll() }
+func (a *app) ToggleMediaBrowseAll() { a.mediaSourceChooseAll(false) }
+
+func (a *app) ExtendMediaBrowseChoice(path string) { a.mediaSourceExtend(path) }
+
+func (a *app) MediaBrowseQuery() string { return a.sources.browse.query }
+
+func (a *app) SetMediaBrowseQuery(q string) { a.sources.browse.query = q }
+
+func (a *app) MediaBrowseListed() int { return len(a.sources.browse.entries) }
 
 func (a *app) MediaBrowseExpanding() bool { return a.sources.browse.expanding }
 

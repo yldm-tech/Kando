@@ -21,12 +21,13 @@ import (
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // pageMediaSources is the 媒体来源 page (package sourcebrowser), which the sidebar's row of that name shows while a source was added.
 const pageMediaSources = sidebar.PageMediaSources
 
-// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen), and the folders chosen to import whole (chosenDirs), whose videos are being listed while expanding is set; what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
+// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen), and the folders chosen to import whole (chosenDirs), whose videos are being listed while expanding is set; the words the folder's rows are filtered by (query) and the row a choice with Shift extends from (anchor); what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
 type mediaSourceBrowse struct {
 	source         string
 	dir            string
@@ -38,6 +39,8 @@ type mediaSourceBrowse struct {
 	chosen         map[string]int64
 	chosenDirs     map[string]bool
 	expanding      bool
+	query          string
+	anchor         string
 	note           func(locales.Messages) string
 	importing      map[string]int64
 	importRelease  func()
@@ -83,7 +86,7 @@ func (a *app) mediaSourceList() {
 	b := &m.browse
 	b.gen++
 	gen := b.gen
-	b.entries, b.subtitled, b.err, b.chosen, b.chosenDirs, b.expanding = nil, nil, nil, nil, nil, false
+	b.entries, b.subtitled, b.err, b.chosen, b.chosenDirs, b.expanding, b.query, b.anchor = nil, nil, nil, nil, nil, false, "", ""
 	i := a.mediaSourceIndex(b.source)
 	if i < 0 {
 		b.loading = false
@@ -223,15 +226,8 @@ func (a *app) mediaSourceToggle(p string) {
 			if b.relink != "" {
 				return
 			}
-			if b.chosenDirs[p] {
-				delete(b.chosenDirs, p)
-			} else {
-				if b.chosenDirs == nil {
-					b.chosenDirs = map[string]bool{}
-				}
-				b.chosenDirs[p] = true
-			}
-			b.note = nil
+			a.mediaSourceSetChosen(e, p, !b.chosenDirs[p])
+			b.anchor, b.note = p, nil
 			return
 		}
 		if a.sources.browse.relink != "" {
@@ -241,64 +237,114 @@ func (a *app) mediaSourceToggle(p string) {
 		if a.mediaSourceIn(a.mediaSourceRef(p)) {
 			return
 		}
-		if b.chosen == nil {
-			b.chosen = map[string]int64{}
-		}
-		if _, on := b.chosen[p]; on {
-			delete(b.chosen, p)
-		} else {
-			b.chosen[p] = e.Size
-		}
-		b.note = nil
+		_, on := b.chosen[p]
+		a.mediaSourceSetChosen(e, p, !on)
+		b.anchor, b.note = p, nil
 		return
 	}
 }
 
-// mediaSourceChoice is how many of the folder's rows are chosen and how many can be: its folders and the videos not imported yet; none can be while a film's video is looked for, which picks one video.
+// mediaSourceSetChosen chooses the folder or video e at p, or no more.
+func (a *app) mediaSourceSetChosen(e mediasource.Entry, p string, on bool) {
+	b := &a.sources.browse
+	switch {
+	case e.Dir && on:
+		if b.chosenDirs == nil {
+			b.chosenDirs = map[string]bool{}
+		}
+		b.chosenDirs[p] = true
+	case e.Dir:
+		delete(b.chosenDirs, p)
+	case on:
+		if b.chosen == nil {
+			b.chosen = map[string]int64{}
+		}
+		b.chosen[p] = e.Size
+	default:
+		delete(b.chosen, p)
+	}
+}
+
+// mediaSourceShown are the folder's entries the rows show: those whose name holds the words of the filter, each in any case, all of them without one.
+func (a *app) mediaSourceShown() []mediasource.Entry {
+	b := &a.sources.browse
+	words := strings.Fields(strings.ToLower(b.query))
+	if len(words) == 0 {
+		return b.entries
+	}
+	var out []mediasource.Entry
+	for _, e := range b.entries {
+		name := strings.ToLower(e.Name)
+		if !slices.ContainsFunc(words, func(w string) bool { return !strings.Contains(name, w) }) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// mediaSourceChoosable reports whether the entry e at p of the folder can be chosen: a folder, but not while a film's video is looked for, or a video not imported yet.
+func (a *app) mediaSourceChoosable(e mediasource.Entry, p string) bool {
+	if e.Dir {
+		return a.sources.browse.relink == ""
+	}
+	return !a.mediaSourceIn(a.mediaSourceRef(p))
+}
+
+// mediaSourceExtend chooses, as Shift and a press do, the rows shown from the one chosen last (anchor) to the one at p, both included, taking the state p's press gives it: on when it was off. Without an anchor shown it chooses p alone (mediaSourceToggle).
+func (a *app) mediaSourceExtend(p string) {
+	b := &a.sources.browse
+	shown := a.mediaSourceShown()
+	from := slices.IndexFunc(shown, func(e mediasource.Entry) bool { return b.entryPath(e.Name) == b.anchor })
+	to := slices.IndexFunc(shown, func(e mediasource.Entry) bool { return b.entryPath(e.Name) == p })
+	if b.expanding || b.relink != "" || from < 0 || to < 0 {
+		a.mediaSourceToggle(p)
+		return
+	}
+	_, video := b.chosen[p]
+	on := !video && !b.chosenDirs[p]
+	lo, hi := min(from, to), max(from, to)
+	for _, e := range shown[lo : hi+1] {
+		q := b.entryPath(e.Name)
+		if a.mediaSourceChoosable(e, q) {
+			a.mediaSourceSetChosen(e, q, on)
+		}
+	}
+	b.anchor, b.note = p, nil
+}
+
+// mediaSourceChoice is how many of the rows shown are chosen and how many can be: the folders and the videos not imported yet; none can be while a film's video is looked for, which picks one video.
 func (a *app) mediaSourceChoice() (chosen, choosable int) {
 	b := &a.sources.browse
 	if b.relink != "" {
 		return 0, 0
 	}
-	for _, e := range b.entries {
+	for _, e := range a.mediaSourceShown() {
 		p := b.entryPath(e.Name)
-		switch {
-		case e.Dir:
-			choosable++
-			if b.chosenDirs[p] {
-				chosen++
-			}
-		case !a.mediaSourceIn(a.mediaSourceRef(p)):
-			choosable++
-			if _, ok := b.chosen[p]; ok {
-				chosen++
-			}
+		if !a.mediaSourceChoosable(e, p) {
+			continue
+		}
+		choosable++
+		if _, ok := b.chosen[p]; ok || b.chosenDirs[p] {
+			chosen++
 		}
 	}
 	return chosen, choosable
 }
 
-// mediaSourceChooseAll chooses every folder and every video not imported yet of the folder shown, or, when all are chosen, none.
-func (a *app) mediaSourceChooseAll() {
+// mediaSourceChooseAll chooses every row shown that can be, or, when all of them are chosen, none of them, as 全选 does; on chooses them all whatever, as ⌘A does. Rows the filter hides keep their choice.
+func (a *app) mediaSourceChooseAll(on bool) {
 	b := &a.sources.browse
 	chosen, choosable := a.mediaSourceChoice()
 	if b.expanding || choosable == 0 {
 		return
 	}
-	b.chosen, b.chosenDirs, b.note = nil, nil, nil
-	if chosen == choosable {
-		return
-	}
-	b.chosen, b.chosenDirs = map[string]int64{}, map[string]bool{}
-	for _, e := range b.entries {
-		p := b.entryPath(e.Name)
-		switch {
-		case e.Dir:
-			b.chosenDirs[p] = true
-		case !a.mediaSourceIn(a.mediaSourceRef(p)):
-			b.chosen[p] = e.Size
+	on = on || chosen < choosable
+	for _, e := range a.mediaSourceShown() {
+		if p := b.entryPath(e.Name); a.mediaSourceChoosable(e, p) {
+			a.mediaSourceSetChosen(e, p, on)
 		}
 	}
+	b.anchor, b.note = "", nil
 }
 
 // mediaSourceOpenEntry opens the folder at p, or the film imported from the video at p.
@@ -505,7 +551,13 @@ func (a *app) mediaSourceColumn(*ns.Scope) ns.Node { return sourcebrowser.Page{A
 
 // mediaSourceKeys: 浏览媒体来源 is a command of the File menu and the palette, with no key, while a source was added.
 func (a *app) mediaSourceKeys(cx *ns.Scope) []shortcut {
-	return []shortcut{{Group: groupFile, Label: locales.MediaSourceBrowse(cx), Run: a.mediaSourceOpenPage}}
+	rows := []shortcut{{Group: groupFile, Label: locales.MediaSourceBrowse(cx), Run: a.mediaSourceOpenPage}}
+	// Edit › 全选 stands in for the system's item while the page shows a folder, and ⌘A chooses all its rows shown, once no text field, as the filter, takes it.
+	if a.page == pageMediaSources {
+		rows = append(rows, shortcut{Group: groupEdit, Label: locales.MenuSelectAll(cx), Key: "mod+a", Role: nsdesktop.MenuSelectAll,
+			When: func() bool { return a.page == pageMediaSources && a.sources.browse.importing == nil }, Run: func() { a.mediaSourceChooseAll(true) }})
+	}
+	return rows
 }
 
 // mediaSourceAddThenBrowse opens Settings › 媒体来源 with the dialog adding a source, which the page shows once it is saved (mediaSourceUI.thenBrowse).
