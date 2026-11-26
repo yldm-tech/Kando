@@ -1241,6 +1241,12 @@ var Parameters = map[string][]string{
 	"MediaSourceImportChosen":                  {"count"},
 	"MediaSourceImportWay":                     {"action", "way"},
 	"MediaSourceImportedBelow":                 {"count"},
+	"MediaSourceFollow":                        {"name"},
+	"MediaSourceUnfollow":                      {"name"},
+	"MediaSourceFollowed":                      {"name", "way"},
+	"MediaSourceUnfollowed":                    {"name"},
+	"MediaSourceFollowFailed":                  {"name"},
+	"MediaSourceFollowNew":                     {"count", "name"},
 	"MediaSourceNoMatch":                       {"query"},
 	"MediaSourceFoldersTooMany":                {"limit"},
 	"MediaSourceImportTitle":                   {"count", "source"},
@@ -2027,6 +2033,12 @@ type Translation struct {
 	MediaSourceImportChosen                  func(count int) string
 	MediaSourceImportWay                     func(action string, way string) string
 	MediaSourceImportedBelow                 func(count int) string
+	MediaSourceFollow                        func(name string) string
+	MediaSourceUnfollow                      func(name string) string
+	MediaSourceFollowed                      func(name string, way string) string
+	MediaSourceUnfollowed                    func(name string) string
+	MediaSourceFollowFailed                  func(name string) string
+	MediaSourceFollowNew                     func(count int, name string) string
 	MediaSourceNoMatch                       func(query string) string
 	MediaSourceFoldersTooMany                func(limit int) string
 	MediaSourceImportTitle                   func(count int, source string) string
@@ -27525,6 +27537,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImportedBelow != nil {
 		s.MediaSourceImportedBelow = t.MediaSourceImportedBelow
+	}
+	if t.MediaSourceFollow != nil {
+		s.MediaSourceFollow = t.MediaSourceFollow
+	}
+	if t.MediaSourceUnfollow != nil {
+		s.MediaSourceUnfollow = t.MediaSourceUnfollow
+	}
+	if t.MediaSourceFollowed != nil {
+		s.MediaSourceFollowed = t.MediaSourceFollowed
+	}
+	if t.MediaSourceUnfollowed != nil {
+		s.MediaSourceUnfollowed = t.MediaSourceUnfollowed
+	}
+	if t.MediaSourceFollowFailed != nil {
+		s.MediaSourceFollowFailed = t.MediaSourceFollowFailed
+	}
+	if t.MediaSourceFollowNew != nil {
+		s.MediaSourceFollowNew = t.MediaSourceFollowNew
 	}
 	if t.MediaSourceNoMatch != nil {
 		s.MediaSourceNoMatch = t.MediaSourceNoMatch
@@ -73596,6 +73626,245 @@ func (msgs Messages) MediaSourceImportedBelow(count int) string {
 			default:
 				b.WriteString("已匯入 ")
 				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+			}
+			return b.String()
+		}
+	}
+}
+
+// MediaSourceFollow says "Follow “{name}”"
+// in the language the app shows under cx.
+//
+// Label and tooltip of the bell at the end of a folder's row on the Media Sources page, as a show's folder: the videos that show up in it from then on are imported by themselves.
+func MediaSourceFollow(cx *core.Scope, name string) string { return For(cx).MediaSourceFollow(name) }
+
+// MediaSourceFollow is the package's MediaSourceFollow in the language of msgs.
+func (msgs Messages) MediaSourceFollow(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFollow(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFollow; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Follow “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」をフォロー"
+		case "ko":
+			return "‘" + name + "’ 팔로우"
+		case "zh-Hans":
+			return "跟进「" + name + "」"
+		case "zh-Hant":
+			return "追蹤「" + name + "」"
+		}
+	}
+}
+
+// MediaSourceUnfollow says "Stop Following “{name}”"
+// in the language the app shows under cx.
+//
+// Label and tooltip of the lit bell at the end of a followed folder's row on the Media Sources page.
+func MediaSourceUnfollow(cx *core.Scope, name string) string {
+	return For(cx).MediaSourceUnfollow(name)
+}
+
+// MediaSourceUnfollow is the package's MediaSourceUnfollow in the language of msgs.
+func (msgs Messages) MediaSourceUnfollow(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceUnfollow(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceUnfollow; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Stop Following “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」のフォローをやめる"
+		case "ko":
+			return "‘" + name + "’ 팔로우 중지"
+		case "zh-Hans":
+			return "停止跟进「" + name + "」"
+		case "zh-Hant":
+			return "停止追蹤「" + name + "」"
+		}
+	}
+}
+
+// MediaSourceFollowed says "Following “{name}”: new videos in it are imported by themselves ({way})."
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page once a folder is followed. way is how they are imported, as the import button says it: Copy or Index Only. The videos there already are not imported.
+func MediaSourceFollowed(cx *core.Scope, name string, way string) string {
+	return For(cx).MediaSourceFollowed(name, way)
+}
+
+// MediaSourceFollowed is the package's MediaSourceFollowed in the language of msgs.
+func (msgs Messages) MediaSourceFollowed(name string, way string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFollowed(name, way))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFollowed; f != nil {
+			return f(name, way)
+		}
+		switch lang {
+		case "", "en":
+			return "Following “" + msgs.arg(name) + "”: new videos in it are imported by themselves (" + msgs.arg(way) + ")."
+		case "ja":
+			return "「" + name + "」をフォローしました。今後追加されたビデオは自動で読み込まれます（" + way + "）。"
+		case "ko":
+			return "‘" + name + "’을(를) 팔로우합니다. 앞으로 추가되는 비디오는 자동으로 가져옵니다(" + way + ")."
+		case "zh-Hans":
+			return "已跟进「" + name + "」，以后新增的视频会自动导入（" + way + "）。"
+		case "zh-Hant":
+			return "已追蹤「" + name + "」，之後新增的影片會自動匯入（" + way + "）。"
+		}
+	}
+}
+
+// MediaSourceUnfollowed says "No longer following “{name}”."
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page once a folder is no longer followed.
+func MediaSourceUnfollowed(cx *core.Scope, name string) string {
+	return For(cx).MediaSourceUnfollowed(name)
+}
+
+// MediaSourceUnfollowed is the package's MediaSourceUnfollowed in the language of msgs.
+func (msgs Messages) MediaSourceUnfollowed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceUnfollowed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceUnfollowed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "No longer following “" + msgs.arg(name) + "”."
+		case "ja":
+			return "「" + name + "」のフォローをやめました。"
+		case "ko":
+			return "‘" + name + "’ 팔로우를 중지했습니다."
+		case "zh-Hans":
+			return "已停止跟进「" + name + "」。"
+		case "zh-Hant":
+			return "已停止追蹤「" + name + "」。"
+		}
+	}
+}
+
+// MediaSourceFollowFailed says "“{name}” could not be listed, so it is not followed."
+// in the language the app shows under cx.
+//
+// Note on the Media Sources page when following a folder failed because its videos could not be listed.
+func MediaSourceFollowFailed(cx *core.Scope, name string) string {
+	return For(cx).MediaSourceFollowFailed(name)
+}
+
+// MediaSourceFollowFailed is the package's MediaSourceFollowFailed in the language of msgs.
+func (msgs Messages) MediaSourceFollowFailed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFollowFailed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFollowFailed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” could not be listed, so it is not followed."
+		case "ja":
+			return "「" + name + "」を一覧できなかったため、フォローしていません。"
+		case "ko":
+			return "‘" + name + "’의 목록을 가져올 수 없어 팔로우하지 않았습니다."
+		case "zh-Hans":
+			return "无法列出「" + name + "」，没有跟进。"
+		case "zh-Hant":
+			return "無法列出「" + name + "」，沒有追蹤。"
+		}
+	}
+}
+
+// MediaSourceFollowNew says "{count, plural, one {# new video in “{name}” was imported.} other {# new videos in “{name}” were imported.}}"
+// in the language the app shows under cx.
+//
+// Message bar of the library once Kando imported by itself the videos that showed up in a followed folder of a media source.
+func MediaSourceFollowNew(cx *core.Scope, count int, name string) string {
+	return For(cx).MediaSourceFollowNew(count, name)
+}
+
+// MediaSourceFollowNew is the package's MediaSourceFollowNew in the language of msgs.
+func (msgs Messages) MediaSourceFollowNew(count int, name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFollowNew(count, name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFollowNew; f != nil {
+			return f(count, name)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" new video in “")
+				b.WriteString(msgs.arg(name))
+				b.WriteString("” was imported.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" new videos in “")
+				b.WriteString(msgs.arg(name))
+				b.WriteString("” were imported.")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString("「")
+				b.WriteString(name)
+				b.WriteString("」の新しいビデオ ")
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本を読み込みました。")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("‘")
+				b.WriteString(name)
+				b.WriteString("’의 새 비디오 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개를 가져왔습니다.")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("「")
+				b.WriteString(name)
+				b.WriteString("」有 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 个新视频，已导入。")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("「")
+				b.WriteString(name)
+				b.WriteString("」有 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 部新影片，已匯入。")
 			}
 			return b.String()
 		}

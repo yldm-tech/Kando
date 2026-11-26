@@ -9753,6 +9753,38 @@ mediaSourceImportedBelow:
   description: "Tag of a folder's row on the Media Sources page: how many videos in the folder, at any depth, are in the library already."
   placeholders:
     count: { type: "int", example: "3" }
+mediaSourceFollow:
+  message: "Follow “{name}”"
+  description: "Label and tooltip of the bell at the end of a folder's row on the Media Sources page, as a show's folder: the videos that show up in it from then on are imported by themselves."
+  placeholders:
+    name: { type: "String", example: "Severance" }
+mediaSourceUnfollow:
+  message: "Stop Following “{name}”"
+  description: "Label and tooltip of the lit bell at the end of a followed folder's row on the Media Sources page."
+  placeholders:
+    name: { type: "String", example: "Severance" }
+mediaSourceFollowed:
+  message: "Following “{name}”: new videos in it are imported by themselves ({way})."
+  description: "Note on the Media Sources page once a folder is followed. way is how they are imported, as the import button says it: Copy or Index Only. The videos there already are not imported."
+  placeholders:
+    name: { type: "String", example: "Severance" }
+    way: { type: "String", example: "Index Only" }
+mediaSourceUnfollowed:
+  message: "No longer following “{name}”."
+  description: "Note on the Media Sources page once a folder is no longer followed."
+  placeholders:
+    name: { type: "String", example: "Severance" }
+mediaSourceFollowFailed:
+  message: "“{name}” could not be listed, so it is not followed."
+  description: "Note on the Media Sources page when following a folder failed because its videos could not be listed."
+  placeholders:
+    name: { type: "String", example: "Severance" }
+mediaSourceFollowNew:
+  message: "{count, plural, one {# new video in “{name}” was imported.} other {# new videos in “{name}” were imported.}}"
+  description: "Message bar of the library once Kando imported by itself the videos that showed up in a followed folder of a media source."
+  placeholders:
+    count: { type: "int", example: "2" }
+    name: { type: "String", example: "Severance" }
 mediaSourceFilter:
   message: "Filter"
   description: "Field at the top of the Media Sources page's folder, and its placeholder, that narrows the folder's rows to the names holding the words typed."

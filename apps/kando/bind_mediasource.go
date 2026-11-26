@@ -216,6 +216,7 @@ func (a *app) MediaBrowseEntries() []sourcebrowser.Entry {
 		x := sourcebrowser.Entry{Path: p, Name: e.Name, Dir: e.Dir, Share: share && e.Dir, Size: e.Size, Modified: e.Modified, Subtitles: b.subtitled[e.Name], Chosen: chosen || b.chosenDirs[p]}
 		if e.Dir {
 			x.Imported = in[e.Name]
+			x.Followed = a.mediaSourceFollowing(b.source, p) >= 0
 		} else {
 			x.InLibrary = a.mediaSourceIn(a.mediaSourceRef(p))
 		}
@@ -241,6 +242,8 @@ func (a *app) EditMediaBrowseSource() { a.mediaSourceEditShown() }
 func (a *app) OpenMediaBrowseEntry(path string) { a.mediaSourceOpenEntry(path) }
 
 func (a *app) ToggleMediaBrowseEntry(path string) { a.mediaSourceToggle(path) }
+
+func (a *app) FollowMediaBrowseEntry(path string) { a.mediaSourceToggleFollow(path) }
 
 func (a *app) MediaBrowseChosen() int {
 	b := a.sources.browse

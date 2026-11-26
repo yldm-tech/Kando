@@ -22,18 +22,37 @@ import (
 
 // Indexing a media source's videos (docs/media-sources.md 5.2, 6): rather than copied into the library, a video can be indexed, its film then playing from the source through the loopback server (playback_linked.go). library.json keeps where each indexed video is (shelf.Library.Linked) by a placeholder path in the library's folder no video is at (mediasource.LinkedPath), which its subtitles and the files beside it are named after, so the film is studied, searched and exported as any other. Kando never writes, moves or removes the file on the source: taking the film off the shelf forgets its record alone. A source removed keeps its films' records, and its address without its secrets (mediaSourceUI.removed), so adding it back plays them again.
 
-// mediaSourceLink indexes the videos at paths of the source shown: off the engine's goroutine it looks each up on the source (refusing a source on the internet while offline mode is on), then each gets a record in library.json under its placeholder path, whose folder is made in the library, and the page says how many were indexed, or why none could be. A video indexed or imported already is left out.
+// mediaSourceLink indexes the videos at paths of the source shown (mediaSourceIndexFrom), and the page says how many were indexed, or why none could be.
 func (a *app) mediaSourceLink(paths []string) {
-	m := &a.sources
-	b := &m.browse
+	b := &a.sources.browse
 	i := a.mediaSourceIndex(b.source)
 	if i < 0 || a.update == nil {
 		return
 	}
-	s, pool, offline, local := m.list[i], m.pool, a.privacy.offline, m.localHost
 	for _, p := range paths {
 		delete(b.chosen, p)
 	}
+	s := a.sources.list[i]
+	a.mediaSourceIndexFrom(s, paths, func(n int, why string, err error) {
+		switch {
+		case n > 0 && why != "":
+			b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) + " " + why }
+		case n > 0:
+			b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) }
+		case err != nil:
+			r := mediasource.SMBRemote(s, "")
+			b.note = func(m locales.Messages) string { return mediaSourceFailure(m, r, err) }
+		}
+	})
+}
+
+// mediaSourceIndexFrom indexes the videos at paths of s: off the engine's goroutine it looks each up on the source (refusing a source on the internet while offline mode is on), then each gets a record in library.json under its placeholder path, whose folder is made in the library (mediaSourceLinked), and done hears how many were indexed, why their lines could not be queued, and why one could not be indexed. A video indexed or imported already is left out.
+func (a *app) mediaSourceIndexFrom(s mediasource.Source, paths []string, done func(n int, why string, err error)) {
+	m := &a.sources
+	if a.update == nil {
+		return
+	}
+	pool, offline, local := m.pool, a.privacy.offline, m.localHost
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), mediasource.PoolOpenTimeout)
 		defer cancel()
@@ -54,13 +73,12 @@ func (a *app) mediaSourceLink(paths []string) {
 				}
 			}
 		}
-		a.update(func() { a.mediaSourceLinked(s, paths, found, err) })
+		a.update(func() { done(a.mediaSourceLinked(s, paths, found, err)) })
 	}()
 }
 
-// mediaSourceLinked keeps a record for each video of s found on it (found, by path), in the order of paths, under a placeholder path of the open library, saves library.json, reads the library again and queues the jobs that make their lines, and says on the page how many were indexed, and why their lines could not be queued, or why none were.
-func (a *app) mediaSourceLinked(s mediasource.Source, paths []string, found map[string]mediasource.Entry, err error) {
-	b := &a.sources.browse
+// mediaSourceLinked keeps a record for each video of s found on it (found, by path), in the order of paths, under a placeholder path of the open library, saves library.json, reads the library again and queues the jobs that make their lines; it returns how many were indexed, why their lines could not be queued, and why one could not be indexed, which goes to the log.
+func (a *app) mediaSourceLinked(s mediasource.Source, paths []string, found map[string]mediasource.Entry, err error) (int, string, error) {
 	root := a.snap().LibraryDir
 	var made []string
 	now := time.Now().UTC()
@@ -90,18 +108,12 @@ func (a *app) mediaSourceLinked(s mediasource.Source, paths []string, found map[
 		}
 		a.refreshLibrary()
 		// Each film's lines are made from the source, as a copy's are once copied (docs/media-sources.md 5.2).
-		if why := a.linkedMake(made); why != "" {
-			b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) + " " + why }
-			return
-		}
-		b.note = func(m locales.Messages) string { return m.MediaSourceIndexed(n) }
-		return
+		return n, a.linkedMake(made), err
 	}
 	if err != nil {
 		log.Printf("media source: indexing from a %s source failed: %v", s.Kind, err)
-		r := mediasource.SMBRemote(s, "")
-		b.note = func(m locales.Messages) string { return mediaSourceFailure(m, r, err) }
 	}
+	return 0, "", err
 }
 
 // mediaSourceTaken reports whether p is a path a film of the library already has, or is on disk, so an indexed video is not given it.

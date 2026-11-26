@@ -29,6 +29,8 @@ type App interface {
 	// OpenMediaBrowseEntry opens the folder at path, or the film imported from the video at path; ToggleMediaBrowseEntry chooses the video at path to import, or the folder at path to import whole, or no more.
 	OpenMediaBrowseEntry(path string)
 	ToggleMediaBrowseEntry(path string)
+	// FollowMediaBrowseEntry follows the folder at path, whose videos that show up from then on are imported by themselves, or no more once it is followed.
+	FollowMediaBrowseEntry(path string)
 	// MediaBrowseChoice is how many of the rows shown are chosen and how many can be; ToggleMediaBrowseAll chooses all of them, or none once all are; ExtendMediaBrowseChoice chooses, as Shift and a press do, the rows from the one chosen last to the one at path.
 	MediaBrowseChoice() (chosen, choosable int)
 	ToggleMediaBrowseAll()
@@ -62,7 +64,7 @@ type Source struct {
 	ID, Name, Summary string
 }
 
-// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Imported how many videos below a folder are, at any depth; Choosable a video or a folder that has a check box, Chosen one chosen to import.
+// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Imported how many videos below a folder are, at any depth; Followed a folder whose new videos are imported by themselves; Choosable a video or a folder that has a check box, Chosen one chosen to import.
 type Entry struct {
 	Path, Name string
 	Dir, Share bool
@@ -71,6 +73,7 @@ type Entry struct {
 	Subtitles  bool
 	InLibrary  bool
 	Imported   int
+	Followed   bool
 	Choosable  bool
 	Chosen     bool
 }

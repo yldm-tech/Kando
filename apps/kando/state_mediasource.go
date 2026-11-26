@@ -57,6 +57,10 @@ type mediaSourceUI struct {
 	copying map[string]context.CancelFunc
 	// link is the dialog's sign-in to the account its kind's token field names (state_mediasource_link.go).
 	signIn mediaSourceSignIn
+	// follows are the folders followed, whose new videos are imported by themselves (state_mediasource_follow.go); followBusy the ones being listed, by mediaSourceFollowKey; followStop stops the timer of the next look.
+	follows    []mediasource.Follow
+	followBusy map[string]bool
+	followStop func() bool
 }
 
 // mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
@@ -102,11 +106,12 @@ const mediaSourceSecretsPartition = "mediasource"
 // mediaSourceSecretAccount is the account of the secure store a source's secret field key is kept under.
 func mediaSourceSecretAccount(id, key string) string { return id + "." + key }
 
-// savedMediaSources is the media sources' part of settings.json: each source's ID, kind, name and the values of its fields that are not secret, and the same of those removed while films were indexed from them (RemovedMediaSources); and the way of importing the user asked to remember (MediaSourceImport, mediaSourceImportWays), "" while they did not. A secret is never here: the system's secure store keeps it (mediaSourceSecrets).
+// savedMediaSources is the media sources' part of settings.json: each source's ID, kind, name and the values of its fields that are not secret, and the same of those removed while films were indexed from them (RemovedMediaSources); the way of importing the user asked to remember (MediaSourceImport, mediaSourceImportWays), "" while they did not; and the folders followed of the sources in the settings, with the videos seen in each (MediaSourceFollows, state_mediasource_follow.go). A secret is never here: the system's secure store keeps it (mediaSourceSecrets).
 type savedMediaSources struct {
-	MediaSources        []savedMediaSource `json:"mediaSources,omitempty"`
-	RemovedMediaSources []savedMediaSource `json:"removedMediaSources,omitempty"`
-	MediaSourceImport   string             `json:"mediaSourceImport,omitempty"`
+	MediaSources        []savedMediaSource   `json:"mediaSources,omitempty"`
+	RemovedMediaSources []savedMediaSource   `json:"removedMediaSources,omitempty"`
+	MediaSourceImport   string               `json:"mediaSourceImport,omitempty"`
+	MediaSourceFollows  []mediasource.Follow `json:"mediaSourceFollows,omitempty"`
 }
 
 // The ways of importing a media source's videos the user can ask Kando to remember (savedMediaSources.MediaSourceImport).
@@ -123,13 +128,33 @@ type savedMediaSource struct {
 	Config map[string]string `json:"config,omitempty"`
 }
 
-// clean drops a source without an ID of NewID's shape, a kind or a name, and the second of two with the same ID, and trims the rest. A built-in kind's source keeps only the values of its fields that are not secret, so a secret written here by hand is not kept; a source of a kind this version does not know, as a plugin's that is not loaded, keeps its values as they are, so the films imported from it keep their source. A removed source is kept alike, but none with the ID of one in the settings; a way of importing Kando does not know is dropped.
+// clean drops a source without an ID of NewID's shape, a kind or a name, and the second of two with the same ID, and trims the rest. A built-in kind's source keeps only the values of its fields that are not secret, so a secret written here by hand is not kept; a source of a kind this version does not know, as a plugin's that is not loaded, keeps its values as they are, so the films imported from it keep their source. A removed source is kept alike, but none with the ID of one in the settings; a way of importing Kando does not know is dropped, and so is a folder followed of a source not in the settings, at a path that is not plain (mediasource.CleanPath), or followed twice.
 func (s *savedMediaSources) clean() {
 	seen := map[string]bool{}
 	s.MediaSources = cleanMediaSources(s.MediaSources, seen)
 	s.RemovedMediaSources = cleanMediaSources(s.RemovedMediaSources, seen)
 	if s.MediaSourceImport != mediaSourceImportCopy && s.MediaSourceImport != mediaSourceImportLink {
 		s.MediaSourceImport = ""
+	}
+	in := map[string]bool{}
+	for _, m := range s.MediaSources {
+		in[m.ID] = true
+	}
+	followed := map[string]bool{}
+	kept := s.MediaSourceFollows[:0]
+	for _, f := range s.MediaSourceFollows {
+		dir, err := mediasource.CleanPath(f.Dir)
+		key := mediaSourceFollowKey(f.Source, dir)
+		if !in[f.Source] || err != nil || dir == "" || followed[key] {
+			continue
+		}
+		followed[key] = true
+		f.Dir = dir
+		kept = append(kept, f)
+	}
+	s.MediaSourceFollows = nil
+	if len(kept) > 0 {
+		s.MediaSourceFollows = kept
 	}
 }
 
@@ -191,6 +216,12 @@ func (a *app) saveMediaSources(saved *savedSettings) {
 			out.MediaSourceImport = mediaSourceImportLink
 		}
 	}
+	for _, f := range a.sources.follows {
+		if a.mediaSourceIndex(f.Source) >= 0 {
+			f.Seen = slices.Clone(f.Seen)
+			out.MediaSourceFollows = append(out.MediaSourceFollows, f)
+		}
+	}
 	saved.savedMediaSources = out
 }
 
@@ -217,6 +248,7 @@ func (a *app) restoreMediaSources(saved savedSettings) {
 	a.sources.removed = mediaSourcesOfSaved(saved.RemovedMediaSources)
 	a.sources.rememberImport = saved.MediaSourceImport != ""
 	a.sources.importLink = saved.MediaSourceImport == mediaSourceImportLink
+	a.sources.follows = slices.Clone(saved.MediaSourceFollows)
 }
 
 // mediaSourceSecrets are what of the media sources must not leave the machine, as in the log or a feedback issue: the values of each one's text fields, as its server, share, folder, user and domain, and what the dialog holds in its text and secret fields, its secrets among them. Ports, switches and a server's public key say nothing of where the source is or who signs in. The secrets of the sources saved are in the system's secure store, never in the app, so they cannot leak from here.
@@ -257,13 +289,16 @@ func (m mediaSourceUI) mediaSourceSecrets() []string {
 	return out
 }
 
-// mediaSourceHooks: the sources are saved in settings.json and taken back at startup, and the length of each indexed video, which no file here tells, is known again from library.json as the shelf is read (linkedLengths). Their connections are made with the secure store, which the app's scope gives once the window exists, so the jobs left waiting from the last run copy their videos then; they all close as the app quits. After each change, the settings' dialog and confirmation close when the page that draws them went away (mediaSourceModals), and the 媒体来源 page follows a source removed and closes its import dialog once it went away (mediaSourceBrowseFollow).
+// mediaSourceHooks: the sources are saved in settings.json and taken back at startup, and the length of each indexed video, which no file here tells, is known again from library.json as the shelf is read (linkedLengths). Their connections are made with the secure store, which the app's scope gives once the window exists, so the jobs left waiting from the last run copy their videos then, and the folders followed are looked at then and every mediaSourceFollowEvery (mediaSourceFollowLook); they all close as the app quits. After each change, the settings' dialog and confirmation close when the page that draws them went away (mediaSourceModals), and the 媒体来源 page follows a source removed and closes its import dialog once it went away (mediaSourceBrowseFollow).
 func (a *app) mediaSourceHooks() areaHooks {
 	return areaHooks{
 		save:        a.saveMediaSources,
 		restore:     a.restoreMediaSources,
 		shelfLoaded: a.linkedLengths,
-		ready:       a.mediaSourcePoolSync,
+		ready: func() {
+			a.mediaSourcePoolSync()
+			a.mediaSourceFollowLook()
+		},
 		afterChange: func() bool {
 			modals := a.mediaSourceModals()
 			install := a.mediaSourceInstallFollow()
