@@ -55,6 +55,8 @@ type mediaSourceUI struct {
 	rememberImport bool
 	// copying is the indexed films whose videos are being copied into the library (CopyLinked), by placeholder path, with what stops each.
 	copying map[string]context.CancelFunc
+	// link is the dialog's sign-in to the account its kind's token field names (state_mediasource_link.go).
+	signIn mediaSourceSignIn
 }
 
 // mediaSourceTest is how a Test of a source went: running (gen is its number), connected, with the shares a server without a share offers (shares, listed is whether it listed them), or why not, as a function of the messages so it reads in the language shown.
@@ -330,6 +332,7 @@ func (a *app) openMediaSourceDialog(id string, draft settings.MediaSourceDraft) 
 	m.editing, m.editID, m.draft, m.problem, m.saving, m.thenBrowse = true, id, draft, nil, false, false
 	m.saveGen++
 	delete(m.tests, "")
+	a.mediaSourceSignInStop()
 	if m.editRelease == nil {
 		m.editRelease = a.holdModal()
 	}
@@ -342,6 +345,7 @@ func (a *app) closeMediaSourceDialog() {
 	m.gen++
 	m.saveGen++
 	delete(m.tests, "")
+	a.mediaSourceSignInStop()
 	if m.editRelease != nil {
 		m.editRelease()
 		m.editRelease = nil

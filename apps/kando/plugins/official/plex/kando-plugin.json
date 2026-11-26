@@ -2,8 +2,8 @@
   "schema": 2,
   "id": "kando.plex",
   "kind": "script",
-  "version": "1.0.0",
-  "kando": ">=0.54.0",
+  "version": "1.1.0",
+  "kando": ">=0.63.0",
   "license": "FSL-1.1-ALv2",
   "author": "Kando",
   "homepage": "https://github.com/yldm-tech/Kando/tree/main/apps/kando/plugins/official/plex",
@@ -24,10 +24,10 @@
       "fields": [
         {"key": "endpoint", "type": "url",
           "title": {"en": "Server address", "zh-Hans": "服务器地址", "zh-Hant": "伺服器位址", "ja": "サーバーのアドレス", "ko": "서버 주소"},
-          "hint": {"en": "The Plex Media Server's address, such as http://nas.local:32400/", "zh-Hans": "Plex 媒体服务器的地址，例如 http://nas.local:32400/", "zh-Hant": "Plex 媒體伺服器的位址，例如 http://nas.local:32400/", "ja": "Plex Media Server のアドレス。例：http://nas.local:32400/", "ko": "Plex 미디어 서버 주소, 예: http://nas.local:32400/"}},
-        {"key": "token", "type": "secret", "auth": {"header": "X-Plex-Token", "format": "{secret}"},
+          "hint": {"en": "Sign In with Plex fills it in; or the server's address, such as http://nas.local:32400/", "zh-Hans": "用 Plex 登录后自动填好；也可以手填服务器地址，例如 http://nas.local:32400/", "zh-Hant": "用 Plex 登入後自動填好；也可以手填伺服器位址，例如 http://nas.local:32400/", "ja": "Plex でサインインすると自動で入力されます。手入力も可。例：http://nas.local:32400/", "ko": "Plex로 로그인하면 자동으로 채워집니다. 직접 입력도 가능, 예: http://nas.local:32400/"}},
+        {"key": "token", "type": "secret", "auth": {"header": "X-Plex-Token", "format": "{secret}", "signIn": "plex"},
           "title": {"en": "Token", "zh-Hans": "令牌", "zh-Hant": "權杖", "ja": "トークン", "ko": "토큰"},
-          "hint": {"en": "In Plex Web, an item's ⋯ › Get Info › View XML: what follows X-Plex-Token= in the address", "zh-Hans": "在 Plex 网页版打开任一影片的 ⋯ › 获取信息 › 查看 XML，地址里 X-Plex-Token= 后面的那串", "zh-Hant": "在 Plex 網頁版開啟任一影片的 ⋯ › 取得資訊 › 檢視 XML，位址裡 X-Plex-Token= 後面的那串", "ja": "Plex Web で任意の項目の ⋯ › 情報を取得 › XML を表示 を開き、アドレスの X-Plex-Token= の後ろの文字列", "ko": "Plex 웹에서 항목의 ⋯ › 정보 보기 › XML 보기를 열고, 주소에서 X-Plex-Token= 뒤의 문자열"}}
+          "hint": {"en": "Sign In with Plex fills it in; or, in Plex Web, an item's ⋯ › Get Info › View XML: what follows X-Plex-Token= in the address", "zh-Hans": "用 Plex 登录后自动填好；也可以在 Plex 网页版打开任一影片的 ⋯ › 获取信息 › 查看 XML，复制地址里 X-Plex-Token= 后面的那串", "zh-Hant": "用 Plex 登入後自動填好；也可以在 Plex 網頁版開啟任一影片的 ⋯ › 取得資訊 › 檢視 XML，複製位址裡 X-Plex-Token= 後面的那串", "ja": "Plex でサインインすると自動で入力されます。手動の場合は Plex Web で任意の項目の ⋯ › 情報を取得 › XML を表示 を開き、アドレスの X-Plex-Token= の後ろの文字列", "ko": "Plex로 로그인하면 자동으로 채워집니다. 직접 넣으려면 Plex 웹에서 항목의 ⋯ › 정보 보기 › XML 보기를 열고, 주소에서 X-Plex-Token= 뒤의 문자열"}}
       ]
     }]
   }

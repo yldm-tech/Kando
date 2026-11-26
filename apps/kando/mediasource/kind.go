@@ -66,13 +66,17 @@ type Field struct {
 	Auth      *Auth
 }
 
-// Auth is how Kando puts a secret into the requests a plugin's source makes, set as one of: Basic, the keys of the user's field and of the secret, for HTTP Basic; Header, a header Kando writes the secret into, as Format with {secret} replaced, as X-Emby-Token; or Login, for a secret Kando writes into the body of the plugin's login request alone.
+// Auth is how Kando puts a secret into the requests a plugin's source makes, set as one of: Basic, the keys of the user's field and of the secret, for HTTP Basic; Header, a header Kando writes the secret into, as Format with {secret} replaced, as X-Emby-Token; or Login, for a secret Kando writes into the body of the plugin's login request alone. SignIn, beside Header, is the account the form signs in to for the person, which fills the secret and the endpoint: SignInPlex, a Plex account's (package plexlink).
 type Auth struct {
 	Basic  []string
 	Header string
 	Format string
 	Login  bool
+	SignIn string
 }
+
+// SignInPlex is the SignIn of a secret the form fills by signing in to Plex (package plexlink).
+const SignInPlex = "plex"
 
 // The limits of a kind's form.
 const (
@@ -238,7 +242,20 @@ func (a *Auth) check(key string, types map[string]FieldType) error {
 	if ways != 1 {
 		return fmt.Errorf("%d ways to send it, want one", ways)
 	}
+	if a.SignIn != "" && (a.SignIn != SignInPlex || a.Header == "") {
+		return fmt.Errorf("signIn %q", a.SignIn)
+	}
 	return nil
+}
+
+// SignIn is the account the kind's form signs in to for the person (Auth.SignIn), and the key of the secret it fills; "" for none.
+func (k Kind) SignIn() (account, key string) {
+	for _, f := range k.Fields {
+		if f.Auth != nil && f.Auth.SignIn != "" {
+			return f.Auth.SignIn, f.Key
+		}
+	}
+	return "", ""
 }
 
 // SecretKeys are the keys of the kind's secret fields, in the order of its form.

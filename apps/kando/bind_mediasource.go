@@ -77,6 +77,7 @@ func (a *app) SetMediaSourceKind(kind string) {
 	if (known || offered) && kind != a.sources.draft.Kind {
 		a.sources.draft.Kind, a.sources.draft.Values = kind, map[string]string{}
 		delete(a.sources.tests, "")
+		a.mediaSourceSignInStop()
 	}
 }
 
@@ -107,6 +108,14 @@ func (a *app) MediaSourceFields() []settings.MediaSourceField {
 }
 
 func (a *app) MediaSourceWarnings() []string { return a.mediaSourceWarnings() }
+
+func (a *app) MediaSourceSignIn() settings.MediaSourceSignIn {
+	return a.mediaSourceSignInView(a.messages())
+}
+
+func (a *app) StartMediaSourceSignIn() { a.mediaSourceSignInStart() }
+
+func (a *app) ChooseMediaSourceSignInServer(id string) { a.mediaSourceSignInChoose(id) }
 
 func (a *app) MediaSourceProblem() string {
 	if a.sources.problem == nil {

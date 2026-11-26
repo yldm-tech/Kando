@@ -141,6 +141,8 @@ func steps(cx *core.Scope, a App) []step {
 		network("browse", locales.SettingsPrivacyStepBrowse(cx), locales.SettingsPrivacyStepBrowseDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
 		// The plugin directory's list is asked for only once 浏览插件 is opened on Settings › 插件, and its packs only when one is installed (state_plugins_index.go).
 		network("plugins", locales.SettingsPrivacyStepPlugins(cx), locales.SettingsPrivacyStepPluginsDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
+		// plex.tv is asked only once Sign In with Plex is pressed in a Plex source's dialog (state_mediasource_signin.go).
+		network("plex", locales.SettingsPrivacyStepPlex(cx), locales.SettingsPrivacyStepPlexDetail(cx), tagManual, locales.SettingsPrivacyTagManual(cx)),
 	)
 	// Offline mode stops only the check the user starts: the updater's daily one is NSGo's (CheckForUpdates in the main package says why), so the row says it goes on.
 	updates := step{id: "updates", title: locales.SettingsPrivacyStepUpdates(cx), detail: locales.SettingsPrivacyStepUpdatesDetail(cx), tag: locales.SettingsPrivacyTagNetwork(cx), kind: tagNetwork}

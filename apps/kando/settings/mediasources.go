@@ -46,6 +46,10 @@ type MediaSourcesApp interface {
 	MediaSourceFields() []MediaSourceField
 	// MediaSourceWarnings are what the dialog says under the fields about the draft's kind and settings, as SMB's: it cannot prove which server it reached.
 	MediaSourceWarnings() []string
+	// MediaSourceSignIn is the sign-in the draft's kind offers, as Plex's, which fills its address and token; StartMediaSourceSignIn opens it in the browser and waits for the person, starting over if one was waiting; ChooseMediaSourceSignInServer fills the draft with another server of the account signed in to.
+	MediaSourceSignIn() MediaSourceSignIn
+	StartMediaSourceSignIn()
+	ChooseMediaSourceSignInServer(id string)
 	// MediaSourceProblem is what kept Save from saving the draft, "" when nothing did or Save was not pressed yet; MediaSourceSaving is whether Save is keeping its secrets in the system's secure store.
 	MediaSourceProblem() string
 	MediaSourceSaving() bool
@@ -102,6 +106,14 @@ func (d MediaSourceDraft) Equal(o MediaSourceDraft) bool {
 type MediaSourceField struct {
 	Key, Type, Title, Hint, Placeholder string
 	Multiline                           bool
+}
+
+// MediaSourceSignIn is the sign-in a kind offers in its dialog: Offered when it does; Busy while it waits for the person to sign in in the browser; Text what to say of it, Failed when that is why it did not work; the servers of the account signed in to and the one the draft was filled with (Server).
+type MediaSourceSignIn struct {
+	Offered, Busy, Failed bool
+	Text                  string
+	Servers               []MediaSourceKind
+	Server                string
 }
 
 // MediaSourceRemoval is the confirmation of removing the source Name: Linked is how many films were indexed from it rather than copied, which keep only their subtitles once it goes.
@@ -293,6 +305,9 @@ func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 	if o := core.Untracked(cx, live.Func(a, a.MediaSourceOffer)); o.Name != "" {
 		return core.Group(append(rows, form.Separator(true), mediaSourceOfferRow(cx, a, o)))
 	}
+	if core.Untracked(cx, live.Func(a, a.MediaSourceSignIn)).Offered {
+		rows = append(rows, form.Separator(true), mediaSourceSignInRows(cx, a))
+	}
 	for _, f := range core.Untracked(cx, live.Func(a, a.MediaSourceFields)) {
 		key := f.Key
 		value := func() string { return a.MediaSourceDraft().Values[key] }
@@ -335,6 +350,42 @@ func mediaSourceOfferRow(cx *core.Scope, a MediaSourcesApp, o MediaSourceOffer) 
 		core.Text{TestID: "media-source-offer-note", Content: note, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 		ui.Button{TestID: "media-source-offer-install", Text: button, OnPress: live.Do(a, a.InstallMediaSourceOffer)},
 	}}
+}
+
+// mediaSourceSignInRows are the sign-in the draft's kind offers: a row with its button and what to say of it, and once the account has several servers, the one that chooses which the draft is filled with.
+func mediaSourceSignInRows(cx *core.Scope, a MediaSourcesApp) core.Node {
+	colors := ui.ColorsOf(cx)
+	link := core.NewMemoFunc(cx, live.Func(a, a.MediaSourceSignIn), func(x, y MediaSourceSignIn) bool {
+		return x.Busy == y.Busy && x.Failed == y.Failed && x.Text == y.Text && x.Server == y.Server && slices.Equal(x.Servers, y.Servers)
+	})
+	servers := core.NewMemoFunc(cx, func() []MediaSourceKind { return link.Get().Servers }, slices.Equal[[]MediaSourceKind])
+	status := core.Show{When: func() bool { return link.Get().Text != "" }, Then: func(*core.Scope) core.Node {
+		return core.Text{TestID: "media-source-sign-in-status", ContentFunc: func() string { return link.Get().Text }, Style: core.Style{FontSize: 11, LineHeight: 15},
+			StyleFunc: ui.Colored(func() core.Color {
+				if link.Get().Failed {
+					return colors.Danger()
+				}
+				return colors.Muted()
+			})}
+	}}
+	button := ui.Button{TestID: "media-source-sign-in", Text: locales.SettingsSourcesPlexSignIn(cx), OnPress: live.Do(a, a.StartMediaSourceSignIn)}
+	return core.Group([]core.Node{
+		form.Row{Title: locales.SettingsSourcesPlexAccount(cx), NoGroup: true, Trailing: []core.Node{
+			core.View{Style: core.Style{Width: core.Pt(300), Gap: 4, AlignItems: core.AlignStart}, Children: []core.Node{button, status}},
+		}},
+		core.Show{When: func() bool { return len(servers.Get()) > 1 }, Then: func(cx *core.Scope) core.Node {
+			return core.Group([]core.Node{form.Separator(true), core.Dynamic(func(cx *core.Scope) core.Node {
+				var options []ui.Option[string]
+				for _, s := range servers.Get() {
+					options = append(options, ui.Option[string]{Value: s.ID, Label: s.Title})
+				}
+				return form.Row{Title: locales.SettingsSourcesPlexServer(cx), NoGroup: true, Trailing: []core.Node{
+					ui.Select[string]{TestID: "media-source-sign-in-server", Label: locales.SettingsSourcesPlexServer(cx), Options: options,
+						Value: func() string { return link.Get().Server }, OnChange: live.On(a, a.ChooseMediaSourceSignInServer), Style: core.Style{Width: core.Pt(300)}},
+				}}
+			})})
+		}},
+	})
 }
 
 // mediaSourceHostKeyRow is the fingerprint of the server's key the draft trusts, with the field's hint under it, or what an empty field shows before the first Test asks about the key: the key changes only through that question (MediaSourceAlert).

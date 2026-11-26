@@ -6088,6 +6088,12 @@ settingsPrivacyStepPlugins:
 settingsPrivacyStepPluginsDetail:
   message: "The plugin list, when you open Browse Plugins, at most once a day, and the plugins you install from it"
   description: "Under the Plugin directory row of the network table."
+settingsPrivacyStepPlex:
+  message: "Plex sign-in"
+  description: "Row of the network table in Settings › Privacy: signing in to Plex for a media source, which asks plex.tv."
+settingsPrivacyStepPlexDetail:
+  message: "plex.tv, when you press Sign In with Plex for a media source: the sign-in and the list of your servers"
+  description: "Under the Plex sign-in row of the network table."
 settingsPrivacyStepDownload:
   message: "Download from a link"
   description: "Row of the network table in Settings › Privacy: yt-dlp downloading a video."
@@ -9628,6 +9634,43 @@ settingsSourcesFailPluginOff:
   description: "Why a plugin's media source could not be read: the plugin that adds its kind is off."
   placeholders:
     plugin: { type: "String", example: "NAS Browser" }
+settingsSourcesPlexAccount:
+  message: "Plex account"
+  description: "Label of the row in the media source dialog that signs in to Plex, which fills the server's address and token."
+settingsSourcesPlexSignIn:
+  message: "Sign In with Plex"
+  description: "Button in the media source dialog that opens Plex's sign-in page in the browser."
+settingsSourcesPlexWaiting:
+  message: "Sign in on the page that opened in your browser. The address and token fill in by themselves."
+  description: "Status while Kando waits for the person to sign in to Plex in the browser."
+settingsSourcesPlexSignedIn:
+  message: "Signed in. Using the server “{server}”."
+  description: "Status after signing in to Plex: the server whose address and token were filled in."
+  placeholders:
+    server: { type: "String", example: "Living Room NAS" }
+settingsSourcesPlexUnreached:
+  message: "Signed in, but this computer can't reach the server “{server}”. Is it on, and on this network?"
+  description: "Status after signing in to Plex when none of the server's addresses answered."
+  placeholders:
+    server: { type: "String", example: "Living Room NAS" }
+settingsSourcesPlexServer:
+  message: "Server"
+  description: "Label of the drop-down that chooses which of the Plex account's servers to use, shown when it has several."
+settingsSourcesPlexNoServer:
+  message: "This Plex account has no server."
+  description: "Why signing in to Plex filled nothing in: the account owns no Plex Media Server and none is shared with it."
+settingsSourcesPlexExpired:
+  message: "The sign-in timed out. Try again."
+  description: "Why signing in to Plex failed: the person did not sign in within half an hour."
+settingsSourcesPlexFailed:
+  message: "Kando couldn't reach plex.tv. Check your connection and try again."
+  description: "Why signing in to Plex failed: plex.tv did not answer or refused the request."
+settingsSourcesPlexOffline:
+  message: "Offline mode is on. Signing in to Plex needs the internet."
+  description: "Why signing in to Plex was refused: offline mode keeps Kando from reaching plex.tv."
+settingsSourcesPlexNoBrowser:
+  message: "Kando couldn't open the browser to sign in."
+  description: "Why signing in to Plex failed: the system opened no browser for Plex's sign-in page."
 settingsSourcesFailPlugin:
   message: "The plugin “{plugin}” could not read this source."
   description: "Why a plugin's media source could not be read, for any other failure of the plugin."

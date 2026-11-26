@@ -1233,6 +1233,8 @@ var Parameters = map[string][]string{
 	"SettingsSourcesCertChangedTitle":          {"host"},
 	"SettingsSourcesCertChangedMessage":        {"trusted", "offered"},
 	"SettingsSourcesFailPluginOff":             {"plugin"},
+	"SettingsSourcesPlexSignedIn":              {"server"},
+	"SettingsSourcesPlexUnreached":             {"server"},
 	"SettingsSourcesFailPlugin":                {"plugin"},
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
@@ -2014,6 +2016,8 @@ type Translation struct {
 	SettingsSourcesCertChangedTitle          func(host string) string
 	SettingsSourcesCertChangedMessage        func(trusted string, offered string) string
 	SettingsSourcesFailPluginOff             func(plugin string) string
+	SettingsSourcesPlexSignedIn              func(server string) string
+	SettingsSourcesPlexUnreached             func(server string) string
 	SettingsSourcesFailPlugin                func(plugin string) string
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
@@ -3301,6 +3305,8 @@ const (
 	textSettingsPrivacyStepBrowseDetail
 	textSettingsPrivacyStepPlugins
 	textSettingsPrivacyStepPluginsDetail
+	textSettingsPrivacyStepPlex
+	textSettingsPrivacyStepPlexDetail
 	textSettingsPrivacyStepDownload
 	textSettingsPrivacyStepDownloadDetail
 	textSettingsPrivacyStepPhone
@@ -3921,6 +3927,15 @@ const (
 	textSettingsSourcesFailCert
 	textSettingsSourcesFailAuth
 	textSettingsSourcesFailUnreachable
+	textSettingsSourcesPlexAccount
+	textSettingsSourcesPlexSignIn
+	textSettingsSourcesPlexWaiting
+	textSettingsSourcesPlexServer
+	textSettingsSourcesPlexNoServer
+	textSettingsSourcesPlexExpired
+	textSettingsSourcesPlexFailed
+	textSettingsSourcesPlexOffline
+	textSettingsSourcesPlexNoBrowser
 	textMediaSourceSidebar
 	textMediaSourceBrowse
 	textMediaSourceNone
@@ -5216,6 +5231,8 @@ var keyOfText = [numTexts]string{
 	"settingsPrivacyStepBrowseDetail",
 	"settingsPrivacyStepPlugins",
 	"settingsPrivacyStepPluginsDetail",
+	"settingsPrivacyStepPlex",
+	"settingsPrivacyStepPlexDetail",
 	"settingsPrivacyStepDownload",
 	"settingsPrivacyStepDownloadDetail",
 	"settingsPrivacyStepPhone",
@@ -5836,6 +5853,15 @@ var keyOfText = [numTexts]string{
 	"settingsSourcesFailCert",
 	"settingsSourcesFailAuth",
 	"settingsSourcesFailUnreachable",
+	"settingsSourcesPlexAccount",
+	"settingsSourcesPlexSignIn",
+	"settingsSourcesPlexWaiting",
+	"settingsSourcesPlexServer",
+	"settingsSourcesPlexNoServer",
+	"settingsSourcesPlexExpired",
+	"settingsSourcesPlexFailed",
+	"settingsSourcesPlexOffline",
+	"settingsSourcesPlexNoBrowser",
 	"mediaSourceSidebar",
 	"mediaSourceBrowse",
 	"mediaSourceNone",
@@ -7129,6 +7155,8 @@ var textsEn = i18n.NewTexts(""+
 	"Web pages you open in Kando"+
 	"Plugin directory"+
 	"The plugin list, when you open Browse Plugins, at most once a day, and the plugins you install from it"+
+	"Plex sign-in"+
+	"plex.tv, when you press Sign In with Plex for a media source: the sign-in and the list of your servers"+
 	"Download from a link"+
 	"yt-dlp, only when you add a link"+
 	"Phone Sync"+
@@ -7749,6 +7777,15 @@ var textsEn = i18n.NewTexts(""+
 	"Kando does not trust the server's certificate. Test this source in Settings › Media Sources to see it and trust it."+
 	"The server did not accept the user name or password."+
 	"Kando could not reach the server. Check its address and that it is on."+
+	"Plex account"+
+	"Sign In with Plex"+
+	"Sign in on the page that opened in your browser. The address and token fill in by themselves."+
+	"Server"+
+	"This Plex account has no server."+
+	"The sign-in timed out. Try again."+
+	"Kando couldn't reach plex.tv. Check your connection and try again."+
+	"Offline mode is on. Signing in to Plex needs the internet."+
+	"Kando couldn't open the browser to sign in."+
 	"Media Sources"+
 	"Browse Media Sources"+
 	"Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."+
@@ -9039,6 +9076,8 @@ var textsEn = i18n.NewTexts(""+
 		27,
 		16,
 		102,
+		12,
+		102,
 		20,
 		32,
 		10,
@@ -9659,6 +9698,15 @@ var textsEn = i18n.NewTexts(""+
 		117,
 		52,
 		70,
+		12,
+		17,
+		93,
+		6,
+		32,
+		33,
+		66,
+		58,
+		43,
 		13,
 		20,
 		120,
@@ -10952,6 +11000,8 @@ var textsJa = i18n.NewTexts(""+
 	"Kando で開いたウェブページ"+
 	"プラグイン一覧"+
 	"「プラグインを探す」を開いたときの一覧（多くても 1 日 1 回）と、そこからインストールするプラグイン"+
+	"Plex サインイン"+
+	"メディアソースで「Plex でサインイン」を押したときに plex.tv に接続：サインインとサーバー一覧の取得"+
 	"リンクからダウンロード"+
 	"yt-dlp。リンクを追加したときだけ"+
 	"スマートフォン同期"+
@@ -11572,6 +11622,15 @@ var textsJa = i18n.NewTexts(""+
 	"Kando はサーバーの証明書を信頼していません。「設定 › メディアソース」でこのソースをテストすると、証明書を確認して信頼できます。"+
 	"サーバーがユーザー名またはパスワードを受け付けませんでした。"+
 	"サーバーに接続できませんでした。アドレスと電源を確認してください。"+
+	"Plex アカウント"+
+	"Plex でサインイン"+
+	"ブラウザで開いたページでサインインしてください。アドレスとトークンは自動で入力されます。"+
+	"サーバー"+
+	"この Plex アカウントにはサーバーがありません。"+
+	"サインインがタイムアウトしました。もう一度お試しください。"+
+	"plex.tv に接続できませんでした。ネットワークを確認してもう一度お試しください。"+
+	"オフラインモードがオンです。Plex へのサインインにはインターネット接続が必要です。"+
+	"サインイン用のブラウザを開けませんでした。"+
 	"メディアソース"+
 	"メディアソースを表示"+
 	"NAS の共有、サーバー、Jellyfin などのメディアサーバーを追加すると、ここで動画を表示してライブラリに読み込めます。"+
@@ -12862,6 +12921,8 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		21,
 		144,
+		20,
+		140,
 		33,
 		45,
 		27,
@@ -13482,6 +13543,15 @@ var textsJa = i18n.NewTexts(""+
 		188,
 		90,
 		99,
+		20,
+		23,
+		132,
+		12,
+		66,
+		87,
+		113,
+		119,
+		63,
 		21,
 		30,
 		163,
@@ -14775,6 +14845,8 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에서 연 웹 페이지"+
 	"플러그인 목록"+
 	"‘플러그인 둘러보기’를 열 때 받는 목록(하루에 한 번까지)과 거기서 설치하는 플러그인"+
+	"Plex 로그인"+
+	"미디어 소스에서 ‘Plex로 로그인’을 누를 때 plex.tv에 연결: 로그인과 서버 목록 가져오기"+
 	"링크에서 다운로드"+
 	"yt-dlp. 링크를 추가할 때만"+
 	"휴대폰 동기화"+
@@ -15395,6 +15467,15 @@ var textsKo = i18n.NewTexts(""+
 	"Kando가 서버의 인증서를 신뢰하지 않습니다. 「설정 › 미디어 소스」에서 이 소스를 테스트하면 인증서를 확인하고 신뢰할 수 있습니다."+
 	"서버가 사용자 이름 또는 비밀번호를 받아들이지 않았습니다."+
 	"서버에 연결할 수 없습니다. 주소와 전원을 확인하세요."+
+	"Plex 계정"+
+	"Plex로 로그인"+
+	"브라우저에서 열린 페이지에서 로그인하세요. 주소와 토큰은 자동으로 채워집니다."+
+	"서버"+
+	"이 Plex 계정에는 서버가 없습니다."+
+	"로그인 시간이 초과되었습니다. 다시 시도하세요."+
+	"plex.tv에 연결할 수 없습니다. 네트워크를 확인한 뒤 다시 시도하세요."+
+	"오프라인 모드가 켜져 있습니다. Plex 로그인에는 인터넷 연결이 필요합니다."+
+	"로그인할 브라우저를 열 수 없습니다."+
 	"미디어 소스"+
 	"미디어 소스 둘러보기"+
 	"NAS 공유, 서버 또는 Jellyfin 같은 미디어 서버를 추가하면 여기서 동영상을 둘러보고 라이브러리로 가져올 수 있습니다."+
@@ -16685,6 +16766,8 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		19,
 		120,
+		14,
+		119,
 		25,
 		34,
 		19,
@@ -17305,6 +17388,15 @@ var textsKo = i18n.NewTexts(""+
 		182,
 		82,
 		74,
+		11,
+		17,
+		111,
+		6,
+		45,
+		66,
+		92,
+		101,
+		50,
 		16,
 		29,
 		157,
@@ -18598,6 +18690,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"在看懂里打开的网页"+
 	"插件目录"+
 	"打开「浏览插件」时取插件列表（最多一天一次），以及从中安装的插件"+
+	"Plex 登录"+
+	"为媒体来源点「用 Plex 登录」时连 plex.tv：登录，并取你的服务器列表"+
 	"下载在线视频"+
 	"yt-dlp，只在你添加链接时"+
 	"手机同步"+
@@ -19218,6 +19312,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"看懂不信任服务器的证书。在「设置 › 媒体来源」里测试这个来源，即可查看并信任它。"+
 	"服务器不接受这个用户名或密码。"+
 	"连不上服务器。请检查地址，并确认它已开机。"+
+	"Plex 账号"+
+	"用 Plex 登录"+
+	"请在浏览器里打开的页面上登录，地址和令牌会自动填好。"+
+	"服务器"+
+	"这个 Plex 账号下没有服务器。"+
+	"登录超时了，请再试一次。"+
+	"连不上 plex.tv，请检查网络后再试。"+
+	"离线模式已打开，登录 Plex 需要联网。"+
+	"打不开浏览器，没法登录。"+
 	"媒体来源"+
 	"浏览媒体来源"+
 	"添加 NAS 共享、服务器或 Jellyfin 这类媒体服务器，就能在这里浏览它的视频，并导入资料库。"+
@@ -20508,6 +20611,8 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		12,
 		96,
+		11,
+		92,
 		18,
 		33,
 		12,
@@ -21128,6 +21233,15 @@ var textsZhHans = i18n.NewTexts(""+
 		119,
 		45,
 		63,
+		11,
+		15,
+		78,
+		9,
+		39,
+		36,
+		47,
+		51,
+		36,
 		12,
 		18,
 		123,
@@ -22421,6 +22535,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"在看懂裡開啟的網頁"+
 	"外掛目錄"+
 	"開啟「瀏覽外掛」時取得外掛清單（最多一天一次），以及從中安裝的外掛"+
+	"Plex 登入"+
+	"為媒體來源點「用 Plex 登入」時連 plex.tv：登入，並取得你的伺服器清單"+
 	"下載線上影片"+
 	"yt-dlp，只在你加入連結時"+
 	"手機同步"+
@@ -23041,6 +23157,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"看懂不信任伺服器的憑證。在「設定 › 媒體來源」裡測試這個來源，即可查看並信任它。"+
 	"伺服器不接受這個使用者名稱或密碼。"+
 	"連不上伺服器。請檢查位址，並確認它已開機。"+
+	"Plex 帳號"+
+	"用 Plex 登入"+
+	"請在瀏覽器裡開啟的頁面上登入，位址和權杖會自動填好。"+
+	"伺服器"+
+	"這個 Plex 帳號下沒有伺服器。"+
+	"登入逾時了，請再試一次。"+
+	"連不上 plex.tv，請檢查網路後再試。"+
+	"離線模式已開啟，登入 Plex 需要連網。"+
+	"打不開瀏覽器，無法登入。"+
 	"媒體來源"+
 	"瀏覽媒體來源"+
 	"新增 NAS 共用資料夾、伺服器或 Jellyfin 這類媒體伺服器，就能在這裡瀏覽它的影片，並匯入資料庫。"+
@@ -24331,6 +24456,8 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		12,
 		99,
+		11,
+		95,
 		18,
 		33,
 		12,
@@ -24951,6 +25078,15 @@ var textsZhHant = i18n.NewTexts(""+
 		119,
 		51,
 		63,
+		11,
+		15,
+		78,
+		9,
+		39,
+		36,
+		47,
+		51,
+		36,
 		12,
 		18,
 		132,
@@ -27299,6 +27435,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSourcesFailPluginOff != nil {
 		s.SettingsSourcesFailPluginOff = t.SettingsSourcesFailPluginOff
+	}
+	if t.SettingsSourcesPlexSignedIn != nil {
+		s.SettingsSourcesPlexSignedIn = t.SettingsSourcesPlexSignedIn
+	}
+	if t.SettingsSourcesPlexUnreached != nil {
+		s.SettingsSourcesPlexUnreached = t.SettingsSourcesPlexUnreached
 	}
 	if t.SettingsSourcesFailPlugin != nil {
 		s.SettingsSourcesFailPlugin = t.SettingsSourcesFailPlugin
@@ -54703,6 +54845,28 @@ func (msgs Messages) SettingsPrivacyStepPluginsDetail() string {
 	return msgs.text(textSettingsPrivacyStepPluginsDetail)
 }
 
+// SettingsPrivacyStepPlex says "Plex sign-in"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: signing in to Plex for a media source, which asks plex.tv.
+func SettingsPrivacyStepPlex(cx *core.Scope) string { return For(cx).SettingsPrivacyStepPlex() }
+
+// SettingsPrivacyStepPlex is the package's SettingsPrivacyStepPlex in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPlex() string { return msgs.text(textSettingsPrivacyStepPlex) }
+
+// SettingsPrivacyStepPlexDetail says "plex.tv, when you press Sign In with Plex for a media source: the sign-in and the list of your servers"
+// in the language the app shows under cx.
+//
+// Under the Plex sign-in row of the network table.
+func SettingsPrivacyStepPlexDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepPlexDetail()
+}
+
+// SettingsPrivacyStepPlexDetail is the package's SettingsPrivacyStepPlexDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPlexDetail() string {
+	return msgs.text(textSettingsPrivacyStepPlexDetail)
+}
+
 // SettingsPrivacyStepDownload says "Download from a link"
 // in the language the app shows under cx.
 //
@@ -72741,6 +72905,171 @@ func (msgs Messages) SettingsSourcesFailPluginOff(plugin string) string {
 			return "外掛「" + plugin + "」沒有在執行。請在「設定 › 外掛」裡開啟它。"
 		}
 	}
+}
+
+// SettingsSourcesPlexAccount says "Plex account"
+// in the language the app shows under cx.
+//
+// Label of the row in the media source dialog that signs in to Plex, which fills the server's address and token.
+func SettingsSourcesPlexAccount(cx *core.Scope) string { return For(cx).SettingsSourcesPlexAccount() }
+
+// SettingsSourcesPlexAccount is the package's SettingsSourcesPlexAccount in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexAccount() string {
+	return msgs.text(textSettingsSourcesPlexAccount)
+}
+
+// SettingsSourcesPlexSignIn says "Sign In with Plex"
+// in the language the app shows under cx.
+//
+// Button in the media source dialog that opens Plex's sign-in page in the browser.
+func SettingsSourcesPlexSignIn(cx *core.Scope) string { return For(cx).SettingsSourcesPlexSignIn() }
+
+// SettingsSourcesPlexSignIn is the package's SettingsSourcesPlexSignIn in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexSignIn() string {
+	return msgs.text(textSettingsSourcesPlexSignIn)
+}
+
+// SettingsSourcesPlexWaiting says "Sign in on the page that opened in your browser. The address and token fill in by themselves."
+// in the language the app shows under cx.
+//
+// Status while Kando waits for the person to sign in to Plex in the browser.
+func SettingsSourcesPlexWaiting(cx *core.Scope) string { return For(cx).SettingsSourcesPlexWaiting() }
+
+// SettingsSourcesPlexWaiting is the package's SettingsSourcesPlexWaiting in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexWaiting() string {
+	return msgs.text(textSettingsSourcesPlexWaiting)
+}
+
+// SettingsSourcesPlexSignedIn says "Signed in. Using the server “{server}”."
+// in the language the app shows under cx.
+//
+// Status after signing in to Plex: the server whose address and token were filled in.
+func SettingsSourcesPlexSignedIn(cx *core.Scope, server string) string {
+	return For(cx).SettingsSourcesPlexSignedIn(server)
+}
+
+// SettingsSourcesPlexSignedIn is the package's SettingsSourcesPlexSignedIn in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexSignedIn(server string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesPlexSignedIn(server))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesPlexSignedIn; f != nil {
+			return f(server)
+		}
+		switch lang {
+		case "", "en":
+			return "Signed in. Using the server “" + msgs.arg(server) + "”."
+		case "ja":
+			return "サインインしました。サーバー「" + server + "」を使います。"
+		case "ko":
+			return "로그인했습니다. 서버 “" + server + "”를 사용합니다."
+		case "zh-Hans":
+			return "已登录，使用服务器「" + server + "」。"
+		case "zh-Hant":
+			return "已登入，使用伺服器「" + server + "」。"
+		}
+	}
+}
+
+// SettingsSourcesPlexUnreached says "Signed in, but this computer can't reach the server “{server}”. Is it on, and on this network?"
+// in the language the app shows under cx.
+//
+// Status after signing in to Plex when none of the server's addresses answered.
+func SettingsSourcesPlexUnreached(cx *core.Scope, server string) string {
+	return For(cx).SettingsSourcesPlexUnreached(server)
+}
+
+// SettingsSourcesPlexUnreached is the package's SettingsSourcesPlexUnreached in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexUnreached(server string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesPlexUnreached(server))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesPlexUnreached; f != nil {
+			return f(server)
+		}
+		switch lang {
+		case "", "en":
+			return "Signed in, but this computer can't reach the server “" + msgs.arg(server) + "”. Is it on, and on this network?"
+		case "ja":
+			return "サインインしましたが、このコンピュータからサーバー「" + server + "」に接続できません。電源が入っていて、同じネットワークにあるか確認してください。"
+		case "ko":
+			return "로그인했지만 이 컴퓨터에서 서버 “" + server + "”에 연결할 수 없습니다. 서버가 켜져 있고 같은 네트워크에 있는지 확인하세요."
+		case "zh-Hans":
+			return "已登录，但这台电脑连不上服务器「" + server + "」。请确认它开着，并且在同一个网络里。"
+		case "zh-Hant":
+			return "已登入，但這台電腦連不上伺服器「" + server + "」。請確認它開著，並且在同一個網路裡。"
+		}
+	}
+}
+
+// SettingsSourcesPlexServer says "Server"
+// in the language the app shows under cx.
+//
+// Label of the drop-down that chooses which of the Plex account's servers to use, shown when it has several.
+func SettingsSourcesPlexServer(cx *core.Scope) string { return For(cx).SettingsSourcesPlexServer() }
+
+// SettingsSourcesPlexServer is the package's SettingsSourcesPlexServer in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexServer() string {
+	return msgs.text(textSettingsSourcesPlexServer)
+}
+
+// SettingsSourcesPlexNoServer says "This Plex account has no server."
+// in the language the app shows under cx.
+//
+// Why signing in to Plex filled nothing in: the account owns no Plex Media Server and none is shared with it.
+func SettingsSourcesPlexNoServer(cx *core.Scope) string { return For(cx).SettingsSourcesPlexNoServer() }
+
+// SettingsSourcesPlexNoServer is the package's SettingsSourcesPlexNoServer in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexNoServer() string {
+	return msgs.text(textSettingsSourcesPlexNoServer)
+}
+
+// SettingsSourcesPlexExpired says "The sign-in timed out. Try again."
+// in the language the app shows under cx.
+//
+// Why signing in to Plex failed: the person did not sign in within half an hour.
+func SettingsSourcesPlexExpired(cx *core.Scope) string { return For(cx).SettingsSourcesPlexExpired() }
+
+// SettingsSourcesPlexExpired is the package's SettingsSourcesPlexExpired in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexExpired() string {
+	return msgs.text(textSettingsSourcesPlexExpired)
+}
+
+// SettingsSourcesPlexFailed says "Kando couldn't reach plex.tv. Check your connection and try again."
+// in the language the app shows under cx.
+//
+// Why signing in to Plex failed: plex.tv did not answer or refused the request.
+func SettingsSourcesPlexFailed(cx *core.Scope) string { return For(cx).SettingsSourcesPlexFailed() }
+
+// SettingsSourcesPlexFailed is the package's SettingsSourcesPlexFailed in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexFailed() string {
+	return msgs.text(textSettingsSourcesPlexFailed)
+}
+
+// SettingsSourcesPlexOffline says "Offline mode is on. Signing in to Plex needs the internet."
+// in the language the app shows under cx.
+//
+// Why signing in to Plex was refused: offline mode keeps Kando from reaching plex.tv.
+func SettingsSourcesPlexOffline(cx *core.Scope) string { return For(cx).SettingsSourcesPlexOffline() }
+
+// SettingsSourcesPlexOffline is the package's SettingsSourcesPlexOffline in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexOffline() string {
+	return msgs.text(textSettingsSourcesPlexOffline)
+}
+
+// SettingsSourcesPlexNoBrowser says "Kando couldn't open the browser to sign in."
+// in the language the app shows under cx.
+//
+// Why signing in to Plex failed: the system opened no browser for Plex's sign-in page.
+func SettingsSourcesPlexNoBrowser(cx *core.Scope) string {
+	return For(cx).SettingsSourcesPlexNoBrowser()
+}
+
+// SettingsSourcesPlexNoBrowser is the package's SettingsSourcesPlexNoBrowser in the language of msgs.
+func (msgs Messages) SettingsSourcesPlexNoBrowser() string {
+	return msgs.text(textSettingsSourcesPlexNoBrowser)
 }
 
 // SettingsSourcesFailPlugin says "The plugin “{plugin}” could not read this source."

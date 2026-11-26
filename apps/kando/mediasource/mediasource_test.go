@@ -169,6 +169,8 @@ func TestKindValidateRefuses(t *testing.T) {
 		"a header that is no header":  func(k *Kind) { k.Fields[2].Auth = &Auth{Header: "X Token"} },
 		"a format without {secret}":   func(k *Kind) { k.Fields[2].Auth = &Auth{Header: "X-Emby-Token", Format: "token"} },
 		"a format without a header":   func(k *Kind) { k.Fields[2].Auth = &Auth{Format: "{secret}", Login: true} },
+		"a sign-in Kando has not":     func(k *Kind) { k.Fields[2].Auth = &Auth{Header: "X-Token", SignIn: "jellyfin"} },
+		"a sign-in not in a header":   func(k *Kind) { k.Fields[2].Auth = &Auth{Login: true, SignIn: SignInPlex} },
 		"a host key": func(k *Kind) {
 			k.Fields = append(k.Fields, Field{Key: "hostKey", Type: FieldHostKey, Title: title("x")})
 		},
@@ -180,12 +182,20 @@ func TestKindValidateRefuses(t *testing.T) {
 			t.Errorf("%s: Validate() = %v", name, err)
 		}
 	}
-	for _, auth := range []*Auth{{Header: "X-Emby-Token"}, {Header: "Authorization", Format: "MediaBrowser Token=\"{secret}\""}, {Login: true}} {
+	for _, auth := range []*Auth{{Header: "X-Emby-Token"}, {Header: "Authorization", Format: "MediaBrowser Token=\"{secret}\""}, {Login: true}, {Header: "X-Plex-Token", SignIn: SignInPlex}} {
 		k := webdavKind()
 		k.Fields[2].Auth = auth
 		if err := k.Validate(); err != nil {
 			t.Errorf("Auth %+v: %v", auth, err)
 		}
+	}
+	k := webdavKind()
+	if account, key := k.SignIn(); account != "" || key != "" {
+		t.Errorf("a kind without a sign-in: SignIn() = %q %q", account, key)
+	}
+	k.Fields[2].Auth = &Auth{Header: "X-Plex-Token", SignIn: SignInPlex}
+	if account, key := k.SignIn(); account != SignInPlex || key != k.Fields[2].Key {
+		t.Errorf("SignIn() = %q %q", account, key)
 	}
 	if keys := smbKind().SecretKeys(); len(keys) != 1 || keys[0] != "password" {
 		t.Fatalf("SecretKeys() = %v", keys)

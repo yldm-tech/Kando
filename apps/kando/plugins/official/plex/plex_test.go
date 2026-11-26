@@ -231,7 +231,7 @@ func TestPluginPlexFailures(t *testing.T) {
 	}
 }
 
-// TestPluginPlexPublishes checks that nsgo.yaml, what nsgo publish signs, is the plugin kando-plugin.json says: its app ID and version, and exactly the permissions it declares, kando.source.fetch alone, with no network rule of its own; that its manifest is valid; and that its one source sends the token only in Plex's X-Plex-Token header, and POSTs nowhere.
+// TestPluginPlexPublishes checks that nsgo.yaml, what nsgo publish signs, is the plugin kando-plugin.json says: its app ID and version, and exactly the permissions it declares, kando.source.fetch alone, with no network rule of its own; that its manifest is valid; and that its one source sends the token only in Plex's X-Plex-Token header, which Kando fills by signing in to Plex, and POSTs nowhere.
 func TestPluginPlexPublishes(t *testing.T) {
 	dir := sourcetest.Folder(t)
 	data, err := os.ReadFile(dir + "/nsgo.yaml")
@@ -283,7 +283,7 @@ func TestPluginPlexPublishes(t *testing.T) {
 		t.Errorf("the source %+v", src)
 	}
 	for _, f := range src.Fields {
-		if f.Type == plugins.MediaFieldSecret && (f.Auth == nil || f.Auth.Header != "X-Plex-Token" || f.Auth.Format != "{secret}") {
+		if f.Type == plugins.MediaFieldSecret && (f.Auth == nil || f.Auth.Header != "X-Plex-Token" || f.Auth.Format != "{secret}" || f.Auth.SignIn != "plex") {
 			t.Errorf("the key goes as %+v", f.Auth)
 		}
 		for _, lang := range []string{"en", "zh-Hans", "zh-Hant", "ja", "ko"} {

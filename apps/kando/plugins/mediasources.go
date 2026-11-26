@@ -55,13 +55,17 @@ type MediaSourceField struct {
 	Auth  *MediaSourceAuth `json:"auth,omitempty"`
 }
 
-// MediaSourceAuth is how Kando puts a secret field into a source's requests, one of: Basic, the keys of the user's text field and of the secret, for HTTP Basic; Header, a header Kando writes the secret into as Format with {secret} in its place ({secret} alone when empty); or Login, the secret written into the body of a login request the plugin marks, where {{secret:<key>}} stands for it.
+// MediaSourceAuth is how Kando puts a secret field into a source's requests, one of: Basic, the keys of the user's text field and of the secret, for HTTP Basic; Header, a header Kando writes the secret into as Format with {secret} in its place ({secret} alone when empty); or Login, the secret written into the body of a login request the plugin marks, where {{secret:<key>}} stands for it. SignIn, with Header alone, names an account Kando signs in to for the person and fills the secret and the endpoint from (docs/media-sources.md 11.5), one of MediaSourceSignIns: "plex", a Plex account's server and the token it takes.
 type MediaSourceAuth struct {
 	Basic  []string `json:"basic,omitempty"`
 	Header string   `json:"header,omitempty"`
 	Format string   `json:"format,omitempty"`
 	Login  bool     `json:"login,omitempty"`
+	SignIn string   `json:"signIn,omitempty"`
 }
+
+// MediaSourceSignIns are the accounts Kando signs in to for a source's secret (MediaSourceAuth.SignIn), each through its own code and to its own fixed address, never one a plugin names.
+var MediaSourceSignIns = []string{"plex"}
 
 var (
 	mediaFieldKeyPattern = regexp.MustCompile(`^[a-z][A-Za-z0-9]{0,31}$`)
@@ -131,7 +135,7 @@ func checkMediaSources(m *Manifest) error {
 	return nil
 }
 
-// checkMediaSourceFields checks the fields of a source's form (docs/media-sources.md 3.2): 1 to sourceFieldsMax, of keys unique and of the shape ^[a-z][A-Za-z0-9]{0,31}$, of known types, each with a title, exactly one url field keyed MediaSourceEndpoint, at most sourceSecretMax secrets, each saying one way it is sent (MediaSourceAuth), and no Auth on a field that is not secret. The fields' texts are cleaned in place.
+// checkMediaSourceFields checks the fields of a source's form (docs/media-sources.md 3.2): 1 to sourceFieldsMax, of keys unique and of the shape ^[a-z][A-Za-z0-9]{0,31}$, of known types, each with a title, exactly one url field keyed MediaSourceEndpoint, at most sourceSecretMax secrets, each saying one way it is sent (MediaSourceAuth), one of them at most signed in to (MediaSourceAuth.SignIn), and no Auth on a field that is not secret. The fields' texts are cleaned in place.
 func checkMediaSourceFields(fields []MediaSourceField) error {
 	if len(fields) == 0 || len(fields) > sourceFieldsMax {
 		return fmt.Errorf("1 to %d fields", sourceFieldsMax)
@@ -177,6 +181,10 @@ func checkMediaSourceFields(fields []MediaSourceField) error {
 	if secrets > sourceSecretMax {
 		return fmt.Errorf("%d secret fields, at most %d", secrets, sourceSecretMax)
 	}
+	// A sign-in fills the endpoint, which a source has one of.
+	if n := len(slices.DeleteFunc(slices.Clone(fields), func(f MediaSourceField) bool { return f.Auth == nil || f.Auth.SignIn == "" })); n > 1 {
+		return fmt.Errorf("%d secrets signed in to, at most one", n)
+	}
 	for _, f := range fields {
 		if f.Type != MediaFieldSecret {
 			continue
@@ -217,6 +225,9 @@ func (a *MediaSourceAuth) check(key string, types map[string]string) error {
 	}
 	if ways != 1 {
 		return fmt.Errorf("%d ways to send it, want one", ways)
+	}
+	if a.SignIn != "" && (!slices.Contains(MediaSourceSignIns, a.SignIn) || a.Header == "") {
+		return fmt.Errorf("signIn %q, which is one of %v and goes in a header", a.SignIn, MediaSourceSignIns)
 	}
 	return nil
 }

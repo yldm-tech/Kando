@@ -286,5 +286,6 @@ func TestScreenshotsPlugins(t *testing.T) {
 	shootPluginContributions(t, f, key)
 	shootPluginTranslators(t, f, key)
 	shootPluginSources(t, f, key)
+	shootPlexSignIn(t, f, key)
 	shootPluginPanels(t, f, key)
 }

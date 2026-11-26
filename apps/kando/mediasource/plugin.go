@@ -58,7 +58,7 @@ func PluginKind(plugin string, src plugins.MediaSource, open func(ctx context.Co
 	for _, f := range src.Fields {
 		field := Field{Key: f.Key, Type: FieldType(f.Type), Title: text(f.Title), Hint: text(f.Hint)}
 		if a := f.Auth; a != nil {
-			field.Auth = &Auth{Basic: a.Basic, Header: a.Header, Format: a.Format, Login: a.Login}
+			field.Auth = &Auth{Basic: a.Basic, Header: a.Header, Format: a.Format, Login: a.Login, SignIn: a.SignIn}
 		}
 		k.Fields = append(k.Fields, field)
 	}
