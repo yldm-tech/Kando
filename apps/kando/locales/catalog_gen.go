@@ -3945,6 +3945,7 @@ const (
 	textMediaSourceSidebar
 	textMediaSourceBrowse
 	textMediaSourceNone
+	textMediaSourceSidebarEmpty
 	textMediaSourceAddSource
 	textMediaSourceListing
 	textMediaSourceEmpty
@@ -5875,6 +5876,7 @@ var keyOfText = [numTexts]string{
 	"mediaSourceSidebar",
 	"mediaSourceBrowse",
 	"mediaSourceNone",
+	"mediaSourceSidebarEmpty",
 	"mediaSourceAddSource",
 	"mediaSourceListing",
 	"mediaSourceEmpty",
@@ -7803,6 +7805,7 @@ var textsEn = i18n.NewTexts(""+
 	"Media Sources"+
 	"Browse Media Sources"+
 	"Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."+
+	"Add a NAS or a media server such as Plex to import its videos."+
 	"Add a Source…"+
 	"Loading…"+
 	"No videos or folders here"+
@@ -9728,6 +9731,7 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		20,
 		120,
+		62,
 		15,
 		10,
 		25,
@@ -11656,6 +11660,7 @@ var textsJa = i18n.NewTexts(""+
 	"メディアソース"+
 	"メディアソースを表示"+
 	"NAS の共有、サーバー、Jellyfin などのメディアサーバーを追加すると、ここで動画を表示してライブラリに読み込めます。"+
+	"NAS や Plex などのメディアサーバーを追加すると、その動画を読み込めます。"+
 	"ソースを追加…"+
 	"読み込み中…"+
 	"ここには動画もフォルダもありません"+
@@ -13581,6 +13586,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		30,
 		163,
+		103,
 		21,
 		18,
 		51,
@@ -15509,6 +15515,7 @@ var textsKo = i18n.NewTexts(""+
 	"미디어 소스"+
 	"미디어 소스 둘러보기"+
 	"NAS 공유, 서버 또는 Jellyfin 같은 미디어 서버를 추가하면 여기서 동영상을 둘러보고 라이브러리로 가져올 수 있습니다."+
+	"NAS나 Plex 같은 미디어 서버를 추가하면 동영상을 가져올 수 있습니다."+
 	"소스 추가…"+
 	"불러오는 중…"+
 	"여기에는 동영상이나 폴더가 없습니다"+
@@ -17434,6 +17441,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		29,
 		157,
+		92,
 		16,
 		19,
 		51,
@@ -19362,6 +19370,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"媒体来源"+
 	"浏览媒体来源"+
 	"添加 NAS 共享、服务器或 Jellyfin 这类媒体服务器，就能在这里浏览它的视频，并导入资料库。"+
+	"添加 NAS 或 Plex 这类媒体服务器，就能导入它的视频。"+
 	"添加来源…"+
 	"正在读取…"+
 	"这里没有视频或文件夹"+
@@ -21287,6 +21296,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		18,
 		123,
+		71,
 		15,
 		15,
 		30,
@@ -23215,6 +23225,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"媒體來源"+
 	"瀏覽媒體來源"+
 	"新增 NAS 共用資料夾、伺服器或 Jellyfin 這類媒體伺服器，就能在這裡瀏覽它的影片，並匯入資料庫。"+
+	"新增 NAS 或 Plex 這類媒體伺服器，就能匯入它的影片。"+
 	"新增來源…"+
 	"正在讀取…"+
 	"這裡沒有影片或資料夾"+
@@ -25140,6 +25151,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		132,
+		71,
 		15,
 		15,
 		30,
@@ -73193,6 +73205,15 @@ func MediaSourceNone(cx *core.Scope) string { return For(cx).MediaSourceNone() }
 
 // MediaSourceNone is the package's MediaSourceNone in the language of msgs.
 func (msgs Messages) MediaSourceNone() string { return msgs.text(textMediaSourceNone) }
+
+// MediaSourceSidebarEmpty says "Add a NAS or a media server such as Plex to import its videos."
+// in the language the app shows under cx.
+//
+// Line under the sidebar's Media Sources section while no source was added; its + button adds one.
+func MediaSourceSidebarEmpty(cx *core.Scope) string { return For(cx).MediaSourceSidebarEmpty() }
+
+// MediaSourceSidebarEmpty is the package's MediaSourceSidebarEmpty in the language of msgs.
+func (msgs Messages) MediaSourceSidebarEmpty() string { return msgs.text(textMediaSourceSidebarEmpty) }
 
 // MediaSourceAddSource says "Add a Source…"
 // in the language the app shows under cx.

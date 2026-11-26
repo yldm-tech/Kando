@@ -9685,6 +9685,9 @@ mediaSourceBrowse:
 mediaSourceNone:
   message: "Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."
   description: "Shown in the middle of the Media Sources page while no source was added, above the Add a Source button."
+mediaSourceSidebarEmpty:
+  message: "Add a NAS or a media server such as Plex to import its videos."
+  description: "Line under the sidebar's Media Sources section while no source was added; its + button adds one."
 mediaSourceAddSource:
   message: "Add a Source…"
   description: "Button on the Media Sources page, in its middle while no source was added and under the list of sources once one was, opening Settings › Media Sources with the dialog that adds a source; once it is saved, the page shows it."

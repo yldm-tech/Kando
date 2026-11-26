@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/category"
 	"kando/apps/kando/films"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/sourcebrowser"
 	"kando/apps/kando/subscribe"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -222,7 +223,7 @@ func (a *app) sidebarShown() bool { return !a.filmFillsWindow() }
 
 // sidebarColumn is the sidebar at the window's left. The top row of its card holds the traffic lights and drags the window, so it needs no drag band over it.
 func (a *app) sidebarColumn() core.Node {
-	return sidebar.View{App: a, Categories: category.List{App: a}, Subscriptions: subscribe.List{App: a}}
+	return sidebar.View{App: a, Categories: category.List{App: a}, Subscriptions: subscribe.List{App: a}, MediaSources: sourcebrowser.SidebarList{App: a}}
 }
 
 // contentBand is the height of the drag band over the content, under the title bar: none while the page there draws its own header bar (pageOwnsTitleBar), otherwise the title bar's own, titleBar being the height the content keeps clear of (chrome.Covered). On macOS the traffic lights move down into the sidebar card's top row (trafficLights), which makes the title bar as tall as the room under them is above them, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. On Windows and Linux the app's own bar (package chrome) takes the title bar's room above the content, so titleBar is 0 and there is no band.

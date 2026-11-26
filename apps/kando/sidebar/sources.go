@@ -8,11 +8,10 @@ import (
 	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// sources is the flat list of the library's sources, each with how many films of the open library come from it: 全部影片, YouTube, 哔哩哔哩, 其他网站 while it holds a film or is the one shown, and 本地文件, then 媒体来源, without a count, whose page it shows (PageMediaSources), where a source is added while there is none. Choosing one, with a click or the arrow keys, shows the library page filtered by it. 浏览, the built-in browser, sits right after 全部影片 without a count, and choosing it shows its page (PageBrowse). Off those pages, as on a settings page, none is chosen. An open film fills the window and hides the sidebar, so a click on the source already chosen has nothing to close.
+// sources is the flat list of the library's sources, each with how many films of the open library come from it: 全部影片, YouTube, 哔哩哔哩, 其他网站 while it holds a film or is the one shown, and 本地文件. The media sources added are a section of their own under them (View.MediaSources), whose rows show the 媒体来源 page (PageMediaSources). Choosing one, with a click or the arrow keys, shows the library page filtered by it. 浏览, the built-in browser, sits right after 全部影片 without a count, and choosing it shows its page (PageBrowse). Off those pages, as on a settings page, none is chosen. An open film fills the window and hides the sidebar, so a click on the source already chosen has nothing to close.
 type sources struct{ a App }
 
 // sourceRow is one row of the list as it shows: comparable, so the list is built again only when a row's label or count changed, not after every change of the app's state.
@@ -25,7 +24,7 @@ type sourceRow struct {
 
 // sourceRows are the rows in order; a fixed array keeps them comparable for a memo.
 type sourceRows struct {
-	rows [7]sourceRow
+	rows [6]sourceRow
 	n    int
 }
 
@@ -62,7 +61,7 @@ func (s sources) Render(cx *core.Scope) core.Node {
 			OnSelect: live.On(a, func(id string) {
 				switch {
 				case id == currentSource(a):
-				case id == PageBrowse, id == PageMediaSources:
+				case id == PageBrowse:
 					a.Select(id)
 				default:
 					a.SetSourceFilter(id)
@@ -77,7 +76,7 @@ func currentSource(a App) string {
 	switch a.Page() {
 	case PageFilms:
 		return a.SourceFilter()
-	case PageBrowse, PageMediaSources:
+	case PageBrowse:
 		return a.Page()
 	}
 	return ""
@@ -100,7 +99,6 @@ func sourceRowsOf(cx *core.Scope, a App, current string) sourceRows {
 			add(sourceRow{id: PageBrowse, label: locales.SidebarBrowse(cx), icon: svg(iconBrowse)})
 		}
 	}
-	add(sourceRow{id: PageMediaSources, label: locales.MediaSourceSidebar(cx), icon: lucide.Server})
 	return out
 }
 

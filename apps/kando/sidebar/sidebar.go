@@ -23,7 +23,7 @@ const (
 	PageBrowse  = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
 	// PageSubscription is a subscription's page, which a row of the subscriptions' list (View.Subscriptions) shows.
 	PageSubscription = "subscription"
-	// PageMediaSources is the 媒体来源 page (package sourcebrowser), a row of the sources' list that is not a source, always shown, so a NAS or a media server can be added from it before there is one.
+	// PageMediaSources is the 媒体来源 page (package sourcebrowser), which a row of the media sources' section (View.MediaSources) shows.
 	PageMediaSources = "media-sources"
 	PageGeneral      = "general"
 	PageSpeech       = "speech"
@@ -129,12 +129,14 @@ const glassWash = 0.7
 // floats reports whether the sidebar floats over the page's ground as macOS 26 draws its sidebars: on macOS, where the window shows no material.
 func floats(cx *ns.Scope) bool { return cx.Env().OS() == ns.OSMacOS && !nsdesktop.ShowsMaterial(cx) }
 
-// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the spoken languages, the watch states, the categories, the subscriptions and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
+// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the media sources, the spoken languages, the watch states, the categories, the subscriptions and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 type View struct {
 	App App
 	// Categories is the list of the library's categories (package category), under the watch states, and Subscriptions the list of the subscriptions (package subscribe), under them.
 	Categories    ns.Node
 	Subscriptions ns.Node
+	// MediaSources is the section of the media sources added (package sourcebrowser), under the sources.
+	MediaSources ns.Node
 }
 
 // Render implements core.Node.
@@ -179,7 +181,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 			search{a},
 			// The languages follow the sources, the watch states the languages, then the categories and the subscriptions, each list as tall as its rows, and the room left stays under them. When they are taller than the card, they scroll as one column, as Finder's sidebar does, rather than each list being cut short by the next.
 			ns.Scroll{TestID: "sidebar-lists", Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
-				ns.View{Style: ns.Style{FlexShrink: 0}, Children: []ns.Node{sources{a}, languages{a}, watched{a}, v.Categories, v.subscriptions()}},
+				ns.View{Style: ns.Style{FlexShrink: 0}, Children: []ns.Node{sources{a}, v.inset(v.MediaSources), languages{a}, watched{a}, v.Categories, v.subscriptions()}},
 			}},
 			ns.Show{
 				When: live.Func(a, func() bool { return a.SaveErr() != "" }),
@@ -205,11 +207,14 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 }
 
 // subscriptions is the list of the subscriptions as far in from the card's edges as the other lists, nil when the view has none.
-func (v View) subscriptions() ns.Node {
-	if v.Subscriptions == nil {
+func (v View) subscriptions() ns.Node { return v.inset(v.Subscriptions) }
+
+// inset is the list n as far in from the card's edges as the other lists, nil for none.
+func (v View) inset(n ns.Node) ns.Node {
+	if n == nil {
 		return nil
 	}
-	return ns.View{Style: ns.Style{FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Symmetric(0, inset)}, Children: []ns.Node{v.Subscriptions}}
+	return ns.View{Style: ns.Style{FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Symmetric(0, inset)}, Children: []ns.Node{n}}
 }
 
 // Menu is the library menu of the settings page's 切换 button, for nsgo's desktop.PopupMenu: the known libraries, new and open, reveal, and forgetting the open one. Its items do what they say through a's actions and tell a it changed.

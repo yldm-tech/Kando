@@ -458,8 +458,8 @@ func browseSource(a *app, files map[string]fakeSourceFile) (mediasource.Source, 
 func TestMediaSourceBrowseAndImport(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
-	if !tt.Exists("id:source-" + pageMediaSources) {
-		t.Fatal("the row does not show before a source was added")
+	if !tt.Exists("id:sidebar-media-sources") || !tt.Exists("id:media-sources-sidebar-empty") {
+		t.Fatal("the sidebar's section does not show before a source was added")
 	}
 	s, _ := browseSource(a, map[string]fakeSourceFile{
 		"Movies/Heat (1995).mkv": {data: "heat"},
@@ -470,7 +470,7 @@ func TestMediaSourceBrowseAndImport(t *testing.T) {
 		".hidden/b.mkv":          {data: "b"},
 	})
 	refresh(tt, a)
-	tt.Press("id:source-" + pageMediaSources)
+	tt.Press("id:media-sources-source-" + s.ID)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
 	if a.page != pageMediaSources || !tt.Exists("id:media-sources-entry-Docs") || !tt.Exists("id:media-sources-entry-Movies") || tt.Exists("id:media-sources-entry-.hidden") {
 		t.Fatalf("page %q; texts %q", a.page, tt.Texts())
@@ -529,7 +529,7 @@ func TestMediaSourceChooseAllAndFolders(t *testing.T) {
 		"Shows/Trailer.mp4":               {data: "trailer"},
 	})
 	refresh(tt, a)
-	tt.Press("id:source-" + pageMediaSources)
+	tt.Press("id:media-sources-source-" + s.ID)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
 	tt.Press("id:media-sources-entry-Shows")
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
@@ -601,7 +601,7 @@ func TestMediaSourceFilterShiftAndSelectAll(t *testing.T) {
 	}
 	s, _ := browseSource(a, files)
 	refresh(tt, a)
-	tt.Press("id:source-" + pageMediaSources)
+	tt.Press("id:media-sources-source-" + s.ID)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
 	tt.Press("id:media-sources-entry-Season 1")
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
@@ -657,7 +657,7 @@ func TestMediaSourceImportWayRemembered(t *testing.T) {
 	msgs := testlocale.Messages()
 	s, _ := browseSource(a, map[string]fakeSourceFile{"A.mkv": {data: "a"}, "B.mkv": {data: "b"}, "C.mkv": {data: "c"}})
 	refresh(tt, a)
-	tt.Press("id:source-" + pageMediaSources)
+	tt.Press("id:media-sources-source-" + s.ID)
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
 	queued := func(name string) bool {
 		_, ok := a.queueFindSource(mediasource.Ref{Source: s.ID, Path: name}.String())
@@ -700,7 +700,11 @@ func TestMediaSourceAddedFromItsPageShowsThere(t *testing.T) {
 	src := newFakeSource(map[string]fakeSourceFile{"media/Heat.mkv": {data: "heat"}, "backup/old.mp4": {data: "old"}})
 	a.sources.open = src.open
 	msgs := testlocale.Messages()
-	tt.Press("id:source-" + pageMediaSources)
+	if !tt.Exists("id:media-sources-sidebar-empty") {
+		t.Fatalf("the sidebar's section says nothing without a source: %q", tt.Texts())
+	}
+	onEngine(a, func() { a.Select(pageMediaSources) })
+	refresh(tt, a)
 	if a.page != pageMediaSources || !tt.Exists("id:media-sources-none") {
 		t.Fatalf("page %q; texts %q", a.page, tt.Texts())
 	}
@@ -720,7 +724,7 @@ func TestMediaSourceAddedFromItsPageShowsThere(t *testing.T) {
 	}
 	first := a.sources.list[0].ID
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading && a.sources.browse.source == first })
-	if a.page != pageMediaSources || a.sources.browse.dir != "" || !tt.Exists("id:media-sources-entry-media") || !tt.Exists("id:media-sources-add-more") {
+	if a.page != pageMediaSources || a.sources.browse.dir != "" || !tt.Exists("id:media-sources-entry-media") || !tt.Find("id:media-sources-source-"+first).Props.Selected {
 		t.Fatalf("page %q dir %q; texts %q", a.page, a.sources.browse.dir, tt.Texts())
 	}
 

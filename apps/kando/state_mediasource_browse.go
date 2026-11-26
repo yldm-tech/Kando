@@ -642,6 +642,14 @@ func (a *app) mediaSourceBrowseFrom(id string) {
 		return
 	}
 	a.closeSettings()
+	a.mediaSourceShowSource(id)
+}
+
+// mediaSourceShowSource shows the source id at its root on the 媒体来源 page, as its row in the sidebar does.
+func (a *app) mediaSourceShowSource(id string) {
+	if a.mediaSourceIndex(id) < 0 {
+		return
+	}
 	if a.page == pageMediaSources && a.sources.browse.shown {
 		a.mediaSourceChoose(id)
 		return

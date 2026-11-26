@@ -1,4 +1,4 @@
-// Package sourcebrowser is the 媒体来源 page (docs/media-sources.md 4.1): the media sources the user added, from this page or in Settings › 媒体来源, on its left, and the folder of the one chosen on its right, its videos and folders, where videos are chosen and imported into the library through the dialog it opens over the window (ImportDialog). It draws and hands back presses; the listing, the choosing and the import are the app's (App).
+// Package sourcebrowser is the 媒体来源 page (docs/media-sources.md 4.1) and its section of the sidebar (SidebarList), which lists the media sources the user added, from the sidebar or in Settings › 媒体来源: the page shows the folder of the one chosen, its videos and folders, where videos are chosen and imported into the library through the dialog it opens over the window (ImportDialog). It draws and hands back presses; the listing, the choosing and the import are the app's (App).
 package sourcebrowser
 
 import (
@@ -11,10 +11,12 @@ import (
 type App interface {
 	live.State
 
-	// MediaBrowseSources are the sources added, in the order they were; MediaBrowseSource is the one shown, "" while there is none, and ChooseMediaBrowseSource shows another at its root.
+	// MediaBrowseSources are the sources added, in the order they were; MediaBrowseSource is the one shown, "" while there is none, and ChooseMediaBrowseSource shows another at its root. MediaBrowseSidebarSource is the one the sidebar marks, the one shown while the page shows, else ""; ShowMediaBrowseSource shows the page on the source id at its root, as its row in the sidebar does.
 	MediaBrowseSources() []Source
 	MediaBrowseSource() string
 	ChooseMediaBrowseSource(id string)
+	MediaBrowseSidebarSource() string
+	ShowMediaBrowseSource(id string)
 	// MediaBrowseCrumbs are the folder shown, the source's name first and then each folder down to it; OpenMediaBrowseCrumb goes up to the one at index.
 	MediaBrowseCrumbs() []string
 	OpenMediaBrowseCrumb(index int)

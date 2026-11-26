@@ -16,7 +16,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Page is the 媒体来源 page beside the sidebar: its title, then the sources on the left, with 添加来源… under them, and the folder of the one chosen on the right, under the path to it and 导入 N 个视频, or, while no source was added, what a source is and 添加来源…. It is built again when the interface's language changes, as the words its buttons take are plain strings; within it what changes follows in bindings, so the list keeps where it was scrolled to as a video is chosen.
+// Page is the 媒体来源 page beside the sidebar: its title, then the folder of the source the sidebar marks, under the path to it and 导入 N 个视频, or, while no source was added, what a source is and 添加来源…. It is built again when the interface's language changes, as the words its buttons take are plain strings; within it what changes follows in bindings, so the list keeps where it was scrolled to as a video is chosen.
 type Page struct{ App App }
 
 // Render implements core.Node.
@@ -28,9 +28,6 @@ func (p Page) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// listWidth is the width of the list of sources.
-const listWidth core.Points = 220
-
 func page(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
 	none := live.Memo(cx, a, func() bool { return len(a.MediaBrowseSources()) == 0 })
@@ -39,8 +36,8 @@ func page(cx *core.Scope, a App) core.Node {
 	return core.View{TestID: "media-sources-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Gap: 14, AlignItems: core.AlignStretch}, Children: []core.Node{
 		title,
 		core.Show{When: none, Then: func(cx *core.Scope) core.Node { return empty(cx, a) }, Else: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Gap: 18, AlignItems: core.AlignStretch},
-				Children: []core.Node{sources(cx, a), folder(cx, a)}}
+			return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+				Children: []core.Node{folder(cx, a)}}
 		}},
 	}}
 }
@@ -55,37 +52,7 @@ func empty(cx *core.Scope, a App) core.Node {
 	}}
 }
 
-// sources is the list of the sources, each its name over its kind and place, the one shown marked, and 添加来源… under it.
-func sources(cx *core.Scope, a App) core.Node {
-	list := core.NewMemoFunc(cx, live.Func(a, a.MediaBrowseSources), slices.Equal[[]Source])
-	colors := ui.ColorsOf(cx)
-	add := ui.Button{TestID: "media-sources-add-more", Text: locales.MediaSourceAddSource(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, Icon: lucide.Plus, OnPress: live.Do(a, a.AddMediaBrowseSource)}
-	return core.View{Style: core.Style{Width: core.Pt(listWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Gap: 8}, Children: []core.Node{ui.Sidebar{
-		TestID: "media-sources-list",
-		SectionsFunc: func() []ui.SidebarSection {
-			var items []ui.SidebarItem
-			for _, s := range list.Get() {
-				name := ui.Text(s.Name, 13, ui.Regular, colors.Text)
-				name.MaxLines = 1
-				place := ui.Text(s.Summary, 11, ui.Regular, colors.Muted)
-				place.MaxLines, place.EllipsizeMode = 1, core.EllipsizeMiddle
-				items = append(items, ui.SidebarItem{ID: s.ID, Text: s.Name, TestID: "media-sources-source-" + s.ID, Content: core.Group{
-					ui.Icon(lucide.Server, 16, theme.Of(cx).Glyph),
-					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{name, place}},
-				}})
-			}
-			return []ui.SidebarSection{{Items: items}}
-		},
-		Selected: live.Func(a, a.MediaBrowseSource),
-		OnSelect: live.On(a, func(id string) {
-			if id != a.MediaBrowseSource() {
-				a.ChooseMediaBrowseSource(id)
-			}
-		}),
-	}, core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{add}}}}
-}
-
-// folder is the right of the page: 全选, the path to the folder shown and the filter of its rows, with 导入 N 个视频 at its end (导入所选 with folders chosen, which lists their videos first), what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
+// folder is the page under its title: 全选, the path to the folder shown and the filter of its rows, with 导入 N 个视频 at its end (导入所选 with folders chosen, which lists their videos first), what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
 func folder(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
 	chosen := live.Func(a, a.MediaBrowseChosen)

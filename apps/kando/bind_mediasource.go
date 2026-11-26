@@ -174,6 +174,15 @@ func (a *app) MediaBrowseSource() string { return a.sources.browse.source }
 
 func (a *app) ChooseMediaBrowseSource(id string) { a.mediaSourceChoose(id) }
 
+func (a *app) MediaBrowseSidebarSource() string {
+	if a.page != pageMediaSources {
+		return ""
+	}
+	return a.sources.browse.source
+}
+
+func (a *app) ShowMediaBrowseSource(id string) { a.mediaSourceShowSource(id) }
+
 func (a *app) MediaBrowseCrumbs() []string {
 	b := a.sources.browse
 	i := a.mediaSourceIndex(b.source)
