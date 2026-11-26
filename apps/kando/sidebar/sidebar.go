@@ -23,7 +23,7 @@ const (
 	PageBrowse  = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
 	// PageSubscription is a subscription's page, which a row of the subscriptions' list (View.Subscriptions) shows.
 	PageSubscription = "subscription"
-	// PageMediaSources is the 媒体来源 page (package sourcebrowser), a row of the sources' list that is not a source, shown while a media source was added (App.MediaSourcesShown).
+	// PageMediaSources is the 媒体来源 page (package sourcebrowser), a row of the sources' list that is not a source, always shown, so a NAS or a media server can be added from it before there is one.
 	PageMediaSources = "media-sources"
 	PageGeneral      = "general"
 	PageSpeech       = "speech"
@@ -98,8 +98,6 @@ type App interface {
 	PaletteButton() bool
 	PaletteKey() string
 	TogglePalette()
-	// MediaSourcesShown reports whether a media source was added, so the list carries the 媒体来源 row, which shows their page (PageMediaSources).
-	MediaSourcesShown() bool
 	// Jobs is how many of the queue's jobs are waiting or running and how many failed, which the status line counts, so a job that ends while another page is shown is seen there; ShowJobs shows them, in 处理中 on the library page.
 	Jobs() Jobs
 	ShowJobs()

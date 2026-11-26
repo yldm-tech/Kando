@@ -37,6 +37,8 @@ type mediaSourceUI struct {
 	editRelease   func()
 	alertRelease  func()
 	removeRelease func()
+	// thenBrowse is set while the dialog adds a source the 媒体来源 page asked for (AddMediaBrowseSource): once it is saved, the settings close and the page shows it.
+	thenBrowse bool
 	// secretsHeld is held by whoever is changing the sources' secrets in the secure store, from a save's first write until settings.json took the save or its secrets were put back as they were (mediaSourceSecretWrite), and by a removal's forgetting, so a save started after another that was abandoned reads the secrets that one put back, and nothing puts back a secret a removal forgot.
 	secretsHeld chan struct{}
 	open        func(ctx context.Context, k mediasource.Kind, s mediasource.Source, secrets map[string]string) (mediasource.Driver, error)
@@ -321,7 +323,7 @@ func (a *app) mediaSourceSecretStore() ns.Secrets {
 // openMediaSourceDialog opens the dialog on draft, for the source id or, with id "", a new one.
 func (a *app) openMediaSourceDialog(id string, draft settings.MediaSourceDraft) {
 	m := &a.sources
-	m.editing, m.editID, m.draft, m.problem, m.saving = true, id, draft, nil, false
+	m.editing, m.editID, m.draft, m.problem, m.saving, m.thenBrowse = true, id, draft, nil, false, false
 	m.saveGen++
 	delete(m.tests, "")
 	if m.editRelease == nil {
@@ -332,7 +334,7 @@ func (a *app) openMediaSourceDialog(id string, draft settings.MediaSourceDraft) 
 // closeMediaSourceDialog closes the dialog without saving, forgetting the draft and what it held, and gives back its modal flag.
 func (a *app) closeMediaSourceDialog() {
 	m := &a.sources
-	m.editing, m.draft, m.problem, m.saving = false, settings.MediaSourceDraft{}, nil, false
+	m.editing, m.draft, m.problem, m.saving, m.thenBrowse = false, settings.MediaSourceDraft{}, nil, false, false
 	m.gen++
 	m.saveGen++
 	delete(m.tests, "")
@@ -548,10 +550,11 @@ func (a *app) mediaSourceSecretsKept(gen int, s mediasource.Source, w mediaSourc
 	w.undo(m.pool)
 }
 
-// mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written. It reports whether settings.json took s.
+// mediaSourceCommit puts s in the list, in place of the source of its ID or after the others, saves settings.json and closes the dialog, or keeps it open and says the settings could not be written. A source added from the 媒体来源 page (thenBrowse) is shown there, the settings closed. It reports whether settings.json took s.
 func (a *app) mediaSourceCommit(s mediasource.Source) bool {
 	m := &a.sources
 	before, removed := slices.Clone(m.list), slices.Clone(m.removed)
+	browse := m.thenBrowse && a.mediaSourceIndex(s.ID) < 0
 	if i := a.mediaSourceIndex(s.ID); i >= 0 {
 		m.list[i] = s
 	} else {
@@ -567,6 +570,9 @@ func (a *app) mediaSourceCommit(s mediasource.Source) bool {
 	a.mediaSourcePoolSync()
 	m.pool.Forget(s.ID)
 	a.closeMediaSourceDialog()
+	if browse {
+		a.mediaSourceBrowseFrom(s.ID)
+	}
 	return true
 }
 

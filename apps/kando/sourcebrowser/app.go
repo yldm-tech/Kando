@@ -1,4 +1,4 @@
-// Package sourcebrowser is the 媒体来源 page (docs/media-sources.md 4.1): the media sources the user added in Settings › 媒体来源 on its left, and the folder of the one chosen on its right, its videos and folders, where videos are chosen and imported into the library through the dialog it opens over the window (ImportDialog). It draws and hands back presses; the listing, the choosing and the import are the app's (App).
+// Package sourcebrowser is the 媒体来源 page (docs/media-sources.md 4.1): the media sources the user added, from this page or in Settings › 媒体来源, on its left, and the folder of the one chosen on its right, its videos and folders, where videos are chosen and imported into the library through the dialog it opens over the window (ImportDialog). It draws and hands back presses; the listing, the choosing and the import are the app's (App).
 package sourcebrowser
 
 import (
@@ -31,8 +31,8 @@ type App interface {
 	MediaBrowseChosen() int
 	ImportMediaBrowseChosen()
 	MediaBrowseNote() string
-	// OpenMediaSourceSettings opens Settings › 媒体来源, where a source is added.
-	OpenMediaSourceSettings()
+	// AddMediaBrowseSource opens Settings › 媒体来源 with the dialog that adds a source; once the source is saved, the settings close and this page shows it.
+	AddMediaBrowseSource()
 
 	// MediaBrowseImport is the dialog importing the videos chosen, Open false while it is closed; ChooseMediaBrowseImportLink picks how they are imported, indexed and played from the source (true) or copied into the library, and RememberMediaBrowseImport whether that way is kept for the next import; StartMediaBrowseImport imports them and closes it, CancelMediaBrowseImport closes it.
 	MediaBrowseImport() Import

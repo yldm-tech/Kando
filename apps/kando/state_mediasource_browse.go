@@ -370,7 +370,30 @@ func (a *app) mediaSourceColumn(*ns.Scope) ns.Node { return sourcebrowser.Page{A
 
 // mediaSourceKeys: 浏览媒体来源 is a command of the File menu and the palette, with no key, while a source was added.
 func (a *app) mediaSourceKeys(cx *ns.Scope) []shortcut {
-	return []shortcut{{Group: groupFile, Label: locales.MediaSourceBrowse(cx), When: func() bool { return len(a.sources.list) > 0 }, Run: a.mediaSourceOpenPage}}
+	return []shortcut{{Group: groupFile, Label: locales.MediaSourceBrowse(cx), Run: a.mediaSourceOpenPage}}
+}
+
+// mediaSourceAddThenBrowse opens Settings › 媒体来源 with the dialog adding a source, which the page shows once it is saved (mediaSourceUI.thenBrowse).
+func (a *app) mediaSourceAddThenBrowse() {
+	a.OpenSettings(settings.SectionMediaSources)
+	a.AddMediaSource()
+	a.sources.thenBrowse = true
+}
+
+// mediaSourceBrowseFrom closes the settings and shows the source id on the 媒体来源 page, as its row's 浏览 in Settings › 媒体来源 and saving a source added from the page do.
+func (a *app) mediaSourceBrowseFrom(id string) {
+	if a.mediaSourceIndex(id) < 0 {
+		return
+	}
+	a.closeSettings()
+	if a.page == pageMediaSources && a.sources.browse.shown {
+		a.mediaSourceChoose(id)
+		return
+	}
+	// The page lists the source as it shows (mediaSourceBrowseFollow).
+	a.Select(pageMediaSources)
+	b := &a.sources.browse
+	b.source, b.dir, b.note = id, "", nil
 }
 
 // mediaSourceEditShown opens Settings › 媒体来源 editing the source shown.

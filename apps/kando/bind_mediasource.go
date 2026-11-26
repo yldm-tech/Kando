@@ -51,6 +51,8 @@ func (a *app) EditMediaSource(id string) {
 
 func (a *app) AskRemoveMediaSource(id string) { a.askRemoveMediaSource(id) }
 
+func (a *app) BrowseMediaSource(id string) { a.mediaSourceBrowseFrom(id) }
+
 func (a *app) MediaSourceEditing() bool { return a.sources.editing }
 
 func (a *app) MediaSourceIsNew() bool { return a.sources.editID == "" }
@@ -131,9 +133,7 @@ func (a *app) MediaSourceRemoving() settings.MediaSourceRemoval {
 
 func (a *app) AnswerRemoveMediaSource(yes bool) { a.answerRemoveMediaSource(yes) }
 
-// The 媒体来源 page's reads and writes (sourcebrowser.App), and the sidebar's row of it. The state and what the actions do are in state_mediasource_browse.go.
-
-func (a *app) MediaSourcesShown() bool { return len(a.sources.list) > 0 }
+// The 媒体来源 page's reads and writes (sourcebrowser.App). The state and what the actions do are in state_mediasource_browse.go.
 
 func (a *app) MediaBrowseSources() []sourcebrowser.Source {
 	var out []sourcebrowser.Source
@@ -212,7 +212,7 @@ func (a *app) MediaBrowseNote() string {
 	return a.sources.browse.note(a.messages())
 }
 
-func (a *app) OpenMediaSourceSettings() { a.OpenSettings(settings.SectionMediaSources) }
+func (a *app) AddMediaBrowseSource() { a.mediaSourceAddThenBrowse() }
 
 func (a *app) MediaBrowseImport() sourcebrowser.Import {
 	b := a.sources.browse

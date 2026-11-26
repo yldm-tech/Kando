@@ -16,7 +16,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Page is the 媒体来源 page beside the sidebar: its title, then the sources on the left and the folder of the one chosen on the right, under the path to it and 导入 N 个视频, or, while no source was added, where to add one. It is built again when the interface's language changes, as the words its buttons take are plain strings; within it what changes follows in bindings, so the list keeps where it was scrolled to as a video is chosen.
+// Page is the 媒体来源 page beside the sidebar: its title, then the sources on the left, with 添加来源… under them, and the folder of the one chosen on the right, under the path to it and 导入 N 个视频, or, while no source was added, what a source is and 添加来源…. It is built again when the interface's language changes, as the words its buttons take are plain strings; within it what changes follows in bindings, so the list keeps where it was scrolled to as a video is chosen.
 type Page struct{ App App }
 
 // Render implements core.Node.
@@ -45,20 +45,22 @@ func page(cx *core.Scope, a App) core.Node {
 	}}
 }
 
-// empty is the page while no source was added: what a source is for, and the button that adds one in the settings.
+// empty is the page while no source was added: the server's icon, what a source is for, and the button that adds one, in the middle of the page.
 func empty(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{Style: core.Style{Gap: 12, AlignItems: core.AlignStart, Padding: core.Edges{Top: 8}}, Children: []core.Node{
-		core.Text{TestID: "media-sources-none", Content: locales.MediaSourceNone(cx), Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Muted)},
-		ui.Button{TestID: "media-sources-add", Text: locales.MediaSourceAddSource(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, a.OpenMediaSourceSettings)},
+	return core.View{Style: core.Style{FlexGrow: 1, Gap: 14, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Edges{Bottom: 60}}, Children: []core.Node{
+		ui.Icon(lucide.Server, 40, colors.Faint),
+		core.Text{TestID: "media-sources-none", Content: locales.MediaSourceNone(cx), Style: core.Style{FontSize: 13, LineHeight: 19, MaxWidth: core.Pt(360), TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
+		ui.Button{TestID: "media-sources-add", Text: locales.MediaSourceAddSource(cx), OnPress: live.Do(a, a.AddMediaBrowseSource)},
 	}}
 }
 
-// sources is the list of the sources, each its name over its kind and place, the one shown marked.
+// sources is the list of the sources, each its name over its kind and place, the one shown marked, and 添加来源… under it.
 func sources(cx *core.Scope, a App) core.Node {
 	list := core.NewMemoFunc(cx, live.Func(a, a.MediaBrowseSources), slices.Equal[[]Source])
 	colors := ui.ColorsOf(cx)
-	return core.View{Style: core.Style{Width: core.Pt(listWidth), FlexShrink: 0, AlignItems: core.AlignStretch}, Children: []core.Node{ui.Sidebar{
+	add := ui.Button{TestID: "media-sources-add-more", Text: locales.MediaSourceAddSource(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, Icon: lucide.Plus, OnPress: live.Do(a, a.AddMediaBrowseSource)}
+	return core.View{Style: core.Style{Width: core.Pt(listWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Gap: 8}, Children: []core.Node{ui.Sidebar{
 		TestID: "media-sources-list",
 		SectionsFunc: func() []ui.SidebarSection {
 			var items []ui.SidebarItem
@@ -80,7 +82,7 @@ func sources(cx *core.Scope, a App) core.Node {
 				a.ChooseMediaBrowseSource(id)
 			}
 		}),
-	}}}
+	}, core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{add}}}}
 }
 
 // folder is the right of the page: the path to the folder shown with 导入 N 个视频 at its end, what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.

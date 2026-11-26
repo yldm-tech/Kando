@@ -457,8 +457,8 @@ func browseSource(a *app, files map[string]fakeSourceFile) (mediasource.Source, 
 func TestMediaSourceBrowseAndImport(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
-	if tt.Exists("id:source-" + pageMediaSources) {
-		t.Fatal("the row shows without a source")
+	if !tt.Exists("id:source-" + pageMediaSources) {
+		t.Fatal("the row does not show before a source was added")
 	}
 	s, _ := browseSource(a, map[string]fakeSourceFile{
 		"Movies/Heat (1995).mkv": {data: "heat"},
@@ -512,6 +512,66 @@ func TestMediaSourceBrowseAndImport(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
 	if a.sources.browse.dir != "" || !tt.Exists("id:media-sources-entry-Docs") {
 		t.Fatalf("up to the root: dir %q", a.sources.browse.dir)
+	}
+}
+
+// With no source added, the 媒体来源 page says what one is and adds one: 添加来源… opens 设置 › 媒体来源 with the dialog adding a source, and once it is saved the settings close and the page shows the source at its root. A source added in the settings themselves keeps them open; its row's 浏览 closes them and shows it on the page.
+func TestMediaSourceAddedFromItsPageShowsThere(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	src := newFakeSource(map[string]fakeSourceFile{"media/Heat.mkv": {data: "heat"}, "backup/old.mp4": {data: "old"}})
+	a.sources.open = src.open
+	msgs := testlocale.Messages()
+	tt.Press("id:source-" + pageMediaSources)
+	if a.page != pageMediaSources || !tt.Exists("id:media-sources-none") {
+		t.Fatalf("page %q; texts %q", a.page, tt.Texts())
+	}
+	tt.Press("id:media-sources-add")
+	refresh(tt, a)
+	if !a.prefs.open || a.SettingsSection() != settings.SectionMediaSources || !a.sources.editing || !a.MediaSourceIsNew() || !tt.Exists("id:media-source-dialog") {
+		t.Fatalf("settings open %v at %q, dialog %v", a.prefs.open, a.SettingsSection(), a.sources.editing)
+	}
+	tt.Type("id:media-source-field-host", "nas.local")
+	tt.Type("id:media-source-field-share", "media")
+	tt.Type("id:media-source-field-user", "kando")
+	tt.Type("id:media-source-field-password", "pa55-w0rd!")
+	tt.Press("id:media-source-dialog-save")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.editing })
+	if len(a.sources.list) != 1 || a.prefs.open || a.modalOpen() {
+		t.Fatalf("list %+v, settings open %v, modal %v", a.sources.list, a.prefs.open, a.modalOpen())
+	}
+	first := a.sources.list[0].ID
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading && a.sources.browse.source == first })
+	if a.page != pageMediaSources || a.sources.browse.dir != "" || !tt.Exists("id:media-sources-entry-media") || !tt.Exists("id:media-sources-add-more") {
+		t.Fatalf("page %q dir %q; texts %q", a.page, a.sources.browse.dir, tt.Texts())
+	}
+
+	// A second source, added in the settings, leaves them open on its row.
+	onEngine(a, func() { a.Select(pageFilms) })
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-add")
+	tt.Type("id:media-source-field-host", "studio.lan")
+	tt.Type("id:media-source-field-share", "backup")
+	tt.Type("id:media-source-field-user", "kando")
+	tt.Type("id:media-source-field-password", "pa55-w0rd!")
+	tt.Press("id:media-source-dialog-save")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.editing })
+	if len(a.sources.list) != 2 || !a.prefs.open || a.page != pageFilms {
+		t.Fatalf("list %d, settings open %v, page %q", len(a.sources.list), a.prefs.open, a.page)
+	}
+	second := a.sources.list[1].ID
+	wantText(t, tt, msgs.SettingsSourcesBrowse())
+	tt.Press("id:media-source-browse-" + second)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading && a.sources.browse.source == second })
+	if a.prefs.open || a.page != pageMediaSources || !tt.Exists("id:media-sources-entry-backup") {
+		t.Fatalf("settings open %v, page %q; texts %q", a.prefs.open, a.page, tt.Texts())
+	}
+	// On the page already, 浏览 shows the other source.
+	tt = settingsOpenAt(a, tt, settings.SectionMediaSources)
+	tt.Press("id:media-source-browse-" + first)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading && a.sources.browse.source == first })
+	if a.prefs.open || !tt.Exists("id:media-sources-entry-media") {
+		t.Fatalf("settings open %v; texts %q", a.prefs.open, tt.Texts())
 	}
 }
 

@@ -960,6 +960,8 @@ func TestEmptyPagesSayWhatToDo(t *testing.T) {
 	wantCalls(t, a, "sites")
 	app.Press("id:empty-browse")
 	wantCalls(t, a, "select "+sidebar.PageBrowse)
+	app.Press("id:empty-media-sources")
+	wantCalls(t, a, "select "+sidebar.PageMediaSources)
 	// A source no film comes from says so; a search no film matches offers to clear it.
 	change(app, a, func() { a.items, a.filter = newFakeApp().items, sidebar.SourceLocal })
 	if !app.Exists(whole(msgs.FilmsSourceEmpty())) {

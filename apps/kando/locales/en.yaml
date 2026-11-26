@@ -9481,6 +9481,14 @@ settingsKeywordsMediaSources:
 settingsSourcesLabel:
   message: "Sources"
   description: "Label above the card listing the media sources on the Media Sources settings page."
+settingsSourcesBrowse:
+  message: "Browse"
+  description: "Button of a media source's row on the Media Sources settings page that closes the settings and shows the source on the Media Sources page, where its videos are imported."
+settingsSourcesBrowseLabel:
+  message: "Browse {name}"
+  description: "Accessible name of a media source's Browse button on the Media Sources settings page, read by screen readers."
+  placeholders:
+    name: { type: "String", example: "Living Room NAS" }
 settingsSourcesEmpty:
   message: "No media sources yet"
   description: "Row of the Media Sources card while no source was added."
@@ -9609,13 +9617,13 @@ mediaSourceSidebar:
   description: "Row of the sidebar, and title of its page, where the user browses the NAS shares and servers added in Settings › Media Sources and imports videos from them. Also how the library names where such a film came from."
 mediaSourceBrowse:
   message: "Browse Media Sources"
-  description: "Command of the File menu and the command palette that opens the Media Sources page."
+  description: "Command of the File menu and the command palette, and button on the page of an empty library, that opens the Media Sources page."
 mediaSourceNone:
-  message: "Add a NAS share or a server in Settings to browse its videos here."
-  description: "Shown on the Media Sources page while no source was added."
+  message: "Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."
+  description: "Shown in the middle of the Media Sources page while no source was added, above the Add a Source button."
 mediaSourceAddSource:
   message: "Add a Source…"
-  description: "Button on the Media Sources page while no source was added, opening Settings › Media Sources."
+  description: "Button on the Media Sources page, in its middle while no source was added and under the list of sources once one was, opening Settings › Media Sources with the dialog that adds a source; once it is saved, the page shows it."
 mediaSourceListing:
   message: "Loading…"
   description: "Shown on the Media Sources page while the folder of a source is being listed."

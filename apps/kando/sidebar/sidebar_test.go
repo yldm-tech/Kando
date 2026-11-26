@@ -43,8 +43,6 @@ type fakeApp struct {
 	paletteButton bool
 	// passwords are the libraries with a password, and locked those of them that are locked.
 	passwords, locked map[string]bool
-	// mediaSources is MediaSourcesShown: whether a media source was added.
-	mediaSources bool
 }
 
 func newFakeApp() *fakeApp {
@@ -84,7 +82,6 @@ func (f *fakeApp) PaletteKey() string          { return "mod+k" }
 func (f *fakeApp) TogglePalette()              { f.calls = append(f.calls, "palette") }
 func (f *fakeApp) Jobs() Jobs                  { return f.jobs }
 func (f *fakeApp) ShowJobs()                   { f.calls = append(f.calls, "jobs") }
-func (f *fakeApp) MediaSourcesShown() bool     { return f.mediaSources }
 func (f *fakeApp) SpokenCounts() []SpokenCount { return f.bySpoken }
 func (f *fakeApp) SpokenFilter() string        { return f.spoken }
 func (f *fakeApp) OpenSettings(section string) {
@@ -234,9 +231,9 @@ func TestLanguagesShowWithMoreThanOne(t *testing.T) {
 	if app.Exists("id:spoken-count-" + SpokenAll) {
 		t.Fatal("全部语言 shows a count")
 	}
-	// The languages follow the last source, with no room between them.
-	local, heading := windowFrame(app.Find("id:source-"+SourceLocal)), windowFrame(app.Find(`text:"`+msgs.SidebarLanguages()+`"`))
-	if gap := heading.Origin.Y - (local.Origin.Y + local.Size.Height); gap < 0 || gap > 40 {
+	// The languages follow the last source, 媒体来源, with no room between them.
+	last, heading := windowFrame(app.Find("id:source-"+PageMediaSources)), windowFrame(app.Find(`text:"`+msgs.SidebarLanguages()+`"`))
+	if gap := heading.Origin.Y - (last.Origin.Y + last.Size.Height); gap < 0 || gap > 40 {
 		t.Fatalf("the languages start %v below the last source", gap)
 	}
 	if !app.Find("id:spoken-" + SpokenAll).Props.Selected {
@@ -651,14 +648,10 @@ func TestSwitcherAndStatusAreCards(t *testing.T) {
 	}
 }
 
-// 媒体来源 shows at the end of the list only while a media source was added, without a count, and shows its page.
+// 媒体来源 shows at the end of the list, before any source was added too, so one can be added from its page, without a count, and shows its page.
 func TestMediaSourcesRowShowsTheirPage(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
-	if app.Exists("id:source-" + PageMediaSources) {
-		t.Fatal("媒体来源 shows without a source")
-	}
-	change(app, a, func() { a.mediaSources = true })
 	if !app.Exists("id:source-"+PageMediaSources) || app.Exists("id:count-"+PageMediaSources) {
 		t.Fatalf("the row is missing or counted: %q", app.Texts())
 	}

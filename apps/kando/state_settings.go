@@ -357,6 +357,19 @@ func (a *app) openSettingsWindow() {
 	a.prefs.win = w
 }
 
+// closeSettings closes the settings as the user closing them does: their window, from a post as the handler that asked may be the window's own, or their dialog over the main window.
+func (a *app) closeSettings() {
+	a.prefs.open, a.prefs.inWindow, a.prefs.trashOpen = false, false, false
+	a.speechModals()
+	if w := a.prefs.win; w != nil && a.cx != nil {
+		a.cx.Post(func() {
+			if a.prefs.win == w && !a.prefs.open {
+				w.Close()
+			}
+		})
+	}
+}
+
 // settingsClosed forgets the settings window w as it closes (settingsView), and the settings the user asked for with it.
 func (a *app) settingsClosed(w *core.Window) {
 	if a.prefs.win != w {

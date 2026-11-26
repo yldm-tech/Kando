@@ -1222,6 +1222,7 @@ var Parameters = map[string][]string{
 	"PlayerRemuxing":                           {"percent"},
 	"PlayerRemuxingFrom":                       {"place", "percent"},
 	"FilmNextIn":                               {"seconds"},
+	"SettingsSourcesBrowseLabel":               {"name"},
 	"SettingsSourcesShares":                    {"names"},
 	"SettingsSourcesRemoveConfirm":             {"count"},
 	"SettingsSourcesKindPlugin":                {"kind", "plugin"},
@@ -1997,6 +1998,7 @@ type Translation struct {
 	PlayerRemuxing                           func(percent int) string
 	PlayerRemuxingFrom                       func(place string, percent int) string
 	FilmNextIn                               func(seconds int) string
+	SettingsSourcesBrowseLabel               func(name string) string
 	SettingsSourcesShares                    func(names string) string
 	SettingsSourcesRemoveConfirm             func(count int) string
 	SettingsSourcesKindPlugin                func(kind string, plugin string) string
@@ -3879,6 +3881,7 @@ const (
 	textSettingsSectionMediaSources
 	textSettingsKeywordsMediaSources
 	textSettingsSourcesLabel
+	textSettingsSourcesBrowse
 	textSettingsSourcesEmpty
 	textSettingsSourcesAdd
 	textSettingsSourcesNote
@@ -5787,6 +5790,7 @@ var keyOfText = [numTexts]string{
 	"settingsSectionMediaSources",
 	"settingsKeywordsMediaSources",
 	"settingsSourcesLabel",
+	"settingsSourcesBrowse",
 	"settingsSourcesEmpty",
 	"settingsSourcesAdd",
 	"settingsSourcesNote",
@@ -7693,6 +7697,7 @@ var textsEn = i18n.NewTexts(""+
 	"Media Sources"+
 	"NAS SMB share server network import Windows sharing"+
 	"Sources"+
+	"Browse"+
 	"No media sources yet"+
 	"Add…"+
 	"Kando only reads your media sources: it never writes, moves or deletes anything on them. Their passwords are kept in the system's keychain, not in Kando's settings file."+
@@ -7722,7 +7727,7 @@ var textsEn = i18n.NewTexts(""+
 	"Kando could not reach the server. Check its address and that it is on."+
 	"Media Sources"+
 	"Browse Media Sources"+
-	"Add a NAS share or a server in Settings to browse its videos here."+
+	"Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."+
 	"Add a Source…"+
 	"Loading…"+
 	"No videos or folders here"+
@@ -9596,6 +9601,7 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		51,
 		7,
+		6,
 		20,
 		6,
 		169,
@@ -9625,7 +9631,7 @@ var textsEn = i18n.NewTexts(""+
 		70,
 		13,
 		20,
-		66,
+		120,
 		15,
 		10,
 		25,
@@ -11502,6 +11508,7 @@ var textsJa = i18n.NewTexts(""+
 	"メディアソース"+
 	"NAS SMB 共有 サーバー ネットワーク 読み込み Windows 共有"+
 	"ソース"+
+	"表示"+
 	"メディアソースはまだありません"+
 	"追加…"+
 	"Kando はメディアソースを読み取るだけで、書き込み・移動・削除は一切しません。パスワードは Kando の設定ファイルではなく、システムのキーチェーンに保存されます。"+
@@ -11531,7 +11538,7 @@ var textsJa = i18n.NewTexts(""+
 	"サーバーに接続できませんでした。アドレスと電源を確認してください。"+
 	"メディアソース"+
 	"メディアソースを表示"+
-	"設定で NAS の共有やサーバーを追加すると、ここで動画を表示できます。"+
+	"NAS の共有、サーバー、Jellyfin などのメディアサーバーを追加すると、ここで動画を表示してライブラリに読み込めます。"+
 	"ソースを追加…"+
 	"読み込み中…"+
 	"ここには動画もフォルダもありません"+
@@ -13405,6 +13412,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		74,
 		9,
+		6,
 		45,
 		9,
 		229,
@@ -13434,7 +13442,7 @@ var textsJa = i18n.NewTexts(""+
 		99,
 		21,
 		30,
-		98,
+		163,
 		21,
 		18,
 		51,
@@ -15311,6 +15319,7 @@ var textsKo = i18n.NewTexts(""+
 	"미디어 소스"+
 	"NAS SMB 공유 서버 네트워크 가져오기 Windows 공유"+
 	"소스"+
+	"둘러보기"+
 	"아직 미디어 소스가 없습니다"+
 	"추가…"+
 	"Kando는 미디어 소스를 읽기만 하며, 그 위의 파일을 쓰거나 옮기거나 삭제하지 않습니다. 소스의 암호는 Kando의 설정 파일이 아니라 시스템 키체인에 보관됩니다."+
@@ -15340,7 +15349,7 @@ var textsKo = i18n.NewTexts(""+
 	"서버에 연결할 수 없습니다. 주소와 전원을 확인하세요."+
 	"미디어 소스"+
 	"미디어 소스 둘러보기"+
-	"설정에서 NAS 공유나 서버를 추가하면 여기서 동영상을 둘러볼 수 있습니다."+
+	"NAS 공유, 서버 또는 Jellyfin 같은 미디어 서버를 추가하면 여기서 동영상을 둘러보고 라이브러리로 가져올 수 있습니다."+
 	"소스 추가…"+
 	"불러오는 중…"+
 	"여기에는 동영상이나 폴더가 없습니다"+
@@ -17214,6 +17223,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		62,
 		6,
+		12,
 		39,
 		9,
 		213,
@@ -17243,7 +17253,7 @@ var textsKo = i18n.NewTexts(""+
 		74,
 		16,
 		29,
-		100,
+		157,
 		16,
 		19,
 		51,
@@ -19120,6 +19130,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"媒体来源"+
 	"NAS SMB 共享 服务器 网络 导入 局域网 Windows 共享"+
 	"来源"+
+	"浏览"+
 	"还没有媒体来源"+
 	"添加…"+
 	"看懂只读取你的媒体来源，从不在上面写入、移动或删除文件。来源的密码保存在系统的钥匙串里，不写进看懂的设置文件。"+
@@ -19149,7 +19160,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"连不上服务器。请检查地址，并确认它已开机。"+
 	"媒体来源"+
 	"浏览媒体来源"+
-	"在设置里添加 NAS 共享或服务器后，就能在这里浏览它的视频。"+
+	"添加 NAS 共享、服务器或 Jellyfin 这类媒体服务器，就能在这里浏览它的视频，并导入资料库。"+
 	"添加来源…"+
 	"正在读取…"+
 	"这里没有视频或文件夹"+
@@ -21023,6 +21034,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		63,
 		6,
+		6,
 		21,
 		9,
 		165,
@@ -21052,7 +21064,7 @@ var textsZhHans = i18n.NewTexts(""+
 		63,
 		12,
 		18,
-		83,
+		123,
 		15,
 		15,
 		30,
@@ -22929,6 +22941,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"媒體來源"+
 	"NAS SMB 共用 伺服器 網路 匯入 區域網路 Windows 共用"+
 	"來源"+
+	"瀏覽"+
 	"還沒有媒體來源"+
 	"新增…"+
 	"看懂只讀取你的媒體來源，從不在上面寫入、移動或刪除檔案。來源的密碼儲存在系統的鑰匙圈裡，不寫進看懂的設定檔。"+
@@ -22958,7 +22971,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"連不上伺服器。請檢查位址，並確認它已開機。"+
 	"媒體來源"+
 	"瀏覽媒體來源"+
-	"在設定裡新增 NAS 共用資料夾或伺服器後，就能在這裡瀏覽它的影片。"+
+	"新增 NAS 共用資料夾、伺服器或 Jellyfin 這類媒體伺服器，就能在這裡瀏覽它的影片，並匯入資料庫。"+
 	"新增來源…"+
 	"正在讀取…"+
 	"這裡沒有影片或資料夾"+
@@ -24832,6 +24845,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		66,
 		6,
+		6,
 		21,
 		9,
 		162,
@@ -24861,7 +24875,7 @@ var textsZhHant = i18n.NewTexts(""+
 		63,
 		12,
 		18,
-		92,
+		132,
 		15,
 		15,
 		30,
@@ -27170,6 +27184,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmNextIn != nil {
 		s.FilmNextIn = t.FilmNextIn
+	}
+	if t.SettingsSourcesBrowseLabel != nil {
+		s.SettingsSourcesBrowseLabel = t.SettingsSourcesBrowseLabel
 	}
 	if t.SettingsSourcesShares != nil {
 		s.SettingsSourcesShares = t.SettingsSourcesShares
@@ -71894,6 +71911,47 @@ func SettingsSourcesLabel(cx *core.Scope) string { return For(cx).SettingsSource
 // SettingsSourcesLabel is the package's SettingsSourcesLabel in the language of msgs.
 func (msgs Messages) SettingsSourcesLabel() string { return msgs.text(textSettingsSourcesLabel) }
 
+// SettingsSourcesBrowse says "Browse"
+// in the language the app shows under cx.
+//
+// Button of a media source's row on the Media Sources settings page that closes the settings and shows the source on the Media Sources page, where its videos are imported.
+func SettingsSourcesBrowse(cx *core.Scope) string { return For(cx).SettingsSourcesBrowse() }
+
+// SettingsSourcesBrowse is the package's SettingsSourcesBrowse in the language of msgs.
+func (msgs Messages) SettingsSourcesBrowse() string { return msgs.text(textSettingsSourcesBrowse) }
+
+// SettingsSourcesBrowseLabel says "Browse {name}"
+// in the language the app shows under cx.
+//
+// Accessible name of a media source's Browse button on the Media Sources settings page, read by screen readers.
+func SettingsSourcesBrowseLabel(cx *core.Scope, name string) string {
+	return For(cx).SettingsSourcesBrowseLabel(name)
+}
+
+// SettingsSourcesBrowseLabel is the package's SettingsSourcesBrowseLabel in the language of msgs.
+func (msgs Messages) SettingsSourcesBrowseLabel(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSourcesBrowseLabel(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSourcesBrowseLabel; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Browse " + msgs.arg(name)
+		case "ja":
+			return name + " を表示"
+		case "ko":
+			return name + " 둘러보기"
+		case "zh-Hans":
+			return "浏览" + name
+		case "zh-Hant":
+			return "瀏覽" + name
+		}
+	}
+}
+
 // SettingsSourcesEmpty says "No media sources yet"
 // in the language the app shows under cx.
 //
@@ -72510,16 +72568,16 @@ func (msgs Messages) MediaSourceSidebar() string { return msgs.text(textMediaSou
 // MediaSourceBrowse says "Browse Media Sources"
 // in the language the app shows under cx.
 //
-// Command of the File menu and the command palette that opens the Media Sources page.
+// Command of the File menu and the command palette, and button on the page of an empty library, that opens the Media Sources page.
 func MediaSourceBrowse(cx *core.Scope) string { return For(cx).MediaSourceBrowse() }
 
 // MediaSourceBrowse is the package's MediaSourceBrowse in the language of msgs.
 func (msgs Messages) MediaSourceBrowse() string { return msgs.text(textMediaSourceBrowse) }
 
-// MediaSourceNone says "Add a NAS share or a server in Settings to browse its videos here."
+// MediaSourceNone says "Add a NAS share, a server or a media server such as Jellyfin to browse its videos here and import them into the library."
 // in the language the app shows under cx.
 //
-// Shown on the Media Sources page while no source was added.
+// Shown in the middle of the Media Sources page while no source was added, above the Add a Source button.
 func MediaSourceNone(cx *core.Scope) string { return For(cx).MediaSourceNone() }
 
 // MediaSourceNone is the package's MediaSourceNone in the language of msgs.
@@ -72528,7 +72586,7 @@ func (msgs Messages) MediaSourceNone() string { return msgs.text(textMediaSource
 // MediaSourceAddSource says "Add a Source…"
 // in the language the app shows under cx.
 //
-// Button on the Media Sources page while no source was added, opening Settings › Media Sources.
+// Button on the Media Sources page, in its middle while no source was added and under the list of sources once one was, opening Settings › Media Sources with the dialog that adds a source; once it is saved, the page shows it.
 func MediaSourceAddSource(cx *core.Scope) string { return For(cx).MediaSourceAddSource() }
 
 // MediaSourceAddSource is the package's MediaSourceAddSource in the language of msgs.

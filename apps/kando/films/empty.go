@@ -39,7 +39,7 @@ func (n missingLibrary) Render(cx *core.Scope) core.Node {
 	)
 }
 
-// emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 浏览网站, which opens the built-in browser to find a video in, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
+// emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 浏览网站, which opens the built-in browser to find a video in, 浏览媒体来源, which opens the 媒体来源 page to import from a NAS or a media server, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
 type emptyLibrary struct{ a App }
 
 // Render implements core.Node.
@@ -48,6 +48,7 @@ func (e emptyLibrary) Render(cx *core.Scope) core.Node {
 	return statusPage(cx, startTile(cx), locales.FilmsEmptyTitle, locales.FilmsEmptyDescription,
 		textButton(locales.FilmsPickVideosEllipsis, ui.Button{TestID: "empty-pick", OnPress: live.Do(a, a.PickVideos)}),
 		textButton(locales.FilmsBrowseSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-browse", OnPress: live.Do(a, func() { a.Select(sidebar.PageBrowse) })}),
+		textButton(locales.MediaSourceBrowse, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-media-sources", OnPress: live.Do(a, func() { a.Select(sidebar.PageMediaSources) })}),
 		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
 		textButton(locales.FilmsSupportedSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-sites", OnPress: live.Do(a, a.OpenSites)}),
 	)

@@ -28,6 +28,8 @@ type MediaSourcesApp interface {
 	EditMediaSource(id string)
 	// AskRemoveMediaSource asks whether to remove the source id (MediaSourceRemoving).
 	AskRemoveMediaSource(id string)
+	// BrowseMediaSource closes the settings and shows the source id on the 媒体来源 page, where its videos are imported.
+	BrowseMediaSource(id string)
 
 	// MediaSourceEditing is whether the dialog is open, MediaSourceIsNew whether it adds a source rather than edits one.
 	MediaSourceEditing() bool
@@ -116,13 +118,15 @@ func (p MediaSources) Render(cx *core.Scope) core.Node {
 	)
 }
 
-// mediaSourceRows are the card's rows, one per source: its name over its kind and place, Test, Edit and Remove, and under them how the last Test went.
+// mediaSourceRows are the card's rows, one per source: its name over its kind and place, Browse, which shows it on the 媒体来源 page, Test, Edit and Remove, and under them how the last Test went.
 func mediaSourceRows(cx *core.Scope, a MediaSourcesApp) core.Node {
 	list := core.NewMemoFunc(cx, live.Func(a, a.MediaSources), slices.Equal[[]MediaSource])
 	return core.Each(list.Get, func(s MediaSource) string { return s.ID }, func(cx *core.Scope, s func() MediaSource, index func() int) core.Node {
 		id := s().ID
 		status := core.NewMemo(cx, live.Func(a, func() MediaSourceStatus { return a.MediaSourceStatus(id) }))
 		buttons := []core.Node{
+			form.Button{TestID: "media-source-browse-" + id, Label: locales.SettingsSourcesBrowseLabel(cx, s().Name), Text: locales.SettingsSourcesBrowse(cx),
+				OnPress: live.Do(a, func() { a.BrowseMediaSource(id) })},
 			form.Button{TestID: "media-source-test-" + id, Label: locales.AccountLocationTestLabel(cx, s().Name), Text: locales.AccountLocationTest(cx),
 				Disabled: func() bool { return status.Get().Busy }, OnPress: live.Do(a, func() { a.TestMediaSource(id) })},
 			form.Button{TestID: "media-source-edit-" + id, Label: locales.AccountLocationEditLabel(cx, s().Name), Text: locales.AccountLocationEdit(cx),
