@@ -19,12 +19,14 @@ type PlexSection struct {
 	Key, Title, Type string
 }
 
-// PlexItem is an item of a PlexServer: a film, a show, a season or an episode, by its rating key, under a section (Section, for a film or a show) or another item (Parent), with the fields Plex answers of it; Parts are its first media's files, by their path on the server and their bytes.
+// PlexItem is an item of a PlexServer: a film, a show, a season or an episode, by its rating key, under a section (Section, for a film or a show) or another item (Parent), with the fields Plex answers of it; Parts are its first media's files, by their path on the server and their bytes; Thumb, Art and GrandparentArt are the artwork bytes Plex serves at /library/metadata/<ratingKey>/(thumb|art)/<ts> (or its show's art for an episode).
 type PlexItem struct {
 	RatingKey, Section, Parent, Type, Title string
 	Year, Index, ParentIndex                int
 	Container                               string
 	Parts                                   []PlexPart
+	Thumb, Art                              []byte
+	GrandparentArt                          string
 }
 
 // PlexPart is a file of a PlexItem: its path on the server, its container when Plex says one, and its bytes.
@@ -78,6 +80,15 @@ func (s *PlexServer) metadata(it PlexItem) map[string]any {
 	if it.Type == "episode" {
 		d["parentIndex"] = it.ParentIndex
 	}
+	if len(it.Thumb) > 0 {
+		d["thumb"] = fmt.Sprintf("/library/metadata/%s/thumb/%d", it.RatingKey, plexAdded)
+	}
+	if len(it.Art) > 0 {
+		d["art"] = fmt.Sprintf("/library/metadata/%s/art/%d", it.RatingKey, plexAdded)
+	}
+	if it.GrandparentArt != "" {
+		d["grandparentArt"] = fmt.Sprintf("/library/metadata/%s/art/%d", it.GrandparentArt, plexAdded)
+	}
 	if len(it.Parts) > 0 {
 		var parts []map[string]any
 		for i, p := range it.Parts {
@@ -116,6 +127,27 @@ func (s *PlexServer) serve(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+		}
+		http.NotFound(w, r)
+		return
+	}
+	if len(parts) == 5 && parts[0] == "library" && parts[1] == "metadata" && (parts[3] == "thumb" || parts[3] == "art") {
+		for _, it := range s.items {
+			if it.RatingKey != parts[2] {
+				continue
+			}
+			var pic []byte
+			if parts[3] == "thumb" {
+				pic = it.Thumb
+			} else {
+				pic = it.Art
+			}
+			if len(pic) == 0 {
+				break
+			}
+			w.Header().Set("Content-Type", http.DetectContentType(pic))
+			_, _ = w.Write(pic)
+			return
 		}
 		http.NotFound(w, r)
 		return

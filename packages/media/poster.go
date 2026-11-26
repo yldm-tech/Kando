@@ -17,13 +17,20 @@ const minPosterLuma = 0.08
 
 // GrabPoster writes a JPEG that stands for the media at path to dest: a frame of its picture, skipping a black opening when a later frame is brighter, or for sound alone a picture of its sound (soundPicture) from the middle, wider, as it is what the player shows the whole time the film plays. A partial file is removed when the grab fails.
 func GrabPoster(ctx context.Context, ffmpeg, video, dest string) error {
+	return GrabPosterWithDuration(ctx, ffmpeg, video, dest, 0)
+}
+
+// GrabPosterWithDuration is GrabPoster when the caller already read the media's length (ReadHeaderContext), skipping a second header probe when length > 0.
+func GrabPosterWithDuration(ctx context.Context, ffmpeg, video, dest string, length time.Duration) error {
 	if ffmpeg == "" || video == "" || dest == "" {
 		return errors.New("poster source is missing")
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}
-	length := Duration(ffmpeg, video)
+	if length <= 0 {
+		length = ReadHeaderContext(ctx, ffmpeg, video).Length
+	}
 	var best []byte
 	bestLuma := -1.0
 	var lastErr error

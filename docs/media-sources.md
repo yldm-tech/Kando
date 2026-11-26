@@ -300,7 +300,7 @@
 
 - `list(source, dir)`：回 `[{name, dir, size, modified, version}]`，最多 5000 项，`name` 不能含 `/`、`\`、NUL，不能是 `.`、`..`；`modified` 是 RFC 3339。
 - `stat(source, path)`：回一项或 `null`（不存在）。
-- `open(source, path)`：回 `{path, query, header}`，`path` 和 `query` 相对来源的 `endpoint`；或 `{url, header}`，`url` 必须和 `endpoint` 同 origin。另可回 `ttl`（秒，默认 600，最多 86400）：宿主在这段时间内复用这个结果，过期、或请求回 401、403 时再调一次 `open`。
+- `open(source, path)`：回 `{path, query, header}`，`path` 和 `query` 相对来源的 `endpoint`；或 `{url, header}`，`url` 必须和 `endpoint` 同 origin。另可回 `ttl`（秒，默认 600，最多 86400）：宿主在这段时间内复用这个结果，过期、或请求回 401、403 时再调一次 `open`；以及可选的 `cover`（同 `{path, query, header}` 或 `{url, header}` 形状），给媒体服务器提供影片自己的封面图（按同样规则经宿主取，上限 8 MiB，没有时回退到 ffmpeg 从串流抽帧）。
 - `source` 是 `{id, config}`：`id` 是按插件派生的不透明 ID（和 `docs/plugin-system.md` 5.3 的影片 ID 一样用 `HMAC(pluginSecret, 来源 ID)`），`config` 是非秘密字段，**没有** `secret` 字段的值。
 - 每次调用等 15 s，超时按 `timeout` 失败；回答形状不对算 `bad-reply`。失败带码：`auth`（认证失败，宿主提示重新输入密码）、`not-found`、`unavailable`，其余同 E14 的失败码。
 

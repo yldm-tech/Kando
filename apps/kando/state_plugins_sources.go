@@ -81,6 +81,7 @@ func (a *app) pluginsSourcesFollow() bool {
 	}
 	if changed {
 		a.mediaSourcePoolSync()
+		a.loadExtras()
 	}
 	return changed
 }

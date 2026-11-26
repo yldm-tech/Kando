@@ -499,6 +499,10 @@ func TestPluginReplies(t *testing.T) {
 	}{
 		{map[string]any{"path": "a.mp4"}, true},
 		{map[string]any{"url": "https://x/a.mp4", "header": map[string]any{"X": "1"}, "ttl": float64(60)}, true},
+		{map[string]any{"path": "a.mp4", "cover": map[string]any{"path": "art/a.jpg"}}, true},
+		{map[string]any{"path": "a.mp4", "cover": map[string]any{"url": "https://x/art/a.jpg", "header": map[string]any{"Accept": "image/*"}}}, true},
+		{map[string]any{"path": "a.mp4", "cover": "art/a.jpg"}, false},
+		{map[string]any{"path": "a.mp4", "cover": map[string]any{}}, false},
 		{map[string]any{"path": "a", "url": "https://x/a"}, false},
 		{map[string]any{}, false},
 		{map[string]any{"path": "a", "header": map[string]any{"X": 1}}, false},
@@ -523,5 +527,80 @@ func TestPluginReplies(t *testing.T) {
 		if _, _, ok := PluginRequest(bad); ok {
 			t.Errorf("request %v taken", bad)
 		}
+	}
+}
+
+// TestPluginDriverCover checks PluginDriver.Cover: reading artwork named by open's optional cover field with injected secrets, reusing the cached open answer, retrying open once on 401, returning ErrNotExist when open names no cover or the server returns 404, and refusing covers above coverMax.
+func TestPluginDriverCover(t *testing.T) {
+	var opens int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Token") != "tok" {
+			http.Error(w, "denied", http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/art/movie.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write([]byte("fake-jpeg"))
+		case "/art/huge.jpg":
+			_, _ = w.Write(make([]byte, coverMax+1))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	endpoint, _ := ParseEndpoint(srv.URL)
+	src := plugins.MediaSource{ID: "srv", Fields: []plugins.MediaSourceField{
+		{Key: EndpointKey, Type: plugins.MediaFieldURL},
+		{Key: "token", Type: plugins.MediaFieldSecret, Auth: &plugins.MediaSourceAuth{Header: "X-Token"}},
+	}}
+	d := &PluginDriver{
+		Source: map[string]any{"id": "s_1"},
+		Fetcher: &Fetcher{
+			Endpoint: endpoint,
+			Source:   src,
+			Secrets:  map[string]string{"token": "tok"},
+		},
+		Call: func(_ context.Context, export string, args ...any) (any, error) {
+			if export != plugins.MediaSourceOpen {
+				return nil, nil
+			}
+			opens++
+			switch args[1] {
+			case "movie.mkv":
+				return map[string]any{"path": "parts/movie.mkv", "cover": map[string]any{"path": "art/movie.jpg"}}, nil
+			case "plain.mkv":
+				return map[string]any{"path": "parts/plain.mkv"}, nil
+			case "missing-art.mkv":
+				return map[string]any{"path": "parts/missing.mkv", "cover": map[string]any{"path": "art/gone.jpg"}}, nil
+			case "huge.mkv":
+				return map[string]any{"path": "parts/huge.mkv", "cover": map[string]any{"path": "art/huge.jpg"}}, nil
+			}
+			return nil, ErrNotExist
+		},
+	}
+	ctx := context.Background()
+	got, err := d.Cover(ctx, "movie.mkv")
+	if err != nil || string(got) != "fake-jpeg" {
+		t.Fatalf("cover = %q, %v", got, err)
+	}
+	// A second cover read reuses open's cached answer.
+	if _, err := d.Cover(ctx, "movie.mkv"); err != nil || opens != 1 {
+		t.Fatalf("cached cover: err %v, opens %d", err, opens)
+	}
+	// A 401 asks open again once.
+	d.Fetcher.Secrets["token"] = "bad"
+	if _, err := d.Cover(ctx, "movie.mkv"); err == nil || opens != 2 {
+		t.Fatalf("refused cover: err %v, opens %d", err, opens)
+	}
+	d.Fetcher.Secrets["token"] = "tok"
+	if _, err := d.Cover(ctx, "plain.mkv"); !errors.Is(err, ErrNotExist) {
+		t.Fatalf("no cover field: %v", err)
+	}
+	if _, err := d.Cover(ctx, "missing-art.mkv"); !errors.Is(err, ErrNotExist) {
+		t.Fatalf("404 cover: %v", err)
+	}
+	if _, err := d.Cover(ctx, "huge.mkv"); !errors.Is(err, ErrFetchTooLarge) {
+		t.Fatalf("huge cover: %v", err)
 	}
 }

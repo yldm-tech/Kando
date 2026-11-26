@@ -254,9 +254,31 @@ export async function stat(source: any, p: string): Promise<any> {
   return entry(parts[parts.length - 1], node)
 }
 
-// open tells Kando to read p's original file, its part as it is on the server, which Plex sends without transcoding it.
+// imagePath is p without its leading slash when it is a plain path under /library/metadata/, "" otherwise.
+function imagePath(p: any): string {
+  const s = String(p || "")
+  return s.startsWith("/library/metadata/") && !/[?#\\]/.test(s) ? s.slice(1) : ""
+}
+
+// coverPath is an item's artwork path on the server, preferring 16:9 artwork for Kando's cards: a movie's art (fanart/backdrop) before its thumb, and an episode's or other video's thumb (its own still) before its art or its show's art.
+function coverPath(item: any): string {
+  if (!item) return ""
+  const order = item.type === "movie"
+    ? [item.art, item.thumb]
+    : [item.thumb, item.art, item.grandparentArt]
+  for (const p of order) {
+    const path = imagePath(p)
+    if (path) return path
+  }
+  return ""
+}
+
+// open tells Kando to read p's original file, its part as it is on the server, which Plex sends without transcoding it, along with its artwork path when the server gave one.
 export async function open(source: any, p: string): Promise<any> {
   const node = await resolve(source, p)
   if (!node || node.kind !== "video") fail("not-found", "no video " + p)
-  return { path: String(node.part.key).slice(1) }
+  const out: any = { path: String(node.part.key).slice(1) }
+  const cover = coverPath(node.item)
+  if (cover) out.cover = { path: cover }
+  return out
 }

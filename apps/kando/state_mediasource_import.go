@@ -290,6 +290,8 @@ func (a *app) mediaSourceRelinkTo(p string, e mediasource.Entry) {
 	if err := a.library.Save(); err != nil {
 		a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 	}
+	delete(a.lib.posterMiss, placeholder)
+	a.loadExtras()
 	name := a.libraryJobNameOf(placeholder)
 	b.note = func(m locales.Messages) string { return m.MediaSourceRelinked(name) }
 }
@@ -508,6 +510,7 @@ func (a *app) linkedCopied(p, name, source string, err error) {
 	if serr := a.library.Save(); serr != nil {
 		a.saveErr = a.shelfSaveErr(serr, m.LibraryShelfSaveFailed)
 	}
+	delete(a.lib.posterMiss, p)
 	a.refreshLibrary()
 	a.tell(m.MediaSourceCopied(name))
 }

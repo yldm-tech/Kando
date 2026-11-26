@@ -69,6 +69,10 @@ func (a *app) playerLinked(path string, at time.Duration, jump bool) bool {
 				if linkedChangedFrom(l, e) {
 					a.player.linkedChanged = &linkedChange{path: path, now: e}
 				}
+				if !libraryHasImage(a.lib.posters[path]) && a.lib.posterMiss[path] {
+					delete(a.lib.posterMiss, path)
+					a.loadExtras()
+				}
 				return
 			}
 			a.playerNowPlayingClear()

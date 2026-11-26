@@ -135,13 +135,14 @@ type FetchReply struct {
 	Body   []byte
 }
 
-// OpenTarget is where a plugin's open export says a file is read from (docs/media-sources.md 11.2): Path and Query relative to the endpoint, or URL, an address of the endpoint's origin; Header the plugin's headers for it; TTL how long Kando may read it from there before it asks again.
+// OpenTarget is where a plugin's open export says a file is read from (docs/media-sources.md 11.2): Path and Query relative to the endpoint, or URL, an address of the endpoint's origin; Header the plugin's headers for it; TTL how long Kando may read it from there before it asks again; and Cover, when the server has artwork for the video, where that picture is read from under the same rules.
 type OpenTarget struct {
 	Path   string
 	Query  map[string]string
 	URL    string
 	Header map[string]string
 	TTL    time.Duration
+	Cover  *OpenTarget
 }
 
 // Fetcher sends a plugin's source's requests (docs/media-sources.md 11.3): only to its endpoint, under the endpoint's path, with the methods of FetchMethods, POST only under the source's PostPaths, the secrets put in as each field says (plugins.MediaSourceAuth), Config holding the source's values that are not secret, as the user a Basic secret goes with,, and its replies kept to FetchReplyMax. It follows no redirect for the plugin; reading a file (Open) follows up to five, keeping the plugin's headers and the secrets only on the endpoint's origin and going elsewhere only by https. An https endpoint's certificate is verified by the system, or by its fingerprint once the user trusted it (Pin). Offline (Offline) it connects only to addresses on the local network, judged as it dials, so a name that resolves elsewhere is refused.
@@ -567,6 +568,23 @@ func (f *Fetcher) Open(ctx context.Context, t OpenTarget, offset, length int64) 
 	}
 	resp.Body.Close()
 	return nil, ErrFetchStatus{Status: resp.StatusCode}
+}
+
+// Read reads at most limit bytes from t via Open, returning ErrFetchTooLarge when the reply exceeds limit. It is how Kando reads a video's cover picture from a plugin's source, with the same origin, header, secret, redirect and offline checks as Open.
+func (f *Fetcher) Read(ctx context.Context, t OpenTarget, limit int64) ([]byte, error) {
+	rc, err := f.Open(ctx, t, 0, -1)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(io.LimitReader(rc, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, ErrFetchTooLarge
+	}
+	return data, nil
 }
 
 // readCloser reads r and closes c.

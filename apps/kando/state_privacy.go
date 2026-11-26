@@ -98,6 +98,7 @@ func (a *app) privacySetOffline(on bool) {
 	}
 	if !on {
 		a.pump()
+		a.loadExtras()
 	}
 }
 

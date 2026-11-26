@@ -24,6 +24,11 @@ type Driver interface {
 	Close() error
 }
 
+// CoverDriver is a Driver that can read a video's own cover picture from its source, as a media server's artwork (Plex, Jellyfin, Emby). ErrNotExist when the video has none.
+type CoverDriver interface {
+	Cover(ctx context.Context, p string) ([]byte, error)
+}
+
 // Entry is a file or folder of a source. Version is what tells a changed file from the one imported: an ETag, or size and time.
 type Entry struct {
 	Name     string

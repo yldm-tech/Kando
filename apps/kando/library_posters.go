@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"image"
 	_ "image/gif" // coverJPEG
 	"image/jpeg"
@@ -18,6 +19,7 @@ import (
 	_ "golang.org/x/image/webp" // coverJPEG: YouTube's thumbnails are often WebP
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/mediasource"
 	"kando/apps/kando/vault"
 	"kando/packages/media"
 
@@ -34,6 +36,9 @@ func (a *app) posterOf(video string) ns.ImageSource {
 	return a.lib.posters[video]
 }
 
+// linkedPosterTimeout bounds fetching a cover or probing the stream of a film from a media source.
+const linkedPosterTimeout = mediasource.PoolOpenTimeout
+
 // ensurePoster finds a film's cover the first time the shelf has it (findCover), and reads how long the video plays. A miss is remembered so the video is not tried again. loadExtras calls it; the page only shows what it found.
 func (a *app) ensurePoster(item films.Film) {
 	video := item.VideoPath
@@ -47,9 +52,8 @@ func (a *app) ensurePoster(item films.Film) {
 	}
 	// A video moved to a storage location is not here for ffmpeg to read: its cover is the one kept before it moved, or its site's picture (state_stored.go).
 	_, stored := a.storedOf(video)
-	// An indexed video is on its media source, read through the loopback server only by a job, which makes its poster as it makes its lines.
-	stored = stored || a.linkedHas(video)
-	if _, err := os.Stat(video); err != nil && !stored {
+	l, linked := a.linkedOf(video)
+	if _, err := os.Stat(video); err != nil && !stored && !linked {
 		a.markPosterMiss(video)
 		return
 	}
@@ -64,7 +68,41 @@ func (a *app) ensurePoster(item films.Film) {
 			cover.site, cover.siteCache = item.Thumbnail, cache
 		}
 	}
-	if cover.ffmpeg == "" && cover.site == "" && !fileExists(dest) {
+	switch {
+	case linked && fileExists(dest):
+		// An indexed video whose poster is already cached on disk reads it there without reaching its source.
+		cover.ffmpeg = ""
+	case linked:
+		i := a.mediaSourceIndex(l.Source)
+		if i < 0 {
+			a.markPosterMiss(video)
+			return
+		}
+		if _, inPool := a.sources.pool.Source(l.Source); !inPool {
+			// The source's pool or plugin kind is not ready yet (e.g. startup before mediaSourceHooks' ready or plugin load): try again once it is, without marking a miss.
+			return
+		}
+		if k, ok := a.sources.kinds.Kind(a.sources.list[i].Kind); cover.ffmpeg == "" && (!ok || k.Origin.Builtin()) {
+			a.markPosterMiss(video)
+			return
+		}
+		cover.source = mediasource.Ref{Source: l.Source, Path: l.Path}.String()
+		cover.copier = a.mediaSourceCopier()
+		cover.linked = true
+	case !stored && !fileExists(dest) && media.IsSourceRef(item.Source):
+		// A video copied from a media server (such as Plex) takes the server's artwork when its poster has not been written yet, falling back to its local file.
+		if ref, err := mediasource.ParseRef(item.Source); err == nil {
+			if _, inPool := a.sources.pool.Source(ref.Source); inPool {
+				if i := a.mediaSourceIndex(ref.Source); i >= 0 {
+					if k, ok := a.sources.kinds.Kind(a.sources.list[i].Kind); ok && !k.Origin.Builtin() {
+						cover.source = item.Source
+						cover.copier = a.mediaSourceCopier()
+					}
+				}
+			}
+		}
+	}
+	if cover.ffmpeg == "" && cover.site == "" && cover.source == "" && !fileExists(dest) {
 		a.markPosterMiss(video)
 		return
 	}
@@ -79,23 +117,38 @@ func (a *app) ensurePoster(item films.Film) {
 	go func() {
 		slots <- struct{}{}
 		defer func() { <-slots }()
-		var length time.Duration
-		if cover.ffmpeg != "" {
-			header := media.ReadHeader(cover.ffmpeg, video)
-			length, cover.sound = header.Length, header.Read && !header.Picture
+		ctx := context.Background()
+		var cancel context.CancelFunc
+		if cover.source != "" {
+			ctx, cancel = context.WithTimeout(ctx, linkedPosterTimeout)
+			defer cancel()
 		}
-		// The cover is kept as the JPEG findCover returns, which the cards show as it is, once it reads as a picture.
-		data, err := findCover(context.Background(), cover)
+		var length time.Duration
+		var offline bool
+		var data []byte
+		var err error
+		if cover.linked {
+			data, length, offline, err = linkedCover(ctx, cover)
+		} else {
+			if cover.ffmpeg != "" {
+				header := media.ReadHeaderContext(ctx, cover.ffmpeg, video)
+				length, cover.sound = header.Length, header.Read && !header.Picture
+				cover.length = length
+			}
+			// The cover is kept as the JPEG findCover returns, which the cards show as it is, once it reads as a picture.
+			data, err = findCover(ctx, cover)
+		}
 		if err == nil {
 			_, _, err = image.DecodeConfig(bytes.NewReader(data))
 		}
 		update(func() {
 			delete(a.lib.posterBusy, video)
 			if length > 0 {
-				if a.lib.durations == nil {
-					a.lib.durations = map[string]time.Duration{}
-				}
-				a.lib.durations[video] = length
+				a.libraryLearnDuration(video, length)
+			}
+			if offline {
+				// Offline mode kept an internet media source closed; try again once it is off.
+				return
 			}
 			if err != nil || len(data) == 0 {
 				a.markPosterMiss(video)
@@ -105,25 +158,41 @@ func (a *app) ensurePoster(item films.Film) {
 				a.lib.posters = map[string]ns.ImageSource{}
 			}
 			a.lib.posters[video] = ns.ImageSource{Data: data}
+			if a.player.play != nil && a.player.play.path == video {
+				a.playerNowPlayingArtwork(video)
+			}
 		})
 	}()
 }
 
-// libraryLearnDuration keeps length as how long the video at path plays when the poster's probe has not told it, as before the probe ends or where it cannot run (no ffmpeg, a cover that was not found), once the player has opened the video and knows it: a film's length is what the check over its poster and 标记为已看完 go by (films.WatchState).
+// libraryLearnDuration keeps length as how long the video at path plays when the poster's probe has not told it, as before the probe ends or where it cannot run (no ffmpeg, a cover that was not found), once the player has opened the video and knows it: a film's length is what the check over its poster and 标记为已看完 go by (films.WatchState). For an indexed video whose length library.json has not kept yet, it notes it there too so the next launch knows it without probing the source again.
 func (a *app) libraryLearnDuration(path string, length time.Duration) {
-	if path == "" || length <= 0 || a.lib.durations[path] > 0 {
+	if path == "" || length <= 0 {
 		return
 	}
-	if a.lib.durations == nil {
-		a.lib.durations = map[string]time.Duration{}
+	if a.lib.durations[path] <= 0 {
+		if a.lib.durations == nil {
+			a.lib.durations = map[string]time.Duration{}
+		}
+		a.lib.durations[path] = length
 	}
-	a.lib.durations[path] = length
+	if l, ok := a.linkedOf(path); ok && l.Duration <= 0 {
+		l.Duration = length
+		a.library.Linked[path] = l
+		if err := a.library.Save(); err != nil {
+			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
+		}
+	}
 }
 
-// coverSources is where a film's cover can come from: the address of the picture its site gives it and where that picture is kept once fetched ("" for a local video), the ffmpeg that reads the video file, and dest, the cover.jpg the cover is kept in. sound is true for a film of sound alone, whose cover the player shows in place of a picture (media.WideCover).
+// coverSources is where a film's cover can come from: the address of the picture its site gives it and where that picture is kept once fetched ("" for a local video), the media source ref and copier when the film came from a media source (source, copier, with linked set when the video itself is only on the source), the ffmpeg that reads the video file, its already-probed length, and dest, the cover.jpg the cover is kept in. sound is true for a film of sound alone, whose cover the player shows in place of a picture (media.WideCover).
 type coverSources struct {
 	site, siteCache string
+	source          string
+	copier          mediasource.Copier
+	linked          bool
 	ffmpeg, video   string
+	length          time.Duration
 	dest            string
 	sound           bool
 }
@@ -134,11 +203,64 @@ var (
 	embeddedCover      = media.EmbeddedCover
 )
 
-// findCover returns a film's cover as JPEG and keeps it in dest, off the UI thread. The cover is the video's own: the picture its site gives it, else the cover art its file carries, made 16:9 for a film of sound alone, whose art is mostly square (media.WideCover); dest is rewritten whenever it holds something else, so a frame an earlier Kando grabbed gives way to the video's own cover. Only a video with neither keeps the cover dest already has, unless that is a black frame, or has a frame grabbed from it, for sound alone a picture of its sound (media.GrabPoster).
+// linkedCover finds the cover of a film indexed from a media source: the server's own artwork when its driver provides one (CoverDriver), else the embedded cover or a frame grabbed by ffmpeg from the source's loopback stream URL, which is revoked as ctx ends. offline reports that offline mode kept an internet source closed.
+func linkedCover(ctx context.Context, from coverSources) (data []byte, length time.Duration, offline bool, err error) {
+	if own, cerr := from.copier.Cover(ctx, from.source); cerr == nil && len(own) > 0 {
+		if cover, perr := prepareSourceCover(ctx, from.ffmpeg, own); perr == nil {
+			if kept, _ := os.ReadFile(from.dest); !bytes.Equal(kept, cover) {
+				_ = writeCover(from.dest, cover)
+			}
+			return cover, 0, false, nil
+		}
+	} else if errors.Is(cerr, media.ErrOffline) {
+		return nil, 0, true, cerr
+	}
+	if from.ffmpeg == "" {
+		return nil, 0, false, errors.New("poster source is missing")
+	}
+	stream, err := from.copier.URL(ctx, from.source)
+	if err != nil {
+		return nil, 0, errors.Is(err, media.ErrOffline), err
+	}
+	header := media.ReadHeaderContext(ctx, from.ffmpeg, stream)
+	from.video = stream
+	from.length = header.Length
+	from.sound = header.Read && !header.Picture
+	from.source = ""
+	data, err = findCover(ctx, from)
+	return data, header.Length, false, err
+}
+
+// prepareSourceCover encodes a media source's artwork as JPEG, widening portrait artwork (such as a movie's poster when the server has no 16:9 fanart) into 16:9 over a blurred backdrop so cards do not crop off titles or faces.
+func prepareSourceCover(ctx context.Context, ffmpeg string, own []byte) ([]byte, error) {
+	cover, err := coverJPEG(own)
+	if err != nil {
+		return nil, err
+	}
+	if ffmpeg != "" {
+		if cfg, _, err := image.DecodeConfig(bytes.NewReader(cover)); err == nil && cfg.Height > 0 && cfg.Width < cfg.Height {
+			if wide, err := media.WideCover(ctx, ffmpeg, cover); err == nil {
+				if widened, err := coverJPEG(wide); err == nil {
+					return widened, nil
+				}
+			}
+		}
+	}
+	return cover, nil
+}
+
+// findCover returns a film's cover as JPEG and keeps it in dest, off the UI thread. The cover is the video's own: the picture its site or media source gives it, else the cover art its file carries, made 16:9 for a film of sound alone, whose art is mostly square (media.WideCover); dest is rewritten whenever it holds something else, so a frame an earlier Kando grabbed gives way to the video's own cover. Only a video with neither keeps the cover dest already has, unless that is a black frame, or has a frame grabbed from it, for sound alone a picture of its sound (media.GrabPoster).
 func findCover(ctx context.Context, from coverSources) ([]byte, error) {
 	var own []byte
 	if from.site != "" {
 		own = siteThumbnail(ctx, from.site, from.siteCache)
+	}
+	if own == nil && from.source != "" {
+		if pic, err := from.copier.Cover(ctx, from.source); err == nil && len(pic) > 0 {
+			if prepared, err := prepareSourceCover(ctx, from.ffmpeg, pic); err == nil {
+				own = prepared
+			}
+		}
 	}
 	if own == nil && from.ffmpeg != "" {
 		own, _ = embeddedCover(ctx, from.ffmpeg, from.video)
@@ -160,10 +282,19 @@ func findCover(ctx context.Context, from coverSources) ([]byte, error) {
 	if fileExists(from.dest) && (from.ffmpeg == "" || !media.PosterTooDark(from.dest)) {
 		return os.ReadFile(from.dest)
 	}
-	if err := media.GrabPoster(ctx, from.ffmpeg, from.video, from.dest); err != nil {
+	if err := media.GrabPosterWithDuration(ctx, from.ffmpeg, from.video, from.dest, from.length); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(from.dest)
+}
+
+// forgetLinkedPosterMiss drops posterMiss for films indexed from sourceID (or all indexed films when sourceID is ""), so ensurePoster tries them again once their source is reachable or changed.
+func (a *app) forgetLinkedPosterMiss(sourceID string) {
+	for video, l := range a.library.Linked {
+		if sourceID == "" || l.Source == sourceID {
+			delete(a.lib.posterMiss, video)
+		}
+	}
 }
 
 // siteThumbnail is the picture at address, read from cache, where the processing card's thumbnail keeps it too, or fetched there first; nil when it cannot be had, as when the site no longer serves it.

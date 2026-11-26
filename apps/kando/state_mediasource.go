@@ -297,6 +297,7 @@ func (a *app) mediaSourceHooks() areaHooks {
 		shelfLoaded: a.linkedLengths,
 		ready: func() {
 			a.mediaSourcePoolSync()
+			a.loadExtras()
 			a.mediaSourceFollowLook()
 		},
 		afterChange: func() bool {
@@ -612,6 +613,8 @@ func (a *app) mediaSourceCommit(s mediasource.Source) bool {
 	delete(m.tests, s.ID)
 	a.mediaSourcePoolSync()
 	m.pool.Forget(s.ID)
+	a.forgetLinkedPosterMiss(s.ID)
+	a.loadExtras()
 	a.closeMediaSourceDialog()
 	if browse {
 		a.mediaSourceBrowseFrom(s.ID)

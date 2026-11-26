@@ -1651,3 +1651,142 @@ func filmOfVideo(t *testing.T, a *app, video string) films.Film {
 	t.Fatalf("no film of %s among %q", video, films.Keys(a.films()))
 	return films.Film{}
 }
+
+// fakeCoverSource wraps fakeSource and implements mediasource.CoverDriver, returning server artwork for paths present in covers, as a media server plugin (such as Plex) does.
+type fakeCoverSource struct {
+	*fakeSource
+	covers map[string][]byte
+	asked  int
+}
+
+func (f *fakeCoverSource) open(_ context.Context, _ mediasource.Kind, _ mediasource.Source, _ map[string]string) (mediasource.Driver, error) {
+	return &fakeCoverDriver{Driver: fakeSourceDriver{f: f.fakeSource}, f: f}, nil
+}
+
+type fakeCoverDriver struct {
+	mediasource.Driver
+	f *fakeCoverSource
+}
+
+func (d *fakeCoverDriver) Cover(_ context.Context, p string) ([]byte, error) {
+	d.f.mu.Lock()
+	defer d.f.mu.Unlock()
+	d.f.asked++
+	if d.f.unreachable != nil {
+		return nil, d.f.unreachable
+	}
+	pic, ok := d.f.covers[p]
+	if !ok {
+		return nil, mediasource.ErrNotExist
+	}
+	return pic, nil
+}
+
+// An indexed film without a cached poster gets its cover and duration from its media source via ffmpeg over the loopback server, saves the poster and duration so future launches read them from disk without touching the source, and respects offline mode (retrying once offline turns off). Opening a previously unreachable film clears its poster miss and loads the poster once reachable.
+func TestIndexedFilmLoadsPosterAndDuration(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates := newTestApp(t, tools)
+	a.lib.posterDir = t.TempDir()
+	a.queue.stopped = true
+	s, src := browseSource(a, map[string]fakeSourceFile{
+		"Movies/Talk.mp4": {data: "kando fake clip 18 2060c0 102040\n"},
+	})
+	a.mediaSourcePoolSync()
+	a.sources.browse.source = s.ID
+	a.mediaSourceLink([]string{"Movies/Talk.mp4"})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 1 })
+	placeholder := filepath.Join(a.snap().LibraryDir, "Living Room NAS", "Movies", "Talk.mp4")
+	waitUntil(t, tt, a, updates, func() bool { return libraryHasImage(a.posterOf(placeholder)) })
+	if !fileExists(posterDest(a.lib.posterDir, placeholder)) {
+		t.Fatal("poster file was not cached on disk")
+	}
+	if got := a.Duration(placeholder); got != 18*time.Second {
+		t.Fatalf("duration = %v, want 18s", got)
+	}
+	if got := a.library.Linked[placeholder].Duration; got != 18*time.Second {
+		t.Fatalf("linked record duration = %v, want 18s", got)
+	}
+
+	// On a reload, the cached poster is read from disk even when the source cannot be reached.
+	src.mu.Lock()
+	src.unreachable = errors.New("offline")
+	src.mu.Unlock()
+	a.sources.pool.Forget(s.ID)
+	delete(a.lib.posters, placeholder)
+	delete(a.lib.posterMiss, placeholder)
+	a.loadExtras()
+	waitUntil(t, tt, a, updates, func() bool { return libraryHasImage(a.posterOf(placeholder)) })
+
+	// Offline mode skips an internet indexed film without marking posterMiss, and turning offline off loads its poster.
+	src.mu.Lock()
+	src.unreachable = nil
+	src.mu.Unlock()
+	_ = os.Remove(posterDest(a.lib.posterDir, placeholder))
+	delete(a.lib.posters, placeholder)
+	delete(a.lib.posterMiss, placeholder)
+	a.sources.localHost = func(context.Context, string) (bool, error) { return false, nil }
+	apply(tt, a, func() { a.privacySetOffline(true) })
+	a.loadExtras()
+	waitUntil(t, tt, a, updates, func() bool { return !a.lib.posterBusy[placeholder] })
+	if libraryHasImage(a.posterOf(placeholder)) || a.lib.posterMiss[placeholder] {
+		t.Fatalf("offline: poster=%v miss=%v", libraryHasImage(a.posterOf(placeholder)), a.lib.posterMiss[placeholder])
+	}
+	apply(tt, a, func() { a.privacySetOffline(false) })
+	waitUntil(t, tt, a, updates, func() bool { return libraryHasImage(a.posterOf(placeholder)) })
+
+	// Opening an indexed film whose poster previously missed retries and loads the poster once the source is reachable.
+	_ = os.Remove(posterDest(a.lib.posterDir, placeholder))
+	delete(a.lib.posters, placeholder)
+	a.markPosterMiss(placeholder)
+	item := filmOfVideo(t, a, placeholder)
+	a.page = pageFilms
+	a.Open(item)
+	waitUntil(t, tt, a, updates, func() bool { return libraryHasImage(a.posterOf(placeholder)) })
+}
+
+// A film indexed from a media server source that provides artwork (CoverDriver, such as Plex) uses the server's cover directly without even requiring ffmpeg, and falls back to ffmpeg stream grabbing for items without artwork.
+func TestIndexedFilmUsesMediaSourceCoverArt(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates := newTestApp(t, tools)
+	a.lib.posterDir = t.TempDir()
+	a.queue.stopped = true
+	plexKind := mediasource.PluginKindID("kando.plex", "plex")
+	if err := a.sources.kinds.Register(mediasource.Kind{
+		ID:     plexKind,
+		Title:  func(string) string { return "Plex" },
+		Icon:   "film",
+		Origin: mediasource.Origin{Plugin: "kando.plex"},
+		Fields: []mediasource.Field{{Key: mediasource.EndpointKey, Type: mediasource.FieldURL, Title: func(string) string { return "Server" }}},
+		Open: func(context.Context, mediasource.Source, map[string]string) (mediasource.Driver, error) {
+			return nil, errors.New("unused in test")
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	art := solidPicture(t, coverRed, encodeJPEG)
+	base := newFakeSource(map[string]fakeSourceFile{
+		"Films/With Art (2024).mkv": {data: "not-a-video"},
+		"Films/No Art (2024).mkv":   {data: "kando fake clip 10 208040 104020\n"},
+	})
+	src := &fakeCoverSource{fakeSource: base, covers: map[string][]byte{"Films/With Art (2024).mkv": art}}
+	s := mediasource.Source{ID: "aabbccddeeff0011", Kind: plexKind, Name: "Home Plex", Config: map[string]string{mediasource.EndpointKey: "http://plex.local:32400"}}
+	a.sources.list = []mediasource.Source{s}
+	a.sources.open = src.open
+	a.mediaSourcePoolSync()
+	a.sources.browse.source = s.ID
+	a.mediaSourceLink([]string{"Films/With Art (2024).mkv", "Films/No Art (2024).mkv"})
+	waitUntil(t, tt, a, updates, func() bool { return len(a.library.Linked) == 2 })
+
+	withArt := filepath.Join(a.snap().LibraryDir, "Home Plex", "Films", "With Art (2024).mkv")
+	noArt := filepath.Join(a.snap().LibraryDir, "Home Plex", "Films", "No Art (2024).mkv")
+	waitUntil(t, tt, a, updates, func() bool {
+		return libraryHasImage(a.posterOf(withArt)) && libraryHasImage(a.posterOf(noArt))
+	})
+	wantCoverColor(t, posterDest(a.lib.posterDir, withArt), coverRed)
+	if !fileExists(posterDest(a.lib.posterDir, noArt)) {
+		t.Fatal("fallback poster was not written for item without server artwork")
+	}
+	if got := a.Duration(noArt); got != 10*time.Second {
+		t.Fatalf("fallback duration = %v, want 10s", got)
+	}
+}

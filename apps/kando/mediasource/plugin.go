@@ -13,11 +13,12 @@ import (
 	"kando/apps/kando/plugins"
 )
 
-// The limits of what a plugin's source answers (docs/media-sources.md 11.2): the entries of one folder, and how long Kando reads a file from where its open said before it asks again, by default and at most.
+// The limits of what a plugin's source answers (docs/media-sources.md 11.2): the entries of one folder, how long Kando reads a file from where its open said before it asks again, by default and at most, and how large a video's cover picture may be.
 const (
 	listMax    = 5000
 	openTTL    = 600 * time.Second
 	openTTLMax = 86400 * time.Second
+	coverMax   = 8 << 20
 )
 
 // The codes a plugin's list, stat or open fails with that Kando reads (docs/media-sources.md 11.2): auth, its server refused the source's secrets, which the user is asked to enter again; not-found, nothing is at the path; unavailable, its server cannot be reached.
@@ -167,6 +168,32 @@ func (d *PluginDriver) Open(ctx context.Context, p string, offset, length int64)
 	}
 }
 
+// Cover reads the cover picture the plugin's open named for p (CoverDriver), ErrNotExist when open named none or the server has none, asking open again once when the server refuses what it said (401, 403).
+func (d *PluginDriver) Cover(ctx context.Context, p string) ([]byte, error) {
+	p, err := CleanPath(p)
+	if err != nil {
+		return nil, err
+	}
+	if p == "" {
+		return nil, ErrInvalidPath
+	}
+	for attempt := 0; ; attempt++ {
+		t, err := d.target(ctx, p, attempt > 0)
+		if err != nil {
+			return nil, err
+		}
+		if t.Cover == nil {
+			return nil, ErrNotExist
+		}
+		data, err := d.Fetcher.Read(ctx, *t.Cover, coverMax)
+		var status ErrFetchStatus
+		if attempt == 0 && errors.As(err, &status) && status.Auth() {
+			continue
+		}
+		return data, err
+	}
+}
+
 // target is where open said p is read from: the one kept while its ttl lasts, unless again, else asked anew.
 func (d *PluginDriver) target(ctx context.Context, p string, again bool) (OpenTarget, error) {
 	d.mu.Lock()
@@ -244,17 +271,41 @@ func pluginEntry(v any) (Entry, bool) {
 	return e, true
 }
 
-// pluginTarget is what a plugin's open answered, {path, query, header, ttl} or {url, header, ttl}, and whether it is that: strings for the path, the url and the values of query and header, and a ttl in seconds, 600 when none and at most 86400.
+// pluginTarget is what a plugin's open answered, {path, query, header, ttl, cover} or {url, header, ttl, cover}, and whether it is that: strings for the path, the url and the values of query and header, a ttl in seconds, 600 when none and at most 86400, and an optional cover of the same {path, query, header} or {url, header} shape.
 func pluginTarget(v any) (OpenTarget, bool) {
-	m, ok := v.(map[string]any)
+	t, m, ok := pluginLocation(v)
 	if !ok {
 		return OpenTarget{}, false
+	}
+	t.TTL = openTTL
+	if raw, ok := m["ttl"]; ok && raw != nil {
+		n, ok := plugins.Number(raw)
+		if !ok || n <= 0 {
+			return OpenTarget{}, false
+		}
+		t.TTL = min(time.Duration(n*float64(time.Second)), openTTLMax)
+	}
+	if raw, ok := m["cover"]; ok && raw != nil {
+		c, _, ok := pluginLocation(raw)
+		if !ok {
+			return OpenTarget{}, false
+		}
+		t.Cover = &c
+	}
+	return t, true
+}
+
+// pluginLocation parses {path, query, header} or {url, header} from v.
+func pluginLocation(v any) (OpenTarget, map[string]any, bool) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return OpenTarget{}, nil, false
 	}
 	var t OpenTarget
 	t.Path, _ = m["path"].(string)
 	t.URL, _ = m["url"].(string)
 	if (t.Path == "") == (t.URL == "") {
-		return OpenTarget{}, false
+		return OpenTarget{}, nil, false
 	}
 	strs := func(key string) (map[string]string, bool) {
 		raw, ok := m[key]
@@ -276,20 +327,12 @@ func pluginTarget(v any) (OpenTarget, bool) {
 		return out, true
 	}
 	if t.Query, ok = strs("query"); !ok {
-		return OpenTarget{}, false
+		return OpenTarget{}, nil, false
 	}
 	if t.Header, ok = strs("header"); !ok {
-		return OpenTarget{}, false
+		return OpenTarget{}, nil, false
 	}
-	t.TTL = openTTL
-	if raw, ok := m["ttl"]; ok && raw != nil {
-		n, ok := plugins.Number(raw)
-		if !ok || n <= 0 {
-			return OpenTarget{}, false
-		}
-		t.TTL = min(time.Duration(n*float64(time.Second)), openTTLMax)
-	}
-	return t, true
+	return t, m, true
 }
 
 // PluginRequest is a call of kando.source.fetch as the plugin sent it (docs/media-sources.md 11.3), {source, method, path, query, header, body, login}, its source the id the plugin knows it by, and whether it is of that shape.

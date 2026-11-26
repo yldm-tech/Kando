@@ -231,6 +231,60 @@ func TestPluginPlexFailures(t *testing.T) {
 	}
 }
 
+// TestPluginPlexCovers checks that open names each video's artwork on the Plex server and Cover reads it with X-Plex-Token: a movie prefers its 16:9 art over its thumb and falls back to thumb when it has no art; an episode prefers its own 16:9 thumb and falls back to its show's art (grandparentArt); an item without artwork returns ErrNotExist; a wrong token fails with auth; and no transcode endpoint is ever called.
+func TestPluginPlexCovers(t *testing.T) {
+	sections := []sourcetest.PlexSection{
+		{Key: "1", Title: "Films", Type: "movie"},
+		{Key: "2", Title: "Shows", Type: "show"},
+	}
+	items := []sourcetest.PlexItem{
+		{RatingKey: "101", Section: "1", Type: "movie", Title: "With Art", Year: 2024, Container: "mkv",
+			Parts: []sourcetest.PlexPart{{File: "/media/with-art.mkv", Data: "v"}},
+			Art:   []byte("movie-art"), Thumb: []byte("movie-thumb")},
+		{RatingKey: "102", Section: "1", Type: "movie", Title: "Thumb Only", Year: 2023, Container: "mp4",
+			Parts: []sourcetest.PlexPart{{File: "/media/thumb-only.mp4", Data: "v"}},
+			Thumb: []byte("home-thumb")},
+		{RatingKey: "103", Section: "1", Type: "movie", Title: "No Cover", Year: 2022, Container: "mp4",
+			Parts: []sourcetest.PlexPart{{File: "/media/no-cover.mp4", Data: "v"}}},
+		{RatingKey: "201", Section: "2", Type: "show", Title: "Drama", Art: []byte("show-art")},
+		{RatingKey: "211", Parent: "201", Type: "season", Title: "Season 1", Index: 1},
+		{RatingKey: "221", Parent: "211", Type: "episode", Title: "Still", Index: 1, ParentIndex: 1, Container: "mkv",
+			Parts: []sourcetest.PlexPart{{File: "/media/s01e01.mkv", Data: "v"}},
+			Thumb: []byte("ep-thumb"), GrandparentArt: "201"},
+		{RatingKey: "222", Parent: "211", Type: "episode", Title: "Fallback", Index: 2, ParentIndex: 1, Container: "mkv",
+			Parts:          []sourcetest.PlexPart{{File: "/media/s01e02.mkv", Data: "v"}},
+			GrandparentArt: "201"},
+	}
+	s := sourcetest.NewPlexServer(t, authorized, sections, items)
+	p := sourcetest.Load(t, sourcetest.Folder(t), "kando.plex")
+	d := open(t, p, s, key)
+	ctx := context.Background()
+
+	wantCover := func(path, want string) {
+		t.Helper()
+		got, err := d.Cover(ctx, path)
+		if err != nil || string(got) != want {
+			t.Fatalf("Cover(%q) = %q, %v; want %q", path, got, err, want)
+		}
+	}
+	wantCover("Films/With Art (2024).mkv", "movie-art")
+	wantCover("Films/Thumb Only (2023).mp4", "home-thumb")
+	wantCover("Shows/Drama/Season 1/S01E01 Still.mkv", "ep-thumb")
+	wantCover("Shows/Drama/Season 1/S01E02 Fallback.mkv", "show-art")
+	if _, err := d.Cover(ctx, "Films/No Cover (2022).mp4"); !errors.Is(err, mediasource.ErrNotExist) {
+		t.Fatalf("Cover without artwork: %v", err)
+	}
+	wrong := open(t, p, s, "wrong")
+	if _, err := wrong.Cover(ctx, "Films/With Art (2024).mkv"); code(err) != mediasource.PluginAuth {
+		t.Fatalf("Cover with wrong token: %v", err)
+	}
+	for _, h := range s.Heard() {
+		if strings.Contains(h, "transcode") {
+			t.Errorf("Kando asked for %s, which the server transcodes", h)
+		}
+	}
+}
+
 // TestPluginPlexPublishes checks that nsgo.yaml, what nsgo publish signs, is the plugin kando-plugin.json says: its app ID and version, and exactly the permissions it declares, kando.source.fetch alone, with no network rule of its own; that its manifest is valid; and that its one source sends the token only in Plex's X-Plex-Token header, which Kando fills by signing in to Plex, and POSTs nowhere.
 func TestPluginPlexPublishes(t *testing.T) {
 	dir := sourcetest.Folder(t)

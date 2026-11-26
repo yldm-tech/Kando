@@ -55,10 +55,15 @@ type Header struct {
 
 // ReadHeader is the Header of the media file at path, from its header alone, which takes ffmpeg a moment whatever the file's length.
 func ReadHeader(ffmpeg, path string) Header {
+	return ReadHeaderContext(context.Background(), ffmpeg, path)
+}
+
+// ReadHeaderContext is ReadHeader bounded by ctx, as when probing a video served over HTTP.
+func ReadHeaderContext(ctx context.Context, ffmpeg, path string) Header {
 	if ffmpeg == "" || path == "" {
 		return Header{}
 	}
-	return parseHeader(ffmpegStderr(context.Background(), ffmpeg, "-hide_banner", "-nostdin", "-i", path))
+	return parseHeader(ffmpegStderr(ctx, ffmpeg, "-hide_banner", "-nostdin", "-i", path))
 }
 
 // parseHeader reads what ffmpeg -i writes of a file: "Duration: 00:01:05.00, …" and a line per stream, as "Stream #0:1: Video: mjpeg …, 300x300 … (attached pic)".

@@ -200,6 +200,26 @@ func (c Copier) URL(ctx context.Context, source string) (string, error) {
 	return link, nil
 }
 
+// Cover reads the cover picture the source gives for the video at source, a source's address (Ref), through its driver (CoverDriver); ErrNotExist when the source's driver does not give covers or the video has none. A source on the internet is refused in offline mode with media.ErrOffline.
+func (c Copier) Cover(ctx context.Context, source string) ([]byte, error) {
+	ref, err := ParseRef(source)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := c.reachable(ctx, ref); err != nil {
+		return nil, err
+	}
+	d, err := c.Pool.Driver(ctx, ref.Source)
+	if err != nil {
+		return nil, err
+	}
+	cd, ok := d.(CoverDriver)
+	if !ok {
+		return nil, ErrNotExist
+	}
+	return cd.Cover(ctx, ref.Path)
+}
+
 // CopyTo copies the video at source, a source's address (Ref), to dest, as an indexed film's placeholder path once it is to be kept in the library, telling progress how far it got; a source on the internet is refused in offline mode with media.ErrOffline. A copy that fails leaves nothing at dest (storage.Get).
 func (c Copier) CopyTo(ctx context.Context, source, dest string, progress func(done, total int64)) error {
 	ref, err := ParseRef(source)
