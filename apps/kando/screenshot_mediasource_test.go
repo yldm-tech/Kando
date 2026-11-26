@@ -9,8 +9,8 @@ import (
 
 	"kando/apps/kando/account"
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"

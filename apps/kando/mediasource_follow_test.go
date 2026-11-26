@@ -54,7 +54,10 @@ func TestMediaSourceFollowFolder(t *testing.T) {
 		t.Fatalf("notice %+v", n)
 	}
 	// Taken off the shelf once made, it is not imported again.
-	waitUntil(t, tt, a, updates, func() bool { j, _ := a.queueFindSource(fresh); return j.Stage == core.StageComplete && a.RunningJob() == "" })
+	waitUntil(t, tt, a, updates, func() bool {
+		j, _ := a.queueFindSource(fresh)
+		return j.Stage == core.StageComplete && a.RunningJob() == ""
+	})
 	onEngine(a, func() { a.library.Jobs = nil })
 	onEngine(a, a.mediaSourceFollowLook)
 	waitUntil(t, tt, a, updates, func() bool { return len(a.sources.followBusy) == 0 })
