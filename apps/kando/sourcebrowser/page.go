@@ -85,7 +85,7 @@ func sources(cx *core.Scope, a App) core.Node {
 	}, core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{add}}}}
 }
 
-// folder is the right of the page: 全选 and the path to the folder shown, with 导入 N 个视频 at its end (导入所选 with folders chosen, which lists their videos first), what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
+// folder is the right of the page: 全选, the path to the folder shown and the filter of its rows, with 导入 N 个视频 at its end (导入所选 with folders chosen, which lists their videos first), what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
 func folder(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
 	chosen := live.Func(a, a.MediaBrowseChosen)
@@ -120,7 +120,15 @@ func folder(cx *core.Scope, a App) core.Node {
 			OnChange:      live.On(a, func(bool) { a.ToggleMediaBrowseAll() }),
 			Style:         core.Style{FlexShrink: 0, Padding: core.Edges{Left: 14}}}
 	}}
-	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{all, path, importButton}}
+	// The filter shows while the folder holds anything, and narrows its rows to the names holding its words.
+	listed := live.Func(a, a.MediaBrowseListed)
+	query := live.Func(a, a.MediaBrowseQuery)
+	filter := core.Show{When: func() bool { return listed() > 0 }, Then: func(cx *core.Scope) core.Node {
+		return ui.Input{TestID: "media-sources-filter", Label: locales.MediaSourceFilter(cx), Placeholder: locales.MediaSourceFilter(cx),
+			NoAutoCorrect: true, AutoCapitalize: core.AutoCapitalizeNone,
+			Value: query, OnChange: live.On(a, a.SetMediaBrowseQuery), Style: core.Style{Width: core.Pt(180), FlexShrink: 1}}
+	}}
+	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{all, path, filter, importButton}}
 	note := live.Func(a, a.MediaBrowseNote)
 	noteLine := core.Show{When: func() bool { return note() != "" }, Then: func(*core.Scope) core.Node {
 		return core.Text{TestID: "media-sources-note", ContentFunc: note, Style: core.Style{FontSize: 12, LineHeight: 17, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)}
@@ -133,7 +141,10 @@ func folder(cx *core.Scope, a App) core.Node {
 	}, Else: func(cx *core.Scope) core.Node {
 		return core.Show{When: func() bool { return failed() != "" }, Then: func(cx *core.Scope) core.Node { return failure(cx, a, failed) }, Else: func(cx *core.Scope) core.Node {
 			return core.Show{When: func() bool { return len(entries.Get()) == 0 }, Then: func(cx *core.Scope) core.Node {
-				return said(cx, "media-sources-empty", locales.MediaSourceEmpty(cx))
+				return core.Show{When: func() bool { return listed() > 0 }, Then: func(cx *core.Scope) core.Node {
+					return core.Text{TestID: "media-sources-no-match", ContentFunc: func() string { return locales.MediaSourceNoMatch(cx, query()) },
+						Style: core.Style{FontSize: 13, LineHeight: 18, Padding: core.Symmetric(10, 4)}, StyleFunc: ui.Colored(colors.Muted)}
+				}, Else: func(cx *core.Scope) core.Node { return said(cx, "media-sources-empty", locales.MediaSourceEmpty(cx)) }}
 			}, Else: func(cx *core.Scope) core.Node { return rows(cx, a, entries.Get) }}
 		}}
 	}}
@@ -158,7 +169,7 @@ func failure(cx *core.Scope, a App, why func() string) core.Node {
 	}}
 }
 
-// rows are the folder's rows on a card, which scrolls.
+// rows are the folder's rows the filter keeps on a card, which scrolls.
 func rows(cx *core.Scope, a App, entries func() []Entry) core.Node {
 	k := theme.Of(cx)
 	list := core.Each(entries, func(e Entry) string { return e.Path }, func(cx *core.Scope, e func() Entry, index func() int) core.Node {
@@ -182,6 +193,16 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	path := e().Path
 	opens := func() bool { x := e(); return x.Dir || x.InLibrary }
+	// A press with Shift chooses the rows from the one chosen last to this one.
+	choose := func(press core.PressEvent) {
+		live.Do(a, func() {
+			if press.Modifiers.Shift {
+				a.ExtendMediaBrowseChoice(path)
+			} else {
+				a.ToggleMediaBrowseEntry(path)
+			}
+		})()
+	}
 	icon := func() *core.SVG {
 		switch x := e(); {
 		case x.Share:
@@ -198,7 +219,7 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 		return core.View{Style: core.Style{Width: core.Pt(18), FlexShrink: 0}}
 	}, Else: func(cx *core.Scope) core.Node {
 		return ui.Checkbox{TestID: "media-sources-choose-" + path, Label: locales.MediaSourceSelect(cx, e().Name),
-			Checked: func() bool { return e().Chosen }, OnChange: live.On(a, func(bool) { a.ToggleMediaBrowseEntry(path) })}
+			Checked: func() bool { return e().Chosen }, OnChangeEvent: func(_ bool, press core.PressEvent) { choose(press) }}
 	}}
 	tag := func(test string, on func() bool, text string) core.Node {
 		return core.Show{When: on, Then: func(*core.Scope) core.Node {
@@ -225,13 +246,13 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 			}
 			return strings.Join(parts, ", ")
 		},
-		OnPress: live.On(a, func(core.PressEvent) {
+		OnPress: func(press core.PressEvent) {
 			if opens() {
-				a.OpenMediaBrowseEntry(path)
+				live.Do(a, func() { a.OpenMediaBrowseEntry(path) })()
 			} else {
-				a.ToggleMediaBrowseEntry(path)
+				choose(press)
 			}
-		}),
+		},
 		Style: core.Style{Direction: core.Row, MinHeight: core.Pt(40), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter, FlexShrink: 0},
 		StyleFunc: func() core.Style {
 			return core.Style{Hover: &core.Style{Background: k.Shade(0.04)}}

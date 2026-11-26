@@ -18,7 +18,7 @@ type App interface {
 	// MediaBrowseCrumbs are the folder shown, the source's name first and then each folder down to it; OpenMediaBrowseCrumb goes up to the one at index.
 	MediaBrowseCrumbs() []string
 	OpenMediaBrowseCrumb(index int)
-	// MediaBrowseEntries are the folders and videos of the folder shown, the folders first, each in the order of their names; MediaBrowseLoading is whether it is being listed, and MediaBrowseErr why it could not be, "" when it was. RetryMediaBrowse lists it again, and EditMediaBrowseSource opens the source's settings.
+	// MediaBrowseEntries are the folders and videos of the folder shown that the filter keeps, the folders first, each in the order of their names; MediaBrowseLoading is whether it is being listed, and MediaBrowseErr why it could not be, "" when it was. RetryMediaBrowse lists it again, and EditMediaBrowseSource opens the source's settings.
 	MediaBrowseEntries() []Entry
 	MediaBrowseLoading() bool
 	MediaBrowseErr() string
@@ -27,9 +27,14 @@ type App interface {
 	// OpenMediaBrowseEntry opens the folder at path, or the film imported from the video at path; ToggleMediaBrowseEntry chooses the video at path to import, or the folder at path to import whole, or no more.
 	OpenMediaBrowseEntry(path string)
 	ToggleMediaBrowseEntry(path string)
-	// MediaBrowseChoice is how many of the folder's rows are chosen and how many can be; ToggleMediaBrowseAll chooses all of them, or none once all are.
+	// MediaBrowseChoice is how many of the rows shown are chosen and how many can be; ToggleMediaBrowseAll chooses all of them, or none once all are; ExtendMediaBrowseChoice chooses, as Shift and a press do, the rows from the one chosen last to the one at path.
 	MediaBrowseChoice() (chosen, choosable int)
 	ToggleMediaBrowseAll()
+	ExtendMediaBrowseChoice(path string)
+	// MediaBrowseQuery is the words the rows are filtered by, by their names, SetMediaBrowseQuery changes them; MediaBrowseListed is how many the folder holds, filtered or not.
+	MediaBrowseQuery() string
+	SetMediaBrowseQuery(q string)
+	MediaBrowseListed() int
 	// MediaBrowseChosen is how many videos and folders are chosen, MediaBrowseFoldersChosen whether folders are among them; ImportMediaBrowseChosen opens the dialog that imports them (MediaBrowseImport), once the videos of the folders were listed, which MediaBrowseExpanding reports. MediaBrowseNote is what the page says about the last import, "" for nothing.
 	MediaBrowseChosen() int
 	MediaBrowseFoldersChosen() bool

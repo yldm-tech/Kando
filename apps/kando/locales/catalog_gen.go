@@ -1234,6 +1234,7 @@ var Parameters = map[string][]string{
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
 	"MediaSourceImportChosen":                  {"count"},
+	"MediaSourceNoMatch":                       {"query"},
 	"MediaSourceFoldersTooMany":                {"limit"},
 	"MediaSourceImportTitle":                   {"count", "source"},
 	"MediaSourceImportCopyNote":                {"size"},
@@ -2012,6 +2013,7 @@ type Translation struct {
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
 	MediaSourceImportChosen                  func(count int) string
+	MediaSourceNoMatch                       func(query string) string
 	MediaSourceFoldersTooMany                func(limit int) string
 	MediaSourceImportTitle                   func(count int, source string) string
 	MediaSourceImportCopyNote                func(size string) string
@@ -3926,6 +3928,7 @@ const (
 	textMediaSourceInLibrary
 	textMediaSourceListingFolders
 	textMediaSourceChooseAll
+	textMediaSourceFilter
 	textMediaSourceFoldersFailed
 	textMediaSourceFoldersEmpty
 	textMediaSourceImportStart
@@ -5839,6 +5842,7 @@ var keyOfText = [numTexts]string{
 	"mediaSourceInLibrary",
 	"mediaSourceListingFolders",
 	"mediaSourceChooseAll",
+	"mediaSourceFilter",
 	"mediaSourceFoldersFailed",
 	"mediaSourceFoldersEmpty",
 	"mediaSourceImportStart",
@@ -7750,6 +7754,7 @@ var textsEn = i18n.NewTexts(""+
 	"In Library"+
 	"Listing Folders…"+
 	"Select All"+
+	"Filter"+
 	"The folders chosen could not be listed. Try again in a moment."+
 	"The folders chosen hold no video that is not imported yet."+
 	"Import"+
@@ -9658,6 +9663,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		18,
 		10,
+		6,
 		62,
 		58,
 		6,
@@ -11569,6 +11575,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリにあり"+
 	"フォルダを一覧中…"+
 	"すべて選択"+
+	"絞り込み"+
 	"選択したフォルダを一覧できませんでした。しばらくしてからもう一度お試しください。"+
 	"選択したフォルダには、まだ読み込んでいない動画がありません。"+
 	"読み込む"+
@@ -13477,6 +13484,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		27,
 		15,
+		12,
 		120,
 		90,
 		12,
@@ -15388,6 +15396,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리에 있음"+
 	"폴더 목록을 읽는 중…"+
 	"모두 선택"+
+	"필터"+
 	"선택한 폴더의 목록을 읽지 못했습니다. 잠시 후 다시 시도하세요."+
 	"선택한 폴더에 아직 가져오지 않은 동영상이 없습니다."+
 	"가져오기"+
@@ -17296,6 +17305,7 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		30,
 		13,
+		6,
 		88,
 		73,
 		12,
@@ -19207,6 +19217,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已在资料库"+
 	"正在列出文件夹…"+
 	"全选"+
+	"筛选"+
 	"没能列出所选的文件夹，请稍后重试。"+
 	"所选的文件夹里没有还没导入的视频。"+
 	"导入"+
@@ -21114,6 +21125,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		15,
 		24,
+		6,
 		6,
 		51,
 		51,
@@ -23026,6 +23038,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已在資料庫"+
 	"正在列出資料夾…"+
 	"全選"+
+	"篩選"+
 	"沒能列出所選的資料夾，請稍後重試。"+
 	"所選的資料夾裡沒有還沒匯入的影片。"+
 	"匯入"+
@@ -24933,6 +24946,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		15,
 		24,
+		6,
 		6,
 		51,
 		51,
@@ -27272,6 +27286,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImportChosen != nil {
 		s.MediaSourceImportChosen = t.MediaSourceImportChosen
+	}
+	if t.MediaSourceNoMatch != nil {
+		s.MediaSourceNoMatch = t.MediaSourceNoMatch
 	}
 	if t.MediaSourceFoldersTooMany != nil {
 		s.MediaSourceFoldersTooMany = t.MediaSourceFoldersTooMany
@@ -72903,6 +72920,47 @@ func MediaSourceChooseAll(cx *core.Scope) string { return For(cx).MediaSourceCho
 
 // MediaSourceChooseAll is the package's MediaSourceChooseAll in the language of msgs.
 func (msgs Messages) MediaSourceChooseAll() string { return msgs.text(textMediaSourceChooseAll) }
+
+// MediaSourceFilter says "Filter"
+// in the language the app shows under cx.
+//
+// Field at the top of the Media Sources page's folder, and its placeholder, that narrows the folder's rows to the names holding the words typed.
+func MediaSourceFilter(cx *core.Scope) string { return For(cx).MediaSourceFilter() }
+
+// MediaSourceFilter is the package's MediaSourceFilter in the language of msgs.
+func (msgs Messages) MediaSourceFilter() string { return msgs.text(textMediaSourceFilter) }
+
+// MediaSourceNoMatch says "No name here holds “{query}”."
+// in the language the app shows under cx.
+//
+// Shown on the Media Sources page in place of the folder's rows when the filter keeps none of them.
+func MediaSourceNoMatch(cx *core.Scope, query string) string {
+	return For(cx).MediaSourceNoMatch(query)
+}
+
+// MediaSourceNoMatch is the package's MediaSourceNoMatch in the language of msgs.
+func (msgs Messages) MediaSourceNoMatch(query string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceNoMatch(query))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceNoMatch; f != nil {
+			return f(query)
+		}
+		switch lang {
+		case "", "en":
+			return "No name here holds “" + msgs.arg(query) + "”."
+		case "ja":
+			return "名前に「" + query + "」を含む項目はありません。"
+		case "ko":
+			return "이름에 {query}가 들어간 항목이 없습니다."
+		case "zh-Hans":
+			return "这里没有名字含「" + query + "」的项目。"
+		case "zh-Hant":
+			return "這裡沒有名稱含「" + query + "」的項目。"
+		}
+	}
+}
 
 // MediaSourceFoldersFailed says "The folders chosen could not be listed. Try again in a moment."
 // in the language the app shows under cx.
