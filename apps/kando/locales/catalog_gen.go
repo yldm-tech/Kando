@@ -1239,6 +1239,7 @@ var Parameters = map[string][]string{
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
 	"MediaSourceImportChosen":                  {"count"},
+	"MediaSourceImportWay":                     {"action", "way"},
 	"MediaSourceImportedBelow":                 {"count"},
 	"MediaSourceNoMatch":                       {"query"},
 	"MediaSourceFoldersTooMany":                {"limit"},
@@ -2024,6 +2025,7 @@ type Translation struct {
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
 	MediaSourceImportChosen                  func(count int) string
+	MediaSourceImportWay                     func(action string, way string) string
 	MediaSourceImportedBelow                 func(count int) string
 	MediaSourceNoMatch                       func(query string) string
 	MediaSourceFoldersTooMany                func(limit int) string
@@ -3953,6 +3955,9 @@ const (
 	textMediaSourceInLibrary
 	textMediaSourceListingFolders
 	textMediaSourceChooseAll
+	textMediaSourceWayCopy
+	textMediaSourceWayLink
+	textMediaSourceChangeWay
 	textMediaSourceFilter
 	textMediaSourceFoldersFailed
 	textMediaSourceFoldersEmpty
@@ -5880,6 +5885,9 @@ var keyOfText = [numTexts]string{
 	"mediaSourceInLibrary",
 	"mediaSourceListingFolders",
 	"mediaSourceChooseAll",
+	"mediaSourceWayCopy",
+	"mediaSourceWayLink",
+	"mediaSourceChangeWay",
 	"mediaSourceFilter",
 	"mediaSourceFoldersFailed",
 	"mediaSourceFoldersEmpty",
@@ -7805,6 +7813,9 @@ var textsEn = i18n.NewTexts(""+
 	"In Library"+
 	"Listing Folders…"+
 	"Select All"+
+	"Copy"+
+	"Index Only"+
+	"Change Way…"+
 	"Filter"+
 	"The folders chosen could not be listed. Try again in a moment."+
 	"The folders chosen hold no video that is not imported yet."+
@@ -9727,6 +9738,9 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		18,
 		10,
+		4,
+		10,
+		13,
 		6,
 		62,
 		58,
@@ -11652,6 +11666,9 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリにあり"+
 	"フォルダを一覧中…"+
 	"すべて選択"+
+	"コピー"+
+	"インデックスのみ"+
+	"方法を変更…"+
 	"絞り込み"+
 	"選択したフォルダを一覧できませんでした。しばらくしてからもう一度お試しください。"+
 	"選択したフォルダには、まだ読み込んでいない動画がありません。"+
@@ -13574,6 +13591,9 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		27,
 		15,
+		9,
+		24,
+		18,
 		12,
 		120,
 		90,
@@ -15499,6 +15519,9 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리에 있음"+
 	"폴더 목록을 읽는 중…"+
 	"모두 선택"+
+	"복사"+
+	"색인만"+
+	"방식 변경…"+
 	"필터"+
 	"선택한 폴더의 목록을 읽지 못했습니다. 잠시 후 다시 시도하세요."+
 	"선택한 폴더에 아직 가져오지 않은 동영상이 없습니다."+
@@ -17421,6 +17444,9 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		30,
 		13,
+		6,
+		9,
+		16,
 		6,
 		88,
 		73,
@@ -19346,6 +19372,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"已在资料库"+
 	"正在列出文件夹…"+
 	"全选"+
+	"复制"+
+	"只建索引"+
+	"更改方式…"+
 	"筛选"+
 	"没能列出所选的文件夹，请稍后重试。"+
 	"所选的文件夹里没有还没导入的视频。"+
@@ -21268,6 +21297,9 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		24,
 		6,
+		6,
+		12,
+		15,
 		6,
 		51,
 		51,
@@ -23193,6 +23225,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"已在資料庫"+
 	"正在列出資料夾…"+
 	"全選"+
+	"複製"+
+	"只建索引"+
+	"更改方式…"+
 	"篩選"+
 	"沒能列出所選的資料夾，請稍後重試。"+
 	"所選的資料夾裡沒有還沒匯入的影片。"+
@@ -25115,6 +25150,9 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		24,
 		6,
+		6,
+		12,
+		15,
 		6,
 		51,
 		51,
@@ -27469,6 +27507,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImportChosen != nil {
 		s.MediaSourceImportChosen = t.MediaSourceImportChosen
+	}
+	if t.MediaSourceImportWay != nil {
+		s.MediaSourceImportWay = t.MediaSourceImportWay
 	}
 	if t.MediaSourceImportedBelow != nil {
 		s.MediaSourceImportedBelow = t.MediaSourceImportedBelow
@@ -73415,6 +73456,65 @@ func MediaSourceChooseAll(cx *core.Scope) string { return For(cx).MediaSourceCho
 
 // MediaSourceChooseAll is the package's MediaSourceChooseAll in the language of msgs.
 func (msgs Messages) MediaSourceChooseAll() string { return msgs.text(textMediaSourceChooseAll) }
+
+// MediaSourceImportWay says "{action} · {way}"
+// in the language the app shows under cx.
+//
+// The Media Sources page's import button once a way of importing is remembered: the button's words, then the way it imports without asking.
+func MediaSourceImportWay(cx *core.Scope, action string, way string) string {
+	return For(cx).MediaSourceImportWay(action, way)
+}
+
+// MediaSourceImportWay is the package's MediaSourceImportWay in the language of msgs.
+func (msgs Messages) MediaSourceImportWay(action string, way string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportWay(action, way))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportWay; f != nil {
+			return f(action, way)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(action) + " · " + msgs.arg(way)
+		case "ja":
+			return action + " · " + way
+		case "ko":
+			return action + " · " + way
+		case "zh-Hans":
+			return action + " · " + way
+		case "zh-Hant":
+			return action + " · " + way
+		}
+	}
+}
+
+// MediaSourceWayCopy says "Copy"
+// in the language the app shows under cx.
+//
+// The remembered way of importing on the Media Sources page's import button: the videos are copied into the library.
+func MediaSourceWayCopy(cx *core.Scope) string { return For(cx).MediaSourceWayCopy() }
+
+// MediaSourceWayCopy is the package's MediaSourceWayCopy in the language of msgs.
+func (msgs Messages) MediaSourceWayCopy() string { return msgs.text(textMediaSourceWayCopy) }
+
+// MediaSourceWayLink says "Index Only"
+// in the language the app shows under cx.
+//
+// The remembered way of importing on the Media Sources page's import button: the videos are indexed and played from the source, not copied.
+func MediaSourceWayLink(cx *core.Scope) string { return For(cx).MediaSourceWayLink() }
+
+// MediaSourceWayLink is the package's MediaSourceWayLink in the language of msgs.
+func (msgs Messages) MediaSourceWayLink() string { return msgs.text(textMediaSourceWayLink) }
+
+// MediaSourceChangeWay says "Change Way…"
+// in the language the app shows under cx.
+//
+// Button beside the Media Sources page's import button, once a way of importing is remembered, that imports through the dialog asking how.
+func MediaSourceChangeWay(cx *core.Scope) string { return For(cx).MediaSourceChangeWay() }
+
+// MediaSourceChangeWay is the package's MediaSourceChangeWay in the language of msgs.
+func (msgs Messages) MediaSourceChangeWay() string { return msgs.text(textMediaSourceChangeWay) }
 
 // MediaSourceImportedBelow says "{count, plural, one {# imported} other {# imported}}"
 // in the language the app shows under cx.

@@ -39,6 +39,9 @@ type App interface {
 	MediaBrowseChosen() int
 	MediaBrowseFoldersChosen() bool
 	MediaBrowseExpanding() bool
+	// MediaBrowseImportWay is the way of importing remembered, which ImportMediaBrowseChosen then takes without the dialog, "" while none is; AskMediaBrowseImportWay imports through the dialog anyway, to change it.
+	MediaBrowseImportWay() string
+	AskMediaBrowseImportWay()
 	ImportMediaBrowseChosen()
 	MediaBrowseNote() string
 	// AddMediaBrowseSource opens Settings › 媒体来源 with the dialog that adds a source; once the source is saved, the settings close and this page shows it.

@@ -650,6 +650,49 @@ func TestMediaSourceFilterShiftAndSelectAll(t *testing.T) {
 	}
 }
 
+// Once a way of importing is remembered, the import button says it and imports that way without the dialog, and 更改方式… asks again through it; folders holding more than one import takes still open the dialog, which says so. Without one remembered, a NAS's share starts on a copy.
+func TestMediaSourceImportWayRemembered(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	msgs := testlocale.Messages()
+	s, _ := browseSource(a, map[string]fakeSourceFile{"A.mkv": {data: "a"}, "B.mkv": {data: "b"}, "C.mkv": {data: "c"}})
+	refresh(tt, a)
+	tt.Press("id:source-" + pageMediaSources)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	queued := func(name string) bool {
+		_, ok := a.queueFindSource(mediasource.Ref{Source: s.ID, Path: name}.String())
+		return ok
+	}
+
+	tt.Press("id:media-sources-choose-A.mkv")
+	tt.Press("id:media-sources-import")
+	if !tt.Exists("id:media-sources-import-dialog") || a.sources.browse.importLink {
+		t.Fatalf("the first import: dialog %v, index %v", tt.Exists("id:media-sources-import-dialog"), a.sources.browse.importLink)
+	}
+	tt.Press("id:media-sources-import-remember")
+	tt.Press("id:media-sources-import-start")
+	if !queued("A.mkv") || !a.sources.rememberImport || a.sources.importLink {
+		t.Fatalf("A queued %v, remembered %v, index %v", queued("A.mkv"), a.sources.rememberImport, a.sources.importLink)
+	}
+
+	tt.Press("id:media-sources-choose-B.mkv")
+	wantText(t, tt, msgs.MediaSourceImportWay(msgs.MediaSourceImportSome(1), msgs.MediaSourceWayCopy()))
+	tt.Press("id:media-sources-import")
+	if tt.Exists("id:media-sources-import-dialog") || !queued("B.mkv") || a.modalOpen() {
+		t.Fatalf("with the way remembered: dialog %v, B queued %v", tt.Exists("id:media-sources-import-dialog"), queued("B.mkv"))
+	}
+
+	tt.Press("id:media-sources-choose-C.mkv")
+	tt.Press("id:media-sources-import-way-change")
+	if !tt.Exists("id:media-sources-import-dialog") || queued("C.mkv") {
+		t.Fatal("更改方式… did not ask")
+	}
+	tt.Press("id:media-sources-import-cancel")
+	if a.sources.browse.askWay {
+		t.Error("the ask stays after the dialog closed")
+	}
+}
+
 // With no source added, the 媒体来源 page says what one is and adds one: 添加来源… opens 设置 › 媒体来源 with the dialog adding a source, and once it is saved the settings close and the page shows the source at its root. A source added in the settings themselves keeps them open; its row's 浏览 closes them and shows it on the page.
 func TestMediaSourceAddedFromItsPageShowsThere(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
@@ -1159,9 +1202,9 @@ func TestMediaSourceIndexAndPlay(t *testing.T) {
 	if !tt.Exists("id:media-sources-in-library-" + heat) {
 		t.Fatalf("the video indexed is not marked: %q", tt.Texts())
 	}
-	// The next import starts on the way remembered.
+	// The next import asked about through 更改方式… starts on the way remembered.
 	tt.Press("id:media-sources-choose-Movies/Ronin.mp4")
-	tt.Press("id:media-sources-import")
+	tt.Press("id:media-sources-import-way-change")
 	if !a.MediaBrowseImport().Link || !a.MediaBrowseImport().Remember {
 		t.Fatalf("the next import starts as %+v", a.MediaBrowseImport())
 	}

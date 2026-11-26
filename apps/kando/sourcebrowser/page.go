@@ -99,16 +99,27 @@ func folder(cx *core.Scope, a App) core.Node {
 	count := core.NewMemo(cx, chosen)
 	folders := live.Func(a, a.MediaBrowseFoldersChosen)
 	expanding := live.Func(a, a.MediaBrowseExpanding)
+	// With a way of importing remembered the button says it and imports that way at once, and 更改方式… beside it asks again.
+	way := live.Func(a, a.MediaBrowseImportWay)
 	importButton := core.Show{When: func() bool { return count.Get() > 0 }, Then: func(cx *core.Scope) core.Node {
-		return ui.Button{TestID: "media-sources-import", TextFunc: func() string {
+		button := ui.Button{TestID: "media-sources-import", TextFunc: func() string {
+			text := locales.MediaSourceImportSome(cx, count.Get())
 			switch {
 			case expanding():
 				return locales.MediaSourceListingFolders(cx)
 			case folders():
-				return locales.MediaSourceImportChosen(cx, count.Get())
+				text = locales.MediaSourceImportChosen(cx, count.Get())
 			}
-			return locales.MediaSourceImportSome(cx, count.Get())
+			if w := way(); w != "" {
+				return locales.MediaSourceImportWay(cx, text, w)
+			}
+			return text
 		}, Disabled: expanding, OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
+		change := core.Show{When: func() bool { return way() != "" }, Then: func(cx *core.Scope) core.Node {
+			return ui.Button{TestID: "media-sources-import-way-change", Text: locales.MediaSourceChangeWay(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, Disabled: expanding,
+				OnPress: live.Do(a, a.AskMediaBrowseImportWay)}
+		}}
+		return core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{change, button}}
 	}}
 	// 全选 chooses every folder and video of the folder that can be, or none once all are, half checked while some are.
 	choice := core.NewMemo(cx, live.Func(a, func() [2]int { c, n := a.MediaBrowseChoice(); return [2]int{c, n} }))

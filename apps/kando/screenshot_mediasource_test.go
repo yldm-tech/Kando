@@ -76,7 +76,7 @@ func shotMediaSources(a *app) {
 	a.sources.tests["fedcba9876543210"] = mediaSourceTest{ok: true, listed: true, shares: []string{"Anime", "Documentaries", "Movies"}}
 }
 
-// TestScreenshotsMediaSourcesBrowse renders the 媒体来源 page beside the sidebar: before any source was added, what a source is and 添加来源… (media-sources-none); a folder of a share with a video that has subtitles, one chosen and one already in the library (media-sources-browse); the root of a whole server, which lists its shares, one of which two films were imported from (media-sources-shares); and the dialog importing two videos chosen, copied (media-sources-import) or indexed and played from the source, the choice remembered (media-sources-import-link). The sources are a fake in memory, never reached.
+// TestScreenshotsMediaSourcesBrowse renders the 媒体来源 page beside the sidebar: before any source was added, what a source is and 添加来源… (media-sources-none); a folder of a share with a video that has subtitles, one chosen and one already in the library (media-sources-browse); the same with two videos chosen and indexing remembered, which the import button says and takes without the dialog, 更改方式… beside it (media-sources-way); the root of a whole server, which lists its shares, one of which two films were imported from (media-sources-shares); and the dialog importing two videos chosen, copied (media-sources-import) or indexed and played from the source, the choice remembered (media-sources-import-link). The sources are a fake in memory, never reached.
 func TestScreenshotsMediaSourcesBrowse(t *testing.T) {
 	f := newScreenshotFixture(t)
 	at := time.Date(2026, 10, 3, 21, 14, 0, 0, time.Local)
@@ -116,6 +116,14 @@ func TestScreenshotsMediaSourcesBrowse(t *testing.T) {
 			a.library.Jobs = append(a.library.Jobs, core.Job{ID: "ronin", Source: ref, Title: "Ronin (1998)", Stage: core.StageComplete, LibraryDir: f.lib,
 				VideoPath: filepath.Join(f.lib, "Living Room NAS", "Movies", "Ronin (1998).mp4")})
 			a.mediaSourceToggle("Movies/Heat (1995).mkv")
+		})
+	})
+	f.shoot(t, "media-sources-way", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		open(t, a, tt, updates, share.ID, "Movies")
+		onEngine(a, func() {
+			a.sources.rememberImport, a.sources.importLink = true, true
+			a.mediaSourceToggle("Movies/Heat (1995).mkv")
+			a.mediaSourceToggle("Movies/Collateral (2004).mkv")
 		})
 	})
 	f.shoot(t, "media-sources-none", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {

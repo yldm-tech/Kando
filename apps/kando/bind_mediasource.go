@@ -256,6 +256,19 @@ func (a *app) MediaBrowseExpanding() bool { return a.sources.browse.expanding }
 
 func (a *app) ImportMediaBrowseChosen() { a.mediaSourceAskImport() }
 
+func (a *app) AskMediaBrowseImportWay() { a.mediaSourceAskImportWay() }
+
+// MediaBrowseImportWay is the way remembered of importing, as the import button says it, "" while none is, when the button opens the dialog.
+func (a *app) MediaBrowseImportWay() string {
+	switch {
+	case !a.sources.rememberImport:
+		return ""
+	case a.sources.importLink:
+		return a.messages().MediaSourceWayLink()
+	}
+	return a.messages().MediaSourceWayCopy()
+}
+
 func (a *app) MediaBrowseNote() string {
 	if a.sources.browse.note == nil {
 		return ""

@@ -9730,6 +9730,21 @@ mediaSourceListingFolders:
 mediaSourceChooseAll:
   message: "Select All"
   description: "Check box at the top of the Media Sources page's folder that chooses every folder and every video not imported yet of it, or none once all are."
+mediaSourceImportWay:
+  message: "{action} · {way}"
+  description: "The Media Sources page's import button once a way of importing is remembered: the button's words, then the way it imports without asking."
+  placeholders:
+    action: { type: "String", example: "Import 3 Videos" }
+    way: { type: "String", example: "Index Only" }
+mediaSourceWayCopy:
+  message: "Copy"
+  description: "The remembered way of importing on the Media Sources page's import button: the videos are copied into the library."
+mediaSourceWayLink:
+  message: "Index Only"
+  description: "The remembered way of importing on the Media Sources page's import button: the videos are indexed and played from the source, not copied."
+mediaSourceChangeWay:
+  message: "Change Way…"
+  description: "Button beside the Media Sources page's import button, once a way of importing is remembered, that imports through the dialog asking how."
 mediaSourceImportedBelow:
   message: "{count, plural, one {# imported} other {# imported}}"
   description: "Tag of a folder's row on the Media Sources page: how many videos in the folder, at any depth, are in the library already."

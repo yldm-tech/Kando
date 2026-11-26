@@ -178,6 +178,14 @@ func TestPluginSourceIsAKindOfSource(t *testing.T) {
 	if status := sourcesTest(t, a, tt, updates); status.Text != m.SettingsSourcesNeedsEndpoint() {
 		t.Errorf("http on the internet: %+v", status)
 	}
+	// A media server's plugin's videos are large and streamed by it: an import from one starts on indexing, while no way is remembered.
+	onEngine(a, func() {
+		a.sources.list = append(a.sources.list, mediasource.Source{ID: "0123456789abcdef", Kind: pluginKindID, Name: "NAS", Config: map[string]string{mediasource.EndpointKey: srv.URL + "/dav"}})
+		a.sources.browse.source = "0123456789abcdef"
+	})
+	if !a.mediaSourceDefaultLink() {
+		t.Error("an import from a plugin's source starts on a copy")
+	}
 	onEngine(a, func() { a.SetPluginEnabled("acme.nas", false) })
 	scriptsSettle(t, a, tt, updates, func() bool { _, ok := a.sources.kinds.Kind(pluginKindID); return !ok })
 }

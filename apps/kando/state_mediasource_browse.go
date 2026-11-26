@@ -29,18 +29,20 @@ const pageMediaSources = sidebar.PageMediaSources
 
 // mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen), and the folders chosen to import whole (chosenDirs), whose videos are being listed while expanding is set; the words the folder's rows are filtered by (query) and the row a choice with Shift extends from (anchor); what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
 type mediaSourceBrowse struct {
-	source         string
-	dir            string
-	entries        []mediasource.Entry
-	subtitled      map[string]bool
-	err            func(locales.Messages) string
-	loading        bool
-	gen            int
-	chosen         map[string]int64
-	chosenDirs     map[string]bool
-	expanding      bool
-	query          string
-	anchor         string
+	source     string
+	dir        string
+	entries    []mediasource.Entry
+	subtitled  map[string]bool
+	err        func(locales.Messages) string
+	loading    bool
+	gen        int
+	chosen     map[string]int64
+	chosenDirs map[string]bool
+	expanding  bool
+	query      string
+	anchor     string
+	// askWay is set while the import asks how to import even though the way is remembered, as 更改方式… does.
+	askWay         bool
 	note           func(locales.Messages) string
 	importing      map[string]int64
 	importRelease  func()
@@ -86,7 +88,7 @@ func (a *app) mediaSourceList() {
 	b := &m.browse
 	b.gen++
 	gen := b.gen
-	b.entries, b.subtitled, b.err, b.chosen, b.chosenDirs, b.expanding, b.query, b.anchor = nil, nil, nil, nil, nil, false, "", ""
+	b.entries, b.subtitled, b.err, b.chosen, b.chosenDirs, b.expanding, b.query, b.anchor, b.askWay = nil, nil, nil, nil, nil, false, "", "", false
 	i := a.mediaSourceIndex(b.source)
 	if i < 0 {
 		b.loading = false
@@ -481,19 +483,52 @@ func (a *app) mediaSourceExpanded(gen int, s mediasource.Source, found map[strin
 		return
 	}
 	if more {
+		// The dialog opens even with a way remembered, so what was left out is read before anything is imported.
 		b.note = func(m locales.Messages) string { return m.MediaSourceFoldersTooMany(mediasource.FolderMax) }
+		b.askWay = true
 	}
 	a.mediaSourceOpenImport(videos)
 }
 
-// mediaSourceOpenImport opens the dialog importing videos, by path with their sizes, holding the window's modal flag until it closes.
+// mediaSourceOpenImport opens the dialog importing videos, by path with their sizes, holding the window's modal flag until it closes; with a way remembered it imports them that way at once, unless asked how (askWay).
 func (a *app) mediaSourceOpenImport(videos map[string]int64) {
 	b := &a.sources.browse
 	b.importing = videos
-	// The way remembered is chosen, else a copy (docs/media-sources.md 17.10).
-	b.importLink, b.importRemember = a.sources.importLink && a.sources.rememberImport, a.sources.rememberImport
+	b.importLink, b.importRemember = a.mediaSourceDefaultLink(), a.sources.rememberImport
+	ask := b.askWay
+	b.askWay = false
+	if a.sources.rememberImport && !ask {
+		a.mediaSourceStartImport()
+		return
+	}
 	if b.importRelease == nil {
 		b.importRelease = a.holdModal()
+	}
+}
+
+// mediaSourceDefaultLink is the way an import of the source shown starts on (docs/media-sources.md 17.10): the one remembered; else indexing for a media server's plugin, whose videos are large and streamed by it, and a copy for a NAS's share.
+func (a *app) mediaSourceDefaultLink() bool {
+	if a.sources.rememberImport {
+		return a.sources.importLink
+	}
+	i := a.mediaSourceIndex(a.sources.browse.source)
+	if i < 0 {
+		return false
+	}
+	k, ok := a.sources.kinds.Kind(a.sources.list[i].Kind)
+	return ok && !k.Origin.Builtin()
+}
+
+// mediaSourceAskImportWay imports what is chosen through the dialog, which says how, though a way is remembered (更改方式…).
+func (a *app) mediaSourceAskImportWay() {
+	b := &a.sources.browse
+	if b.importing != nil || b.expanding {
+		return
+	}
+	b.askWay = true
+	a.mediaSourceAskImport()
+	if b.importing == nil && !b.expanding {
+		b.askWay = false
 	}
 }
 
