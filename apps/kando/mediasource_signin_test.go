@@ -96,6 +96,9 @@ func TestMediaSourceSignsInToPlex(t *testing.T) {
 	if d.Name != "nas" || d.Values[mediasource.EndpointKey] != nas.URL || d.Values["token"] != "nas-token" {
 		t.Fatalf("the draft %+v", *d)
 	}
+	if name, address := tt.Find("id:media-source-name").Text, tt.Find("id:media-source-field-endpoint").Text; name != "nas" || address != nas.URL {
+		t.Errorf("the fields show %q %q", name, address)
+	}
 	if got := src.lastSecrets()["token"]; got != "nas-token" {
 		t.Errorf("tested with the token %q", got)
 	}

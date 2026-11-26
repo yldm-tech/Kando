@@ -298,7 +298,7 @@ func (d mediaSourceDialog) Render(cx *core.Scope) core.Node {
 func mediaSourceFields(cx *core.Scope, a MediaSourcesApp) core.Node {
 	rows := []core.Node{
 		form.Row{Title: locales.AccountLocationName(cx), NoGroup: true, Trailing: []core.Node{mediaSourceInput(a, "media-source-name", locales.AccountLocationName(cx), locales.AccountLocationNamePlaceholder(cx), false,
-			func() string { return a.MediaSourceDraft().Name }, func(s string) { a.MediaSourceDraft().Name = s })}},
+			live.Func(a, func() string { return a.MediaSourceDraft().Name }), func(s string) { a.MediaSourceDraft().Name = s })}},
 		form.Separator(true),
 		form.Row{Title: locales.AccountLocationKind(cx), NoGroup: true, Trailing: []core.Node{mediaSourceKindSelect(cx, a)}},
 	}
