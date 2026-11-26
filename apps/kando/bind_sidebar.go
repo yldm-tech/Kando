@@ -249,8 +249,12 @@ func trafficLights() desktop.WindowControls {
 
 // sidebarMaterial is the window's material, which the sidebar shows: Mica on Windows, whose navigation pane is transparent over it, as Onevra's shell chose. macOS shows none: the window is the page's ground, which the sidebar's card floats over in glass, as Finder's does on macOS 26, so a material would show nowhere. Linux shows none, and the sidebar paints its gutter.
 func sidebarMaterial() core.WindowMaterial {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" && windowsMica {
 		return desktop.WindowMaterialMica
 	}
 	return desktop.WindowMaterialNone
 }
+
+// windowsMica is whether the window shows Mica on Windows. It does not for now: under a hidden title bar the material lets DWM's own caption buttons show through the transparent bar behind NSGo's, offset from them once the window is maximized (#501), so the window paints the gutter as on Windows 10, which has no Mica.
+// TODO(nsgo#2483): turn Mica back on once NSGo keeps DWM's caption buttons from showing under a hidden title bar over a material https://github.com/nsgo-dev/nsgo/issues/2483
+const windowsMica = false
