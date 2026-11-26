@@ -515,6 +515,71 @@ func TestMediaSourceBrowseAndImport(t *testing.T) {
 	}
 }
 
+// 全选 chooses every folder and every video not imported yet of the folder shown, half checked while some are, and none once all were; a folder chosen is imported whole, its videos and those of the folders below it listed first (the import button says so meanwhile), but those imported already; a folder that holds none says so.
+func TestMediaSourceChooseAllAndFolders(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	s, _ := browseSource(a, map[string]fakeSourceFile{
+		"Shows/Night/Season 1/S01E01.mkv": {data: "one"},
+		"Shows/Night/Season 1/S01E02.mkv": {data: "two"},
+		"Shows/Night/Season 2/S02E01.mp4": {data: "three"},
+		"Shows/Day/Pilot.avi":             {data: "pilot"},
+		"Shows/Empty/notes.txt":           {data: "x"},
+		"Shows/Trailer.mp4":               {data: "trailer"},
+	})
+	refresh(tt, a)
+	tt.Press("id:source-" + pageMediaSources)
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+	tt.Press("id:media-sources-entry-Shows")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.loading })
+
+	tt.Press("id:media-sources-choose-all")
+	if a.MediaBrowseChosen() != 4 || !tt.Find("id:media-sources-choose-all").Props.Checked {
+		t.Fatalf("all: chosen %d", a.MediaBrowseChosen())
+	}
+	wantText(t, tt, msgs.MediaSourceImportChosen(4))
+	tt.Press("id:media-sources-choose-Shows/Trailer.mp4")
+	if c, n := a.MediaBrowseChoice(); c != 3 || n != 4 {
+		t.Fatalf("one let go: %d of %d", c, n)
+	}
+	tt.Press("id:media-sources-choose-all")
+	tt.Press("id:media-sources-choose-all")
+	if a.MediaBrowseChosen() != 0 {
+		t.Fatalf("none: chosen %d", a.MediaBrowseChosen())
+	}
+
+	// A folder holding only what is no video says so.
+	tt.Press("id:media-sources-choose-Shows/Empty")
+	tt.Press("id:media-sources-import")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.expanding })
+	wantText(t, tt, msgs.MediaSourceFoldersEmpty())
+	tt.Press("id:media-sources-choose-Shows/Empty")
+
+	// Night's three episodes, Pilot already imported left out, and the trailer chosen beside them.
+	if _, err := a.queueEnqueue([]string{mediasource.Ref{Source: s.ID, Path: "Shows/Day/Pilot.avi"}.String()}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Press("id:media-sources-choose-Shows/Night")
+	tt.Press("id:media-sources-choose-Shows/Day")
+	tt.Press("id:media-sources-choose-Shows/Trailer.mp4")
+	tt.Press("id:media-sources-import")
+	waitUntil(t, tt, a, updates, func() bool { return !a.sources.browse.expanding })
+	want := []string{"Shows/Night/Season 1/S01E01.mkv", "Shows/Night/Season 1/S01E02.mkv", "Shows/Night/Season 2/S02E01.mp4", "Shows/Trailer.mp4"}
+	if got := slices.Sorted(maps.Keys(a.sources.browse.importing)); !slices.Equal(got, want) || !tt.Exists("id:media-sources-import-dialog") {
+		t.Fatalf("importing %q", got)
+	}
+	wantText(t, tt, msgs.MediaSourceImportTitle(4, "Living Room NAS"))
+	tt.Press("id:media-sources-import-start")
+	for _, p := range want {
+		if _, ok := a.queueFindSource(mediasource.Ref{Source: s.ID, Path: p}.String()); !ok {
+			t.Errorf("no job for %s", p)
+		}
+	}
+	if a.MediaBrowseChosen() != 0 {
+		t.Errorf("chosen after the import: %d", a.MediaBrowseChosen())
+	}
+}
+
 // With no source added, the 媒体来源 page says what one is and adds one: 添加来源… opens 设置 › 媒体来源 with the dialog adding a source, and once it is saved the settings close and the page shows the source at its root. A source added in the settings themselves keeps them open; its row's 浏览 closes them and shows it on the page.
 func TestMediaSourceAddedFromItsPageShowsThere(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})

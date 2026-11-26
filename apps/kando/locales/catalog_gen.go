@@ -1233,6 +1233,8 @@ var Parameters = map[string][]string{
 	"SettingsSourcesFailPlugin":                {"plugin"},
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
+	"MediaSourceImportChosen":                  {"count"},
+	"MediaSourceFoldersTooMany":                {"limit"},
 	"MediaSourceImportTitle":                   {"count", "source"},
 	"MediaSourceImportCopyNote":                {"size"},
 	"MediaSourceImported":                      {"count"},
@@ -2009,6 +2011,8 @@ type Translation struct {
 	SettingsSourcesFailPlugin                func(plugin string) string
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
+	MediaSourceImportChosen                  func(count int) string
+	MediaSourceFoldersTooMany                func(limit int) string
 	MediaSourceImportTitle                   func(count int, source string) string
 	MediaSourceImportCopyNote                func(size string) string
 	MediaSourceImported                      func(count int) string
@@ -3920,6 +3924,10 @@ const (
 	textMediaSourceOffline
 	textMediaSourceHasSubtitles
 	textMediaSourceInLibrary
+	textMediaSourceListingFolders
+	textMediaSourceChooseAll
+	textMediaSourceFoldersFailed
+	textMediaSourceFoldersEmpty
 	textMediaSourceImportStart
 	textMediaSourceCancel
 	textMediaSourceImportCopy
@@ -5829,6 +5837,10 @@ var keyOfText = [numTexts]string{
 	"mediaSourceOffline",
 	"mediaSourceHasSubtitles",
 	"mediaSourceInLibrary",
+	"mediaSourceListingFolders",
+	"mediaSourceChooseAll",
+	"mediaSourceFoldersFailed",
+	"mediaSourceFoldersEmpty",
 	"mediaSourceImportStart",
 	"mediaSourceCancel",
 	"mediaSourceImportCopy",
@@ -7736,6 +7748,10 @@ var textsEn = i18n.NewTexts(""+
 	"Offline mode is on, and this source isn't on the local network."+
 	"Subtitles"+
 	"In Library"+
+	"Listing Folders…"+
+	"Select All"+
+	"The folders chosen could not be listed. Try again in a moment."+
+	"The folders chosen hold no video that is not imported yet."+
 	"Import"+
 	"Cancel"+
 	"Copy into the library"+
@@ -9640,6 +9656,10 @@ var textsEn = i18n.NewTexts(""+
 		63,
 		9,
 		10,
+		18,
+		10,
+		62,
+		58,
 		6,
 		6,
 		21,
@@ -11547,6 +11567,10 @@ var textsJa = i18n.NewTexts(""+
 	"オフラインモードがオンで、このソースはローカルネットワーク上にありません。"+
 	"字幕あり"+
 	"ライブラリにあり"+
+	"フォルダを一覧中…"+
+	"すべて選択"+
+	"選択したフォルダを一覧できませんでした。しばらくしてからもう一度お試しください。"+
+	"選択したフォルダには、まだ読み込んでいない動画がありません。"+
 	"読み込む"+
 	"キャンセル"+
 	"ライブラリにコピー"+
@@ -13451,6 +13475,10 @@ var textsJa = i18n.NewTexts(""+
 		111,
 		12,
 		24,
+		27,
+		15,
+		120,
+		90,
 		12,
 		15,
 		27,
@@ -15358,6 +15386,10 @@ var textsKo = i18n.NewTexts(""+
 	"오프라인 모드가 켜져 있고 이 소스는 로컬 네트워크에 있지 않습니다."+
 	"자막"+
 	"라이브러리에 있음"+
+	"폴더 목록을 읽는 중…"+
+	"모두 선택"+
+	"선택한 폴더의 목록을 읽지 못했습니다. 잠시 후 다시 시도하세요."+
+	"선택한 폴더에 아직 가져오지 않은 동영상이 없습니다."+
 	"가져오기"+
 	"취소"+
 	"라이브러리로 복사"+
@@ -17262,6 +17294,10 @@ var textsKo = i18n.NewTexts(""+
 		94,
 		6,
 		25,
+		30,
+		13,
+		88,
+		73,
 		12,
 		6,
 		25,
@@ -19169,6 +19205,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"离线模式已打开，而这个来源不在局域网里。"+
 	"有字幕"+
 	"已在资料库"+
+	"正在列出文件夹…"+
+	"全选"+
+	"没能列出所选的文件夹，请稍后重试。"+
+	"所选的文件夹里没有还没导入的视频。"+
 	"导入"+
 	"取消"+
 	"复制到资料库"+
@@ -21073,6 +21113,10 @@ var textsZhHans = i18n.NewTexts(""+
 		60,
 		9,
 		15,
+		24,
+		6,
+		51,
+		51,
 		6,
 		6,
 		18,
@@ -22980,6 +23024,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"離線模式已開啟，而這個來源不在區域網路裡。"+
 	"有字幕"+
 	"已在資料庫"+
+	"正在列出資料夾…"+
+	"全選"+
+	"沒能列出所選的資料夾，請稍後重試。"+
+	"所選的資料夾裡沒有還沒匯入的影片。"+
 	"匯入"+
 	"取消"+
 	"複製到資料庫"+
@@ -24884,6 +24932,10 @@ var textsZhHant = i18n.NewTexts(""+
 		63,
 		9,
 		15,
+		24,
+		6,
+		51,
+		51,
 		6,
 		6,
 		18,
@@ -27217,6 +27269,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImportSome != nil {
 		s.MediaSourceImportSome = t.MediaSourceImportSome
+	}
+	if t.MediaSourceImportChosen != nil {
+		s.MediaSourceImportChosen = t.MediaSourceImportChosen
+	}
+	if t.MediaSourceFoldersTooMany != nil {
+		s.MediaSourceFoldersTooMany = t.MediaSourceFoldersTooMany
 	}
 	if t.MediaSourceImportTitle != nil {
 		s.MediaSourceImportTitle = t.MediaSourceImportTitle
@@ -72751,6 +72809,149 @@ func (msgs Messages) MediaSourceImportSome(count int) string {
 				b.WriteString(" 部影片")
 			}
 			return b.String()
+		}
+	}
+}
+
+// MediaSourceImportChosen says "{count, plural, one {Import # Item} other {Import # Items}}"
+// in the language the app shows under cx.
+//
+// Button on the Media Sources page importing what is chosen when folders are among it, whose videos are listed first; count is the folders and videos chosen.
+func MediaSourceImportChosen(cx *core.Scope, count int) string {
+	return For(cx).MediaSourceImportChosen(count)
+}
+
+// MediaSourceImportChosen is the package's MediaSourceImportChosen in the language of msgs.
+func (msgs Messages) MediaSourceImportChosen(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportChosen(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportChosen; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Item")
+			default:
+				b.WriteString("Import ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Items")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString("選択した ")
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 項目を読み込む")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString("선택한 ")
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개 항목 가져오기")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("导入所选（")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+				b.WriteString(" 项）")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("匯入所選（")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+				b.WriteString(" 項）")
+			}
+			return b.String()
+		}
+	}
+}
+
+// MediaSourceListingFolders says "Listing Folders…"
+// in the language the app shows under cx.
+//
+// The Media Sources page's import button, turned off, while the videos of the folders chosen are listed.
+func MediaSourceListingFolders(cx *core.Scope) string { return For(cx).MediaSourceListingFolders() }
+
+// MediaSourceListingFolders is the package's MediaSourceListingFolders in the language of msgs.
+func (msgs Messages) MediaSourceListingFolders() string {
+	return msgs.text(textMediaSourceListingFolders)
+}
+
+// MediaSourceChooseAll says "Select All"
+// in the language the app shows under cx.
+//
+// Check box at the top of the Media Sources page's folder that chooses every folder and every video not imported yet of it, or none once all are.
+func MediaSourceChooseAll(cx *core.Scope) string { return For(cx).MediaSourceChooseAll() }
+
+// MediaSourceChooseAll is the package's MediaSourceChooseAll in the language of msgs.
+func (msgs Messages) MediaSourceChooseAll() string { return msgs.text(textMediaSourceChooseAll) }
+
+// MediaSourceFoldersFailed says "The folders chosen could not be listed. Try again in a moment."
+// in the language the app shows under cx.
+//
+// Said on the Media Sources page when the videos of the folders chosen to import could not be listed.
+func MediaSourceFoldersFailed(cx *core.Scope) string { return For(cx).MediaSourceFoldersFailed() }
+
+// MediaSourceFoldersFailed is the package's MediaSourceFoldersFailed in the language of msgs.
+func (msgs Messages) MediaSourceFoldersFailed() string {
+	return msgs.text(textMediaSourceFoldersFailed)
+}
+
+// MediaSourceFoldersEmpty says "The folders chosen hold no video that is not imported yet."
+// in the language the app shows under cx.
+//
+// Said on the Media Sources page when the folders chosen to import hold no video, or only videos already in the library.
+func MediaSourceFoldersEmpty(cx *core.Scope) string { return For(cx).MediaSourceFoldersEmpty() }
+
+// MediaSourceFoldersEmpty is the package's MediaSourceFoldersEmpty in the language of msgs.
+func (msgs Messages) MediaSourceFoldersEmpty() string { return msgs.text(textMediaSourceFoldersEmpty) }
+
+// MediaSourceFoldersTooMany says "The folders chosen hold more than {limit} videos; this import takes the first {limit}."
+// in the language the app shows under cx.
+//
+// Said on the Media Sources page, as the import dialog opens, when the folders chosen hold more videos than one import takes.
+func MediaSourceFoldersTooMany(cx *core.Scope, limit int) string {
+	return For(cx).MediaSourceFoldersTooMany(limit)
+}
+
+// MediaSourceFoldersTooMany is the package's MediaSourceFoldersTooMany in the language of msgs.
+func (msgs Messages) MediaSourceFoldersTooMany(limit int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceFoldersTooMany(limit))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceFoldersTooMany; f != nil {
+			return f(limit)
+		}
+		switch lang {
+		case "", "en":
+			return "The folders chosen hold more than " + msgs.arg(i18n.FormatNumber("en", float64(limit))) + " videos; this import takes the first " + msgs.arg(i18n.FormatNumber("en", float64(limit))) + "."
+		case "ja":
+			return "選択したフォルダの動画が " + i18n.FormatNumber("ja", float64(limit)) + " 本を超えています。今回は最初の " + i18n.FormatNumber("ja", float64(limit)) + " 本を読み込みます。"
+		case "ko":
+			return "선택한 폴더의 동영상이 " + i18n.FormatNumber("ko", float64(limit)) + "개를 넘습니다. 이번에는 처음 " + i18n.FormatNumber("ko", float64(limit)) + "개만 가져옵니다."
+		case "zh-Hans":
+			return "所选的文件夹里视频超过 " + i18n.FormatNumber("zh-Hans", float64(limit)) + " 个，这次只导入前 " + i18n.FormatNumber("zh-Hans", float64(limit)) + " 个。"
+		case "zh-Hant":
+			return "所選的資料夾裡影片超過 " + i18n.FormatNumber("zh-Hant", float64(limit)) + " 部，這次只匯入前 " + i18n.FormatNumber("zh-Hant", float64(limit)) + " 部。"
 		}
 	}
 }

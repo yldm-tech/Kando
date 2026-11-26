@@ -9655,6 +9655,28 @@ mediaSourceImportSome:
   description: "Button on the Media Sources page importing the videos chosen."
   placeholders:
     count: { type: "int", example: "3" }
+mediaSourceImportChosen:
+  message: "{count, plural, one {Import # Item} other {Import # Items}}"
+  description: "Button on the Media Sources page importing what is chosen when folders are among it, whose videos are listed first; count is the folders and videos chosen."
+  placeholders:
+    count: { type: "int", example: "3" }
+mediaSourceListingFolders:
+  message: "Listing Folders…"
+  description: "The Media Sources page's import button, turned off, while the videos of the folders chosen are listed."
+mediaSourceChooseAll:
+  message: "Select All"
+  description: "Check box at the top of the Media Sources page's folder that chooses every folder and every video not imported yet of it, or none once all are."
+mediaSourceFoldersFailed:
+  message: "The folders chosen could not be listed. Try again in a moment."
+  description: "Said on the Media Sources page when the videos of the folders chosen to import could not be listed."
+mediaSourceFoldersEmpty:
+  message: "The folders chosen hold no video that is not imported yet."
+  description: "Said on the Media Sources page when the folders chosen to import hold no video, or only videos already in the library."
+mediaSourceFoldersTooMany:
+  message: "The folders chosen hold more than {limit} videos; this import takes the first {limit}."
+  description: "Said on the Media Sources page, as the import dialog opens, when the folders chosen hold more videos than one import takes."
+  placeholders:
+    limit: { type: "int", example: "500" }
 mediaSourceImportTitle:
   message: "{count, plural, one {Import # video from {source}?} other {Import # videos from {source}?}}"
   description: "Title of the dialog confirming the import of the videos chosen on a media source."

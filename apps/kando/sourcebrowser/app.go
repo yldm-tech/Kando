@@ -24,11 +24,16 @@ type App interface {
 	MediaBrowseErr() string
 	RetryMediaBrowse()
 	EditMediaBrowseSource()
-	// OpenMediaBrowseEntry opens the folder at path, or the film imported from the video at path; ToggleMediaBrowseEntry chooses the video at path to import, or no more.
+	// OpenMediaBrowseEntry opens the folder at path, or the film imported from the video at path; ToggleMediaBrowseEntry chooses the video at path to import, or the folder at path to import whole, or no more.
 	OpenMediaBrowseEntry(path string)
 	ToggleMediaBrowseEntry(path string)
-	// MediaBrowseChosen is how many videos are chosen; ImportMediaBrowseChosen opens the dialog that imports them (MediaBrowseImport). MediaBrowseNote is what the page says about the last import, "" for nothing.
+	// MediaBrowseChoice is how many of the folder's rows are chosen and how many can be; ToggleMediaBrowseAll chooses all of them, or none once all are.
+	MediaBrowseChoice() (chosen, choosable int)
+	ToggleMediaBrowseAll()
+	// MediaBrowseChosen is how many videos and folders are chosen, MediaBrowseFoldersChosen whether folders are among them; ImportMediaBrowseChosen opens the dialog that imports them (MediaBrowseImport), once the videos of the folders were listed, which MediaBrowseExpanding reports. MediaBrowseNote is what the page says about the last import, "" for nothing.
 	MediaBrowseChosen() int
+	MediaBrowseFoldersChosen() bool
+	MediaBrowseExpanding() bool
 	ImportMediaBrowseChosen()
 	MediaBrowseNote() string
 	// AddMediaBrowseSource opens Settings › 媒体来源 with the dialog that adds a source; once the source is saved, the settings close and this page shows it.
@@ -47,7 +52,7 @@ type Source struct {
 	ID, Name, Summary string
 }
 
-// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Chosen a video chosen to import.
+// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Choosable a video or a folder that has a check box, Chosen one chosen to import.
 type Entry struct {
 	Path, Name string
 	Dir, Share bool
@@ -55,6 +60,7 @@ type Entry struct {
 	Modified   time.Time
 	Subtitles  bool
 	InLibrary  bool
+	Choosable  bool
 	Chosen     bool
 }
 

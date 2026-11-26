@@ -8,6 +8,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"kando/apps/kando/feedback"
 	"kando/apps/kando/films"
@@ -25,7 +26,7 @@ import (
 // pageMediaSources is the 媒体来源 page (package sourcebrowser), which the sidebar's row of that name shows while a source was added.
 const pageMediaSources = sidebar.PageMediaSources
 
-// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen); what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
+// mediaSourceBrowse is the state of the 媒体来源 page: the source shown (source) and the folder of it (dir, "" for its root); what it holds as listed, its folders and media files (entries) with the names of the videos a subtitle file goes with (subtitled), or why it could not be listed (err), and whether it is being listed (loading), gen numbering the listings so the answer of one the user left is dropped; the videos chosen to import, by path (chosen), and the folders chosen to import whole (chosenDirs), whose videos are being listed while expanding is set; what the page says about the last import (note); the import dialog (importing, the videos it imports, with their sizes, nil while it is closed, whose modal flag importRelease gives back), with the way it imports them, indexed and played from the source (importLink) or copied, and whether that way is remembered (importRemember); and the indexed film whose video is being looked for on the source (relink, its placeholder path, "" while none is, state_mediasource_import.go).
 type mediaSourceBrowse struct {
 	source         string
 	dir            string
@@ -35,6 +36,8 @@ type mediaSourceBrowse struct {
 	loading        bool
 	gen            int
 	chosen         map[string]int64
+	chosenDirs     map[string]bool
+	expanding      bool
 	note           func(locales.Messages) string
 	importing      map[string]int64
 	importRelease  func()
@@ -80,7 +83,7 @@ func (a *app) mediaSourceList() {
 	b := &m.browse
 	b.gen++
 	gen := b.gen
-	b.entries, b.subtitled, b.err, b.chosen = nil, nil, nil, nil
+	b.entries, b.subtitled, b.err, b.chosen, b.chosenDirs, b.expanding = nil, nil, nil, nil, nil, false
 	i := a.mediaSourceIndex(b.source)
 	if i < 0 {
 		b.loading = false
@@ -153,13 +156,7 @@ func (a *app) mediaSourceListed(gen int, s mediasource.Source, entries []mediaso
 	var kept []mediasource.Entry
 	for _, e := range entries {
 		// A name Kando cannot write back the same way (mediasource.CleanPath), as one not in UTF-8, cannot be imported.
-		if strings.HasPrefix(e.Name, ".") || e.Name == "" {
-			continue
-		}
-		if _, err := mediasource.CleanPath(e.Name); err != nil || strings.Contains(e.Name, "/") {
-			continue
-		}
-		if !e.Dir && !media.IsMediaFile(e.Name) {
+		if !mediasource.Importable(e) {
 			continue
 		}
 		if !e.Dir && len(mediasource.SubtitlesOf(e.Name, names)) > 0 {
@@ -211,13 +208,31 @@ func (a *app) mediaSourceServer() bool {
 	return s.Kind == mediasource.KindSMB && mediasource.SMBRemote(s, "").Share == ""
 }
 
-// mediaSourceToggle chooses the video at p to import, or no more.
+// mediaSourceToggle chooses the video at p to import, or the folder at p to import whole, or no more; a folder is not chosen while a film's video is looked for (relink).
 func (a *app) mediaSourceToggle(p string) {
 	b := &a.sources.browse
 	name := path.Base(p)
+	if b.expanding {
+		return
+	}
 	for _, e := range b.entries {
-		if e.Name != name || e.Dir || b.entryPath(e.Name) != p {
+		if e.Name != name || b.entryPath(e.Name) != p {
 			continue
+		}
+		if e.Dir {
+			if b.relink != "" {
+				return
+			}
+			if b.chosenDirs[p] {
+				delete(b.chosenDirs, p)
+			} else {
+				if b.chosenDirs == nil {
+					b.chosenDirs = map[string]bool{}
+				}
+				b.chosenDirs[p] = true
+			}
+			b.note = nil
+			return
 		}
 		if a.sources.browse.relink != "" {
 			a.mediaSourceRelinkTo(p, e)
@@ -236,6 +251,53 @@ func (a *app) mediaSourceToggle(p string) {
 		}
 		b.note = nil
 		return
+	}
+}
+
+// mediaSourceChoice is how many of the folder's rows are chosen and how many can be: its folders and the videos not imported yet; none can be while a film's video is looked for, which picks one video.
+func (a *app) mediaSourceChoice() (chosen, choosable int) {
+	b := &a.sources.browse
+	if b.relink != "" {
+		return 0, 0
+	}
+	for _, e := range b.entries {
+		p := b.entryPath(e.Name)
+		switch {
+		case e.Dir:
+			choosable++
+			if b.chosenDirs[p] {
+				chosen++
+			}
+		case !a.mediaSourceIn(a.mediaSourceRef(p)):
+			choosable++
+			if _, ok := b.chosen[p]; ok {
+				chosen++
+			}
+		}
+	}
+	return chosen, choosable
+}
+
+// mediaSourceChooseAll chooses every folder and every video not imported yet of the folder shown, or, when all are chosen, none.
+func (a *app) mediaSourceChooseAll() {
+	b := &a.sources.browse
+	chosen, choosable := a.mediaSourceChoice()
+	if b.expanding || choosable == 0 {
+		return
+	}
+	b.chosen, b.chosenDirs, b.note = nil, nil, nil
+	if chosen == choosable {
+		return
+	}
+	b.chosen, b.chosenDirs = map[string]int64{}, map[string]bool{}
+	for _, e := range b.entries {
+		p := b.entryPath(e.Name)
+		switch {
+		case e.Dir:
+			b.chosenDirs[p] = true
+		case !a.mediaSourceIn(a.mediaSourceRef(p)):
+			b.chosen[p] = e.Size
+		}
 	}
 }
 
@@ -270,13 +332,84 @@ func (a *app) mediaSourceOpenEntry(p string) {
 	}
 }
 
-// mediaSourceAskImport opens the dialog importing the videos chosen, holding the window's modal flag until it closes.
+// mediaSourceAskImport opens the dialog importing the videos chosen, holding the window's modal flag until it closes; with folders chosen, once their videos were listed (mediaSourceExpand).
 func (a *app) mediaSourceAskImport() {
 	b := &a.sources.browse
-	if len(b.chosen) == 0 || b.importing != nil {
+	if (len(b.chosen) == 0 && len(b.chosenDirs) == 0) || b.importing != nil || b.expanding {
 		return
 	}
-	b.importing = maps.Clone(b.chosen)
+	if len(b.chosenDirs) > 0 {
+		a.mediaSourceExpand()
+		return
+	}
+	a.mediaSourceOpenImport(maps.Clone(b.chosen))
+}
+
+// mediaSourceFolderTimeout bounds listing the folders chosen to import whole.
+const mediaSourceFolderTimeout = 2 * time.Minute
+
+// mediaSourceExpand lists the videos of the folders chosen off the engine's goroutine, through the pool's connection to the source shown, down to mediasource.FolderDepth folders and mediasource.FolderMax videos (docs/media-sources.md 4.1), then opens the import dialog on them and the videos chosen, but those imported already (mediaSourceExpanded). Offline mode lists a source on the local network alone.
+func (a *app) mediaSourceExpand() {
+	m := &a.sources
+	b := &m.browse
+	i := a.mediaSourceIndex(b.source)
+	if i < 0 {
+		return
+	}
+	b.expanding, b.note = true, nil
+	a.mediaSourcePoolSync()
+	gen, s, dirs, pool, offline, local := b.gen, m.list[i], slices.Sorted(maps.Keys(b.chosenDirs)), m.pool, a.privacy.offline, m.localHost
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), mediaSourceFolderTimeout)
+		defer cancel()
+		var found map[string]int64
+		var more bool
+		err := mediaSourceOfflineCheck(ctx, offline, s, local)
+		if err == nil {
+			var d mediasource.Driver
+			if d, err = pool.Driver(ctx, s.ID); err == nil {
+				found, more, err = mediasource.Videos(ctx, d, dirs, mediasource.FolderDepth, mediasource.FolderMax)
+			}
+		}
+		a.update(func() { a.mediaSourceExpanded(gen, s, found, more, err) })
+	}()
+}
+
+// mediaSourceExpanded takes the videos the folders chosen hold, unless the page went to another folder meanwhile: with the videos chosen, but those imported already, it opens the import dialog, saying when there were more than mediasource.FolderMax; or it says that there were none, or that the folders could not be listed, the error going to the log.
+func (a *app) mediaSourceExpanded(gen int, s mediasource.Source, found map[string]int64, more bool, err error) {
+	b := &a.sources.browse
+	if b.gen != gen || !b.expanding {
+		return
+	}
+	b.expanding = false
+	if err != nil {
+		log.Printf("media source: %s listing folders to import failed: %s", s.Kind, feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(err.Error()))
+		b.note = locales.Messages.MediaSourceFoldersFailed
+		return
+	}
+	videos := maps.Clone(b.chosen)
+	if videos == nil {
+		videos = map[string]int64{}
+	}
+	for p, size := range found {
+		if !a.mediaSourceIn(a.mediaSourceRef(p)) {
+			videos[p] = size
+		}
+	}
+	if len(videos) == 0 {
+		b.note = locales.Messages.MediaSourceFoldersEmpty
+		return
+	}
+	if more {
+		b.note = func(m locales.Messages) string { return m.MediaSourceFoldersTooMany(mediasource.FolderMax) }
+	}
+	a.mediaSourceOpenImport(videos)
+}
+
+// mediaSourceOpenImport opens the dialog importing videos, by path with their sizes, holding the window's modal flag until it closes.
+func (a *app) mediaSourceOpenImport(videos map[string]int64) {
+	b := &a.sources.browse
+	b.importing = videos
 	// The way remembered is chosen, else a copy (docs/media-sources.md 17.10).
 	b.importLink, b.importRemember = a.sources.importLink && a.sources.rememberImport, a.sources.rememberImport
 	if b.importRelease == nil {
@@ -311,6 +444,7 @@ func (a *app) mediaSourceStartImport() {
 	}
 	a.mediaSourcePoolSync()
 	if link {
+		b.chosenDirs = nil
 		a.mediaSourceLink(paths)
 		return
 	}
@@ -322,6 +456,7 @@ func (a *app) mediaSourceStartImport() {
 	for _, p := range paths {
 		delete(b.chosen, p)
 	}
+	b.chosenDirs = nil
 	switch {
 	case added > 0:
 		b.note = func(m locales.Messages) string { return m.MediaSourceImported(added) }

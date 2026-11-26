@@ -85,7 +85,7 @@ func sources(cx *core.Scope, a App) core.Node {
 	}, core.View{Style: core.Style{AlignItems: core.AlignStart}, Children: []core.Node{add}}}}
 }
 
-// folder is the right of the page: the path to the folder shown with 导入 N 个视频 at its end, what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
+// folder is the right of the page: 全选 and the path to the folder shown, with 导入 N 个视频 at its end (导入所选 with folders chosen, which lists their videos first), what the last import did, and the folder's rows, or that it is being listed, empty, or could not be listed and why.
 func folder(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
 	chosen := live.Func(a, a.MediaBrowseChosen)
@@ -95,12 +95,32 @@ func folder(cx *core.Scope, a App) core.Node {
 		items := crumbs.Get()
 		return ui.Breadcrumbs{TestID: "media-sources-path", Items: items, OnSelect: live.On(a, a.OpenMediaBrowseCrumb), Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}}
 	})
-	// The button shows while videos are chosen, and its words count them.
+	// The button shows while videos or folders are chosen, and its words count them; with folders it lists their videos first, and says so meanwhile.
 	count := core.NewMemo(cx, chosen)
+	folders := live.Func(a, a.MediaBrowseFoldersChosen)
+	expanding := live.Func(a, a.MediaBrowseExpanding)
 	importButton := core.Show{When: func() bool { return count.Get() > 0 }, Then: func(cx *core.Scope) core.Node {
-		return ui.Button{TestID: "media-sources-import", TextFunc: func() string { return locales.MediaSourceImportSome(cx, count.Get()) }, OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
+		return ui.Button{TestID: "media-sources-import", TextFunc: func() string {
+			switch {
+			case expanding():
+				return locales.MediaSourceListingFolders(cx)
+			case folders():
+				return locales.MediaSourceImportChosen(cx, count.Get())
+			}
+			return locales.MediaSourceImportSome(cx, count.Get())
+		}, Disabled: expanding, OnPress: live.Do(a, a.ImportMediaBrowseChosen)}
 	}}
-	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{path, importButton}}
+	// 全选 chooses every folder and video of the folder that can be, or none once all are, half checked while some are.
+	choice := core.NewMemo(cx, live.Func(a, func() [2]int { c, n := a.MediaBrowseChoice(); return [2]int{c, n} }))
+	all := core.Show{When: func() bool { return choice.Get()[1] > 0 }, Then: func(cx *core.Scope) core.Node {
+		return ui.Checkbox{TestID: "media-sources-choose-all", Text: locales.MediaSourceChooseAll(cx),
+			Checked:       func() bool { c := choice.Get(); return c[0] > 0 && c[0] == c[1] },
+			Indeterminate: func() bool { c := choice.Get(); return c[0] > 0 && c[0] < c[1] },
+			Disabled:      expanding,
+			OnChange:      live.On(a, func(bool) { a.ToggleMediaBrowseAll() }),
+			Style:         core.Style{FlexShrink: 0, Padding: core.Edges{Left: 14}}}
+	}}
+	bar := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0, MinHeight: core.Pt(32)}, Children: []core.Node{all, path, importButton}}
 	note := live.Func(a, a.MediaBrowseNote)
 	noteLine := core.Show{When: func() bool { return note() != "" }, Then: func(*core.Scope) core.Node {
 		return core.Text{TestID: "media-sources-note", ContentFunc: note, Style: core.Style{FontSize: 12, LineHeight: 17, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)}
@@ -157,7 +177,7 @@ func rows(cx *core.Scope, a App, entries func() []Entry) core.Node {
 		Children: []core.Node{core.View{Style: core.Style{AlignItems: core.AlignStretch, Padding: core.Edges{Bottom: 20}}, Children: []core.Node{card}}}}
 }
 
-// row is a folder or a video of the folder: a folder or a share opens with a press; a video has a check box that chooses it, its tags, its size and its time, and one already imported opens its film with a press instead.
+// row is a folder or a video of the folder: a folder or a share opens with a press, and has a check box that chooses it to import whole; a video has a check box that chooses it, its tags, its size and its time, and one already imported opens its film with a press instead.
 func row(cx *core.Scope, a App, e func() Entry) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	path := e().Path
@@ -173,8 +193,8 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 	}
 	name := core.Text{ContentFunc: func() string { return e().Name }, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle,
 		Style: core.Style{FontSize: 13, LineHeight: 18, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)}
-	// A video not imported yet is chosen with its check box, whose label is its name; any other row is pressed as a whole.
-	lead := core.Show{When: opens, Then: func(*core.Scope) core.Node {
+	// A folder, and a video not imported yet, is chosen with its check box, whose label is its name; a press on the rest of a folder's row opens it.
+	lead := core.Show{When: func() bool { return !e().Choosable }, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{Width: core.Pt(18), FlexShrink: 0}}
 	}, Else: func(cx *core.Scope) core.Node {
 		return ui.Checkbox{TestID: "media-sources-choose-" + path, Label: locales.MediaSourceSelect(cx, e().Name),
