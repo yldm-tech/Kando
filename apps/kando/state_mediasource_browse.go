@@ -265,6 +265,40 @@ func (a *app) mediaSourceSetChosen(e mediasource.Entry, p string, on bool) {
 	}
 }
 
+// mediaSourceInByFolder is how many videos of each folder of the folder shown, by its name, are in the open library, at any depth below it: indexed, or imported by a job that did not fail, as mediaSourceIn counts a video. It reads what the library keeps of where its films came from, so no folder is listed for it.
+func (a *app) mediaSourceInByFolder() map[string]int {
+	b := &a.sources.browse
+	root := a.snap().LibraryDir
+	prefix := ""
+	if b.dir != "" {
+		prefix = b.dir + "/"
+	}
+	seen := map[string]bool{}
+	for p, l := range a.library.Linked {
+		if l.Source == b.source && films.InDir(root, p) {
+			seen[l.Path] = true
+		}
+	}
+	for _, job := range a.library.Jobs {
+		r, err := mediasource.ParseRef(job.Source)
+		if err != nil || r.Source != b.source || job.Stage == core.StageFailed || !films.InLibrary(root, job) || a.lockHidesJob(job) {
+			continue
+		}
+		seen[r.Path] = true
+	}
+	out := map[string]int{}
+	for p := range seen {
+		rest, ok := strings.CutPrefix(p, prefix)
+		if !ok {
+			continue
+		}
+		if folder, _, below := strings.Cut(rest, "/"); below {
+			out[folder]++
+		}
+	}
+	return out
+}
+
 // mediaSourceShown are the folder's entries the rows show: those whose name holds the words of the filter, each in any case, all of them without one.
 func (a *app) mediaSourceShown() []mediasource.Entry {
 	b := &a.sources.browse

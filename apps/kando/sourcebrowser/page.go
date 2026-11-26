@@ -188,7 +188,7 @@ func rows(cx *core.Scope, a App, entries func() []Entry) core.Node {
 		Children: []core.Node{core.View{Style: core.Style{AlignItems: core.AlignStretch, Padding: core.Edges{Bottom: 20}}, Children: []core.Node{card}}}}
 }
 
-// row is a folder or a video of the folder: a folder or a share opens with a press, and has a check box that chooses it to import whole; a video has a check box that chooses it, its tags, its size and its time, and one already imported opens its film with a press instead.
+// row is a folder or a video of the folder: a folder or a share opens with a press, has a check box that chooses it to import whole, and says how many videos below it are in the library; a video has a check box that chooses it, its tags, its size and its time, and one already imported opens its film with a press instead.
 func row(cx *core.Scope, a App, e func() Entry) core.Node {
 	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	path := e().Path
@@ -244,6 +244,9 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 			if x.InLibrary {
 				parts = append(parts, locales.MediaSourceInLibrary(cx))
 			}
+			if x.Imported > 0 {
+				parts = append(parts, locales.MediaSourceImportedBelow(cx, x.Imported))
+			}
 			return strings.Join(parts, ", ")
 		},
 		OnPress: func(press core.PressEvent) {
@@ -263,6 +266,11 @@ func row(cx *core.Scope, a App, e func() Entry) core.Node {
 			name,
 			tag("media-sources-subtitles-", func() bool { return e().Subtitles }, locales.MediaSourceHasSubtitles(cx)),
 			tag("media-sources-in-library-", func() bool { return e().InLibrary }, locales.MediaSourceInLibrary(cx)),
+			core.Show{When: func() bool { return e().Imported > 0 }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{TestID: "media-sources-imported-" + path, ContentFunc: func() string { return locales.MediaSourceImportedBelow(cx, e().Imported) }, MaxLines: 1, Role: core.RoleNone,
+					Style:     core.Style{FontSize: 10, FontWeight: ui.Bold, LineHeight: 16, CornerRadius: 8, Padding: core.Symmetric(0, 7), FlexShrink: 0},
+					StyleFunc: func() core.Style { return core.Style{Background: k.Shade(0.07), Color: colors.Muted()} }}
+			}},
 			detail(func() string {
 				if x := e(); !x.Dir {
 					return ByteSize(x.Size)

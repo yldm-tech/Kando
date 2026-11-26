@@ -516,7 +516,7 @@ func TestMediaSourceBrowseAndImport(t *testing.T) {
 	}
 }
 
-// 全选 chooses every folder and every video not imported yet of the folder shown, half checked while some are, and none once all were; a folder chosen is imported whole, its videos and those of the folders below it listed first (the import button says so meanwhile), but those imported already; a folder that holds none says so.
+// 全选 chooses every folder and every video not imported yet of the folder shown, half checked while some are, and none once all were; a folder chosen is imported whole, its videos and those of the folders below it listed first (the import button says so meanwhile), but those imported already; a folder that holds none says so; each folder says how many of its videos are in the library.
 func TestMediaSourceChooseAllAndFolders(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
@@ -578,6 +578,16 @@ func TestMediaSourceChooseAllAndFolders(t *testing.T) {
 	}
 	if a.MediaBrowseChosen() != 0 {
 		t.Errorf("chosen after the import: %d", a.MediaBrowseChosen())
+	}
+	// Each folder says how many of its videos, at any depth, are in the library; one with none says nothing.
+	refresh(tt, a)
+	for dir, n := range map[string]int{"Shows/Night": 3, "Shows/Day": 1} {
+		if got := tt.Find("id:media-sources-imported-" + dir); got == nil || got.Text != msgs.MediaSourceImportedBelow(n) {
+			t.Errorf("%s says %+v, want %q", dir, got, msgs.MediaSourceImportedBelow(n))
+		}
+	}
+	if tt.Exists("id:media-sources-imported-Shows/Empty") {
+		t.Error("a folder with nothing imported says it has")
 	}
 }
 

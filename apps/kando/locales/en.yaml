@@ -9687,6 +9687,11 @@ mediaSourceListingFolders:
 mediaSourceChooseAll:
   message: "Select All"
   description: "Check box at the top of the Media Sources page's folder that chooses every folder and every video not imported yet of it, or none once all are."
+mediaSourceImportedBelow:
+  message: "{count, plural, one {# imported} other {# imported}}"
+  description: "Tag of a folder's row on the Media Sources page: how many videos in the folder, at any depth, are in the library already."
+  placeholders:
+    count: { type: "int", example: "3" }
 mediaSourceFilter:
   message: "Filter"
   description: "Field at the top of the Media Sources page's folder, and its placeholder, that narrows the folder's rows to the names holding the words typed."

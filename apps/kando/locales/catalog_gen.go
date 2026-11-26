@@ -1237,6 +1237,7 @@ var Parameters = map[string][]string{
 	"MediaSourceSelect":                        {"name"},
 	"MediaSourceImportSome":                    {"count"},
 	"MediaSourceImportChosen":                  {"count"},
+	"MediaSourceImportedBelow":                 {"count"},
 	"MediaSourceNoMatch":                       {"query"},
 	"MediaSourceFoldersTooMany":                {"limit"},
 	"MediaSourceImportTitle":                   {"count", "source"},
@@ -2019,6 +2020,7 @@ type Translation struct {
 	MediaSourceSelect                        func(name string) string
 	MediaSourceImportSome                    func(count int) string
 	MediaSourceImportChosen                  func(count int) string
+	MediaSourceImportedBelow                 func(count int) string
 	MediaSourceNoMatch                       func(query string) string
 	MediaSourceFoldersTooMany                func(limit int) string
 	MediaSourceImportTitle                   func(count int, source string) string
@@ -27325,6 +27327,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.MediaSourceImportChosen != nil {
 		s.MediaSourceImportChosen = t.MediaSourceImportChosen
+	}
+	if t.MediaSourceImportedBelow != nil {
+		s.MediaSourceImportedBelow = t.MediaSourceImportedBelow
 	}
 	if t.MediaSourceNoMatch != nil {
 		s.MediaSourceNoMatch = t.MediaSourceNoMatch
@@ -73081,6 +73086,71 @@ func MediaSourceChooseAll(cx *core.Scope) string { return For(cx).MediaSourceCho
 
 // MediaSourceChooseAll is the package's MediaSourceChooseAll in the language of msgs.
 func (msgs Messages) MediaSourceChooseAll() string { return msgs.text(textMediaSourceChooseAll) }
+
+// MediaSourceImportedBelow says "{count, plural, one {# imported} other {# imported}}"
+// in the language the app shows under cx.
+//
+// Tag of a folder's row on the Media Sources page: how many videos in the folder, at any depth, are in the library already.
+func MediaSourceImportedBelow(cx *core.Scope, count int) string {
+	return For(cx).MediaSourceImportedBelow(count)
+}
+
+// MediaSourceImportedBelow is the package's MediaSourceImportedBelow in the language of msgs.
+func (msgs Messages) MediaSourceImportedBelow(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MediaSourceImportedBelow(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].MediaSourceImportedBelow; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" imported")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" imported")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch i18n.Cardinal("ja", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ja", float64(count)))
+				b.WriteString(" 本読み込み済み")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch i18n.Cardinal("ko", float64(count)) {
+			default:
+				b.WriteString(i18n.FormatNumber("ko", float64(count)))
+				b.WriteString("개 가져옴")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hans", float64(count)) {
+			default:
+				b.WriteString("已导入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch i18n.Cardinal("zh-Hant", float64(count)) {
+			default:
+				b.WriteString("已匯入 ")
+				b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+			}
+			return b.String()
+		}
+	}
+}
 
 // MediaSourceFilter says "Filter"
 // in the language the app shows under cx.

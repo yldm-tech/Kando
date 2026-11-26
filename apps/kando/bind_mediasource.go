@@ -190,12 +190,15 @@ func (a *app) MediaBrowseEntries() []sourcebrowser.Entry {
 	b := a.sources.browse
 	share := b.dir == "" && a.mediaSourceServer()
 	shown := a.mediaSourceShown()
+	in := a.mediaSourceInByFolder()
 	out := make([]sourcebrowser.Entry, 0, len(shown))
 	for _, e := range shown {
 		p := b.entryPath(e.Name)
 		_, chosen := b.chosen[p]
 		x := sourcebrowser.Entry{Path: p, Name: e.Name, Dir: e.Dir, Share: share && e.Dir, Size: e.Size, Modified: e.Modified, Subtitles: b.subtitled[e.Name], Chosen: chosen || b.chosenDirs[p]}
-		if !e.Dir {
+		if e.Dir {
+			x.Imported = in[e.Name]
+		} else {
 			x.InLibrary = a.mediaSourceIn(a.mediaSourceRef(p))
 		}
 		x.Choosable = a.mediaSourceChoosable(e, p)

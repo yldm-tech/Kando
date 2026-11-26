@@ -57,7 +57,7 @@ type Source struct {
 	ID, Name, Summary string
 }
 
-// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Choosable a video or a folder that has a check box, Chosen one chosen to import.
+// Entry is a folder or a video of the folder shown, as its row shows it. Path is where it is on the source, which the actions take. Share is a share of a server, listed at the root of a source without one. Size and Modified are a video's, which the row writes; a folder's are not shown. Subtitles is a subtitle file beside the video, which is copied with it; InLibrary a video already imported, which is opened rather than chosen; Imported how many videos below a folder are, at any depth; Choosable a video or a folder that has a check box, Chosen one chosen to import.
 type Entry struct {
 	Path, Name string
 	Dir, Share bool
@@ -65,6 +65,7 @@ type Entry struct {
 	Modified   time.Time
 	Subtitles  bool
 	InLibrary  bool
+	Imported   int
 	Choosable  bool
 	Chosen     bool
 }
