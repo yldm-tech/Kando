@@ -194,6 +194,11 @@ func (f *fakeApp) SetPhoneRelay(on bool) {
 	f.phone.Relay.On = on
 	f.call(fmt.Sprintf("relay %v", on))
 }
+func (f *fakeApp) SetPhoneRelayHosted(on bool) {
+	f.phone.Relay.Hosted = on
+	f.call(fmt.Sprintf("hosted %v", on))
+}
+func (f *fakeApp) SubscribePhoneRelay() { f.call("subscribe") }
 func (f *fakeApp) SetPhoneRelaySubtitlesOnly(on bool) {
 	f.phone.Relay.SubtitlesOnly = on
 	f.call(fmt.Sprintf("subtitles only %v", on))

@@ -111,3 +111,45 @@ func TestPhonePageShowsTheStorageUsage(t *testing.T) {
 		t.Fatalf("with the relay off: %q", app.Texts())
 	}
 }
+
+// 看懂托管 shows under the relay's switch: without Kando Plus its switch cannot be turned on and 订阅… asks the app to open EveryAPI's page; with Plus it turns on, says how much of the hosted storage is used, and the storage of 账号与上传 and 换一个存储 go while it is in use; full, the status says only subtitles sync; after Plus ended it says so, and the storage of 账号与上传 is back.
+func TestPhonePageShowsKandoHosted(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionPhone
+	a.phone = PhoneSync{On: true, Running: true, Addrs: []string{"192.168.1.20:52817"}, Relay: PhoneRelay{On: true, Store: "R2 · films", Working: true,
+		Storage: PhoneStorage{Measured: true, Targets: []PhoneStore{{Kind: "s3", Name: "S3"}}}}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Enabled("id:settings-phone-relay-hosted") || !app.Exists("id:settings-phone-relay-hosted-row >> "+whole(msgs.SettingsPhoneRelayHostedNeedsPlus())) || !app.Exists("id:settings-phone-storage-move-to") {
+		t.Fatalf("without Plus: texts %q", app.Texts())
+	}
+	app.Press("id:settings-phone-relay-hosted-subscribe")
+	if !slices.Contains(a.calls, "subscribe") {
+		t.Fatalf("calls %q after 订阅…", a.calls)
+	}
+	change(app, a, func() {
+		a.phone.Relay.Plus, a.phone.Relay.HostedQuota, a.phone.Relay.HostedUsed = true, 50<<30, 1200<<20
+	})
+	if app.Exists("id:settings-phone-relay-hosted-subscribe") || !app.Enabled("id:settings-phone-relay-hosted") ||
+		!app.Exists("id:settings-phone-relay-hosted-row >> "+whole(msgs.SettingsPhoneRelayHostedUsage("1.2 GB", "50.0 GB"))) {
+		t.Fatalf("with Plus: texts %q", app.Texts())
+	}
+	app.Press("id:settings-phone-relay-hosted")
+	if !slices.Contains(a.calls, "hosted true") {
+		t.Fatalf("calls %q after the switch", a.calls)
+	}
+	change(app, a, func() { a.phone.Relay.Store = msgs.SettingsPhoneRelayHosted() })
+	if app.Exists("id:settings-phone-relay-store") || app.Exists("id:settings-phone-storage-move-to") {
+		t.Fatalf("in use: texts %q", app.Texts())
+	}
+	change(app, a, func() { a.phone.Relay.HostedFull = true })
+	if !app.Exists("id:settings-phone-relay-status >> " + whole(msgs.SettingsPhoneRelayHostedFull())) {
+		t.Fatalf("full: texts %q", app.Texts())
+	}
+	change(app, a, func() {
+		a.phone.Relay.HostedLapsed, a.phone.Relay.HostedFull, a.phone.Relay.Plus, a.phone.Relay.Store = true, false, false, "R2 · films"
+	})
+	if !app.Exists("id:settings-phone-relay-hosted-row >> "+whole(msgs.SettingsPhoneRelayHostedLapsed())) || !app.Exists("id:settings-phone-relay-store") || !app.Enabled("id:settings-phone-relay-hosted") {
+		t.Fatalf("after Plus: texts %q", app.Texts())
+	}
+}

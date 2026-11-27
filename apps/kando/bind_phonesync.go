@@ -25,6 +25,10 @@ func (a *app) SetPhoneReadOnly(id string, on bool) { a.phoneSyncSetReadOnly(id, 
 
 func (a *app) SetPhoneRelay(on bool) { a.phoneRelaySet(on) }
 
+func (a *app) SetPhoneRelayHosted(on bool) { a.phoneHostSet(on) }
+
+func (a *app) SubscribePhoneRelay() { a.phoneHostSubscribe() }
+
 func (a *app) SetPhoneRelaySubtitlesOnly(on bool) { a.phoneFilmsSetSubtitlesOnly(on) }
 
 func (a *app) SetPhoneRelayClean(days int) { a.phoneFilmsSetClean(days) }

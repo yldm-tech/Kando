@@ -134,7 +134,11 @@ func storageCard(cx *core.Scope, a App) core.Node {
 			})}
 	}}
 	usage := core.View{Style: core.Style{Padding: core.Symmetric(12, 14)}, Children: []core.Node{head, bar, legend, uploading}}
-	return form.Card(usage, form.Separator(true), cleanRow(cx, a), form.Separator(true), watchedList(cx, a), form.Separator(true), moveRow(cx, a))
+	// 换一个存储 moves between the storages of 账号与上传, which 看懂托管 is not one of: its switch leaves it.
+	move := core.Show{When: live.Func(a, func() bool { return !a.PhoneSync().Relay.hostedInUse() }), Then: func(cx *core.Scope) core.Node {
+		return core.Group{form.Separator(true), moveRow(cx, a)}
+	}}
+	return form.Card(usage, form.Separator(true), cleanRow(cx, a), form.Separator(true), watchedList(cx, a), move)
 }
 
 // cleanRow is 自动清理存储里的视频: never, or a month or a week after a film was watched to its end.

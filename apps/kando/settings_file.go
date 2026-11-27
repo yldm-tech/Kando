@@ -151,36 +151,37 @@ func readSavedSettings(path string) (savedSettings, settingsFound, []byte, error
 
 // savedSettings is settings.json. Each part is one area's, declared in that area's file next to the code that saves and restores it (areaHooks.save and restore), and encoding/json writes the parts' fields side by side, as one object. An area adds a setting to its own part, not here; two parts must not use the same key (TestSavedSettingsKeysAreUnique), and no part may have a MarshalJSON, UnmarshalJSON, MarshalText or UnmarshalText of its own, because Go promotes it to savedSettings and it would then encode the whole file (TestSavedSettingsPartsHaveNoMarshalers).
 type savedSettings struct {
-	savedShelf        // shelf_app.go
-	savedSidebar      // state_sidebar.go
-	savedLibrary      // state_library.go
-	savedQueue        // queue.go
-	savedInterface    // state_settings.go
-	savedSpeech       // settings_speech.go
-	savedLLM          // settings_ai.go
-	savedEveryAPI     // state_everyapi.go
-	savedTranslate    // state_settings.go
-	savedShortcuts    // keys_preset.go
-	savedCloud        // state_cloud.go
-	savedLocations    // state_locations.go
-	savedMediaSources // state_mediasource.go
-	savedPlayer       // state_player.go
-	savedOverlay      // state_overlay.go
-	savedMenu         // state_menu.go
-	savedOnboarding   // state_onboarding.go
-	savedWindow       // state_window.go
-	savedSignIn       // state_signin.go
-	savedOnline       // state_online.go
-	savedAddSheet     // state_addsheet.go
-	savedPhoneSync    // state_phonesync.go
-	savedPhoneFilms   // state_phonesync_films.go
-	savedTray         // state_tray.go
-	savedStudy        // state_saved.go
-	savedPrivacy      // state_privacy.go
-	savedAIUsage      // state_aiusage.go
-	savedSubexport    // state_subexport.go
-	savedTools        // state_tools.go
-	savedPlugins      // state_plugins.go
+	savedShelf          // shelf_app.go
+	savedSidebar        // state_sidebar.go
+	savedLibrary        // state_library.go
+	savedQueue          // queue.go
+	savedInterface      // state_settings.go
+	savedSpeech         // settings_speech.go
+	savedLLM            // settings_ai.go
+	savedEveryAPI       // state_everyapi.go
+	savedTranslate      // state_settings.go
+	savedShortcuts      // keys_preset.go
+	savedCloud          // state_cloud.go
+	savedLocations      // state_locations.go
+	savedMediaSources   // state_mediasource.go
+	savedPlayer         // state_player.go
+	savedOverlay        // state_overlay.go
+	savedMenu           // state_menu.go
+	savedOnboarding     // state_onboarding.go
+	savedWindow         // state_window.go
+	savedSignIn         // state_signin.go
+	savedOnline         // state_online.go
+	savedAddSheet       // state_addsheet.go
+	savedPhoneSync      // state_phonesync.go
+	savedPhoneFilms     // state_phonesync_films.go
+	savedPhoneRelayHost // state_phonesync_relay_host.go
+	savedTray           // state_tray.go
+	savedStudy          // state_saved.go
+	savedPrivacy        // state_privacy.go
+	savedAIUsage        // state_aiusage.go
+	savedSubexport      // state_subexport.go
+	savedTools          // state_tools.go
+	savedPlugins        // state_plugins.go
 }
 
 // clean tidies what was read. Every part has a clean of its own, in its own file, which trims its text or does nothing, and each is called here, so an area changes only its own clean.
@@ -208,6 +209,7 @@ func (s *savedSettings) clean() {
 	s.savedAddSheet.clean()
 	s.savedPhoneSync.clean()
 	s.savedPhoneFilms.clean()
+	s.savedPhoneRelayHost.clean()
 	s.savedTray.clean()
 	s.savedStudy.clean()
 	s.savedPrivacy.clean()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,15 +14,18 @@ import (
 	"kando/apps/kando/settings"
 )
 
-// The storage relay (phonesync/relay.go, yldm-tech/Kando#219) carries Phone Sync's calls through the bucket of 账号与上传 when a phone is away from the computer's network. It runs while Phone Sync runs and its switch on the 手机同步 page (settings.json's phoneRelay) is on, in the store set up in 账号与上传, unless 离线模式 is on. Phone Sync starts again when the switch is turned, and phoneRelayRestartAfter after the store's settings or 离线模式 last changed, so the relay always runs in the store the page names.
+// The storage relay (phonesync/relay.go, yldm-tech/Kando#219) carries Phone Sync's calls through the bucket of 账号与上传, or 看懂托管's (state_phonesync_relay_host.go), when a phone is away from the computer's network. It runs while Phone Sync runs and its switch on the 手机同步 page (settings.json's phoneRelay) is on, in the store set up in 账号与上传, unless 离线模式 is on. Phone Sync starts again when the switch is turned, and phoneRelayRestartAfter after the store's settings or 离线模式 last changed, so the relay always runs in the store the page names.
 
 // phoneRelayRestartAfter is how long after the store's settings last changed Phone Sync starts again in the new store, so typing a key does not restart it at each letter. Tests shorten it.
 var phoneRelayRestartAfter = 2 * time.Second
 
-// phoneRelaySig names the store the relay would run in now, "" for none: the relay off, 离线模式 on, or no store set up. Phone Sync keeps the one it started with (phoneUI.relaySig).
+// phoneRelaySig names the store the relay would run in now, "" for none: the relay off, 离线模式 on, or no store set up; 看懂托管 is named by the key it asks EveryAPI with (phoneHostSig). Phone Sync keeps the one it started with (phoneUI.relaySig).
 func (a *app) phoneRelaySig() string {
 	if !a.phone.relay || a.privacy.offline {
 		return ""
+	}
+	if a.phoneHostInUse() {
+		return a.phoneHostSig()
 	}
 	cfg := a.currentStore()
 	if !storeReady(cfg) {
@@ -35,21 +39,24 @@ func (a *app) phoneRelaySig() string {
 	return hex.EncodeToString(sum[:])
 }
 
-// phoneRelayBucket is the bucket the relay runs in, nil while the relay is off, 离线模式 is on or no store is set up. A store that does not open says why on the page.
-func (a *app) phoneRelayBucket() phonesync.Bucket {
+// phoneRelayBucket is the bucket the relay of the start numbered gen runs in, nil while the relay is off, 离线模式 is on or no store is set up, with how often the relay polls it (0 for the relay's own) and, for a bucket whose key is short-lived, when the links signed now lapse: 看懂托管's while it is in use (state_phonesync_relay_host.go), else the store of 账号与上传. A store that does not open says why on the page.
+func (a *app) phoneRelayBucket(gen int) (phonesync.Bucket, time.Duration, func(context.Context) (time.Time, error)) {
 	if a.phoneRelaySig() == "" {
 		if a.phone.relay && !a.privacy.offline {
 			log.Printf("phonesync: relay: no storage is set up in Account & Upload")
 		}
-		return nil
+		return nil, 0, nil
+	}
+	if a.phoneHostInUse() {
+		return a.phoneRelayHosted(gen)
 	}
 	bucket, err := cloud.OpenBucket(a.currentStore())
 	if err != nil {
 		log.Printf("phonesync: relay: %v", err)
 		a.phone.relayErr = err
-		return nil
+		return nil, 0, nil
 	}
-	return phonesync.RelayBucket(bucket)
+	return phonesync.RelayBucket(bucket), 0, nil
 }
 
 // phoneRelayHealth is what the relay of the start numbered gen tells after each of its turns, on its own goroutine: posted to the app only when it says something else than the turn before, as most turns go as the last one did.
@@ -122,7 +129,12 @@ func (a *app) phoneRelayStatus() settings.PhoneRelay {
 	if storeReady(cfg) {
 		r.Store = m.SettingsPhoneRelayStoreName(uploadStoreName(m, cfg.Kind), cfg.Bucket)
 	}
-	if a.phone.relayErr != nil {
+	a.phoneHostStatus(m, &r)
+	switch {
+	case a.phone.relayErr == nil:
+	case a.phoneHostInUse():
+		r.Err = phoneHostFailure(m, a.phone.relayErr)
+	default:
 		r.Err = uploadFailure(m, a.phone.relayErr, cfg)
 	}
 	return r

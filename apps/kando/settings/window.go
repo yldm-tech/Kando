@@ -130,6 +130,9 @@ type App interface {
 	SetPhoneReadOnly(id string, on bool)
 	// SetPhoneRelay turns the storage relay on or off, saves that, and has a running Phone Sync take it up at once.
 	SetPhoneRelay(on bool)
+	// SetPhoneRelayHosted has the relay go through 看懂托管 (on), which only Kando Plus turns on, or through the storage of 账号与上传, saves that, and has a running Phone Sync take it up at once. SubscribePhoneRelay opens EveryAPI's page where Kando Plus is subscribed to.
+	SetPhoneRelayHosted(on bool)
+	SubscribePhoneRelay()
 	// SetPhoneRelaySubtitlesOnly has the films go to the storage as their lines alone (on), or with their videos; SetPhoneRelayClean sets how many days after a film was watched to its end its video is deleted from the storage, 0 for never. Both are saved and taken up by a running relay at once. CleanPhoneVideos deletes the videos of films from the storage now, off the UI thread. MovePhoneStorage moves the relay and the films to the storage of kind set up in 账号与上传, which becomes the one in use, handing the paired phones over to it.
 	SetPhoneRelaySubtitlesOnly(on bool)
 	SetPhoneRelayClean(days int)

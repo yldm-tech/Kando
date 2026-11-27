@@ -1066,6 +1066,7 @@ var Parameters = map[string][]string{
 	"SettingsPhoneReadOnlyLabel":               {"name"},
 	"SettingsPhoneRevokeTitle":                 {"name"},
 	"SettingsPhoneRelayStoreName":              {"kind", "bucket"},
+	"SettingsPhoneRelayHostedUsage":            {"used", "total"},
 	"SettingsPhoneStorageFilms":                {"films", "videos"},
 	"SettingsPhoneStorageBar":                  {"videos", "lines", "mail"},
 	"SettingsPhoneStorageVideos":               {"size"},
@@ -1890,6 +1891,7 @@ type Translation struct {
 	SettingsPhoneReadOnlyLabel               func(name string) string
 	SettingsPhoneRevokeTitle                 func(name string) string
 	SettingsPhoneRelayStoreName              func(kind string, bucket string) string
+	SettingsPhoneRelayHostedUsage            func(used string, total string) string
 	SettingsPhoneStorageFilms                func(films int, videos int) string
 	SettingsPhoneStorageBar                  func(videos string, lines string, mail string) string
 	SettingsPhoneStorageVideos               func(size string) string
@@ -3758,6 +3760,13 @@ const (
 	textSettingsPhoneRelayStore
 	textSettingsPhoneRelayNoStore
 	textSettingsPhoneRelaySetUp
+	textSettingsPhoneRelayHosted
+	textSettingsPhoneRelayHostedNeedsPlus
+	textSettingsPhoneRelayHostedSubscribe
+	textSettingsPhoneRelayHostedLapsed
+	textSettingsPhoneRelayHostedFull
+	textSettingsPhoneRelayHostedSignIn
+	textSettingsPhoneRelayHostedUnavailable
 	textSettingsPhoneRelayStatus
 	textSettingsPhoneRelayWorking
 	textSettingsPhoneRelayChecking
@@ -5753,6 +5762,13 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneRelayStore",
 	"settingsPhoneRelayNoStore",
 	"settingsPhoneRelaySetUp",
+	"settingsPhoneRelayHosted",
+	"settingsPhoneRelayHostedNeedsPlus",
+	"settingsPhoneRelayHostedSubscribe",
+	"settingsPhoneRelayHostedLapsed",
+	"settingsPhoneRelayHostedFull",
+	"settingsPhoneRelayHostedSignIn",
+	"settingsPhoneRelayHostedUnavailable",
 	"settingsPhoneRelayStatus",
 	"settingsPhoneRelayWorking",
 	"settingsPhoneRelayChecking",
@@ -7746,6 +7762,13 @@ var textsEn = i18n.NewTexts(""+
 	"Storage"+
 	"Not set up"+
 	"Set Up…"+
+	"Kando Hosted"+
+	"Included with Kando Plus"+
+	"Subscribe…"+
+	"Kando Plus has ended, so nothing more is written there"+
+	"Hosted storage is full, so only subtitles sync"+
+	"Sign in to EveryAPI in AI Service first"+
+	"Kando Hosted is unavailable right now"+
 	"Status"+
 	"Working"+
 	"Checking the storage…"+
@@ -9736,6 +9759,13 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		10,
 		9,
+		12,
+		24,
+		12,
+		54,
+		46,
+		39,
+		37,
 		6,
 		7,
 		23,
@@ -11729,6 +11759,13 @@ var textsJa = i18n.NewTexts(""+
 	"使用するストレージ"+
 	"未設定"+
 	"設定…"+
+	"Kando ホスティング"+
+	"Kando Plus で利用できます"+
+	"登録…"+
+	"Kando Plus が終了したため、書き込みを停止しました"+
+	"ホスティングの容量がいっぱいのため、字幕だけ同期しています"+
+	"先に「AI サービス」で EveryAPI にログインしてください"+
+	"Kando ホスティングは現在利用できません"+
 	"状態"+
 	"正常"+
 	"ストレージを確認中…"+
@@ -13719,6 +13756,13 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		9,
 		9,
+		24,
+		32,
+		9,
+		68,
+		87,
+		73,
+		54,
 		6,
 		6,
 		30,
@@ -15712,6 +15756,13 @@ var textsKo = i18n.NewTexts(""+
 	"사용할 스토리지"+
 	"설정 안 됨"+
 	"설정…"+
+	"Kando 호스팅"+
+	"Kando Plus에 포함"+
+	"구독…"+
+	"Kando Plus가 끝나 더 이상 쓰지 않습니다"+
+	"호스팅 저장 공간이 가득 차서 자막만 동기화합니다"+
+	"먼저 ‘AI 서비스’에서 EveryAPI에 로그인하세요"+
+	"지금은 Kando 호스팅을 사용할 수 없습니다"+
 	"상태"+
 	"정상"+
 	"스토리지 확인 중…"+
@@ -17702,6 +17753,13 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		14,
 		9,
+		15,
+		20,
+		9,
+		51,
+		69,
+		62,
+		55,
 		6,
 		6,
 		26,
@@ -19695,6 +19753,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"用哪个存储"+
 	"还没设置"+
 	"去设置…"+
+	"看懂托管"+
+	"Kando Plus 提供"+
+	"订阅…"+
+	"Kando Plus 已结束，不再写入"+
+	"托管空间已满，只同步字幕"+
+	"先在「AI 服务」里登录 EveryAPI"+
+	"看懂托管暂不可用"+
 	"状态"+
 	"正常"+
 	"正在检查存储…"+
@@ -21685,6 +21750,13 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		12,
+		12,
+		17,
+		9,
+		35,
+		36,
+		39,
+		24,
 		6,
 		6,
 		21,
@@ -23678,6 +23750,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"使用哪個儲存空間"+
 	"尚未設定"+
 	"去設定…"+
+	"看懂託管"+
+	"Kando Plus 提供"+
+	"訂閱…"+
+	"Kando Plus 已結束，不再寫入"+
+	"託管空間已滿，只同步字幕"+
+	"請先在「AI 服務」裡登入 EveryAPI"+
+	"看懂託管暫時無法使用"+
 	"狀態"+
 	"正常"+
 	"正在檢查儲存空間…"+
@@ -25668,6 +25747,13 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		12,
 		12,
+		12,
+		17,
+		9,
+		35,
+		36,
+		42,
+		30,
 		6,
 		6,
 		27,
@@ -27844,6 +27930,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneRelayStoreName != nil {
 		s.SettingsPhoneRelayStoreName = t.SettingsPhoneRelayStoreName
+	}
+	if t.SettingsPhoneRelayHostedUsage != nil {
+		s.SettingsPhoneRelayHostedUsage = t.SettingsPhoneRelayHostedUsage
 	}
 	if t.SettingsPhoneStorageFilms != nil {
 		s.SettingsPhoneStorageFilms = t.SettingsPhoneStorageFilms
@@ -65556,6 +65645,127 @@ func SettingsPhoneRelaySetUp(cx *core.Scope) string { return For(cx).SettingsPho
 
 // SettingsPhoneRelaySetUp is the package's SettingsPhoneRelaySetUp in the language of msgs.
 func (msgs Messages) SettingsPhoneRelaySetUp() string { return msgs.text(textSettingsPhoneRelaySetUp) }
+
+// SettingsPhoneRelayHosted says "Kando Hosted"
+// in the language the app shows under cx.
+//
+// Row title on the Phone Sync settings page with a switch that has the storage relay go through Kando Plus's hosted storage instead of the user's own storage. Kando is the app's name.
+func SettingsPhoneRelayHosted(cx *core.Scope) string { return For(cx).SettingsPhoneRelayHosted() }
+
+// SettingsPhoneRelayHosted is the package's SettingsPhoneRelayHosted in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHosted() string {
+	return msgs.text(textSettingsPhoneRelayHosted)
+}
+
+// SettingsPhoneRelayHostedNeedsPlus says "Included with Kando Plus"
+// in the language the app shows under cx.
+//
+// Subtitle of the Kando Hosted row while the account has no Kando Plus, so the switch cannot be turned on. Kando Plus is the name of the subscription.
+func SettingsPhoneRelayHostedNeedsPlus(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedNeedsPlus()
+}
+
+// SettingsPhoneRelayHostedNeedsPlus is the package's SettingsPhoneRelayHostedNeedsPlus in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedNeedsPlus() string {
+	return msgs.text(textSettingsPhoneRelayHostedNeedsPlus)
+}
+
+// SettingsPhoneRelayHostedSubscribe says "Subscribe…"
+// in the language the app shows under cx.
+//
+// Button in the Kando Hosted row that opens EveryAPI's subscription page in the browser, shown while the account has no Kando Plus.
+func SettingsPhoneRelayHostedSubscribe(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedSubscribe()
+}
+
+// SettingsPhoneRelayHostedSubscribe is the package's SettingsPhoneRelayHostedSubscribe in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedSubscribe() string {
+	return msgs.text(textSettingsPhoneRelayHostedSubscribe)
+}
+
+// SettingsPhoneRelayHostedUsage says "{used} of {total} used"
+// in the language the app shows under cx.
+//
+// Subtitle of the Kando Hosted row: how much of the hosted storage the account uses, as sizes such as 1.2 GB.
+func SettingsPhoneRelayHostedUsage(cx *core.Scope, used string, total string) string {
+	return For(cx).SettingsPhoneRelayHostedUsage(used, total)
+}
+
+// SettingsPhoneRelayHostedUsage is the package's SettingsPhoneRelayHostedUsage in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedUsage(used string, total string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPhoneRelayHostedUsage(used, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPhoneRelayHostedUsage; f != nil {
+			return f(used, total)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(used) + " of " + msgs.arg(total) + " used"
+		case "ja":
+			return total + " 中 " + used + " 使用"
+		case "ko":
+			return total + " 중 " + used + " 사용"
+		case "zh-Hans":
+			return "已用 " + used + "，共 " + total
+		case "zh-Hant":
+			return "已用 " + used + "，共 " + total
+		}
+	}
+}
+
+// SettingsPhoneRelayHostedLapsed says "Kando Plus has ended, so nothing more is written there"
+// in the language the app shows under cx.
+//
+// Subtitle of the Kando Hosted row once the account's Kando Plus and its grace period ended: the relay went back to the local network or the user's own storage; what is in the hosted storage stays.
+func SettingsPhoneRelayHostedLapsed(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedLapsed()
+}
+
+// SettingsPhoneRelayHostedLapsed is the package's SettingsPhoneRelayHostedLapsed in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedLapsed() string {
+	return msgs.text(textSettingsPhoneRelayHostedLapsed)
+}
+
+// SettingsPhoneRelayHostedFull says "Hosted storage is full, so only subtitles sync"
+// in the language the app shows under cx.
+//
+// Status of the storage relay through Kando Hosted when the account's hosted storage is full: videos are no longer uploaded, only subtitles and posters.
+func SettingsPhoneRelayHostedFull(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedFull()
+}
+
+// SettingsPhoneRelayHostedFull is the package's SettingsPhoneRelayHostedFull in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedFull() string {
+	return msgs.text(textSettingsPhoneRelayHostedFull)
+}
+
+// SettingsPhoneRelayHostedSignIn says "Sign in to EveryAPI in AI Service first"
+// in the language the app shows under cx.
+//
+// Status of the storage relay through Kando Hosted when Kando has no EveryAPI key, or EveryAPI refuses it. AI Service is a settings page.
+func SettingsPhoneRelayHostedSignIn(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedSignIn()
+}
+
+// SettingsPhoneRelayHostedSignIn is the package's SettingsPhoneRelayHostedSignIn in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedSignIn() string {
+	return msgs.text(textSettingsPhoneRelayHostedSignIn)
+}
+
+// SettingsPhoneRelayHostedUnavailable says "Kando Hosted is unavailable right now"
+// in the language the app shows under cx.
+//
+// Status of the storage relay through Kando Hosted when EveryAPI turned the hosted relay off or it does not answer as expected.
+func SettingsPhoneRelayHostedUnavailable(cx *core.Scope) string {
+	return For(cx).SettingsPhoneRelayHostedUnavailable()
+}
+
+// SettingsPhoneRelayHostedUnavailable is the package's SettingsPhoneRelayHostedUnavailable in the language of msgs.
+func (msgs Messages) SettingsPhoneRelayHostedUnavailable() string {
+	return msgs.text(textSettingsPhoneRelayHostedUnavailable)
+}
 
 // SettingsPhoneRelayStatus says "Status"
 // in the language the app shows under cx.

@@ -73,10 +73,15 @@ func (a *app) phoneFilmsConfig(gen int, cfg cloud.Store) *phonesync.FilmsConfig 
 		a.phone.films.moveGen = gen
 	}
 	update := a.update
+	store := phoneFilmsStoreID(cfg)
+	if a.phoneHostInUse() {
+		// 看懂托管 is one bucket whatever key EveryAPI gives.
+		store = "hosted"
+	}
 	return &phonesync.FilmsConfig{
-		Videos:     !a.phone.films.subtitlesOnly,
+		Videos:     a.phoneFilmsVideos(),
 		CleanAfter: a.phoneFilmsCleanAfter(),
-		Store:      phoneFilmsStoreID(cfg),
+		Store:      store,
 		Status: func(st phonesync.FilmsStatus) {
 			update(func() {
 				if gen != a.phone.gen {
@@ -99,12 +104,15 @@ func phoneFilmsStoreID(cfg cloud.Store) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// phoneFilmsVideos reports whether the films go to the storage with their videos: not with 只同步字幕 on, nor while 看懂托管's storage is full (phoneHostFull).
+func (a *app) phoneFilmsVideos() bool { return !a.phone.films.subtitlesOnly && !a.phoneHostFull() }
+
 // phoneFilmsSetSubtitlesOnly turns 只同步字幕 on or off, saves it, and has a running relay take it up.
 func (a *app) phoneFilmsSetSubtitlesOnly(on bool) {
 	a.phone.films.subtitlesOnly = on
 	a.Save()
 	if srv := a.phone.server; srv != nil {
-		srv.SetFilms(!on, a.phoneFilmsCleanAfter())
+		srv.SetFilms(a.phoneFilmsVideos(), a.phoneFilmsCleanAfter())
 	}
 }
 
@@ -116,7 +124,7 @@ func (a *app) phoneFilmsSetClean(days int) {
 	a.phone.films.cleanDays = days
 	a.Save()
 	if srv := a.phone.server; srv != nil {
-		srv.SetFilms(!a.phone.films.subtitlesOnly, a.phoneFilmsCleanAfter())
+		srv.SetFilms(a.phoneFilmsVideos(), a.phoneFilmsCleanAfter())
 	}
 }
 
@@ -145,8 +153,11 @@ func (a *app) phoneFilmsClean(watched []settings.PhoneWatched) {
 	})
 }
 
-// phoneFilmsTargets are the kinds of store set up in 账号与上传 other than the one in use, which the relay can move to.
+// phoneFilmsTargets are the kinds of store set up in 账号与上传 other than the one in use, which the relay can move to; none while it goes through 看懂托管, which the page's switch leaves.
 func (a *app) phoneFilmsTargets() []string {
+	if a.phoneHostInUse() {
+		return nil
+	}
 	var out []string
 	for _, kind := range []string{cloud.KindR2, cloud.KindS3, cloud.KindOSS, cloud.KindCOS, cloud.KindCompat} {
 		if kind != a.storageKind() && storeReady(a.storeFor(kind)) {
@@ -206,11 +217,17 @@ func (a *app) phoneFilmsStorage(m locales.Messages) settings.PhoneStorage {
 		out.Percent = int(st.Sent * 100 / st.Size)
 	}
 	cfg := a.currentStore()
+	failure := func(err error) string {
+		if a.phoneHostInUse() {
+			return phoneHostFailure(m, err)
+		}
+		return uploadFailure(m, err, cfg)
+	}
 	if st.Err != nil {
-		out.Err = uploadFailure(m, st.Err, cfg)
+		out.Err = failure(st.Err)
 	}
 	if f.cleanErr != nil {
-		out.CleanErr = uploadFailure(m, f.cleanErr, cfg)
+		out.CleanErr = failure(f.cleanErr)
 	}
 	for _, w := range st.Watched {
 		out.Watched = append(out.Watched, settings.PhoneWatched{Library: w.Library, ID: w.ID, Title: w.Title, Size: w.Size, At: w.At})

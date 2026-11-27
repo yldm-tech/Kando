@@ -253,7 +253,7 @@ func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, sh
 	shootSettingsAt(t, f, section, name, shown, models, turbo, true, nil, setup...)
 }
 
-// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead, and one "exists:<selector>" only checks that it is on the page.
+// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead, one "scroll-to:<selector>" scrolls the page until that is near its top, and one "exists:<selector>" only checks that it is on the page.
 func shootSettingsPressed(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, press []string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, press, setup...)
@@ -297,6 +297,18 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			// "scroll-end:<selector>" scrolls that scroll view to its end rather than pressing it, as a dialog whose fields run past the window.
 			if scroll, ok := strings.CutPrefix(selector, "scroll-end:"); ok {
 				tt.Scroll(scroll, 4000)
+				refresh(tt, a)
+				continue
+			}
+			// "scroll-to:<selector>" scrolls the page until what the selector matches is near its top, as a card in the middle of a long page.
+			if target, ok := strings.CutPrefix(selector, "scroll-to:"); ok {
+				// A view's frame is in its parent's coordinates: summed up to the page, it is where in the page's content the view is.
+				page, row := tt.Find("id:settings-page"), tt.Find(target)
+				y := row.Frame.Origin.Y
+				for v := row.Parent; v != nil && v != page; v = v.Parent {
+					y += v.Frame.Origin.Y
+				}
+				tt.Scroll("id:settings-page", y-56)
 				refresh(tt, a)
 				continue
 			}
