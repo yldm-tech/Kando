@@ -82,13 +82,11 @@ func TestAwayFromTheComputerItsFilmsComeFromTheStorage(t *testing.T) {
 		t.Fatalf("the player says %q", p.app.Texts())
 	}
 	p.app.Press("id:player-minimize")
-	p.app.HeaderBack("id:film-page")
 
-	// Back on the network, the film's page downloads from the computer again.
+	// Back on the network, the film's page streams and downloads from the computer again.
 	d.SetOff(false)
-	p.app.Press(filmRow(id, "f2"))
 	p.app.WaitFor("id:film-download", reconnect)
-	if p.app.Exists("id:film-lines") {
+	if !p.app.Exists("id:film-stream") || p.app.Exists("id:film-lines") {
 		t.Fatalf("back home, the page still offers the storage: %q", p.app.Texts())
 	}
 }
