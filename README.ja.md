@@ -113,7 +113,7 @@ Windows ではまだ自動でダウンロードしません。[Scoop](https://sc
 2. 足りない `ffmpeg`、`yt-dlp`、`whisper-cli` ははじめにガイドが自動でダウンロードします。「設定」（⌘,）の「一般」に、それぞれのバージョンとともに表示されます。
 3. 「音声認識」で、whisper モデルの横にある「ダウンロード」をクリックします。ダウンロードが終わると Kando がそのモデルを選択します。「おすすめ」の印が付いているのは「Large v3 Turbo（圧縮版）」で、574 MB です。Vimpo や hyperframes がすでにダウンロードしたモデルは、コピーせずに選択できます。
 4. 「AI サービス」で翻訳を設定します。
-   - EveryAPI（デフォルト）: [EveryAPI](https://everyapi.ai) の CLI で一度 `everyapi auth login` を実行してサインインします。Kando は CLI にキーを問い合わせる（`everyapi auth credential`）ため、CLI と同じログイン、ゲートウェイのリージョン、キーの更新をそのまま使い、トークンを貼り付ける必要はありません。デフォルトのモデルは `claude-haiku-5-5` で、ほかのモデルは `everyapi models list` で確認できます。代わりに EveryAPI のキーを「API Key」欄に貼り付けることもできます。
+   - EveryAPI（デフォルト）: 「設定」›「AI サービス」の「EveryAPI アカウント」の行か、はじめにガイドで「ログイン」を押して [EveryAPI](https://everyapi.ai) にログインします。ブラウザで EveryAPI のログインページが開きます。ブラウザから Kando に戻れない場合は、代わりに EveryAPI のウェブサイトでコードを入力します。ログインすると、この行にアカウント名と残高が表示され、「チャージ」（EveryAPI のチャージページを開きます）と「ログアウト」が使えます。キーとリフレッシュトークンはシステムの安全な保管場所（macOS のキーチェーン、Windows の資格情報マネージャー、Linux の Secret Service）に保存されます。Kando はこのコンピュータのホスト名を EveryAPI に伝えるので、EveryAPI はコンピュータごとに 1 つのキーを保持します。EveryAPI の CLI でのログイン（`everyapi auth login`）も引き続き使えます。Kando 自身がログインしていないときは CLI にキーを問い合わせ（`everyapi auth credential`）、CLI と同じログイン、ゲートウェイのリージョン、キーの更新を使います。代わりに EveryAPI のキーを「API Key」欄に貼り付けることもできます。デフォルトのモデルは `claude-haiku-5-5` で、ほかのモデルは `everyapi models list` で確認できます。EveryAPI は Kando を作っている YLDM が運営しています。Kando が翻訳、解説、単語の検索のために送る内容は EveryAPI に届き、EveryAPI が振り分け先の AI モデル提供元（Anthropic、OpenAI、Google など）に渡します。下のほかのプロバイダーやローカルモデルを使う場合、EveryAPI には何も送られません。
    - ほかのプロバイダー: 「サービス」で選ぶか、「OpenAI 互換」を選んで Base URL を入力し、「モデル」と「API Key」を設定します（Ollama や LM Studio などのローカルサーバーにはキーは不要です）。「接続をテスト」を押すと、短いリクエストを送って設定を確認します。欄の横の「API Key を取得」を押すと、そのサービスでキーを作成するページが開きます。Kando は使ったサービスごとにモデルとキーを覚えているので、そのサービスを選び直すと元に戻ります。キーは、それを入力したときのホストにしか送りません。はじめにガイドの 2 番目のステップでも、サービスの選択、API Key の入力、接続テストができます。
 5. 「翻訳」で、デフォルトの翻訳先言語を選びます: 簡体字中国語（デフォルト）、繁体字中国語、英語、日本語、韓国語、スペイン語、フランス語、ドイツ語。
 6. ウィンドウに戻り、上部のバーにリンクを貼り付けて「処理を開始」をクリックするか、「ローカルファイル」をクリックするか、動画や音声をウィンドウにドラッグします。サイドバー下部のステータス行は、ジョブに必要なものがすべてそろうと「準備ができました。処理を開始できます」と表示し、そうでない場合は足りないものを示します。
@@ -230,8 +230,8 @@ Chrome ウェブストアと addons.mozilla.org での公開は今後の予定�
 | `KANDO_WHISPER_MODEL` | 「設定」›「音声認識」で選んだモデル | whisper.cpp の ggml モデルファイルのパス。例: `ggml-small.bin`。 |
 | `KANDO_LLM_BASE_URL` | EveryAPI、`https://api.everyapi.ai/v1` | OpenAI 互換プロバイダーの Base URL。例: `https://api.openai.com/v1`、Ollama なら `http://localhost:11434/v1`。設定すると、サインイン中の EveryAPI アカウントは使われません。 |
 | `KANDO_LLM_MODEL` | EveryAPI では `claude-haiku-5-5` | 翻訳モデル。カスタムプロバイダーにはデフォルトがないため、ここか「設定」›「AI サービス」で指定します。 |
-| `KANDO_LLM_API_KEY` | なし | 翻訳プロバイダー用の Bearer トークン。サインイン中の EveryAPI アカウントより優先されます。 |
-| `EVERYAPI_API_KEY` | なし | EveryAPI のキー。`KANDO_LLM_BASE_URL` が未設定で `KANDO_LLM_API_KEY` が空のとき、CLI のログインの代わりに使われます。 |
+| `KANDO_LLM_API_KEY` | なし | 翻訳プロバイダー用の Bearer トークン。`EVERYAPI_API_KEY`、設定の「API Key」、EveryAPI へのログインより優先されます。 |
+| `EVERYAPI_API_KEY` | なし | EveryAPI のキー。`KANDO_LLM_BASE_URL` が未設定で `KANDO_LLM_API_KEY` が空のとき、設定の「API Key」やログインの代わりに使われます。 |
 | `KANDO_OUTPUT_DIR` | 最後に開いたライブラリ | 起動時に開くライブラリのフォルダ。新しい動画と字幕はここに保存されます。 |
 | `KANDO_SOCKET` | `settings.json` と同じフォルダの `kando.sock` | アプリが待ち受け、`kando` コマンドラインと `kando mcp` が接続するソケットのパス。アプリとコマンドの両方に同じパスを設定します。Kando は 1 人のユーザーにつき 1 つだけ動き、もう一度起動すると最初の Kando が前面に出ます。macOS では、`KANDO_SOCKET` を設定して起動したものは開発用などの意図した 2 つ目の Kando で、自分のライブラリと設定を使うよう専用の `HOME` も必要です。Windows と Linux では、今のところこうして起動した Kando も最初の Kando に引き渡されるため（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)）、先に自分の Kando を終了してください。[コマンドラインと MCP](#command-line-and-mcp) を参照してください。 |
 | `KANDO_GOOGLE_CLIENT_ID` | なし | 「設定」›「アカウントとアップロード」で Google にサインインするための OAuth クライアント ID。未設定の場合、アカウントのカードは表示されません。設定ファイルには保存されません。 |

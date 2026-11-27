@@ -113,7 +113,7 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 2. 入門導覽會自動下載缺少的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`。開啟「設定」（⌘,），「一般」中會顯示它們和各自的版本。
 3. 在「語音辨識」中，按一下某個 whisper 模型旁的「下載」；下載完成後，看懂會選用它。標示「推薦」的是「Large v3 Turbo（壓縮版）」，574 MB。Vimpo 或 hyperframes 已經下載的模型可以直接選用，不必複製。
 4. 在「AI 服務」中設定翻譯：
-   - EveryAPI（預設）：執行 `everyapi auth login`，用 [EveryAPI](https://everyapi.ai) CLI 登入一次。看懂會向 CLI 取得金鑰（`everyapi auth credential`），因此會沿用 CLI 的登入狀態、閘道區域與金鑰更新，你不必貼上權杖。預設模型是 `claude-haiku-5-5`；`everyapi models list` 會列出其他模型。你也可以改為把 EveryAPI 金鑰貼到「API Key」中。
+   - EveryAPI（預設）：在「設定 › AI 服務」的「EveryAPI 帳號」一列或入門導覽中按「登入」，登入 [EveryAPI](https://everyapi.ai)。看懂會在瀏覽器中開啟 EveryAPI 的登入頁面；瀏覽器無法回到看懂時，改為在 EveryAPI 網站上輸入代碼。登入後，這一列會顯示帳號名稱和餘額，並提供「儲值」（開啟 EveryAPI 的儲值頁面）和「登出」。看懂把金鑰和更新權杖儲存在系統的安全儲存區中（macOS 的鑰匙圈、Windows 的認證管理員、Linux 的 Secret Service），並以這台電腦的主機名稱向 EveryAPI 標明它，因此 EveryAPI 會為每台電腦保留一把金鑰。用 EveryAPI CLI 登入（`everyapi auth login`）仍然可行：看懂自己沒有登入時，會向 CLI 取得金鑰（`everyapi auth credential`），沿用 CLI 的登入狀態、閘道區域與金鑰更新。你也可以改為把 EveryAPI 金鑰貼到「API Key」中。預設模型是 `claude-haiku-5-5`；`everyapi models list` 會列出其他模型。EveryAPI 由開發看懂的 YLDM 營運：看懂為翻譯、講解和查詞傳送的內容會傳給 EveryAPI，再由它轉交給它所路由到的 AI 模型服務商，例如 Anthropic、OpenAI 和 Google。改用下面的其他供應商或本機模型時，不會有任何內容傳給 EveryAPI。
    - 其他供應商：在「服務」中選擇它，或選擇「OpenAI 相容」並輸入它的「Base URL」，然後填寫「模型」和「API Key」（Ollama、LM Studio 等本機伺服器不需要金鑰）。「測試連線」會送出一個簡短的請求來檢查設定。欄位旁的「取得 API Key」會開啟該服務建立金鑰的頁面。看懂會記住你用過的每個服務的模型和金鑰，再次選擇它時會恢復；金鑰只會傳給當初填入它時的那個主機。入門導覽的第二步也可以選擇服務、填入 API Key 並測試連線。
 5. 在「翻譯」中選擇預設目標語言：簡體中文（預設）、繁體中文、English、日本語、한국어、Español、Français 或 Deutsch。
 6. 回到主視窗，把連結貼到頂端列並按一下「開始處理」，或按一下「本機檔案」，或把影片或音訊拖曳到視窗上。當工作所需的一切都就緒時，側邊欄底部的狀態列會顯示「已就緒，可以開始處理」，否則會指出缺少什麼。
@@ -230,8 +230,8 @@ Chrome 線上應用程式商店和 addons.mozilla.org 的上架版本稍後提�
 | `KANDO_WHISPER_MODEL` | 在「設定 › 語音辨識」中選擇的模型 | whisper.cpp ggml 模型檔的路徑，例如 `ggml-small.bin`。 |
 | `KANDO_LLM_BASE_URL` | EveryAPI，`https://api.everyapi.ai/v1` | OpenAI 相容供應商的 Base URL，例如 `https://api.openai.com/v1`，或 Ollama 的 `http://localhost:11434/v1`。設定後，就不會使用已登入的 EveryAPI 帳號。 |
 | `KANDO_LLM_MODEL` | 在 EveryAPI 上為 `claude-haiku-5-5` | 翻譯模型。使用自訂供應商時沒有預設值：請在這裡或「設定 › AI 服務」中設定。 |
-| `KANDO_LLM_API_KEY` | 無 | 翻譯供應商的 Bearer 權杖。它會覆寫已登入的 EveryAPI 帳號。 |
-| `EVERYAPI_API_KEY` | 無 | EveryAPI 金鑰，在 `KANDO_LLM_BASE_URL` 未設定且 `KANDO_LLM_API_KEY` 為空時使用，取代 CLI 登入。 |
+| `KANDO_LLM_API_KEY` | 無 | 翻譯供應商的 Bearer 權杖。它會覆寫 `EVERYAPI_API_KEY`、設定中的「API Key」和任何 EveryAPI 登入。 |
+| `EVERYAPI_API_KEY` | 無 | EveryAPI 金鑰，在 `KANDO_LLM_BASE_URL` 未設定且 `KANDO_LLM_API_KEY` 為空時使用，優先於設定中的「API Key」和登入。 |
 | `KANDO_OUTPUT_DIR` | 上次開啟的資料庫 | 啟動時要開啟的資料庫資料夾，新的影片和字幕都會放在這裡。 |
 | `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 應用程式監聽、`kando` 命令列和 `kando mcp` 連線的 socket 路徑。應用程式和命令要設定成同一個路徑。同一個使用者只會執行一個看懂，再次啟動只會把已執行的那個帶到前景。在 macOS 上，設定了 `KANDO_SOCKET` 啟動的是刻意執行的第二個看懂（例如開發時），它還需要獨立的 `HOME`，才能使用自己的資料庫和設定；在 Windows 和 Linux 上，這樣啟動的看懂暫時也會交給已執行的那個（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)），請先結束自己的看懂。請參閱[命令列與 MCP](#command-line-and-mcp)。 |
 | `KANDO_GOOGLE_CLIENT_ID` | 無 | 用於在「設定 › 帳號與上傳」登入的 Google OAuth 用戶端 ID。沒有設定時，不會顯示帳號卡片。它永遠不會儲存到設定檔中。 |
