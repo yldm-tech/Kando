@@ -569,6 +569,9 @@ var Parameters = map[string][]string{
 	"LibraryDropDisguised":                     {"text", "name", "count"},
 	"LibraryMakingSome":                        {"done", "total", "reason"},
 	"SettingsAIRequestsNote":                   {"size", "retries"},
+	"AiusageTokens":                            {"count"},
+	"AiusageTokensEstimated":                   {"count"},
+	"AiusageRequestsCount":                     {"count"},
 	"SettingsShortcutsPresetNote":              {"player"},
 	"SettingsSpeechThreadsAuto":                {"count"},
 	"CorrectCandidatesFailed":                  {"error_"},
@@ -1382,6 +1385,9 @@ type Translation struct {
 	LibraryDropDisguised                     func(text string, name string, count int) string
 	LibraryMakingSome                        func(done int, total int, reason string) string
 	SettingsAIRequestsNote                   func(size int, retries int) string
+	AiusageTokens                            func(count int) string
+	AiusageTokensEstimated                   func(count int) string
+	AiusageRequestsCount                     func(count int) string
 	SettingsShortcutsPresetNote              func(player string) string
 	SettingsSpeechThreadsAuto                func(count int) string
 	CorrectCandidatesFailed                  func(error_ string) string
@@ -2377,6 +2383,16 @@ const (
 	textSettingsAIBatchSizeHint
 	textSettingsAIRequests
 	textSettingsAIRequestsRestore
+	textAiusageTitle
+	textAiusagePassTranslate
+	textAiusagePassProofread
+	textAiusagePassReview
+	textAiusagePassSuggest
+	textAiusagePassChat
+	textAiusagePassPlugin
+	textAiusageRequests
+	textAiusageEstimatedNote
+	textAiusageNone
 	textSettingsAIRetries
 	textSettingsAIRetriesHint
 	textSettingsGeneralAppearance
@@ -4333,6 +4349,16 @@ var keyOfText = [numTexts]string{
 	"settingsAIBatchSizeHint",
 	"settingsAIRequests",
 	"settingsAIRequestsRestore",
+	"aiusageTitle",
+	"aiusagePassTranslate",
+	"aiusagePassProofread",
+	"aiusagePassReview",
+	"aiusagePassSuggest",
+	"aiusagePassChat",
+	"aiusagePassPlugin",
+	"aiusageRequests",
+	"aiusageEstimatedNote",
+	"aiusageNone",
 	"settingsAIRetries",
 	"settingsAIRetriesHint",
 	"settingsGeneralAppearance",
@@ -6287,6 +6313,16 @@ var textsEn = i18n.NewTexts(""+
 	"More lines take fewer requests; fewer suit a small model."+
 	"Requests"+
 	"Restore Defaults"+
+	"Usage This Month"+
+	"Translation"+
+	"Proofreading"+
+	"Final Proofread"+
+	"Term Suggestions"+
+	"Questions & Explanations"+
+	"Plugins"+
+	"Requests"+
+	"≈ The service didn't report the usage, so it was estimated from the text sent and received."+
+	"Nothing sent to an AI service this month"+
 	"Retries"+
 	"After a rate limit, a server error or no answer."+
 	"Appearance"+
@@ -7206,7 +7242,7 @@ var textsEn = i18n.NewTexts(""+
 	"Speech recognition"+
 	"Downloads online videos"+
 	"Version"+
-	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"+
+	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold word marks readings furigana ruby pinyin level underline by level JLPT HSK CEFR vocabulary underline dashed word list"+
@@ -8238,6 +8274,16 @@ var textsEn = i18n.NewTexts(""+
 		57,
 		8,
 		16,
+		16,
+		11,
+		12,
+		15,
+		16,
+		24,
+		7,
+		8,
+		93,
+		40,
 		7,
 		48,
 		10,
@@ -9157,7 +9203,7 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		23,
 		7,
-		188,
+		212,
 		131,
 		432,
 		259,
@@ -10192,6 +10238,16 @@ var textsJa = i18n.NewTexts(""+
 	"多いほどリクエストが減ります。小さなモデルには少なめが向いています。"+
 	"リクエスト"+
 	"デフォルトに戻す"+
+	"今月の使用量"+
+	"翻訳"+
+	"字幕の校正"+
+	"最終校正"+
+	"用語の提案"+
+	"質問と解説"+
+	"プラグイン"+
+	"リクエスト数"+
+	"≈ はサービスが使用量を返さなかったため、送受信したテキストから見積もった値です。"+
+	"今月はまだ使用していません"+
 	"再試行"+
 	"レート制限、サーバーエラー、応答なしのとき。"+
 	"外観"+
@@ -11111,7 +11167,7 @@ var textsJa = i18n.NewTexts(""+
 	"音声認識"+
 	"オンライン動画のダウンロード"+
 	"バージョン"+
-	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行"+
+	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行 使用量 トークン 今月"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式 NAS SMB WebDAV SFTP"+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム ブックマークレット ブックマーク すぐに開始"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字 単語の注釈 ふりがな ルビ 読み ピンイン レベル レベルで下線 JLPT HSK 単語帳 下線 破線 単語リスト"+
@@ -12143,6 +12199,16 @@ var textsJa = i18n.NewTexts(""+
 		102,
 		15,
 		24,
+		18,
+		6,
+		15,
+		12,
+		15,
+		15,
+		15,
+		18,
+		121,
+		39,
 		9,
 		66,
 		6,
@@ -13062,7 +13128,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		42,
 		15,
-		193,
+		223,
 		176,
 		548,
 		297,
@@ -14097,6 +14163,16 @@ var textsKo = i18n.NewTexts(""+
 	"많을수록 요청 수가 줄고, 작은 모델에는 적게 두는 편이 좋습니다."+
 	"요청"+
 	"기본값으로 복원"+
+	"이번 달 사용량"+
+	"번역"+
+	"자막 교정"+
+	"최종 교정"+
+	"용어 제안"+
+	"질문과 해설"+
+	"플러그인"+
+	"요청 수"+
+	"≈는 서비스가 사용량을 알려 주지 않아 주고받은 텍스트로 추정한 값입니다."+
+	"이번 달 사용량이 아직 없습니다"+
 	"재시도"+
 	"속도 제한, 서버 오류, 응답 없음일 때."+
 	"화면 모드"+
@@ -15016,7 +15092,7 @@ var textsKo = i18n.NewTexts(""+
 	"음성 인식"+
 	"온라인 동영상 다운로드"+
 	"버전"+
-	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도"+
+	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도 사용량 토큰 이번 달"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일 NAS SMB WebDAV SFTP"+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템 북마클릿 북마크 바로 시작"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게 단어 표시 후리가나 읽기 병음 등급 등급별 밑줄 JLPT HSK 단어장 밑줄 점선 단어 목록"+
@@ -16048,6 +16124,16 @@ var textsKo = i18n.NewTexts(""+
 		89,
 		6,
 		22,
+		20,
+		6,
+		13,
+		13,
+		13,
+		16,
+		12,
+		10,
+		103,
+		43,
 		9,
 		51,
 		13,
@@ -16967,7 +17053,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		32,
 		6,
-		180,
+		208,
 		157,
 		437,
 		270,
@@ -18002,6 +18088,16 @@ var textsZhHans = i18n.NewTexts(""+
 	"句数多，请求就少；小模型适合少一些。"+
 	"请求"+
 	"恢复默认"+
+	"本月用量"+
+	"翻译"+
+	"校对字幕"+
+	"全文终校"+
+	"术语建议"+
+	"问答与讲解"+
+	"插件"+
+	"请求次数"+
+	"≈ 表示服务没有返回用量，按收发的文字估算。"+
+	"本月还没有用量"+
 	"失败重试"+
 	"遇到限流、服务器错误或没有回应时。"+
 	"外观"+
@@ -18921,7 +19017,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"语音识别"+
 	"下载在线视频"+
 	"版本"+
-	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试"+
+	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试 用量 token 本月"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式 NAS SMB WebDAV SFTP"+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统 书签小工具 书签 立即开始"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体 逐词标注 注音 假名 振假名 拼音 等级 按等级画线 JLPT HSK 生词本 已学词 下划线 虚线 词表"+
@@ -19954,6 +20050,16 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
+		12,
+		12,
+		12,
+		15,
+		6,
+		12,
+		64,
+		21,
+		12,
 		51,
 		6,
 		6,
@@ -20872,7 +20978,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		186,
+		206,
 		128,
 		390,
 		250,
@@ -21907,6 +22013,16 @@ var textsZhHant = i18n.NewTexts(""+
 	"句數多，請求就少；小模型適合少一些。"+
 	"請求"+
 	"恢復預設"+
+	"本月用量"+
+	"翻譯"+
+	"校對字幕"+
+	"全文終校"+
+	"術語建議"+
+	"問答與講解"+
+	"外掛"+
+	"請求次數"+
+	"≈ 表示服務沒有回傳用量，按收發的文字估算。"+
+	"本月還沒有用量"+
 	"失敗重試"+
 	"遇到限流、伺服器錯誤或沒有回應時。"+
 	"外觀"+
@@ -22826,7 +22942,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"語音辨識"+
 	"下載線上影片"+
 	"版本"+
-	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試"+
+	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試 用量 token 本月"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式 NAS SMB WebDAV SFTP"+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統 書籤小工具 書籤 立即開始"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體 逐詞標注 注音 假名 振假名 拼音 等級 按等級畫線 JLPT HSK 生詞本 已學詞 底線 虛線 詞表"+
@@ -23859,6 +23975,16 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
+		12,
+		12,
+		12,
+		15,
+		6,
+		12,
+		64,
+		21,
+		12,
 		51,
 		6,
 		6,
@@ -24777,7 +24903,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		186,
+		206,
 		128,
 		378,
 		247,
@@ -25863,6 +25989,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsAIRequestsNote != nil {
 		s.SettingsAIRequestsNote = t.SettingsAIRequestsNote
+	}
+	if t.AiusageTokens != nil {
+		s.AiusageTokens = t.AiusageTokens
+	}
+	if t.AiusageTokensEstimated != nil {
+		s.AiusageTokensEstimated = t.AiusageTokensEstimated
+	}
+	if t.AiusageRequestsCount != nil {
+		s.AiusageRequestsCount = t.AiusageRequestsCount
 	}
 	if t.SettingsShortcutsPresetNote != nil {
 		s.SettingsShortcutsPresetNote = t.SettingsShortcutsPresetNote
@@ -33856,6 +33991,209 @@ func SettingsAIRequestsRestore(cx *core.Scope) string { return For(cx).SettingsA
 func (msgs Messages) SettingsAIRequestsRestore() string {
 	return msgs.text(textSettingsAIRequestsRestore)
 }
+
+// AiusageTitle says "Usage This Month"
+// in the language the app shows under cx.
+//
+// Section label on Settings › AI Service above the card of what the AI services were asked this month, kept on this computer.
+func AiusageTitle(cx *core.Scope) string { return For(cx).AiusageTitle() }
+
+// AiusageTitle is the package's AiusageTitle in the language of msgs.
+func (msgs Messages) AiusageTitle() string { return msgs.text(textAiusageTitle) }
+
+// AiusagePassTranslate says "Translation"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens the translation of subtitles took this month.
+func AiusagePassTranslate(cx *core.Scope) string { return For(cx).AiusagePassTranslate() }
+
+// AiusagePassTranslate is the package's AiusagePassTranslate in the language of msgs.
+func (msgs Messages) AiusagePassTranslate() string { return msgs.text(textAiusagePassTranslate) }
+
+// AiusagePassProofread says "Proofreading"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens the proofreading of what speech recognition heard took this month.
+func AiusagePassProofread(cx *core.Scope) string { return For(cx).AiusagePassProofread() }
+
+// AiusagePassProofread is the package's AiusagePassProofread in the language of msgs.
+func (msgs Messages) AiusagePassProofread() string { return msgs.text(textAiusagePassProofread) }
+
+// AiusagePassReview says "Final Proofread"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens the final proofread of whole translations took this month.
+func AiusagePassReview(cx *core.Scope) string { return For(cx).AiusagePassReview() }
+
+// AiusagePassReview is the package's AiusagePassReview in the language of msgs.
+func (msgs Messages) AiusagePassReview() string { return msgs.text(textAiusagePassReview) }
+
+// AiusagePassSuggest says "Term Suggestions"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens the suggestions of a film's terms took this month.
+func AiusagePassSuggest(cx *core.Scope) string { return For(cx).AiusagePassSuggest() }
+
+// AiusagePassSuggest is the package's AiusagePassSuggest in the language of msgs.
+func (msgs Messages) AiusagePassSuggest() string { return msgs.text(textAiusagePassSuggest) }
+
+// AiusagePassChat says "Questions & Explanations"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens questions, line explanations, recaps, word lookups and correction candidates took this month.
+func AiusagePassChat(cx *core.Scope) string { return For(cx).AiusagePassChat() }
+
+// AiusagePassChat is the package's AiusagePassChat in the language of msgs.
+func (msgs Messages) AiusagePassChat() string { return msgs.text(textAiusagePassChat) }
+
+// AiusagePassPlugin says "Plugins"
+// in the language the app shows under cx.
+//
+// Row title in the usage card: tokens plugins took this month.
+func AiusagePassPlugin(cx *core.Scope) string { return For(cx).AiusagePassPlugin() }
+
+// AiusagePassPlugin is the package's AiusagePassPlugin in the language of msgs.
+func (msgs Messages) AiusagePassPlugin() string { return msgs.text(textAiusagePassPlugin) }
+
+// AiusageTokens says "{count, plural, one {# token} other {# tokens}}"
+// in the language the app shows under cx.
+//
+// Trailing value of a row of the usage card: the tokens, prompt and reply together, as the service counted them.
+func AiusageTokens(cx *core.Scope, count int) string { return For(cx).AiusageTokens(count) }
+
+// AiusageTokens is the package's AiusageTokens in the language of msgs.
+func (msgs Messages) AiusageTokens(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AiusageTokens(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AiusageTokens; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" token")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" tokens")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " トークン"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + " 토큰"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个 token"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個 token"
+		}
+	}
+}
+
+// AiusageTokensEstimated says "≈ {count, plural, one {# token} other {# tokens}}"
+// in the language the app shows under cx.
+//
+// Trailing value of a row of the usage card when some of its tokens were estimated by Kando because the service did not report them; ≈ marks the estimate.
+func AiusageTokensEstimated(cx *core.Scope, count int) string {
+	return For(cx).AiusageTokensEstimated(count)
+}
+
+// AiusageTokensEstimated is the package's AiusageTokensEstimated in the language of msgs.
+func (msgs Messages) AiusageTokensEstimated(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AiusageTokensEstimated(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AiusageTokensEstimated; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("≈ ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" token")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" tokens")
+			}
+			return b.String()
+		case "ja":
+			return "≈ " + i18n.FormatNumber("ja", float64(count)) + " トークン"
+		case "ko":
+			return "≈ " + i18n.FormatNumber("ko", float64(count)) + " 토큰"
+		case "zh-Hans":
+			return "≈ " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个 token"
+		case "zh-Hant":
+			return "≈ " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個 token"
+		}
+	}
+}
+
+// AiusageRequests says "Requests"
+// in the language the app shows under cx.
+//
+// Title of the last row of the usage card: how many requests were sent to AI services this month.
+func AiusageRequests(cx *core.Scope) string { return For(cx).AiusageRequests() }
+
+// AiusageRequests is the package's AiusageRequests in the language of msgs.
+func (msgs Messages) AiusageRequests() string { return msgs.text(textAiusageRequests) }
+
+// AiusageRequestsCount says "{count, number}"
+// in the language the app shows under cx.
+//
+// Trailing value of the Requests row of the usage card: the number of requests.
+func AiusageRequestsCount(cx *core.Scope, count int) string {
+	return For(cx).AiusageRequestsCount(count)
+}
+
+// AiusageRequestsCount is the package's AiusageRequestsCount in the language of msgs.
+func (msgs Messages) AiusageRequestsCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AiusageRequestsCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AiusageRequestsCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count)))
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count))
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count))
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count))
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count))
+		}
+	}
+}
+
+// AiusageEstimatedNote says "≈ The service didn't report the usage, so it was estimated from the text sent and received."
+// in the language the app shows under cx.
+//
+// Footnote under the usage card when some counts are estimated.
+func AiusageEstimatedNote(cx *core.Scope) string { return For(cx).AiusageEstimatedNote() }
+
+// AiusageEstimatedNote is the package's AiusageEstimatedNote in the language of msgs.
+func (msgs Messages) AiusageEstimatedNote() string { return msgs.text(textAiusageEstimatedNote) }
+
+// AiusageNone says "Nothing sent to an AI service this month"
+// in the language the app shows under cx.
+//
+// The only row of the usage card when no request was sent to an AI service this month.
+func AiusageNone(cx *core.Scope) string { return For(cx).AiusageNone() }
+
+// AiusageNone is the package's AiusageNone in the language of msgs.
+func (msgs Messages) AiusageNone() string { return msgs.text(textAiusageNone) }
 
 // SettingsAIRetries says "Retries"
 // in the language the app shows under cx.
@@ -55073,7 +55411,7 @@ func SettingsGeneralVersion(cx *core.Scope) string { return For(cx).SettingsGene
 // SettingsGeneralVersion is the package's SettingsGeneralVersion in the language of msgs.
 func (msgs Messages) SettingsGeneralVersion() string { return msgs.text(textSettingsGeneralVersion) }
 
-// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
+// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"
 // in the language the app shows under cx.
 //
 // Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown.

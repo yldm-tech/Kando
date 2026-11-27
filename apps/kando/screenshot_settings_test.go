@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/aiusage"
 	"kando/apps/kando/browserext"
 	"kando/apps/kando/clitool"
 	"kando/apps/kando/hotkey"
@@ -65,6 +66,8 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})
+	// The end of AI 服务: 本月用量 with every pass but term suggestions, the plugins' estimated as their service said no usage.
+	shootSettingsScrolled(t, f, settings.SectionAI, "settings-ai-usage", shown, models, turbo, shotAIUsage)
 	// The end of 语音识别, with Japanese named as the language spoken in the videos.
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-language", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -171,6 +174,27 @@ func shotBrowserExt(a *app, connected bool) {
 	a.ext.status = browserext.Status{Exe: "/Applications/Kando.app/Contents/MacOS/Kando", Found: []string{"Chrome", "Firefox"}}
 	if connected {
 		a.ext.status.Connected = a.ext.status.Found
+	}
+}
+
+// shotAIUsage counts a month of requests in the ledger, at a fixed date, as the meter would have: translations, proofreading and the final proofread through EveryAPI, questions to a service on this computer, and plugins' requests whose service said no usage.
+func shotAIUsage(a *app) {
+	a.aiusage.now = func() time.Time { return time.Date(2026, 11, 20, 12, 0, 0, 0, time.Local) }
+	month := aiusage.MonthOf(a.aiusage.now())
+	for range 42 {
+		a.aiusage.ledger.Add(month, media.PassTranslate, "api.everyapi.ai", 3120, 1480, false)
+	}
+	for range 18 {
+		a.aiusage.ledger.Add(month, media.PassProofread, "api.everyapi.ai", 2650, 610, false)
+	}
+	for range 6 {
+		a.aiusage.ledger.Add(month, media.PassReview, "api.everyapi.ai", 9800, 1200, false)
+	}
+	for range 11 {
+		a.aiusage.ledger.Add(month, media.PassChat, "localhost", 1400, 380, false)
+	}
+	for range 3 {
+		a.aiusage.ledger.Add(month, media.PassPlugin, "api.everyapi.ai", 2200, 540, true)
 	}
 }
 

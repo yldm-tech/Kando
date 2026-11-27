@@ -1277,6 +1277,51 @@ settingsAIRequestsNote:
 settingsAIRequestsRestore:
   message: "Restore Defaults"
   description: "Button beside the Requests label that brings Lines per Request and Retries back to their defaults."
+aiusageTitle:
+  message: "Usage This Month"
+  description: "Section label on Settings › AI Service above the card of what the AI services were asked this month, kept on this computer."
+aiusagePassTranslate:
+  message: "Translation"
+  description: "Row title in the usage card: tokens the translation of subtitles took this month."
+aiusagePassProofread:
+  message: "Proofreading"
+  description: "Row title in the usage card: tokens the proofreading of what speech recognition heard took this month."
+aiusagePassReview:
+  message: "Final Proofread"
+  description: "Row title in the usage card: tokens the final proofread of whole translations took this month."
+aiusagePassSuggest:
+  message: "Term Suggestions"
+  description: "Row title in the usage card: tokens the suggestions of a film's terms took this month."
+aiusagePassChat:
+  message: "Questions & Explanations"
+  description: "Row title in the usage card: tokens questions, line explanations, recaps, word lookups and correction candidates took this month."
+aiusagePassPlugin:
+  message: "Plugins"
+  description: "Row title in the usage card: tokens plugins took this month."
+aiusageTokens:
+  message: "{count, plural, one {# token} other {# tokens}}"
+  description: "Trailing value of a row of the usage card: the tokens, prompt and reply together, as the service counted them."
+  placeholders:
+    count: { type: "int", example: "125000" }
+aiusageTokensEstimated:
+  message: "≈ {count, plural, one {# token} other {# tokens}}"
+  description: "Trailing value of a row of the usage card when some of its tokens were estimated by Kando because the service did not report them; ≈ marks the estimate."
+  placeholders:
+    count: { type: "int", example: "125000" }
+aiusageRequests:
+  message: "Requests"
+  description: "Title of the last row of the usage card: how many requests were sent to AI services this month."
+aiusageRequestsCount:
+  message: "{count, number}"
+  description: "Trailing value of the Requests row of the usage card: the number of requests."
+  placeholders:
+    count: { type: "int", example: "348" }
+aiusageEstimatedNote:
+  message: "≈ The service didn't report the usage, so it was estimated from the text sent and received."
+  description: "Footnote under the usage card when some counts are estimated."
+aiusageNone:
+  message: "Nothing sent to an AI service this month"
+  description: "The only row of the usage card when no request was sent to an AI service this month."
 settingsAIRetries:
   message: "Retries"
   description: "Row title and accessible name of the field setting how many times a failed translation request is sent again."
@@ -5922,7 +5967,7 @@ settingsGeneralVersion:
   message: "Version"
   description: "Row title: Kando's version."
 settingsKeywordsAI:
-  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries"
+  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"

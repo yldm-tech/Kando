@@ -154,6 +154,7 @@ func (a *app) pluginsRunTask(id string) {
 		r.failed, r.say, r.fix = true, why, "ai"
 		return
 	}
+	tr.Pass = media.PassPlugin
 	budget := a.plugins.state.Budget(id)
 	left := budget - a.pluginsSpent(id)
 	if left <= 0 {

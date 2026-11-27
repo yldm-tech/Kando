@@ -90,6 +90,7 @@ func (a *app) pluginsLLMChat(l *pluginsScript, c *ns.HostCall) {
 		pluginsRefuse(c, pluginsUnavailable)
 		return
 	}
+	t.Pass = media.PassPlugin
 	id := l.pack.ID
 	tokens := pluginsArg(c, "maxTokens", pluginsChatTokens, plugins.MaxTaskTokens)
 	if need := media.EstimateTokens(system) + media.EstimateTokens(user) + tokens; need > a.plugins.state.Budget(id)-a.pluginsSpent(id) {

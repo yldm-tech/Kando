@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/aiusage"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -184,6 +185,8 @@ type App interface {
 	LLMBatchSize() int
 	LLMRetries() int
 	SetLLMRequests(size, retries int)
+	// AIUsage is what the AI services were asked this month, by pass (media.Passes), which the page's 本月用量 shows.
+	AIUsage() aiusage.Month
 
 	Language() *string
 	TranslateContext() *bool

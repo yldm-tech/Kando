@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/aiusage"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -77,6 +78,7 @@ type fakeApp struct {
 	shortcutQuery           string
 	offline, aiLocal        bool
 	cacheClear              CacheClear
+	usage                   aiusage.Month
 	calls                   []string
 }
 

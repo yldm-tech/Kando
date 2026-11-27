@@ -75,6 +75,7 @@ type app struct {
 	lock      lockUI        // state_lock.go
 	tray      trayUI        // state_tray.go
 	privacy   privacyUI     // state_privacy.go
+	aiusage   aiusageUI     // state_aiusage.go
 	subs      subscribeUI   // state_subscribe.go
 	vocab     vocabUI       // state_vocab.go
 	export    subexportUI   // state_subexport.go
@@ -128,6 +129,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		lock:      newLockUI(),
 		tray:      newTrayUI(),
 		privacy:   newPrivacyUI(),
+		aiusage:   newAIUsageUI(),
 		subs:      newSubscribeUI(),
 		vocab:     newVocabUI(),
 		export:    newSubexportUI(),
