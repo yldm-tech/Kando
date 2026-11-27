@@ -2061,6 +2061,9 @@ playerPause:
 playerPictureInPicture:
   message: "Picture in Picture"
   description: "Row of the playback settings: plays the video in the system's small window over other apps."
+playerPictureInPictureFailed:
+  message: "Picture in Picture isn't available right now"
+  description: "Toast in the player when the system cannot start Picture in Picture for the film; the film plays on in the player."
 playerPlay:
   message: "Play"
   description: "Spoken name of the player's button while the film is held."

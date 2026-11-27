@@ -1370,6 +1370,7 @@ const (
 	textPlayerPartsHint
 	textPlayerPause
 	textPlayerPictureInPicture
+	textPlayerPictureInPictureFailed
 	textPlayerPlay
 	textPlayerPosition
 	textPlayerPrevLine
@@ -2027,6 +2028,7 @@ var keyOfText = [numTexts]string{
 	"playerPartsHint",
 	"playerPause",
 	"playerPictureInPicture",
+	"playerPictureInPictureFailed",
 	"playerPlay",
 	"playerPosition",
 	"playerPrevLine",
@@ -2682,6 +2684,7 @@ var textsEn = i18n.NewTexts(""+
 	"The film in equal parts. Tap one to play from it."+
 	"Pause"+
 	"Picture in Picture"+
+	"Picture in Picture isn't available right now"+
 	"Play"+
 	"Position"+
 	"Previous Line"+
@@ -3334,6 +3337,7 @@ var textsEn = i18n.NewTexts(""+
 		49,
 		5,
 		18,
+		44,
 		4,
 		8,
 		13,
@@ -3989,6 +3993,7 @@ var textsJa = i18n.NewTexts(""+
 	"映像を同じ長さに分けました。タップするとそこから再生します。"+
 	"一時停止"+
 	"ピクチャ・イン・ピクチャ"+
+	"ピクチャ・イン・ピクチャを今は開始できません"+
 	"再生"+
 	"再生位置"+
 	"前のセリフ"+
@@ -4641,6 +4646,7 @@ var textsJa = i18n.NewTexts(""+
 		90,
 		12,
 		36,
+		66,
 		6,
 		12,
 		15,
@@ -5296,6 +5302,7 @@ var textsKo = i18n.NewTexts(""+
 	"영상을 같은 길이로 나눴습니다. 탭하면 그곳부터 재생합니다."+
 	"일시 정지"+
 	"PIP 모드"+
+	"지금은 PIP를 시작할 수 없습니다"+
 	"재생"+
 	"재생 위치"+
 	"이전 대사"+
@@ -5948,6 +5955,7 @@ var textsKo = i18n.NewTexts(""+
 		83,
 		13,
 		10,
+		43,
 		6,
 		13,
 		13,
@@ -6603,6 +6611,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"按时间把字幕平均切成几段，点一段就跳过去。"+
 	"暂停"+
 	"画中画"+
+	"暂时无法开启画中画"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
@@ -7255,6 +7264,7 @@ var textsZhHans = i18n.NewTexts(""+
 		63,
 		6,
 		9,
+		27,
 		6,
 		12,
 		9,
@@ -7910,6 +7920,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"按時間把字幕平均切成幾段，點一段就跳過去。"+
 	"暫停"+
 	"子母畫面"+
+	"暫時無法開啟子母畫面"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
@@ -8562,6 +8573,7 @@ var textsZhHant = i18n.NewTexts(""+
 		63,
 		6,
 		12,
+		30,
 		6,
 		12,
 		9,
@@ -19072,6 +19084,19 @@ func PlayerPictureInPicture(cx *core.Scope) string { return For(cx).PlayerPictur
 
 // PlayerPictureInPicture is the package's PlayerPictureInPicture in the language of msgs.
 func (msgs Messages) PlayerPictureInPicture() string { return msgs.text(textPlayerPictureInPicture) }
+
+// PlayerPictureInPictureFailed says "Picture in Picture isn't available right now"
+// in the language the app shows under cx.
+//
+// Toast in the player when the system cannot start Picture in Picture for the film; the film plays on in the player.
+func PlayerPictureInPictureFailed(cx *core.Scope) string {
+	return For(cx).PlayerPictureInPictureFailed()
+}
+
+// PlayerPictureInPictureFailed is the package's PlayerPictureInPictureFailed in the language of msgs.
+func (msgs Messages) PlayerPictureInPictureFailed() string {
+	return msgs.text(textPlayerPictureInPictureFailed)
+}
 
 // PlayerPlay says "Play"
 // in the language the app shows under cx.

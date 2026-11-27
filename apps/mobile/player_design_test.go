@@ -234,3 +234,29 @@ func TestBackAfterAddingAWordGoesToItsToastFirst(t *testing.T) {
 	p.app.WaitForGone("id:player-toasts >> text:"+msgs.PlayerWordAdded("morning"), wait)
 	closeWordSheet(p)
 }
+
+// Picture in picture starts the same video from where it is: the row asks the video to start it, with its source and its place unchanged and no seek; while the system cannot take it, as an app without the audio background mode, the player says so and the film plays on.
+func TestPictureInPictureKeepsTheVideoWhereItIs(t *testing.T) {
+	p, _ := openPlayer(t, onIOS)
+	p.at(4 * sec)
+	video := p.app.Find("id:player-video")
+	id, source, seeks := video.ID, video.Video.Source, len(p.seeks())
+	p.app.ReportPictureInPicture("id:player-video", core.PictureInPictureState{Supported: true, Error: "Picture in Picture requires apple.info.UIBackgroundModes: [audio]"})
+	p.app.Press("id:player-more")
+	p.app.WaitFor("id:player-settings-pip", wait)
+	p.app.Press("id:player-settings-pip")
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerPictureInPictureFailed(), wait)
+	if v := p.app.Find("id:player-video"); v.PiPStarts != 0 || v.Video.Paused || !p.app.Exists("id:player-card") {
+		t.Fatalf("a refused start asked %d times, paused %v", v.PiPStarts, v.Video.Paused)
+	}
+
+	p.app.ReportPictureInPicture("id:player-video", core.PictureInPictureState{Supported: true, Possible: true})
+	p.app.Press("id:player-more")
+	p.app.WaitFor("id:player-settings-pip", wait)
+	p.app.Press("id:player-settings-pip")
+	p.app.WaitUntil(wait, func() bool { return p.app.FindMounted("id:player-video").PiPStarts == 1 })
+	v := p.app.FindMounted("id:player-video")
+	if v.ID != id || v.Video.Source != source || len(p.seeks()) != seeks {
+		t.Fatalf("picture in picture changed the video: %v %q (was %v %q), seeks %v", v.ID, v.Video.Source, id, source, p.seeks())
+	}
+}

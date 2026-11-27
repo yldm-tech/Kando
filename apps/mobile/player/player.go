@@ -224,8 +224,13 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			// In picture in picture the film plays on in the system's window over other apps; the player leaves for the tabs once the window shows, and shows again when the window is turned back into it.
 			PictureInPicture: true,
 			OnPictureInPicture: func(st core.PictureInPictureState) {
-				if st.Active && !p.pip.GetUntracked().Active {
+				was := p.pip.GetUntracked()
+				if st.Active && !was.Active {
 					l.Minimize()
+				}
+				// A start the system refused says so, and the film plays on in the player; the system's own words are its, so they are not shown.
+				if st.Error != "" && st.Error != was.Error && !st.Active {
+					p.say("pip", locales.PlayerPictureInPictureFailed(cx))
 				}
 				p.pip.Set(st)
 			},

@@ -111,6 +111,11 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 					core.Show{When: pip, Then: func(cx *core.Scope) core.Node {
 						return link("player-settings-pip", func() string { return locales.PlayerPictureInPicture(cx) }, func() string { return "" }, func() {
 							open.Set(false)
+							// The same video goes on in the system's window from where it is; while the system cannot take it yet, the player says so and plays on.
+							if st := p.pip.GetUntracked(); st.Error != "" || !st.Possible {
+								p.say("pip", locales.PlayerPictureInPictureFailed(cx))
+								return
+							}
 							p.ref.StartPictureInPicture()
 						})
 					}},
