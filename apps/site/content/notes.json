@@ -93,7 +93,7 @@
   "dlLinuxNote": "Linux tab, after the command. .deb and apt stay as they are.",
   "dlLinuxButton": "Linux tab's button that downloads the Debian package for x86-64 PCs. .deb and x86-64 stay as they are.",
   "dlLinuxArm": "Linux tab's button that downloads the Debian package for ARM64 computers. .deb and ARM64 stay as they are.",
-  "dlWinBody": "Windows tab, before its button. x64 and arm64 are in the files' names and stay as they are. SmartScreen is Windows' check of downloaded programs; More info and Run anyway are the buttons of its warning, so use their names in your language's Windows.",
+  "dlWinBody": "Windows tab, before its button. The installers are signed with a code signing certificate (as the release notes say), so keep it saying they are signed. x64 and arm64 are in the files' names and stay as they are. SmartScreen is Windows' check of downloaded programs; More info and Run anyway are the buttons of its warning, so use their names in your language's Windows.",
   "dlWinButton": "Windows tab's main button, which downloads the installer for x86-64 PCs, which most are.",
   "dlWinArm": "Windows tab's second button, which downloads the installer for Windows on Arm PCs.",
   "dlWinNote": "Note in the Windows tab. PATH is an environment variable and stays as it is.",

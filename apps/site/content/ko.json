@@ -93,7 +93,7 @@
   "dlLinuxNote": "Debian과 Ubuntu에서는 .deb를 내려받아 apt로 설치할 수도 있습니다.",
   "dlLinuxButton": "x86-64용 .deb",
   "dlLinuxArm": "ARM64용 .deb",
-  "dlWinBody": "대부분의 PC는 x64, Arm 기반 Windows PC는 arm64 설치 프로그램을 내려받아 실행하세요. 아직 서명되지 않아 SmartScreen 경고가 뜨면 ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.",
+  "dlWinBody": "대부분의 PC는 x64, Arm 기반 Windows PC는 arm64 설치 프로그램을 내려받아 실행하세요. 서명되어 있지만 인증서가 아직 SmartScreen 평판을 쌓는 중이라 실행 전에 경고가 뜰 수 있으니, ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.",
   "dlWinButton": "Windows용 다운로드",
   "dlWinArm": "ARM용",
   "dlWinNote": "Windows에서는 아직 yt-dlp, ffmpeg, whisper-cli를 자동으로 내려받지 않으니, 패키지 관리자로 설치하고 PATH에 넣어 주세요.",
