@@ -6424,7 +6424,7 @@ var textsEn = i18n.NewTexts(""+
 	"None yet"+
 	"Monthly Limit"+
 	"Tokens per Month"+
-	"Reached. Requests wait for next month or a higher limit."+
+	"Reached. Stopped films continue when you raise or turn off the limit. The count starts over each month."+
 	"This month's AI token limit is reached. Raise it in AI Service, or wait for next month."+
 	"Retries"+
 	"After a rate limit, a server error or no answer."+
@@ -8414,7 +8414,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		13,
 		16,
-		56,
+		103,
 		87,
 		7,
 		48,
@@ -10407,7 +10407,7 @@ var textsJa = i18n.NewTexts(""+
 	"まだありません"+
 	"月間上限"+
 	"月あたりのトークン数"+
-	"上限に達しました。来月になるか上限を上げるまでリクエストを送りません。"+
+	"上限に達しました。上限を上げるかオフにすると、止まった動画は続きから再開します。使用量は毎月リセットされます。"+
 	"今月の AI トークン上限に達しました。「AI サービス」で上限を上げるか、来月までお待ちください。"+
 	"再試行"+
 	"レート制限、サーバーエラー、応答なしのとき。"+
@@ -12397,7 +12397,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		12,
 		30,
-		105,
+		165,
 		136,
 		9,
 		66,
@@ -14390,7 +14390,7 @@ var textsKo = i18n.NewTexts(""+
 	"아직 없음"+
 	"월간 한도"+
 	"월별 토큰 수"+
-	"한도에 도달했습니다. 다음 달이 되거나 한도를 올릴 때까지 요청을 보내지 않습니다."+
+	"한도에 도달했습니다. 한도를 올리거나 끄면 멈춘 영상이 이어서 진행됩니다. 사용량은 매월 새로 계산됩니다."+
 	"이번 달 AI 토큰 한도에 도달했습니다. 'AI 서비스'에서 한도를 올리거나 다음 달까지 기다리십시오."+
 	"재시도"+
 	"속도 제한, 서버 오류, 응답 없음일 때."+
@@ -16380,7 +16380,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		17,
-		114,
+		147,
 		131,
 		9,
 		51,
@@ -18373,7 +18373,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"暂无"+
 	"每月上限"+
 	"每月 token 数"+
-	"已达上限，请求会等到下个月或调高上限后再发。"+
+	"已达上限。调高或关闭上限后，停下的影片会继续；用量每月重新计算。"+
 	"本月 AI 用量已达上限。可在「AI 服务」里调高，或等到下个月。"+
 	"失败重试"+
 	"遇到限流、服务器错误或没有回应时。"+
@@ -20363,7 +20363,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		16,
-		66,
+		96,
 		85,
 		12,
 		51,
@@ -22356,7 +22356,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"暫無"+
 	"每月上限"+
 	"每月 token 數"+
-	"已達上限，請求會等到下個月或調高上限後再送出。"+
+	"已達上限。調高或關閉上限後，停下的影片會繼續；用量每月重新計算。"+
 	"本月 AI 用量已達上限。可在「AI 服務」中調高，或等到下個月。"+
 	"失敗重試"+
 	"遇到限流、伺服器錯誤或沒有回應時。"+
@@ -24346,7 +24346,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		16,
-		69,
+		96,
 		85,
 		12,
 		51,
@@ -35086,10 +35086,10 @@ func (msgs Messages) AiusageLimitUsed(percent int) string {
 	}
 }
 
-// AiusageLimitReached says "Reached. Requests wait for next month or a higher limit."
+// AiusageLimitReached says "Reached. Stopped films continue when you raise or turn off the limit. The count starts over each month."
 // in the language the app shows under cx.
 //
-// Subtitle of the Monthly Limit switch once this month's tokens reached the limit: Kando sends no request to an AI service until the month ends or the user raises or turns off the limit.
+// Subtitle of the Monthly Limit switch once this month's tokens reached the limit: Kando sends no request to an AI service, and the films it stopped continue by themselves once the user raises or turns off the limit; the tokens counted start from zero each month.
 func AiusageLimitReached(cx *core.Scope) string { return For(cx).AiusageLimitReached() }
 
 // AiusageLimitReached is the package's AiusageLimitReached in the language of msgs.
