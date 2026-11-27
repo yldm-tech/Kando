@@ -103,15 +103,15 @@ func TestKitsDownloadQuietlyWhatTheComputerHas(t *testing.T) {
 	a.kitsCancel()
 }
 
-// TestKitsQuietDownloadThatFailsStaysQuiet checks that a quiet download that failed says nothing and is not started again on its own, but is when the user asks for it.
+// TestKitsQuietDownloadThatFailsStaysQuiet checks that a quiet download that failed says nothing and is not started again on its own, but is when the user asks for it. Deno's quiet download fails too: one that landed would look the tools up again, which finds none of the computer's copies the app was given here, so the kits that are only fallbacks, as ffmpeg and whisper-cli on Linux, would start downloading as missing programs.
 func TestKitsQuietDownloadThatFailsStaysQuiet(t *testing.T) {
 	a, tt, updates := newTestApp(t, media.Tools{YTDLP: "/opt/homebrew/bin/yt-dlp", FFmpeg: "/opt/homebrew/bin/ffmpeg", Whisper: "/opt/homebrew/bin/whisper-cli"})
 	release := make(chan struct{})
 	close(release)
-	fakeKits(t, a, release, "yt-dlp", "ffmpeg", "whisper-cli")
+	fakeKits(t, a, release, "yt-dlp", "ffmpeg", "whisper-cli", "deno")
 	a.kitsInstallWanted()
 	waitUntil(t, tt, a, updates, func() bool { return len(a.kits.running) == 0 })
-	if len(a.kits.errs) != 0 || !a.kits.quietFailed["yt-dlp"] {
+	if len(a.kits.errs) != 0 || !a.kits.quietFailed["yt-dlp"] || !a.kits.quietFailed["deno"] {
 		t.Fatalf("errs %v, quietly failed %v", a.kits.errs, a.kits.quietFailed)
 	}
 	a.kitsInstallWanted()
