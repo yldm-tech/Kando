@@ -140,6 +140,8 @@ type fakeEveryAPI struct {
 	refuseCode string
 	plus       Plus
 	auths      []string
+	// block, when set, holds a request for a key until it is closed or the request ends.
+	block chan struct{}
 }
 
 const goodKey = "sk-good-0123456789abcdef"
@@ -153,8 +155,17 @@ func newFakeEveryAPI(t *testing.T, s3 *fakeS3, now func() time.Time) *fakeEveryA
 
 func (f *fakeEveryAPI) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.auths = append(f.auths, r.Header.Get("Authorization"))
+	if block := f.block; block != nil && r.URL.Path == "/api/kando/relay/credentials" {
+		f.mu.Unlock()
+		select {
+		case <-block:
+		case <-r.Context().Done():
+			return
+		}
+		f.mu.Lock()
+	}
+	defer f.mu.Unlock()
 	if r.Header.Get("Authorization") != "Bearer "+goodKey {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":{"code":"invalid_key","message":"bad key ` + r.Header.Get("Authorization") + `"}}`))
@@ -512,4 +523,85 @@ func TestNoSecretsInErrorsOrLogs(t *testing.T) {
 		}
 	}
 
+}
+
+// requests is how many requests EveryAPI was sent.
+func (f *fakeEveryAPI) requests() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.auths)
+}
+
+// A renewal that fails is not asked again by every operation: EveryAPI hears from the bucket once per retryAfter while the key held signs on, and what the bucket tells keeps that key's numbers, so a storage full stays full.
+func TestBucketAsksEveryAPIOnceAWhileItFails(t *testing.T) {
+	g := newRig(t)
+	ctx := context.Background()
+	g.api.set(func() { g.api.used = g.api.quota })
+	if _, err := g.bucket.Get(ctx, "x"); !errors.Is(err, psync.ErrNoObject) {
+		t.Fatal(err)
+	}
+	g.clock = g.clock.Add(7 * time.Hour)
+	g.api.set(func() { g.api.refuse, g.api.refuseCode = http.StatusServiceUnavailable, "" })
+	for range 10 {
+		if _, err := g.bucket.Get(ctx, "x"); !errors.Is(err, psync.ErrNoObject) {
+			t.Fatalf("the key held: %v", err)
+		}
+		if _, err := g.bucket.LinksUntil(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := g.api.requests(); n != 2 {
+		t.Fatalf("EveryAPI asked %d times, want 2", n)
+	}
+	if s := g.last(t); s.Err == nil || !s.Full || !s.Writes || s.Quota != 50<<30 {
+		t.Fatalf("told %+v", s)
+	}
+	g.clock = g.clock.Add(retryAfter)
+	if _, err := g.bucket.Get(ctx, "x"); !errors.Is(err, psync.ErrNoObject) {
+		t.Fatal(err)
+	}
+	if n := g.api.requests(); n != 3 {
+		t.Fatalf("EveryAPI asked %d times after retryAfter, want 3", n)
+	}
+}
+
+// A link is signed with the key held while a renewal waits for EveryAPI, as a pairing code signs its mailbox on the UI thread; an operation that needs the new key gives up with its context rather than waiting the request out.
+func TestBucketSignsWithTheKeyHeldWhileARenewalWaits(t *testing.T) {
+	g := newRig(t)
+	var mu gosync.Mutex
+	g.bucket = NewBucket(g.client, func() time.Time { return g.clock }, func(State) { mu.Lock(); defer mu.Unlock() })
+	ctx := context.Background()
+	if _, err := g.bucket.Get(ctx, "x"); !errors.Is(err, psync.ErrNoObject) {
+		t.Fatal(err)
+	}
+	g.clock = g.clock.Add(7 * time.Hour)
+	block := make(chan struct{})
+	g.api.set(func() { g.api.block = block })
+	renewed := make(chan error, 1)
+	go func() {
+		_, err := g.bucket.LinksUntil(ctx)
+		renewed <- err
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for g.api.requests() < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("the renewal was not asked")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	signCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	link, err := g.bucket.PresignGet(signCtx, "pair/box", 5*time.Minute)
+	if err != nil || !strings.Contains(link, "X-Amz-Security-Token=session-1") {
+		t.Fatalf("link %s, %v", link, err)
+	}
+	waitCtx, cancelWait := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancelWait()
+	if _, err := g.bucket.LinksUntil(waitCtx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("waiting for the renewal: %v", err)
+	}
+	close(block)
+	if err := <-renewed; err != nil {
+		t.Fatal(err)
+	}
 }

@@ -12,12 +12,17 @@ import (
 // relayPairEvery is how often the server reads a pairing mailbox while its code is on offer. Tests shorten it.
 var relayPairEvery = psync.RelayPairEvery
 
+// relayPairSignFor is the longest making a pairing mailbox waits for the bucket to sign its links (tests shorten it): no time for a bucket that signs with a key it holds, but a bucket whose short-lived key must first be asked for (relayhost) talks to the network, and a code is offered on the UI thread with mu held. A code whose mailbox is not signed by then is offered for the local network alone.
+var relayPairSignFor = 5 * time.Second
+
 // offerRelay gives o a pairing mailbox in the relay's bucket and serves it until o ends, while the relay is on. The caller holds mu.
 func (s *Server) offerRelay(o *offer) {
 	if s.relay == nil {
 		return
 	}
-	m, err := psync.NewRelayPairMailbox(context.Background(), s.relay.Bucket, s.relay.Prefix, psync.CodeLifetime, s.cfg.Now())
+	sctx, scancel := context.WithTimeout(context.Background(), relayPairSignFor)
+	m, err := psync.NewRelayPairMailbox(sctx, s.relay.Bucket, s.relay.Prefix, psync.CodeLifetime, s.cfg.Now())
+	scancel()
 	if err != nil {
 		s.cfg.Logf("phonesync: relay: pairing mailbox: %v", err)
 		return

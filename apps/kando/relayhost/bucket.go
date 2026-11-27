@@ -18,8 +18,13 @@ type Bucket struct {
 	now    func() time.Time
 	told   func(State)
 
-	mu  gosync.Mutex
-	cur *session
+	// asking is held while a key is asked for, so one request goes to EveryAPI at a time; waiting for it gives up with the caller's context. mu guards the fields below it and is never held while EveryAPI is asked, so a link signed with the key held does not wait for a request under way.
+	asking chan struct{}
+	mu     gosync.Mutex
+	cur    *session
+	// failed is when the last request for a key failed, failure why, zero once one went through: EveryAPI is not asked again before retryAfter, so a store or a request that hangs is not asked again by every operation of a turn.
+	failed  time.Time
+	failure error
 }
 
 // State is what the last request for a key found, told to the app (NewBucket's told): the account's quota and use, whether it may write, and why the request failed, nil when it went through. Full is the storage full, as EveryAPI said it or as the key's numbers say.
@@ -49,38 +54,96 @@ func NewBucket(client *Client, now func() time.Time, told func(State)) *Bucket {
 	if now == nil {
 		now = time.Now
 	}
-	return &Bucket{client: client, now: now, told: told}
+	return &Bucket{client: client, now: now, told: told, asking: make(chan struct{}, 1)}
 }
 
-// session is the key to sign with now: the one held while less than half its life is spent and it is more than renewBefore from lapsing, else a new one. A new one that cannot be had leaves the one held in use while it is good.
-func (b *Bucket) session(ctx context.Context) (*session, error) {
+// retryAfter is how long after a request for a key failed EveryAPI is not asked again: the key held signs meanwhile while it is good, and without one the failure is answered again.
+const retryAfter = 30 * time.Second
+
+// fresh reports whether s needs no renewal at now: less than half its life is spent and it is more than renewBefore from lapsing.
+func (s *session) fresh(now time.Time) bool {
+	expires := s.creds.ExpiresAt.Time
+	half := s.fetched.Add(expires.Sub(s.fetched) / 2)
+	return now.Before(half) && now.Before(expires.Add(-renewBefore))
+}
+
+// held is the key held when it is fresh, else nil.
+func (b *Bucket) held(now time.Time) *session {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.cur != nil && b.cur.fresh(now) {
+		return b.cur
+	}
+	return nil
+}
+
+// session is the key to sign with now: the one held while it is fresh, else a new one. A new one that cannot be had leaves the one held in use while it is good, but not once EveryAPI said the account has no Plus.
+func (b *Bucket) session(ctx context.Context) (*session, error) {
+	if s := b.held(b.now()); s != nil {
+		return s, nil
+	}
+	select {
+	case b.asking <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-b.asking }()
 	now := b.now()
-	cur := b.cur
-	if cur != nil {
-		expires := cur.creds.ExpiresAt.Time
-		half := cur.fetched.Add(expires.Sub(cur.fetched) / 2)
-		if now.Before(half) && now.Before(expires.Add(-renewBefore)) {
-			return cur, nil
-		}
+	b.mu.Lock()
+	cur, failed, failure := b.cur, b.failed, b.failure
+	b.mu.Unlock()
+	if cur != nil && cur.fresh(now) {
+		// Renewed while this waited.
+		return cur, nil
+	}
+	if !failed.IsZero() && now.Sub(failed) < retryAfter {
+		return b.fallback(cur, now, failure)
 	}
 	creds, err := b.client.Credentials(ctx)
 	if err == nil {
 		var next *session
 		if next, err = open(creds, now); err == nil {
-			b.cur = next
+			b.mu.Lock()
+			b.cur, b.failed, b.failure = next, time.Time{}, nil
+			b.mu.Unlock()
 			b.tell(State{Quota: creds.QuotaBytes, Used: creds.UsedBytes, Writes: creds.WriteAllowed, Full: creds.Full()})
 			return next, nil
 		}
 	}
-	if ctx.Err() == nil {
-		b.tell(State{Err: err, Full: errors.Is(err, ErrQuotaExceeded)})
+	if ctx.Err() != nil {
+		// The caller gave up: that says nothing of EveryAPI.
+		return b.fallback(cur, now, err)
 	}
+	b.mu.Lock()
+	b.failed, b.failure = now, err
+	b.mu.Unlock()
+	st := State{Err: err, Full: errors.Is(err, ErrQuotaExceeded)}
+	if kept, _ := b.fallback(cur, now, err); kept != nil {
+		// The key held goes on: its numbers still stand.
+		st.Quota, st.Used, st.Writes, st.Full = kept.creds.QuotaBytes, kept.creds.UsedBytes, kept.creds.WriteAllowed, st.Full || kept.creds.Full()
+	}
+	b.tell(st)
+	return b.fallback(cur, now, err)
+}
+
+// fallback is the key held, cur, when a new one could not be had for err: while it is good for a minute more, unless EveryAPI said the account has no Plus.
+func (b *Bucket) fallback(cur *session, now time.Time, err error) (*session, error) {
 	if cur != nil && now.Before(cur.creds.ExpiresAt.Add(-time.Minute)) && !errors.Is(err, ErrPlusRequired) {
 		return cur, nil
 	}
 	return nil, err
+}
+
+// signer is the key a link is signed with: the one held while it is more than renewBefore from lapsing, without asking EveryAPI to renew it, so signing a link, as a pairing code does on the UI thread, waits for no request; else session. The relay renews a key past half its life through LinksUntil, which it asks before it signs a grant or a film's links.
+func (b *Bucket) signer(ctx context.Context) (*session, error) {
+	now := b.now()
+	b.mu.Lock()
+	cur := b.cur
+	b.mu.Unlock()
+	if cur != nil && now.Before(cur.creds.ExpiresAt.Add(-renewBefore)) {
+		return cur, nil
+	}
+	return b.session(ctx)
 }
 
 func (b *Bucket) tell(s State) {
@@ -172,7 +235,7 @@ func (b *Bucket) Delete(ctx context.Context, key string) error {
 }
 
 func (b *Bucket) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
-	s, err := b.session(ctx)
+	s, err := b.signer(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -181,9 +244,12 @@ func (b *Bucket) PresignGet(ctx context.Context, key string, ttl time.Duration) 
 
 // PresignPut is a link that PUTs key, none while writes are stopped: a phone's message would be written to a bucket the desktop no longer answers from.
 func (b *Bucket) PresignPut(ctx context.Context, key string, ttl time.Duration) (string, error) {
-	s, err := b.writable(ctx)
+	s, err := b.signer(ctx)
 	if err != nil {
 		return "", err
+	}
+	if !s.creds.WriteAllowed {
+		return "", ErrWritesStopped
 	}
 	return s.bucket.PresignPut(ctx, s.prefix+key, ttl)
 }
