@@ -111,7 +111,7 @@ type films struct {
 	status FilmsStatus
 }
 
-// startFilms starts putting the films in bucket, until Close. Start calls it after startRelay, whose Films it sets.
+// startFilms starts putting the films in bucket, until Close. startRelay calls it before the relay runs, as it sets the relay's Films.
 func (s *Server) startFilms(bucket Bucket, cfg FilmsConfig) {
 	f := &films{s: s, bucket: bucket, cfg: cfg, path: filepath.Join(s.cfg.Dir, FilmsFile), wake: make(chan struct{}, 1)}
 	f.load()
