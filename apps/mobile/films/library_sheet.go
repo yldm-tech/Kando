@@ -137,10 +137,10 @@ func LibrarySheet(cx *core.Scope, s *session.Session, library *core.Signal[catal
 		})
 	}
 	unlockDialog := look.Dialog{
-		TestID: "films-unlock-sheet",
-		Open:   func() bool { return unlocking.Get().Desktop != "" },
+		TestID:  "films-unlock-sheet",
+		Open:    func() bool { return unlocking.Get().Desktop != "" },
 		OnClose: closeUnlock,
-		Title:  func() string { return locales.FilmsUnlockTitle(cx, unlocking.Get().Name) },
+		Title:   func() string { return locales.FilmsUnlockTitle(cx, unlocking.Get().Name) },
 		Nav: &look.SheetNav{
 			Cancel:    func() string { return locales.FilmsUnlockCancel(cx) },
 			Confirm:   func() string { return locales.FilmsUnlockConfirm(cx) },

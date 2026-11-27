@@ -147,11 +147,11 @@ func (a *app) phoneSyncPublishLocks() {
 func (p phoneLibraries) Unlock(ctx context.Context, caller psync.Caller, req psync.LibraryUnlock) (psync.LibraryLockState, error) {
 	a := p.a
 	type check struct {
-		dir       string
-		lock      shelf.Lock
-		hasKey    bool
-		hasVault  bool
-		noPass    bool
+		dir      string
+		lock     shelf.Lock
+		hasKey   bool
+		hasVault bool
+		noPass   bool
 	}
 	c, err := remote.OnUI(ctx, a.update, func() (check, error) {
 		now := a.phoneStateNow()
