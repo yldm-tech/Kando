@@ -122,9 +122,10 @@ type App interface {
 	LLMKey() *string
 	ApplyLLM()
 	OpenKeyPage()
-	// OnboardingEveryAPIMissing reports whether EveryAPI is in use without an API Key and the everyapi command-line program it signs in with is not on this computer; GetEveryAPI opens EveryAPI's website, where the program is downloaded, and Redetect looks for it again.
-	OnboardingEveryAPIMissing() bool
-	GetEveryAPI()
+	// OnboardingEveryAPISignIn reports whether EveryAPI is in use without an API Key and without a sign-in, Kando's own or the everyapi command-line program's; EveryAPISignIn signs in to EveryAPI in the browser, as Settings › AI 服务 does.
+	OnboardingEveryAPISignIn() bool
+	EveryAPISignIn()
+	// Redetect looks for the programs again.
 	Redetect()
 	// TestLLM sends the service a short request; TestingLLM reports one running, LLMConnected that the last one passed, and LLMResult is "" before any and otherwise its outcome, in the interface's language.
 	TestLLM()

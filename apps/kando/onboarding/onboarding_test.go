@@ -28,7 +28,7 @@ type fakeApp struct {
 	ai          AI
 	provider    string
 	key         string
-	cliMissing  bool
+	signIn      bool
 	testing     bool
 	connected   bool
 	result      string
@@ -53,18 +53,18 @@ func newFakeApp() *fakeApp {
 func (f *fakeApp) OnboardingServices(*core.Scope) []Service {
 	return []Service{{ID: "everyapi", Name: "EveryAPI"}, {ID: "openai", Name: "OpenAI", Key: true, KeyPage: true}, {ID: "ollama", Name: "本机 · Ollama"}}
 }
-func (f *fakeApp) LLMProvider() string             { return f.provider }
-func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
-func (f *fakeApp) LLMKey() *string                 { return &f.key }
-func (f *fakeApp) ApplyLLM()                       { f.call("apply " + f.key) }
-func (f *fakeApp) OpenKeyPage()                    { f.call("key page " + f.provider) }
-func (f *fakeApp) OnboardingEveryAPIMissing() bool { return f.cliMissing }
-func (f *fakeApp) GetEveryAPI()                    { f.call("get everyapi") }
-func (f *fakeApp) Redetect()                       { f.call("redetect") }
-func (f *fakeApp) TestLLM()                        { f.call("test") }
-func (f *fakeApp) TestingLLM() bool                { return f.testing }
-func (f *fakeApp) LLMConnected() bool              { return f.connected }
-func (f *fakeApp) LLMResult() string               { return f.result }
+func (f *fakeApp) LLMProvider() string            { return f.provider }
+func (f *fakeApp) SelectLLM(id string)            { f.call("select " + id); f.provider = id }
+func (f *fakeApp) LLMKey() *string                { return &f.key }
+func (f *fakeApp) ApplyLLM()                      { f.call("apply " + f.key) }
+func (f *fakeApp) OpenKeyPage()                   { f.call("key page " + f.provider) }
+func (f *fakeApp) OnboardingEveryAPISignIn() bool { return f.signIn }
+func (f *fakeApp) EveryAPISignIn()                { f.call("everyapi sign in") }
+func (f *fakeApp) Redetect()                      { f.call("redetect") }
+func (f *fakeApp) TestLLM()                       { f.call("test") }
+func (f *fakeApp) TestingLLM() bool               { return f.testing }
+func (f *fakeApp) LLMConnected() bool             { return f.connected }
+func (f *fakeApp) LLMResult() string              { return f.result }
 
 func (f *fakeApp) call(s string)                        { f.calls = append(f.calls, s) }
 func (f *fakeApp) OnboardingStep() int                  { return f.step }
@@ -287,25 +287,24 @@ func TestSecondStepRowsAndTheirButtons(t *testing.T) {
 	wantCalls(t, a, "settings ai")
 }
 
-// TestSecondStepSetsUpTranslation checks the translation card of the second step: EveryAPI without its everyapi program offers 获取 EveryAPI and 重新检测 rather than a test; another service is chosen in place, a cloud one takes its API Key there with 获取 API Key, and 测试连接 shows its result, while one on this computer asks for no key.
+// TestSecondStepSetsUpTranslation checks the translation card of the second step: EveryAPI without a sign-in offers 登录 rather than a test; another service is chosen in place, a cloud one takes its API Key there with 获取 API Key, and 测试连接 shows its result, while one on this computer asks for no key.
 func TestSecondStepSetsUpTranslation(t *testing.T) {
 	a := newFakeApp()
 	a.step = 2
-	a.cliMissing = true
-	a.ai = AI{Text: "install everyapi", Missing: true}
+	a.signIn = true
+	a.ai = AI{Text: "sign in to everyapi", Missing: true}
 	app := start(t, a, core.OSMacOS)
 	msgs := testlocale.Messages()
 	if app.Exists("id:onboarding-ai-test") || app.Exists("id:onboarding-ai-key") {
-		t.Fatalf("EveryAPI without its program: %q", app.Texts())
+		t.Fatalf("EveryAPI without a sign-in: %q", app.Texts())
 	}
-	app.Press("id:onboarding-everyapi-get")
-	app.Press("id:onboarding-everyapi-redetect")
-	wantCalls(t, a, "get everyapi", "redetect")
+	app.Press("id:onboarding-everyapi-signin")
+	wantCalls(t, a, "everyapi sign in")
 	app.Press("id:onboarding-ai-service")
 	app.Press(`text:"OpenAI"`)
 	wantCalls(t, a, "select openai")
-	change(app, a, func() { a.cliMissing, a.ai = false, AI{Text: msgs.OnboardingAINeedsKey(), Missing: true} })
-	if !app.Exists(`text:"`+msgs.OnboardingAINeedsKey()+`"`) || app.Exists("id:onboarding-everyapi-get") {
+	change(app, a, func() { a.signIn, a.ai = false, AI{Text: msgs.OnboardingAINeedsKey(), Missing: true} })
+	if !app.Exists(`text:"`+msgs.OnboardingAINeedsKey()+`"`) || app.Exists("id:onboarding-everyapi-signin") {
 		t.Fatalf("OpenAI without a key: %q", app.Texts())
 	}
 	app.Focus("id:onboarding-ai-key")

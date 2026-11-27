@@ -62,6 +62,7 @@ type fakeApp struct {
 	loadingModels           bool
 	modelsErr               string
 	everyAPI                EveryAPI
+	account                 EveryAPIAccount
 	language                string
 	context                 bool
 	contextLines, batchSize int
@@ -256,46 +257,52 @@ func (f *fakeApp) CurrentPreset() (Preset, bool) {
 func (f *fakeApp) Presets() []Preset {
 	return []Preset{{ID: "everyapi", Name: "EveryAPI", Group: GroupCloud}, {ID: "ollama", Name: "Ollama", Group: GroupLocal}}
 }
-func (f *fakeApp) LLMProvider() string             { return f.provider }
-func (f *fakeApp) SetLLMProvider(id string)        { f.provider = id }
-func (f *fakeApp) ProviderID(string) string        { return "custom" }
-func (f *fakeApp) LLMBase() *string                { return &f.base }
-func (f *fakeApp) LLMKey() *string                 { return &f.key }
-func (f *fakeApp) LLMModel() *string               { return &f.model }
-func (f *fakeApp) ApplyLLM()                       { f.call("apply") }
-func (f *fakeApp) TestingLLM() bool                { return f.testing }
-func (f *fakeApp) TestLLM()                        { f.call("test") }
-func (f *fakeApp) LLMConnected() bool              { return f.connected }
-func (f *fakeApp) LLMResult() string               { return f.result }
-func (f *fakeApp) LLMResultDetail() string         { return f.resultDetail }
-func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
-func (f *fakeApp) OpenKeyPage()                    { f.call("key page " + f.provider) }
-func (f *fakeApp) LLMModels() []string             { return f.llmModels }
-func (f *fakeApp) LoadingLLMModels() bool          { return f.loadingModels }
-func (f *fakeApp) LLMModelsErr() string            { return f.modelsErr }
-func (f *fakeApp) RetryLLMModels()                 { f.call("retry models") }
-func (f *fakeApp) EveryAPI() EveryAPI              { return f.everyAPI }
-func (f *fakeApp) GetEveryAPI()                    { f.call("get everyapi") }
-func (f *fakeApp) Language() *string               { return &f.language }
-func (f *fakeApp) TranslateContext() *bool         { return &f.context }
-func (f *fakeApp) TranslatePrompt() *string        { return &f.prompt }
-func (f *fakeApp) InterfaceLanguage() string       { return f.interfaceLang }
-func (f *fakeApp) SetInterfaceLanguage(tag string) { f.call("language " + tag); f.interfaceLang = tag }
-func (f *fakeApp) Cue() *subtitle.Look             { return &f.cue }
-func (f *fakeApp) SubMode() string                 { return f.subMode }
-func (f *fakeApp) SetSubMode(mode string)          { f.subMode = mode }
-func (f *fakeApp) SubOrder() string                { return f.subOrder }
-func (f *fakeApp) SetSubOrder(order string)        { f.subOrder = order }
-func (f *fakeApp) Untranslated() string            { return f.untranslated }
-func (f *fakeApp) SetUntranslated(mode string)     { f.untranslated = mode }
-func (f *fakeApp) YieldSubs() bool                 { return f.yield }
-func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
-func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
-func (f *fakeApp) Offline() bool                   { return f.offline }
-func (f *fakeApp) SetOffline(on bool)              { f.call("offline " + strconv.FormatBool(on)); f.offline = on }
-func (f *fakeApp) AILocal() bool                   { return f.aiLocal }
-func (f *fakeApp) ClearCache()                     { f.call("clear cache"); f.cacheClear = CacheClear{Busy: true} }
-func (f *fakeApp) CacheClear() CacheClear          { return f.cacheClear }
+func (f *fakeApp) LLMProvider() string              { return f.provider }
+func (f *fakeApp) SetLLMProvider(id string)         { f.provider = id }
+func (f *fakeApp) ProviderID(string) string         { return "custom" }
+func (f *fakeApp) LLMBase() *string                 { return &f.base }
+func (f *fakeApp) LLMKey() *string                  { return &f.key }
+func (f *fakeApp) LLMModel() *string                { return &f.model }
+func (f *fakeApp) ApplyLLM()                        { f.call("apply") }
+func (f *fakeApp) TestingLLM() bool                 { return f.testing }
+func (f *fakeApp) TestLLM()                         { f.call("test") }
+func (f *fakeApp) LLMConnected() bool               { return f.connected }
+func (f *fakeApp) LLMResult() string                { return f.result }
+func (f *fakeApp) LLMResultDetail() string          { return f.resultDetail }
+func (f *fakeApp) SelectLLM(id string)              { f.call("select " + id); f.provider = id }
+func (f *fakeApp) OpenKeyPage()                     { f.call("key page " + f.provider) }
+func (f *fakeApp) LLMModels() []string              { return f.llmModels }
+func (f *fakeApp) LoadingLLMModels() bool           { return f.loadingModels }
+func (f *fakeApp) LLMModelsErr() string             { return f.modelsErr }
+func (f *fakeApp) RetryLLMModels()                  { f.call("retry models") }
+func (f *fakeApp) EveryAPI() EveryAPI               { return f.everyAPI }
+func (f *fakeApp) EveryAPIAccount() EveryAPIAccount { return f.account }
+func (f *fakeApp) EveryAPISignIn()                  { f.call("everyapi sign in") }
+func (f *fakeApp) EveryAPIUseCode()                 { f.call("everyapi code") }
+func (f *fakeApp) EveryAPICancelSignIn()            { f.call("everyapi cancel") }
+func (f *fakeApp) EveryAPISignOut()                 { f.call("everyapi sign out") }
+func (f *fakeApp) EveryAPITopUp()                   { f.call("everyapi top up") }
+func (f *fakeApp) GetEveryAPI()                     { f.call("get everyapi") }
+func (f *fakeApp) Language() *string                { return &f.language }
+func (f *fakeApp) TranslateContext() *bool          { return &f.context }
+func (f *fakeApp) TranslatePrompt() *string         { return &f.prompt }
+func (f *fakeApp) InterfaceLanguage() string        { return f.interfaceLang }
+func (f *fakeApp) SetInterfaceLanguage(tag string)  { f.call("language " + tag); f.interfaceLang = tag }
+func (f *fakeApp) Cue() *subtitle.Look              { return &f.cue }
+func (f *fakeApp) SubMode() string                  { return f.subMode }
+func (f *fakeApp) SetSubMode(mode string)           { f.subMode = mode }
+func (f *fakeApp) SubOrder() string                 { return f.subOrder }
+func (f *fakeApp) SetSubOrder(order string)         { f.subOrder = order }
+func (f *fakeApp) Untranslated() string             { return f.untranslated }
+func (f *fakeApp) SetUntranslated(mode string)      { f.untranslated = mode }
+func (f *fakeApp) YieldSubs() bool                  { return f.yield }
+func (f *fakeApp) SetYieldSubs(on bool)             { f.yield = on }
+func (f *fakeApp) ShortcutQuery() *string           { return &f.shortcutQuery }
+func (f *fakeApp) Offline() bool                    { return f.offline }
+func (f *fakeApp) SetOffline(on bool)               { f.call("offline " + strconv.FormatBool(on)); f.offline = on }
+func (f *fakeApp) AILocal() bool                    { return f.aiLocal }
+func (f *fakeApp) ClearCache()                      { f.call("clear cache"); f.cacheClear = CacheClear{Busy: true} }
+func (f *fakeApp) CacheClear() CacheClear           { return f.cacheClear }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}, {Group: "显示", Label: "返回资料库", Key: "escape"}}
 }
@@ -706,20 +713,72 @@ func TestAIPageSaysWhatTheServiceNeeds(t *testing.T) {
 	}
 }
 
+// TestAIPageEveryAPIAccount checks the EveryAPI account row through a sign-in: waiting for the browser with 改用验证码 and 取消, the code to enter, signed in with the name and balance, 充值 and 退出, a low balance, and why a sign-in failed. Offline mode keeps 登录 from being pressed.
+func TestAIPageEveryAPIAccount(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionAI
+	a.account = EveryAPIAccount{Shown: true, SigningIn: true}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.EveryAPIWaitingBrowser())) || app.Exists("id:settings-everyapi-signin") {
+		t.Fatalf("signing in: %q", app.Texts())
+	}
+	app.Press("id:settings-everyapi-code")
+	app.Press("id:settings-everyapi-cancel")
+	change(app, a, func() { a.account.Code, a.account.CodeURL = "ABCD-EFGH", "https://app.everyapi.ai/device" })
+	if !app.Exists(whole(msgs.EveryAPIDeviceCode("https://app.everyapi.ai/device", "ABCD-EFGH"))) || app.Exists("id:settings-everyapi-code") {
+		t.Fatalf("code: %q", app.Texts())
+	}
+	change(app, a, func() {
+		a.account = EveryAPIAccount{Shown: true, SignedIn: true, Name: "Mika", Balance: "$12.40", CLI: true}
+	})
+	if !app.Exists(whole(msgs.EveryAPIAccountLine("Mika", "$12.40"))) || app.Exists("id:settings-everyapi-signin") || app.Exists("id:settings-everyapi-get") {
+		t.Fatalf("signed in: %q", app.Texts())
+	}
+	app.Press("id:settings-everyapi-topup")
+	app.Press("id:settings-everyapi-signout")
+	if !slices.Equal(a.calls, []string{"everyapi code", "everyapi cancel", "everyapi top up", "everyapi sign out"}) {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.account.Balance, a.account.Low = "$0.40", true })
+	if !app.Exists(whole(msgs.EveryAPIAccountLow("Mika", "$0.40"))) {
+		t.Fatalf("low: %q", app.Texts())
+	}
+	change(app, a, func() { a.account = EveryAPIAccount{Shown: true, CLI: true, Problem: EveryAPINeedsTopUp} })
+	if !app.Exists(whole(msgs.EveryAPIFailedPaid())) || !app.Exists("id:settings-everyapi-signin") || app.Exists("id:settings-everyapi-get") {
+		t.Fatalf("needs a top-up: %q", app.Texts())
+	}
+	change(app, a, func() { a.account = EveryAPIAccount{Shown: true, CLI: true, Offline: true} })
+	if !app.Exists(whole(msgs.EveryAPIOffline())) || app.Enabled("id:settings-everyapi-signin") {
+		t.Fatalf("offline: %q", app.Texts())
+	}
+	// Another service has no account row.
+	change(app, a, func() { a.account = EveryAPIAccount{} })
+	if app.Exists("id:settings-everyapi-account") {
+		t.Fatalf("not EveryAPI: %q", app.Texts())
+	}
+}
+
 func TestAIPage(t *testing.T) {
 	a := newFakeApp()
 	a.section = SectionAI
 	a.everyAPI = EveryAPI{Missing: true}
+	a.account = EveryAPIAccount{Shown: true}
 	app := start(t, a)
 	msgs := testlocale.Messages()
-	for _, text := range []string{msgs.SettingsAIEveryAPIMissing(), msgs.SettingsAIUntested(), msgs.SettingsAIGetEveryAPI()} {
+	// Signed out without the everyapi program: 登录, and the program offered as the other way, not as something missing.
+	for _, text := range []string{msgs.EveryAPIAccount(), msgs.EveryAPISignedOutNote(), msgs.EveryAPISignIn(), msgs.EveryAPIUseCLI(), msgs.SettingsAIUntested()} {
 		if !app.Exists(whole(text)) {
 			t.Fatalf("missing %q in %q", text, app.Texts())
 		}
 	}
+	if app.Exists(whole(msgs.SettingsAIEveryAPIMissing())) {
+		t.Fatalf("the program shows as missing: %q", app.Texts())
+	}
+	app.Press("id:settings-everyapi-signin")
 	app.Press("id:settings-everyapi-get")
 	app.Press("id:settings-llm-test")
-	if !slices.Contains(a.calls, "get everyapi") || !slices.Contains(a.calls, "test") {
+	if !slices.Contains(a.calls, "everyapi sign in") || !slices.Contains(a.calls, "get everyapi") || !slices.Contains(a.calls, "test") {
 		t.Fatalf("calls %q", a.calls)
 	}
 	app.Press("id:settings-llm-provider")

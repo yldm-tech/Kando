@@ -71,6 +71,7 @@ type app struct {
 	online    onlineUI      // state_online.go
 	saved     savedUI       // state_saved.go
 	signin    signinUI      // state_signin.go
+	everyapi  everyapiUI    // state_everyapi.go
 	phone     phoneUI       // state_phonesync.go
 	lock      lockUI        // state_lock.go
 	tray      trayUI        // state_tray.go
@@ -125,6 +126,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		addsheet:  addSheetUI{},
 		saved:     newSavedUI(),
 		signin:    signinUI{},
+		everyapi:  newEveryapiUI(),
 		phone:     newPhoneUI(),
 		lock:      newLockUI(),
 		tray:      newTrayUI(),

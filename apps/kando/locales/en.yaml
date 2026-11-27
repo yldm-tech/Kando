@@ -1062,6 +1062,104 @@ dropTitle:
 dropTitleSeveral:
   message: "Add These Videos"
   description: "Title of the sheet when several folders or files were dropped and they hold many videos."
+everyAPIAccount:
+  message: "EveryAPI account"
+  description: "Title of the AI Service row about Kando's own sign-in to EveryAPI, shown when the service is EveryAPI with no API Key."
+everyAPIAccountChecking:
+  message: "{name} · Checking the balance…"
+  description: "Under the EveryAPI account row's title once signed in, while Kando asks EveryAPI what the account has."
+  placeholders:
+    name: { type: "String", example: "Mika" }
+everyAPIAccountLine:
+  message: "{name} · Balance {balance}"
+  description: "Under the EveryAPI account row's title once signed in: the account's name and what it has left."
+  placeholders:
+    name: { type: "String", example: "Mika" }
+    balance: { type: "String", example: "$12.40" }
+everyAPIAccountLow:
+  message: "{name} · Balance {balance}, running low"
+  description: "Under the EveryAPI account row's title once signed in, when little is left: the account's name and its balance; Top Up is beside it."
+  placeholders:
+    name: { type: "String", example: "Mika" }
+    balance: { type: "String", example: "$0.40" }
+everyAPIBalanceFailed:
+  message: "{name} · Couldn't check the balance"
+  description: "Under the EveryAPI account row's title once signed in, when asking EveryAPI for the balance failed."
+  placeholders:
+    name: { type: "String", example: "Mika" }
+everyAPIBrowserFailed:
+  message: "The EveryAPI sign-in didn't finish. Go back to Kando and try again."
+  description: "The browser page EveryAPI's sign-in returns to when it was declined or failed."
+everyAPIBrowserSignedIn:
+  message: "Signed in to EveryAPI. You can close this page and go back to Kando."
+  description: "The browser page EveryAPI's sign-in returns to, once Kando has the sign-in."
+everyAPICancel:
+  message: "Cancel"
+  description: "Button on the EveryAPI account row that stops a sign-in under way."
+everyAPIDeviceCode:
+  message: "Open {url} and enter {code}"
+  description: "Under the EveryAPI account row's title while signing in with a code: the address to open on any device and the code to enter there."
+  placeholders:
+    url: { type: "String", example: "https://app.everyapi.ai/device" }
+    code: { type: "String", example: "ABCD-EFGH" }
+everyAPIEnded:
+  message: "The sign-in has ended. Sign in again."
+  description: "Under the EveryAPI account row's title when EveryAPI no longer takes Kando's sign-in, as after signing out on the website."
+everyAPIFailedDenied:
+  message: "The sign-in was declined on EveryAPI's page."
+  description: "Under the EveryAPI account row's title when the user declined the sign-in on EveryAPI's page."
+everyAPIFailedExpired:
+  message: "The code expired before it was entered. Sign in again."
+  description: "Under the EveryAPI account row's title when the sign-in code ran out before the user entered it."
+everyAPIFailedOther:
+  message: "The sign-in didn't finish: {error}"
+  description: "Under the EveryAPI account row's title when signing in failed for another reason, with what went wrong."
+  placeholders:
+    error: { type: "String", example: "connection refused" }
+everyAPIFailedPaid:
+  message: "EveryAPI gives Kando a key once the account has been topped up. Top up, then sign in again."
+  description: "Under the EveryAPI account row's title when EveryAPI refused a key because the account has never been topped up."
+everyAPIFailedSlots:
+  message: "The account holds as many API keys as it can. Delete one on EveryAPI's website, then sign in again."
+  description: "Under the EveryAPI account row's title when EveryAPI refused a key because the account has no room for another."
+everyAPIFailedUnavailable:
+  message: "EveryAPI sign-in isn't available right now. Enter an API Key for now."
+  description: "Under the EveryAPI account row's title when EveryAPI offers no sign-in for Kando right now (it does not know Kando's client, or has nothing set up for it)."
+everyAPINotSaved:
+  message: "Signed in, but the sign-in couldn't be saved. You may have to sign in again after Kando restarts."
+  description: "Under the EveryAPI account row's title when keeping a renewed sign-in on this computer failed."
+everyAPIOffline:
+  message: "Offline mode is on. Turn it off in Privacy to sign in."
+  description: "Under the EveryAPI account row's title when offline mode keeps Kando from reaching EveryAPI. Privacy is the settings page (settingsSectionPrivacy)."
+everyAPISignIn:
+  message: "Sign In"
+  description: "Button on the EveryAPI account row, and in the first-run guide, that signs in to EveryAPI in the browser."
+everyAPISignOut:
+  message: "Sign Out"
+  description: "Button on the EveryAPI account row that signs Kando out of EveryAPI and ends the sign-in at EveryAPI."
+everyAPISignedOutNote:
+  message: "Sign in to translate with your EveryAPI balance."
+  description: "Under the EveryAPI account row's title when Kando is not signed in to EveryAPI."
+everyAPITopUp:
+  message: "Top Up"
+  description: "Button that opens EveryAPI's top-up page in the browser: on the EveryAPI account row, and on the card of a job that failed because the EveryAPI account is out of credit."
+everyAPITopUpFailed:
+  message: "The browser didn't open. Top up at {url}."
+  description: "Library message bar, or under the EveryAPI account row's title, when Top Up could not open the browser: the address of EveryAPI's top-up page."
+  placeholders:
+    url: { type: "String", example: "https://app.everyapi.ai/wallet" }
+everyAPIUseCLI:
+  message: "Use the Command Line…"
+  description: "Secondary button on the EveryAPI account row when Kando is not signed in and the everyapi command-line program is not on this computer: opens everyapi.ai, where the program is downloaded, as signing in with it is the other way."
+everyAPIUseCode:
+  message: "Use a Code"
+  description: "Button on the EveryAPI account row while the browser sign-in waits: signs in with a code typed on EveryAPI's website instead, for when the browser page cannot come back to Kando."
+everyAPIUsingCLI:
+  message: "Not signed in here. Translating with the sign-in of the everyapi command line."
+  description: "Under the EveryAPI account row's title when Kando itself is not signed in but the everyapi command-line program is, whose sign-in translates meanwhile. everyapi is the program's name."
+everyAPIWaitingBrowser:
+  message: "Finish signing in in the browser…"
+  description: "Under the EveryAPI account row's title, and in the first-run guide, while the browser shows EveryAPI's sign-in page."
 filmNotesDueCount:
   message: "{count, number}"
   description: "The big number on the Notes tab's review card: how many saved lines and words are due for review."
@@ -1259,6 +1357,21 @@ libraryMakingSome:
     done: { type: "int", example: "300" }
     total: { type: "int", example: "312" }
     reason: { type: "String", example: "Choose a subtitle language first." }
+onboardingServicesAccount:
+  message: "Sign in"
+  description: "Heading in the first-run guide's service drop-down over EveryAPI, which is used by signing in to an account."
+onboardingServicesKey:
+  message: "Your own API Key"
+  description: "Heading in the first-run guide's service drop-down over the services in the cloud that take the user's own API Key, and a custom endpoint."
+onboardingServicesLocal:
+  message: "On this computer"
+  description: "Heading in the first-run guide's service drop-down over the services that run on this computer, as Ollama."
+precheckEveryAPILoginMissing:
+  message: "Kando's EveryAPI sign-in wasn't found on this computer. Sign in again in “AI Service”"
+  description: "Message bar, the sidebar's status line and a failed job's card when settings.json says Kando is signed in to EveryAPI but the sign-in is not in the system's secure store."
+precheckEveryAPISignIn:
+  message: "Sign in to EveryAPI in “AI Service”, or enter an API Key"
+  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and no sign-in, or when the sign-in has ended."
 settingsAIBatchSize:
   message: "Lines per Request"
   description: "Row title and accessible name of the field setting how many subtitle lines one translation request carries."
@@ -5443,8 +5556,8 @@ settingsAIGetKey:
   message: "Get API Key"
   description: "Button after the API Key field, on the AI Service page and in the first-run guide, that opens the service's page where an API key is made, in the browser."
 settingsAIKeyEveryAPILogin:
-  message: "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."
-  description: "The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
+  message: "Without an API Key, Kando translates with the EveryAPI account you sign in to. EveryAPI is run by YLDM, which also makes Kando."
+  description: "The AI Service page's footnote when the service is EveryAPI and no API Key is filled in: the account signed in to is used, and who runs EveryAPI (YLDM is the company's name and stays as it is)."
 settingsAIKeyOptional:
   message: "Optional"
   description: "Placeholder of the empty API Key field when the service works without one: EveryAPI, which uses the everyapi sign-in, and services on this computer such as Ollama."

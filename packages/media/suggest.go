@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -90,9 +89,9 @@ func (t ChatTranslator) SuggestTerms(ctx context.Context, original, translated [
 		batch := at[start:min(start+suggestBatch, len(at))]
 		terms, err := t.suggestBatch(ctx, endpoint, system, original, translated, batch)
 		var status *statusError
-		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+		if t.Credential != nil && !renewed && errors.As(err, &status) && status.renewable() {
 			renewed = true
-			if endpoint, err = t.Credential(ctx, true); err != nil {
+			if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 				return nil, err
 			}
 			terms, err = t.suggestBatch(ctx, endpoint, system, original, translated, batch)

@@ -648,14 +648,14 @@ func TestPaletteTreatsASignedOutCLIAsNoService(t *testing.T) {
 	}
 }
 
-// TestPaletteSaysTheEveryAPICLIIsMissing checks that EveryAPI without a key on a computer without the everyapi program gets the words the sidebar uses for it, not the prompt to choose a model.
-func TestPaletteSaysTheEveryAPICLIIsMissing(t *testing.T) {
+// TestPaletteSaysEveryAPIIsNotSignedIn checks that EveryAPI without a key or a sign-in, Kando's own or the everyapi program's, gets the words the sidebar uses for it, not the prompt to choose a model.
+func TestPaletteSaysEveryAPIIsNotSignedIn(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
 	tt.Key("enter")
-	if !hasText(tt, everyAPIMissing(a.cx)) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
+	if !hasText(tt, everyAPISignIn(a.cx)) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }

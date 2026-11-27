@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,9 +96,9 @@ func (t ChatTranslator) Review(ctx context.Context, original, translated []core.
 		reportProgress(ctx, progress)
 		changes, err := t.reviewBatch(ctx, endpoint, system, original, translated, batch, progress)
 		var status *statusError
-		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+		if t.Credential != nil && !renewed && errors.As(err, &status) && status.renewable() {
 			renewed = true
-			if endpoint, err = t.Credential(ctx, true); err != nil {
+			if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 				return nil, err
 			}
 			changes, err = t.reviewBatch(ctx, endpoint, system, original, translated, batch, progress)

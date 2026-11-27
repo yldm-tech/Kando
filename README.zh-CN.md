@@ -114,7 +114,7 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 2. 入门引导会自动下载缺少的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`。打开设置（⌘,），“通用”里会显示它们和各自的版本。
 3. 在“语音识别”中，点击某个 whisper 模型旁的“下载”；下载完成后看懂会自动选用它。标为“推荐”的是 Large v3 Turbo（压缩版），大小 574 MB。Vimpo 或 hyperframes 已经下载过的模型可以直接选用，无需复制。
 4. 在“AI 服务”中设置翻译：
-   - EveryAPI（默认）：运行一次 `everyapi auth login`，用 [EveryAPI](https://everyapi.ai) CLI 登录。看懂会向 CLI 获取密钥（`everyapi auth credential`），因此登录状态、网关区域和密钥刷新都与 CLI 保持一致，无需手动粘贴密钥。默认模型是 `claude-haiku-5-5`，其他模型可以用 `everyapi models list` 查看。也可以直接把 EveryAPI 密钥粘贴到“API Key”中。
+   - EveryAPI（默认）：在“设置 › AI 服务”的“EveryAPI 账号”一行或入门引导中点“登录”，登录 [EveryAPI](https://everyapi.ai)。看懂会在浏览器中打开 EveryAPI 的登录页面；浏览器无法回到看懂时，改为在 EveryAPI 网站上输入代码。登录后，这一行显示账号名和余额，并提供“充值”（打开 EveryAPI 的充值页面）和“退出”。看懂把密钥和刷新令牌保存在系统的安全存储中（macOS 的钥匙串、Windows 的凭据管理器、Linux 的 Secret Service），并用这台电脑的主机名向 EveryAPI 标明它，所以 EveryAPI 为每台电脑保留一个密钥。用 EveryAPI CLI 登录（`everyapi auth login`）仍然可用：看懂自己没有登录时，会向 CLI 获取密钥（`everyapi auth credential`），登录状态、网关区域和密钥刷新都与 CLI 保持一致。也可以直接把 EveryAPI 密钥粘贴到“API Key”中。默认模型是 `claude-haiku-5-5`，其他模型可以用 `everyapi models list` 查看。EveryAPI 由开发看懂的 YLDM 运营：看懂为翻译、讲解和查词发送的内容会发给 EveryAPI，再由它转交给它所路由到的 AI 模型服务商，例如 Anthropic、OpenAI 和 Google。改用下面的其他服务商或本地模型时，不会有任何内容发给 EveryAPI。
    - 其他服务商：在“服务”中选择它，或者选择“OpenAI 兼容”并填写它的 Base URL，然后填写“模型”和“API Key”（Ollama、LM Studio 等本地服务不需要密钥）。“测试连接”会发送一个简短的请求来检查设置。字段旁的“获取 API Key”会打开该服务创建密钥的页面。看懂会记住你用过的每个服务的模型和密钥，再次选择它时会恢复；密钥只会发给当初填写它时的那个主机。入门引导的第二步也可以选择服务、填写 API Key 并测试连接。
 5. 在“翻译”中选择默认目标语言：简体中文（默认）、繁体中文、English、日本語、한국어、Español、Français 或 Deutsch。
 6. 回到主窗口，把链接粘贴到顶栏的输入框并点击“开始处理”，或者点击“本地文件”，也可以把视频或音频拖到窗口上。任务所需的一切都就绪时，侧栏底部的状态行会显示“已就绪，可以开始处理”，否则会指出缺少什么。
@@ -231,8 +231,8 @@ Chrome 应用商店和 addons.mozilla.org 的上架版本稍后提供。每个�
 | `KANDO_WHISPER_MODEL` | 在“设置 › 语音识别”中选择的模型 | whisper.cpp ggml 模型文件的路径，例如 `ggml-small.bin`。 |
 | `KANDO_LLM_BASE_URL` | EveryAPI，`https://api.everyapi.ai/v1` | OpenAI 兼容服务商的 Base URL，例如 `https://api.openai.com/v1`，Ollama 则是 `http://localhost:11434/v1`。设置后不再使用已登录的 EveryAPI 账号。 |
 | `KANDO_LLM_MODEL` | EveryAPI 上为 `claude-haiku-5-5` | 翻译模型。使用自定义服务商时没有默认值：需要在这里或“设置 › AI 服务”中设置。 |
-| `KANDO_LLM_API_KEY` | 无 | 翻译服务商的 API 密钥（以 Bearer 方式发送）。它优先于已登录的 EveryAPI 账号。 |
-| `EVERYAPI_API_KEY` | 无 | EveryAPI 密钥，在 `KANDO_LLM_BASE_URL` 未设置且 `KANDO_LLM_API_KEY` 为空时使用，代替 CLI 登录。 |
+| `KANDO_LLM_API_KEY` | 无 | 翻译服务商的 API 密钥（以 Bearer 方式发送）。它优先于 `EVERYAPI_API_KEY`、设置中的“API Key”和任何 EveryAPI 登录。 |
+| `EVERYAPI_API_KEY` | 无 | EveryAPI 密钥，在 `KANDO_LLM_BASE_URL` 未设置且 `KANDO_LLM_API_KEY` 为空时使用，优先于设置中的“API Key”和登录。 |
 | `KANDO_OUTPUT_DIR` | 上次打开的资料库 | 启动时打开的资料库文件夹，新的视频和字幕都存放在这里。 |
 | `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 应用监听、`kando` 命令行和 `kando mcp` 连接的套接字路径。应用和命令需要设置成同一个路径。同一个用户只运行一个看懂，再次启动只会把已运行的那个带到前台。在 macOS 上，设置了 `KANDO_SOCKET` 启动的是有意运行的第二个看懂（例如开发时），它还需要单独的 `HOME`，才能使用自己的资料库和设置；在 Windows 和 Linux 上，这样启动的看懂暂时也会交给已运行的那个（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)），请先退出自己的看懂。参见[命令行与 MCP](#command-line-and-mcp)。 |
 | `KANDO_GOOGLE_CLIENT_ID` | 无 | 用于在“设置 › 账号与上传”中登录的 Google OAuth 客户端 ID。不设置时不显示账号卡片。它永远不会保存到设置文件中。 |

@@ -158,6 +158,7 @@ type savedSettings struct {
 	savedInterface    // state_settings.go
 	savedSpeech       // settings_speech.go
 	savedLLM          // settings_ai.go
+	savedEveryAPI     // state_everyapi.go
 	savedTranslate    // state_settings.go
 	savedShortcuts    // keys_preset.go
 	savedCloud        // state_cloud.go
@@ -190,6 +191,7 @@ func (s *savedSettings) clean() {
 	s.savedInterface.clean()
 	s.savedSpeech.clean()
 	s.savedLLM.clean()
+	s.savedEveryAPI.clean()
 	s.savedTranslate.clean()
 	s.savedShortcuts.clean()
 	s.savedCloud.clean()

@@ -333,16 +333,30 @@ func everyAPIApp(t *testing.T) (a *app, tt *nsgotest.App, updates chan func(), b
 	return a, tt, updates, bin
 }
 
-// TestEveryAPICLIInstalledLaterIsFoundByDetectAgain checks that without the everyapi program the sidebar and Settings › AI 服务 say it is missing rather than signed out, with 获取 EveryAPI, and that once it is installed 重新检测 on that page finds it and signs in through it without Kando starting again.
+// TestEveryAPICLIInstalledLaterIsFoundByDetectAgain checks that without a sign-in, Kando's own or the everyapi program's, the sidebar says to sign in, in words that name no program, and Settings › AI 服务 offers 登录 with the program as the other way rather than as something missing; and that once the program is installed 重新检测 on that page finds it and signs in through it without Kando starting again.
 func TestEveryAPICLIInstalledLaterIsFoundByDetectAgain(t *testing.T) {
 	a, tt, updates, bin := everyAPIApp(t)
-	if !hasText(tt, everyAPIMissing(a.cx)) {
-		t.Fatalf("sidebar: missing %q in %q", everyAPIMissing(a.cx), tt.Texts())
+	if !hasText(tt, everyAPISignIn(a.cx)) {
+		t.Fatalf("sidebar: missing %q in %q", everyAPISignIn(a.cx), tt.Texts())
 	}
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{testlocale.Messages().SettingsAIEveryAPICLI(), testlocale.Messages().SettingsAIEveryAPIMissing(), testlocale.Messages().SettingsAIGetEveryAPI(), testlocale.Messages().SettingsAIRedetect()} {
+	for _, text := range []string{testlocale.Messages().EveryAPIAccount(), testlocale.Messages().EveryAPISignIn(), testlocale.Messages().EveryAPIUseCLI()} {
 		if !hasText(page, text) {
 			t.Fatalf("AI page: missing %q in %q", text, page.Texts())
+		}
+	}
+	if hasText(page, testlocale.Messages().SettingsAIEveryAPIMissing()) {
+		t.Fatalf("AI page says the program is missing: %q", page.Texts())
+	}
+	// Choosing the program, which opens its website, shows its row with 重新检测.
+	saved := everyAPIOpenURL
+	everyAPIOpenURL = func(string) error { return nil }
+	t.Cleanup(func() { everyAPIOpenURL = saved })
+	page.Press("id:settings-everyapi-get")
+	waitUpdate(t, tt, a, updates)
+	for _, text := range []string{testlocale.Messages().SettingsAIEveryAPICLI(), testlocale.Messages().SettingsAIEveryAPIMissing(), testlocale.Messages().SettingsAIGetEveryAPI(), testlocale.Messages().SettingsAIRedetect()} {
+		if !hasText(page, text) {
+			t.Fatalf("AI page after choosing the program: missing %q in %q", text, page.Texts())
 		}
 	}
 

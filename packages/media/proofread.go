@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/http"
 	"slices"
 	"strings"
 	"unicode"
@@ -62,9 +61,9 @@ func (t ChatTranslator) Proofread(ctx context.Context, segments []core.Segment, 
 		}
 		fixes, err := t.proofreadTexts(ctx, endpoint, system, texts, progress)
 		var status *statusError
-		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+		if t.Credential != nil && !renewed && errors.As(err, &status) && status.renewable() {
 			renewed = true
-			if endpoint, err = t.Credential(ctx, true); err != nil {
+			if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 				return nil, err
 			}
 			fixes, err = t.proofreadTexts(ctx, endpoint, system, texts, progress)

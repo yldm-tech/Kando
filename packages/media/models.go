@@ -30,8 +30,8 @@ func (t ChatTranslator) Models(ctx context.Context) ([]string, error) {
 	}
 	models, err := listModels(ctx, client, endpoint)
 	var status *statusError
-	if t.Credential != nil && errors.As(err, &status) && status.code == http.StatusUnauthorized {
-		if endpoint, err = t.Credential(ctx, true); err != nil {
+	if t.Credential != nil && errors.As(err, &status) && status.renewable() {
+		if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 			return nil, err
 		}
 		models, err = listModels(ctx, client, endpoint)

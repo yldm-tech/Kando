@@ -66,9 +66,13 @@ func aiService(cx *core.Scope, a App) core.Node {
 	getKey := core.Show{When: keyPage, Then: func(cx *core.Scope) core.Node {
 		return form.Button{Text: locales.SettingsAIGetKey(cx), TestID: "settings-llm-get-key", OnPress: live.Do(a, a.OpenKeyPage)}
 	}}
+	account := core.Show{When: live.Func(a, func() bool { return a.EveryAPIAccount().Shown }), Then: func(cx *core.Scope) core.Node {
+		return core.Group([]core.Node{form.Separator(true), everyAPIAccountRow(cx, a)})
+	}}
+	// The everyapi program's row shows while Kando is not signed in itself and the program has something to say: once it is on this computer, or once the user chose it (EveryAPI.Wanted); until then the account row offers it as the other way to sign in.
 	everyAPI := core.Show{When: live.Func(a, func() bool {
 		cli := a.EveryAPI()
-		return cli.Missing || cli.Checking || cli.SignedOut || cli.Failed != ""
+		return !a.EveryAPIAccount().SignedIn && (cli.Checking || cli.SignedOut || cli.Failed != "" || cli.Missing && cli.Wanted)
 	}), Then: func(cx *core.Scope) core.Node {
 		return core.Group([]core.Node{form.Separator(true), everyAPIRow(cx, a)})
 	}}
@@ -88,6 +92,7 @@ func aiService(cx *core.Scope, a App) core.Node {
 		form.Row{Title: "Base URL", NoGroup: true, Trailing: []core.Node{base}},
 		form.Separator(true),
 		form.Row{Title: "API Key", NoGroup: true, Trailing: []core.Node{keyField, getKey}},
+		account,
 		everyAPI,
 		form.Separator(true),
 		form.Row{Title: locales.SettingsAIModel(cx), NoGroup: true, SubtitleFunc: modelsFailure(a), Trailing: []core.Node{modelSelect(cx, a)}},
@@ -113,7 +118,7 @@ func aiNote(cx *core.Scope, a App) func() string {
 	})
 }
 
-// keyPlaceholder is what the empty API Key field says: that it may stay empty for EveryAPI, which signs in with the everyapi command-line program, and for a service on this computer.
+// keyPlaceholder is what the empty API Key field says: that it may stay empty for EveryAPI, which signs in with an account instead, and for a service on this computer.
 func keyPlaceholder(cx *core.Scope, a App) func() string {
 	return live.Func(a, func() string {
 		if preset, _ := a.CurrentPreset(); preset.ID == "everyapi" || preset.Group == GroupLocal {
@@ -121,6 +126,87 @@ func keyPlaceholder(cx *core.Scope, a App) func() string {
 		}
 		return ""
 	})
+}
+
+// everyAPIAccountRow is Kando's own EveryAPI sign-in: signed out, 登录, with the everyapi command-line program offered as the other way when it is not on this computer; while signing in, what to do in the browser or where to enter the code, with 改用验证码 and 取消; signed in, the account's name and balance, with 充值 and 退出. The line under the title says why a sign-in failed, or that the sign-in ended.
+func everyAPIAccountRow(cx *core.Scope, a App) core.Node {
+	acc := live.Func(a, a.EveryAPIAccount)
+	note := func() string {
+		x := acc()
+		switch {
+		case x.Loading:
+			return locales.ReadinessCheckingSignIn(cx)
+		case x.SigningIn && x.Code != "":
+			return locales.EveryAPIDeviceCode(cx, x.CodeURL, x.Code)
+		case x.SigningIn:
+			return locales.EveryAPIWaitingBrowser(cx)
+		case x.SignedIn && x.NotSaved:
+			return locales.EveryAPINotSaved(cx)
+		case x.SignedIn && x.Balance != "" && x.Low:
+			return locales.EveryAPIAccountLow(cx, x.Name, x.Balance)
+		case x.SignedIn && x.Balance != "":
+			return locales.EveryAPIAccountLine(cx, x.Name, x.Balance)
+		case x.SignedIn && x.BalanceFailed:
+			return locales.EveryAPIBalanceFailed(cx, x.Name)
+		case x.SignedIn:
+			return locales.EveryAPIAccountChecking(cx, x.Name)
+		case x.Offline:
+			return locales.EveryAPIOffline(cx)
+		}
+		if why := everyAPIProblem(cx, x); why != "" {
+			return why
+		}
+		if x.UsingCLI {
+			return locales.EveryAPIUsingCLI(cx)
+		}
+		return locales.EveryAPISignedOutNote(cx)
+	}
+	signedOut := func() bool { x := acc(); return !x.SignedIn && !x.SigningIn }
+	useCLI := core.Show{When: live.Func(a, func() bool { return signedOut() && !acc().CLI && !a.EveryAPI().Wanted }), Then: func(cx *core.Scope) core.Node {
+		return ui.Button{Text: locales.EveryAPIUseCLI(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "settings-everyapi-get", OnPress: live.Do(a, a.GetEveryAPI)}
+	}}
+	signIn := core.Show{When: signedOut, Then: func(cx *core.Scope) core.Node {
+		return ui.Button{Text: locales.EveryAPISignIn(cx), Size: ui.SizeSmall, TestID: "settings-everyapi-signin",
+			Disabled: func() bool { x := acc(); return x.Offline || x.Loading },
+			OnPress:  live.Do(a, a.EveryAPISignIn)}
+	}}
+	useCode := core.Show{When: func() bool { x := acc(); return x.SigningIn && x.Code == "" }, Then: func(cx *core.Scope) core.Node {
+		return form.Button{Text: locales.EveryAPIUseCode(cx), TestID: "settings-everyapi-code", OnPress: live.Do(a, a.EveryAPIUseCode)}
+	}}
+	cancel := core.Show{When: func() bool { return acc().SigningIn }, Then: func(cx *core.Scope) core.Node {
+		return form.Button{Text: locales.EveryAPICancel(cx), TestID: "settings-everyapi-cancel", OnPress: live.Do(a, a.EveryAPICancelSignIn)}
+	}}
+	signedIn := func() bool { return acc().SignedIn }
+	topUp := core.Show{When: signedIn, Then: func(cx *core.Scope) core.Node {
+		return form.Button{Text: locales.EveryAPITopUp(cx), TestID: "settings-everyapi-topup", OnPress: live.Do(a, a.EveryAPITopUp)}
+	}}
+	signOut := core.Show{When: signedIn, Then: func(cx *core.Scope) core.Node {
+		return form.Button{Text: locales.EveryAPISignOut(cx), TestID: "settings-everyapi-signout", OnPress: live.Do(a, a.EveryAPISignOut)}
+	}}
+	return form.Row{Title: locales.EveryAPIAccount(cx), SubtitleFunc: note, TestID: "settings-everyapi-account", Trailing: []core.Node{useCLI, signIn, useCode, cancel, topUp, signOut}}
+}
+
+// everyAPIProblem says why the last sign-in failed or the sign-in ended, "" when nothing went wrong.
+func everyAPIProblem(cx *core.Scope, x EveryAPIAccount) string {
+	switch x.Problem {
+	case EveryAPILoginMissing:
+		return locales.PrecheckEveryAPILoginMissing(cx)
+	case EveryAPINeedsTopUp:
+		return locales.EveryAPIFailedPaid(cx)
+	case EveryAPISlotsFull:
+		return locales.EveryAPIFailedSlots(cx)
+	case EveryAPIDenied:
+		return locales.EveryAPIFailedDenied(cx)
+	case EveryAPIExpired:
+		return locales.EveryAPIFailedExpired(cx)
+	case EveryAPIUnavailable:
+		return locales.EveryAPIFailedUnavailable(cx)
+	case EveryAPIEnded:
+		return locales.EveryAPIEnded(cx)
+	case EveryAPIFailed:
+		return locales.EveryAPIFailedOther(cx, x.Detail)
+	}
+	return ""
 }
 
 // everyAPIRow says what the everyapi command-line program, whose sign-in EveryAPI uses without an API Key, still needs: to be installed, with 获取 EveryAPI to open the website it is downloaded from, or to be signed in to in Terminal, or what it said when asking it failed otherwise; 重新检测 looks for it and asks it again afterwards. While Kando asks it whether someone is signed in, the row says so and 重新检测 waits.

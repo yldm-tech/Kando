@@ -3,6 +3,8 @@ package media
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -121,8 +124,8 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 
 func TestToolsCheckTranslateRequiresEveryAPIKey(t *testing.T) {
 	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
-	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPIMissing) {
-		t.Fatalf("err = %v, want %v", err, ErrEveryAPIMissing)
+	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPILoginSignedOut) || strings.Contains(err.Error(), "everyapi auth") {
+		t.Fatalf("err = %v, want %v", err, ErrEveryAPILoginSignedOut)
 	}
 	tools.Translator = ChatTranslator{BaseURL: "http://localhost:11434/v1", Model: "qwen3"}
 	if err := tools.CheckTranslate(); errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
@@ -141,7 +144,7 @@ func noPackageManagerDirs(t *testing.T) {
 // signedInEveryAPI is an everyapi someone signed in to: `everyapi auth credential` prints the relay key.
 var signedInEveryAPI = fakeTool{Want: []string{"auth", "credential"}, Stdout: `{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}` + "\n"}
 
-// TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program CheckTranslate says it is missing rather than signed out, and that once it is installed Relook signs the translator in through it without Kando starting again.
+// TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program, and without Kando's own sign-in, CheckTranslate says EveryAPI is not signed in, in words that name no program, and that once it is installed Relook signs the translator in through it without Kando starting again.
 func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
 	noPackageManagerDirs(t)
 	dir := t.TempDir()
@@ -151,8 +154,8 @@ func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
 	if tools.EveryAPI != "" || tools.Translator.Credential != nil {
 		t.Fatalf("found an everyapi in an empty PATH: %q", tools.EveryAPI)
 	}
-	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
-		t.Fatalf("CheckTranslate = %v, want %v", err, ErrEveryAPIMissing)
+	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPILoginSignedOut) || errors.Is(err, ErrEveryAPISignedOut) || strings.Contains(err.Error(), "command-line") {
+		t.Fatalf("CheckTranslate = %v, want %v", err, ErrEveryAPILoginSignedOut)
 	}
 
 	cli := writeFakeTool(t, dir, "everyapi", signedInEveryAPI)
@@ -187,6 +190,143 @@ func TestUseEveryAPICLIOnlyWithoutAKey(t *testing.T) {
 	tools.Translator = ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt"}
 	if tools.UseEveryAPICLI().Translator.Credential != nil {
 		t.Fatal("another service signs in through everyapi")
+	}
+}
+
+// TestEveryAPICredentialPrecedence checks the order a key or sign-in is used in for EveryAPI: a key first (KANDO_LLM_API_KEY, EVERYAPI_API_KEY and the saved key all reach the translator as its APIKey), then Kando's own sign-in, then the everyapi program's; that finding the program again keeps Kando's sign-in; and that signing out of Kando falls back to the program's.
+func TestEveryAPICredentialPrecedence(t *testing.T) {
+	var asked []*Endpoint
+	login := EveryAPILogin(func(_ context.Context, rejected *Endpoint) (Endpoint, error) {
+		asked = append(asked, rejected)
+		return Endpoint{BaseURL: EveryAPIBaseURL, APIKey: "sk-login"}, nil
+	})
+	tools := Tools{EveryAPI: "/bin/everyapi", Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}.UseEveryAPICLI()
+	if tools.Translator.CredentialSource != CredentialCLI {
+		t.Fatalf("source = %v, want the program's", tools.Translator.CredentialSource)
+	}
+	tools = tools.UseEveryAPILogin(login)
+	if tools.Translator.CredentialSource != CredentialLogin || tools.Translator.Renew == nil {
+		t.Fatalf("source = %v, want Kando's own", tools.Translator.CredentialSource)
+	}
+	if got, err := tools.Translator.Credential(context.Background(), false); err != nil || got.APIKey != "sk-login" || len(asked) != 1 || asked[0] != nil {
+		t.Fatalf("credential = %#v, %v, asked %v", got, err, asked)
+	}
+	// Finding the programs again, or changing the endpoint back, keeps Kando's sign-in.
+	if again := tools.UseEveryAPICLI(); again.Translator.CredentialSource != CredentialLogin {
+		t.Fatalf("UseEveryAPICLI dropped Kando's sign-in: %v", again.Translator.CredentialSource)
+	}
+	// A key comes first.
+	keyed := tools
+	keyed.Translator.APIKey = "sk-key"
+	if keyed = keyed.UseEveryAPICLI(); keyed.Translator.Credential != nil || keyed.Translator.CredentialSource != CredentialNone {
+		t.Fatalf("a key still signs in: %v", keyed.Translator.CredentialSource)
+	}
+	// Another service takes no sign-in, and choosing EveryAPI again brings Kando's back.
+	other := tools
+	other.Translator.BaseURL = "https://api.openai.com/v1"
+	if other = other.UseEveryAPICLI(); other.Translator.Credential != nil {
+		t.Fatal("another service signs in through EveryAPI")
+	}
+	other.Translator.BaseURL = EveryAPIBaseURL
+	if other = other.UseEveryAPICLI(); other.Translator.CredentialSource != CredentialLogin {
+		t.Fatal("EveryAPI chosen again lost Kando's sign-in")
+	}
+	// Signing out of Kando falls back to the program's sign-in, and without the program to none.
+	if out := tools.UseEveryAPILogin(nil); out.Translator.CredentialSource != CredentialCLI || out.EveryAPILogin != nil {
+		t.Fatalf("signed out: source %v", out.Translator.CredentialSource)
+	}
+	tools.EveryAPI = ""
+	if out := tools.UseEveryAPILogin(nil); !out.Translator.EveryAPIUnsigned() || !errors.Is(out.CheckTranslate(), ErrEveryAPILoginSignedOut) {
+		t.Fatalf("signed out without the program: source %v", out.Translator.CredentialSource)
+	}
+}
+
+// TestEveryAPILoginRenewsTheRejectedKey checks that a request the API refused asks Kando's sign-in for a key in place of the one it sent, naming it, and is sent again with the new one.
+func TestEveryAPILoginRenewsTheRejectedKey(t *testing.T) {
+	var rejected []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer sk-new" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"ok"}}]}`)
+	}))
+	defer server.Close()
+	login := EveryAPILogin(func(_ context.Context, old *Endpoint) (Endpoint, error) {
+		if old == nil {
+			return Endpoint{BaseURL: server.URL, APIKey: "sk-old"}, nil
+		}
+		rejected = append(rejected, old.APIKey)
+		return Endpoint{BaseURL: server.URL, APIKey: "sk-new"}, nil
+	})
+	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: "m", Client: server.Client()}}.UseEveryAPILogin(login)
+	reply, err := tools.Translator.Chat(context.Background(), "system", "hi")
+	if err != nil || reply != "ok" {
+		t.Fatalf("Chat = %q, %v", reply, err)
+	}
+	if len(rejected) != 1 || rejected[0] != "sk-old" {
+		t.Fatalf("renewed for %v, want the key sent", rejected)
+	}
+}
+
+// everyAPIRefusal is EveryAPI's 403 for a request refused over money, with its quota_reason.
+func everyAPIRefusal(reason string) string {
+	return `{"error":{"message":"quota refused","type":"everyapi_error","code":"insufficient_user_quota","quota_reason":"` + reason + `"}}`
+}
+
+// TestEveryAPIQuotaReasons checks how EveryAPI's 403 over money reads: an empty wallet and a spent plan are the account out of credit, which no retry mends, while a key at its own cap is not, as a new key resets it; and the other services' answers read as before.
+func TestEveryAPIQuotaReasons(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want TranslateFail
+	}{
+		{everyAPIRefusal(QuotaBalance), TranslateQuota},
+		{everyAPIRefusal(QuotaPlan), TranslateQuota},
+		{`{"error":{"code":"pre_consume_token_quota_failed","message":"pre-consume failed"}}`, TranslateQuota},
+		{everyAPIRefusal(QuotaKeyCap), TranslateAuth},
+		{`{"error":{"code":"insufficient_quota","message":"You exceeded your current quota"}}`, TranslateQuota},
+		{`{"error":{"message":"forbidden"}}`, TranslateAuth},
+	} {
+		msg := (&statusError{code: http.StatusForbidden, status: "403 Forbidden", detail: tc.body}).Error()
+		if got := ClassifyTranslate(msg); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.body, got, tc.want)
+		}
+	}
+	if EveryAPIQuotaReason(everyAPIRefusal(QuotaPlan)) != QuotaPlan || EveryAPIQuotaReason(`{"error":{}}`) != "" {
+		t.Fatal("quota_reason misread")
+	}
+}
+
+// TestEveryAPILoginRenewsAKeyAtItsCap checks that a request EveryAPI refused because the key's own cap is reached renews the key once, naming the one it sent, and goes through with the new one, while an empty wallet is not renewed for.
+func TestEveryAPILoginRenewsAKeyAtItsCap(t *testing.T) {
+	var reason atomic.Value
+	reason.Store(QuotaKeyCap)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Bearer sk-new" && reason.Load() == QuotaKeyCap {
+			_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"ok"}}]}`)
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, everyAPIRefusal(reason.Load().(string)))
+	}))
+	defer server.Close()
+	var rejected []string
+	login := EveryAPILogin(func(_ context.Context, old *Endpoint) (Endpoint, error) {
+		if old == nil {
+			return Endpoint{BaseURL: server.URL, APIKey: "sk-old"}, nil
+		}
+		rejected = append(rejected, old.APIKey)
+		return Endpoint{BaseURL: server.URL, APIKey: "sk-new"}, nil
+	})
+	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: "m", Client: server.Client(), Attempts: 1}}.UseEveryAPILogin(login)
+	if reply, err := tools.Translator.Chat(context.Background(), "system", "hi"); err != nil || reply != "ok" || len(rejected) != 1 || rejected[0] != "sk-old" {
+		t.Fatalf("key at its cap: %q, %v, renewed for %v", reply, err, rejected)
+	}
+	rejected = nil
+	reason.Store(QuotaBalance)
+	_, err := tools.Translator.Chat(context.Background(), "system", "hi")
+	if ClassifyTranslate(fmt.Sprint(err)) != TranslateQuota || len(rejected) != 0 {
+		t.Fatalf("empty wallet: %v, renewed for %v", err, rejected)
 	}
 }
 

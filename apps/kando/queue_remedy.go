@@ -106,13 +106,16 @@ func (a *app) queueFindBrowsers() {
 	}()
 }
 
-// FailureRemedy is what the card of a job whose download failed says and offers, by why it failed, and of a job of any stage that failed because the copy of a program it ran does not start (toolRemedy). A failure of another stage, or one yt-dlp did not say enough about, has none, and the card says FailureHint's reason instead.
+// FailureRemedy is what the card of a job whose download failed says and offers, by why it failed, of a job of any stage that failed because the copy of a program it ran does not start (toolRemedy), and of a job EveryAPI refused because the account is out of credit, which offers to top it up (everyapiTopUpRemedy). A failure of another stage, or one yt-dlp did not say enough about, has none, and the card says FailureHint's reason instead.
 func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	job, ok := a.library.Find(item.JobID)
 	if !ok {
 		return films.Remedy{}, false
 	}
 	if r, broken := a.toolRemedy(job); broken {
+		return r, true
+	}
+	if r, ok := a.everyapiTopUpRemedy(job); ok {
 		return r, true
 	}
 	if job.Stage != core.StageFailed || job.FailKind == "" {
@@ -393,6 +396,8 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.OpenSettings(settings.SectionGeneral)
 	case strings.HasPrefix(action, remedyOwnTool):
 		a.queueOwnToolAndRetry(strings.TrimPrefix(action, remedyOwnTool))
+	case action == remedyTopUp:
+		a.everyapiTopUp()
 	}
 }
 
