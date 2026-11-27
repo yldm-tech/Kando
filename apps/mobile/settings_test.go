@@ -40,6 +40,40 @@ func TestTheInterfaceLanguageIsTheOneChosenInSettings(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.Language == "" })
 }
 
+// Automatic is the system's language at launch, after a language picked in Settings › Language, and at the next launch alike: picking one keeps nothing of it once Automatic is picked again. On iOS what NSGo writes into the app's defaults for the system is kept in check by package syslang, which its own tests cover.
+func TestAutomaticIsTheSystemsLanguageAfterPickingAnother(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	system := nsgotest.Environment(core.Environment{Locale: "zh-Hans-JP", OS: core.OSIOS})
+	zh, en := locales.In("zh-Hans"), locales.In("en")
+	p := startPhone(t, dir, system)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, zh.SettingsTitle())
+	p.app.WaitFor("id:settings-language", wait)
+	if got, want := p.texts("id:settings-language"), zh.SettingsLanguage()+"\n"+zh.SettingsLanguageSystem(); got != want {
+		t.Fatalf("at launch the Language row reads %q, want %q", got, want)
+	}
+	p.app.Press("id:settings-language")
+	p.app.WaitFor("id:settings-language-page", wait)
+	p.app.Press("id:settings-language-en")
+	p.app.WaitFor("text:"+en.SettingsLanguageSystem(), wait)
+	p.app.Press("id:settings-language-system")
+	p.app.WaitFor("text:"+zh.SettingsLanguageSystem(), wait)
+	p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.Language == "" })
+	p.app.Back()
+	p.app.WaitFor("id:settings-page", wait)
+	if got, want := p.texts("id:settings-language"), zh.SettingsLanguage()+"\n"+zh.SettingsLanguageSystem(); got != want {
+		t.Fatalf("back on Automatic the Language row reads %q, want %q", got, want)
+	}
+
+	p = startPhone(t, dir, system)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, zh.SettingsTitle())
+	if got, want := p.texts("id:settings-language"), zh.SettingsLanguage()+"\n"+zh.SettingsLanguageSystem(); got != want {
+		t.Fatalf("at the next launch the Language row reads %q, want %q", got, want)
+	}
+}
+
 // What another tab shows follows a change of the interface language where it stands, built once: the tab bar's name and its tabs', and Learn's review modes and a saved line's remove action, which the screen reader reads from bindings.
 func TestOtherTabsFollowTheInterfaceLanguage(t *testing.T) {
 	d := studyDesktop(t)

@@ -20,6 +20,7 @@ import (
 	"kando/apps/mobile/shell"
 	"kando/apps/mobile/sources"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/syslang"
 	"kando/apps/mobile/theme"
 	"kando/apps/mobile/widgets"
 	"kando/packages/sync"
@@ -98,8 +99,13 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			cx.SetAppearance(core.AppearanceSystem)
 		}
 	})
-	// The interface's language is the one the user chose in Settings, or the system's ("" follows it again).
-	cx.Effect(func() { cx.SetLocale(s.Prefs().Language) })
+	// The interface's language is the one the user chose in Settings, or the system's ("" follows it again). On iOS the language the user chose for the app in iOS Settings is kept aside meanwhile (package syslang).
+	language := core.NewMemo(cx, func() string { return s.Prefs().Language })
+	cx.Effect(func() {
+		lang := language.Get()
+		syslang.Keep(lang)
+		cx.SetLocale(lang)
+	})
 	if widget.Available() {
 		widgets.Keep(cx, s, widget.Update)
 	}

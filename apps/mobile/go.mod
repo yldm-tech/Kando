@@ -5,6 +5,7 @@ go 1.27.4
 tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
+	github.com/ebitengine/purego v0.11.3
 	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/nsgo-dev/nsgo v0.3.1-0.20261125003629-60598305b187
 	kando/packages/core v0.0.0
@@ -20,7 +21,6 @@ require (
 	github.com/cloudsoda/go-smb2 v0.0.0-20261105190815-95be04a983b8 // indirect
 	github.com/cloudsoda/sddl v0.0.0-20261105185302-1c8f96799263 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/ebitengine/purego v0.11.3 // indirect
 	github.com/evanw/esbuild v0.28.2 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/gdamore/tcell/v3 v3.6.0 // indirect
