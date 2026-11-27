@@ -757,6 +757,8 @@ playerCannotAddWord: "컴퓨터에 연결된 상태에서 이 영상을 한 번 
 playerMini: "재생 중"
 playerMiniOpen: "{title} 열기"
 playerMinimize: "플레이어 최소화"
+playerFullScreen: "전체 화면"
+playerExitFullScreen: "전체 화면 종료"
 playerTabWords: "단어"
 playerWordAdd: "단어장에 추가"
 playerWordAddNamed: "{word}을(를) 단어장에 추가"

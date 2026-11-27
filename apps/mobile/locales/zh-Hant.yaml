@@ -757,6 +757,8 @@ playerCannotAddWord: "在能連上電腦時打開一次這部影片，就能把�
 playerMini: "正在播放"
 playerMiniOpen: "打開 {title}"
 playerMinimize: "收起播放器"
+playerFullScreen: "全螢幕"
+playerExitFullScreen: "結束全螢幕"
 playerTabWords: "生詞"
 playerWordAdd: "加入生詞本"
 playerWordAddNamed: "把 {word} 加入生詞本"

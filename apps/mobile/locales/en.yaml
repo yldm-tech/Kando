@@ -2761,6 +2761,12 @@ playerMiniOpen:
 playerMinimize:
   message: "Minimize Player"
   description: "Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on."
+playerFullScreen:
+  message: "Full Screen"
+  description: "Spoken name of the round button over the upright player's picture that shows the video on the whole screen, turned sideways for a wide video."
+playerExitFullScreen:
+  message: "Exit Full Screen"
+  description: "Spoken name of the button in the row over the full-screen picture that goes back to the upright player."
 playerTabWords:
   message: "New Words"
   description: "Tab of the player's panel: the film's words looked up or in the vocabulary. Their number shows beside it."

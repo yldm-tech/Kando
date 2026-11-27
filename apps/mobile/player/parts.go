@@ -25,8 +25,8 @@ var (
 // mono is the face of the player's times and places, the system's fixed-pitch one.
 var mono = core.Style{FontFamily: core.FontMonospace}
 
-// subtitles draws the line playing over the video, as the mode picks its texts, up out of the controls' way while they show over the video; a tap on a word of its original looks the word up, and the original's words show their marks (markSpans).
-func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsOver func() bool) core.Node {
+// subtitles draws the line playing over the video, as the mode picks its texts, up out of the controls' way while they show over the video, which stack higher on an upright full screen (narrow); upright they sit in by shares of the picture's size (picture); a tap on a word of its original looks the word up, and the original's words show their marks (markSpans).
+func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsOver func() bool, picture func() core.Size, narrow func() bool) core.Node {
 	shown := core.NewMemoFunc(cx, func() []kcore.CueLine {
 		i, list := p.current.Get(), p.list()
 		if i < 0 || i >= len(list) {
@@ -65,13 +65,20 @@ func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsO
 	return core.View{TestID: "player-subtitles", PointerEvents: core.PointerEventsBoxNone, LiveRegion: core.LiveRegionPolite,
 		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), AlignItems: core.AlignCenter, Gap: 2},
 		StyleFunc: func() core.Style {
-			win := cx.Env().Window()
+			win, safe := cx.Env().Window(), cx.Env().SafeArea()
 			// Upright the lines sit in from the picture's sides and over its foot by shares of it, as the design does; on its side, clear of the controls' capsule while it shows.
-			side, edge := win.Width*0.04, win.Width/max(core.Points(p.aspect.Get()), 1)*0.08
-			if shape() != upright {
+			var side, edge core.Points
+			if shape() == upright {
+				size := picture()
+				side, edge = size.Width*0.04, size.Height*0.08
+			} else {
 				side, edge = win.Width*0.06, 28
 				if controlsOver() {
 					edge = 74
+					if narrow() {
+						// Over the capsule's two rows and the screen's foot.
+						edge = 116 + safe.Bottom
+					}
 				}
 			}
 			st := core.Style{Padding: core.Edges{Left: side, Right: side}, PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}}
@@ -79,6 +86,9 @@ func subtitles(cx *core.Scope, p *play, w *words, shape func() layout, controlsO
 				// At the top they keep clear of the row over the picture the same way they keep clear of the capsule at the foot.
 				if shape() != upright && controlsOver() {
 					edge = 64
+					if narrow() {
+						edge += safe.Top
+					}
 				}
 				st.Top = core.Pt(edge)
 				return st
@@ -211,9 +221,9 @@ func transport(cx *core.Scope, p *play) core.Node {
 	}}
 }
 
-// capsule is a phone on its side's controls, in a frosted capsule over the picture's foot: the line before, play or hold, the line after, the time played, the slider and the time left, the loop of the line and the speed.
+// capsule is a phone on its side's controls, in a frosted capsule over the picture's foot: the line before, play or hold, the line after, the time played, the slider and the time left, the loop of the line and the speed. On an upright full screen (narrow), too narrow for one row, the times and the slider take a row of their own over the buttons.
 // The frost is the platform's: Android and Linux draw no backdrop filters (core/style.go:144), so there the capsule is its fill alone.
-func capsule(cx *core.Scope, p *play) core.Node {
+func capsule(cx *core.Scope, p *play, narrow func() bool) core.Node {
 	looped := func() bool { return p.loop.Get() >= 0 }
 	loop := base.Button{TestID: "player-loop", LabelFunc: func() string { return locales.PlayerCapsuleLoop(cx) }, Selected: looped, OnPress: func(core.PressEvent) { p.toggleLoop() },
 		Style: core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 12), CornerRadius: 15, JustifyContent: core.JustifyCenter, Active: &core.Style{Opacity: core.Alpha(0.7)}},
@@ -224,17 +234,33 @@ func capsule(cx *core.Scope, p *play) core.Node {
 			return core.Style{Background: theme.PlayerInk.Faded(0.14)}
 		},
 		Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerCapsuleLoop(cx) }, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}}
+	track := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)},
+		StyleFunc: func() core.Style {
+			if narrow() {
+				return core.Style{Position: core.Absolute, Top: core.Pt(10), Left: core.Pt(14), Right: core.Pt(14)}
+			}
+			return core.Style{}
+		},
+		Children: []core.Node{
+			timeText("player-at", 12, func() string { return clock(p.at.Get()) }),
+			positionSlider(cx, p, true),
+			timeText("player-left", 12, func() string { return left(p) }),
+		}}
 	return core.View{TestID: "player-transport",
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Height: core.Pt(50), Padding: core.Symmetric(0, 10), CornerRadius: 25, BorderCurve: core.BorderCurveContinuous,
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, BorderCurve: core.BorderCurveContinuous,
 			Background: theme.PlayerGlass.Faded(0.55), BackdropFilters: []core.Filter{core.Blur(20), core.Saturate(1.6)},
 			Shadows: []core.BoxShadow{{Spread: 0.5, Color: theme.PlayerInk.Faded(0.15), Inset: true}}},
+		StyleFunc: func() core.Style {
+			if narrow() {
+				return core.Style{Height: core.Pt(88), Padding: core.Edges{Top: 38, Right: 10, Left: 10}, CornerRadius: 22, JustifyContent: core.JustifySpaceBetween}
+			}
+			return core.Style{Height: core.Pt(50), Padding: core.Symmetric(0, 10), CornerRadius: 25}
+		},
 		Children: []core.Node{
 			glyphButton("player-prev", func() string { return locales.PlayerPrevLine(cx) }, skipBackGlyph, 36, 20, nil, p.prev),
 			glyphButton("player-play", playLabel(cx, p), playGlyphOf(p), 38, 24, func() bool { return !p.hasVideo() }, p.toggle),
 			glyphButton("player-next", func() string { return locales.PlayerNextLine(cx) }, skipNextGlyph, 36, 20, nil, p.next),
-			timeText("player-at", 12, func() string { return clock(p.at.Get()) }),
-			positionSlider(cx, p, true),
-			timeText("player-left", 12, func() string { return left(p) }),
+			track,
 			loop,
 			speedMenu(cx, p, 30),
 		}}

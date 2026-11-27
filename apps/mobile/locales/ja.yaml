@@ -757,6 +757,8 @@ playerCannotAddWord: "パソコンにつながる場所で一度この映像を�
 playerMini: "再生中"
 playerMiniOpen: "{title} を開く"
 playerMinimize: "プレーヤーをしまう"
+playerFullScreen: "フルスクリーン"
+playerExitFullScreen: "フルスクリーンを解除"
 playerTabWords: "単語"
 playerWordAdd: "単語帳に追加"
 playerWordAddNamed: "{word} を単語帳に追加"

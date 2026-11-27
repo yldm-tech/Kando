@@ -1517,6 +1517,8 @@ const (
 	textPlayerCannotAddWord
 	textPlayerMini
 	textPlayerMinimize
+	textPlayerFullScreen
+	textPlayerExitFullScreen
 	textPlayerTabWords
 	textPlayerWordAdd
 	textPlayerWordInVocabulary
@@ -2165,6 +2167,8 @@ var keyOfText = [numTexts]string{
 	"playerCannotAddWord",
 	"playerMini",
 	"playerMinimize",
+	"playerFullScreen",
+	"playerExitFullScreen",
 	"playerTabWords",
 	"playerWordAdd",
 	"playerWordInVocabulary",
@@ -2811,6 +2815,8 @@ var textsEn = i18n.NewTexts(""+
 	"Open this film once while its computer is reachable to add its words to the vocabulary."+
 	"Now Playing"+
 	"Minimize Player"+
+	"Full Screen"+
+	"Exit Full Screen"+
 	"New Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
@@ -3454,6 +3460,8 @@ var textsEn = i18n.NewTexts(""+
 		87,
 		11,
 		15,
+		11,
+		16,
 		9,
 		17,
 		23,
@@ -4100,6 +4108,8 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンにつながる場所で一度この映像を開くと、単語を単語帳に追加できるようになります。"+
 	"再生中"+
 	"プレーヤーをしまう"+
+	"フルスクリーン"+
+	"フルスクリーンを解除"+
 	"単語"+
 	"単語帳に追加"+
 	"単語帳にあります · 削除"+
@@ -4743,6 +4753,8 @@ var textsJa = i18n.NewTexts(""+
 		129,
 		9,
 		27,
+		21,
+		30,
 		6,
 		18,
 		34,
@@ -5389,6 +5401,8 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 단어를 단어장에 추가할 수 있습니다."+
 	"재생 중"+
 	"플레이어 최소화"+
+	"전체 화면"+
+	"전체 화면 종료"+
 	"단어"+
 	"단어장에 추가"+
 	"단어장에 있음 · 삭제"+
@@ -6032,6 +6046,8 @@ var textsKo = i18n.NewTexts(""+
 		115,
 		10,
 		22,
+		13,
+		20,
 		6,
 		19,
 		29,
@@ -6678,6 +6694,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"在能连上电脑时打开一次这部影片，就能把它的词加入生词本。"+
 	"正在播放"+
 	"收起播放器"+
+	"全屏"+
+	"退出全屏"+
 	"生词"+
 	"加入生词本"+
 	"已在生词本 · 移除"+
@@ -7321,6 +7339,8 @@ var textsZhHans = i18n.NewTexts(""+
 		84,
 		12,
 		15,
+		6,
+		12,
 		6,
 		15,
 		25,
@@ -7967,6 +7987,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"在能連上電腦時打開一次這部影片，就能把它的詞加入生詞本。"+
 	"正在播放"+
 	"收起播放器"+
+	"全螢幕"+
+	"結束全螢幕"+
 	"生詞"+
 	"加入生詞本"+
 	"已在生詞本 · 移除"+
@@ -8609,6 +8631,8 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		84,
 		12,
+		15,
+		9,
 		15,
 		6,
 		15,
@@ -22171,6 +22195,24 @@ func PlayerMinimize(cx *core.Scope) string { return For(cx).PlayerMinimize() }
 
 // PlayerMinimize is the package's PlayerMinimize in the language of msgs.
 func (msgs Messages) PlayerMinimize() string { return msgs.text(textPlayerMinimize) }
+
+// PlayerFullScreen says "Full Screen"
+// in the language the app shows under cx.
+//
+// Spoken name of the round button over the upright player's picture that shows the video on the whole screen, turned sideways for a wide video.
+func PlayerFullScreen(cx *core.Scope) string { return For(cx).PlayerFullScreen() }
+
+// PlayerFullScreen is the package's PlayerFullScreen in the language of msgs.
+func (msgs Messages) PlayerFullScreen() string { return msgs.text(textPlayerFullScreen) }
+
+// PlayerExitFullScreen says "Exit Full Screen"
+// in the language the app shows under cx.
+//
+// Spoken name of the button in the row over the full-screen picture that goes back to the upright player.
+func PlayerExitFullScreen(cx *core.Scope) string { return For(cx).PlayerExitFullScreen() }
+
+// PlayerExitFullScreen is the package's PlayerExitFullScreen in the language of msgs.
+func (msgs Messages) PlayerExitFullScreen() string { return msgs.text(textPlayerExitFullScreen) }
 
 // PlayerTabWords says "New Words"
 // in the language the app shows under cx.
