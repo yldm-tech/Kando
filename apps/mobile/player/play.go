@@ -116,8 +116,9 @@ func (p *play) say(kind, title string) {
 
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	f, _ := s.Film(key)
+	playable := s.VideoFile(key) != "" || (f.Streamed || f.FromSource()) && !f.Done() && s.StreamLink(key) != ""
 	p := &play{cx: cx, s: s, key: key, ref: &core.Ref{},
-		playing:   core.NewSignal(cx, f.HasVideo()),
+		playing:   core.NewSignal(cx, playable),
 		at:        core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
 		length:    core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
 		aspect:    core.NewSignal(cx, float32(16.0/9)),

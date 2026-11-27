@@ -40,24 +40,42 @@ func newMaking(cx *core.Scope) *making {
 	return m
 }
 
-// OnNetwork reports whether the phone reaches desktop on its network now, as it follows the computer's queue: it answers there, not through the storage. Read it in a binding.
+// OnNetwork reports whether the phone reaches desktop on its network now, as it follows the computer's queue or listed its shelf: it answers there, not through the storage. Read it in a binding.
 func (s *Session) OnNetwork(desktop string) bool {
+	if s.Client(desktop) == nil {
+		return false
+	}
 	q := s.Queue(desktop)
-	return q.Reach == Online && !q.Relayed && s.Client(desktop) != nil
+	if q.Relayed {
+		return false
+	}
+	switch q.Reach {
+	case Online:
+		return true
+	case Reaching, Older:
+		sh := s.Shelf(desktop)
+		return sh.Listed && !sh.Relayed && sh.Err == nil
+	}
+	return false
 }
 
-// lanLink is the URL the player streams film f, kept to stream, from on its computer's network, "" away from it or while nothing of a film being made plays yet. A link's sound plays at a URL of its own until the video comes, so the player opens the video anew, where it was (WatchMaking). Read it in a binding.
+// lanLink is the URL the player streams film f, kept to stream, from on its computer's network, "" away from it, for a film whose computer keeps no video, or while nothing of a film being made plays yet. A link's sound plays at a URL of its own until the video comes, so the player opens the video anew, where it was (WatchMaking). Read it in a binding.
 func (s *Session) lanLink(f store.Film) string {
 	if !s.OnNetwork(f.Desktop) {
 		return ""
 	}
 	plays := sync.PlaysVideo
-	if f.Film.Making {
+	switch {
+	case f.Film.Making:
 		w, ok := s.making.at.Get()[f.Key()]
 		if !ok {
 			return ""
 		}
 		plays = w.Plays
+	case f.Film.SubtitlesOnly:
+		return ""
+	case f.Film.Sound:
+		plays = sync.PlaysSound
 	}
 	name := "video.mp4"
 	switch plays {
@@ -105,10 +123,14 @@ func (s *Session) StreamFailed(key string) bool {
 	return true
 }
 
-// streamMaking keeps film f, being made, of desktop's library to play from its computer on its network, as Stream keeps a film to play from the storage: its record, as a film kept to stream, and its lines so far, none before its first are made; then play runs with its key on the engine's goroutine. failed hears why it could not be kept.
-func (s *Session) streamMaking(desktop, library string, f sync.Film, play func(key string), failed func(error)) {
+// streamFromComputer keeps film f of desktop's library to play from its computer on its network, as Stream keeps a film to play from the storage: its record, as a film kept to stream, and its lines from the computer (none yet for a film being made before its first lines are made); then play runs with its key on the engine's goroutine. failed hears why it could not be kept.
+func (s *Session) streamFromComputer(desktop, library string, f sync.Film, play func(key string), failed func(error)) {
 	key := store.Key(desktop, f.ID)
 	c := s.Client(desktop)
+	if c == nil {
+		failed(errNotInStorage)
+		return
+	}
 	rec := store.Film{Desktop: desktop, Library: library, Film: f, Added: s.cfg.Now(), Streamed: true}
 	for _, lib := range s.Shelf(desktop).Listing.Libraries {
 		if slices.ContainsFunc(lib.Films, func(listed sync.Film) bool { return listed.ID == f.ID }) {
@@ -118,7 +140,13 @@ func (s *Session) streamMaking(desktop, library string, f sync.Film, play func(k
 	s.work.Go(func() {
 		ctx, cancel := context.WithTimeout(s.ctx, streamFor)
 		defer cancel()
-		cues, err := makingCues(ctx, c, f.ID)
+		var cues []sync.Cue
+		var err error
+		if f.Making {
+			cues, err = makingCues(ctx, c, f.ID)
+		} else {
+			cues, err = c.Subtitles(ctx, f.ID)
+		}
 		if err == nil {
 			err = s.st.SaveCues(desktop, f.ID, cues)
 		}
@@ -127,6 +155,10 @@ func (s *Session) streamMaking(desktop, library string, f sync.Film, play func(k
 		}
 		s.cx.Post(func() {
 			if err != nil {
+				if !f.Making && s.hasRelayFilm(desktop, f.ID) {
+					s.streamFromStorage(desktop, library, f, play, failed)
+					return
+				}
 				failed(err)
 				return
 			}

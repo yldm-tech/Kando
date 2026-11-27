@@ -208,10 +208,10 @@ func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	options := "id:films-options-" + id + "-f1"
 	p.app.WaitFor(options, wait)
 	p.app.Press(options)
-	if got, want := p.optionLabels(), []string{msgs.FilmsSaveOffline()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmPlay(), msgs.FilmsSaveOffline()}; !slices.Equal(got, want) {
 		t.Fatalf("the options of a film not on the phone are %q, want %q", got, want)
 	}
-	if got, want := p.texts("id:films-option-0"), msgs.FilmsSaveOffline()+"\n"+msgs.FilmsAboutSize("977 KB"); got != want {
+	if got, want := p.texts("id:films-option-1"), msgs.FilmsSaveOffline()+"\n"+msgs.FilmsAboutSize("977 KB"); got != want {
 		t.Fatalf("the download option reads %q, want %q", got, want)
 	}
 	p.choose(msgs.FilmsSaveOffline())

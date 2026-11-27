@@ -86,7 +86,7 @@ func workGoOn(s *session.Session, act Actions, goOn func() (catalog.Entry, int))
 		return
 	}
 	k, ok := s.Film(e.Key())
-	playable := ok && (k.Done() && k.HasVideo() || k.FromSource()) || s.Matched(e.Key())
+	playable := ok && (k.Done() && k.HasVideo() || k.FromSource() || (k.Streamed && s.StreamLink(e.Key()) != "")) || s.Matched(e.Key())
 	if !playable {
 		act.Film(e)
 		return

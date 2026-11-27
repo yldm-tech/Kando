@@ -389,6 +389,11 @@ filmLines:
 filmStorageFailed:
   message: "Couldn't read it from your storage. Try again in a moment."
   description: "Shown on a film's page when its lines could not be read from the user's storage, away from the computer."
+filmStreamFailed:
+  message: "Couldn't reach {computer}. Try again in a moment."
+  description: "Shown on a film's page when streaming it from the computer failed to load its lines."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
 filmResume:
   message: "Resume"
   description: "Button on a film's page that goes on with a paused or stopped download."

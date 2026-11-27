@@ -33,6 +33,15 @@ func (p *phone) waitRelayJoined(desktop string) {
 	p.app.WaitUntil(wait, func() bool { r, ok, _ := store.Open(p.dir).Relay(desktop); return ok && !r.Lapsed })
 }
 
+// waitRelayed waits until the phone follows desktop through its storage rather than on its network, then returns to the Library tab.
+func (p *phone) waitRelayed(desktop string) {
+	p.t.Helper()
+	p.openJobs()
+	p.app.WaitUntil(reconnect, func() bool { return p.reach(desktop) == msgs.JobsViaStorage() })
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:films-page", wait)
+}
+
 // reach is what desktop's card on the Jobs page says of how it is reached.
 func (p *phone) reach(desktop string) string {
 	sel := "id:jobs-reach-" + desktop

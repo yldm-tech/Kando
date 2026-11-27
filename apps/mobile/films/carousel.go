@@ -85,7 +85,10 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 		return locales.FilmsWatchedTo(cx, at)
 	}
 	// The line it was left at, from the lines kept on the phone; a film only on its computer shows none. The lines are read behind a memo of the film's key, so a saved position, which changes the entry every few seconds while the film plays, does not read them again: the resource loads afresh whenever its source reruns.
-	kept := func() bool { k, ok := v.s.Film(e().Key()); return ok && k.Done() || v.s.Matched(e().Key()) }
+	kept := func() bool {
+		k, ok := v.s.Film(e().Key())
+		return ok && (k.Done() || k.Streamed) || v.s.Matched(e().Key())
+	}
 	src := core.NewMemo(cx, func() string {
 		if kept() {
 			return e().Key()
@@ -167,10 +170,11 @@ var playIcon = core.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg"
 // resume is Resume from the tab.
 func (v *view) resume(e catalog.Entry) { Resume(v.s, v.act, e) }
 
-// Resume plays e's film with act from where it was last left on any device, once it is on the phone; a film not on the phone yet opens its page, to download it, but for a computer's film matched to a film of a NAS, which plays as that film (session.PlayKey). Continue Watching does it, and so does the Continue widget.
+// Resume plays e's film with act from where it was last left on any device, once it is on the phone or already kept to stream with a playable video link; a film not kept yet opens its page, to stream or download it, but for a computer's film matched to a film of a NAS, which plays as that film (session.PlayKey). Continue Watching does it, and so does the Continue widget.
 func Resume(s *session.Session, act Actions, e catalog.Entry) {
 	k, ok := s.Film(e.Key())
-	if (!ok || !k.Done()) && !s.Matched(e.Key()) {
+	playable := ok && (k.Done() || (k.Streamed && s.StreamLink(e.Key()) != "")) || s.Matched(e.Key())
+	if !playable {
 		act.Film(e)
 		return
 	}
@@ -184,9 +188,9 @@ func Resume(s *session.Session, act Actions, e catalog.Entry) {
 // playAt plays the film kept under key from at.
 func (v *view) playAt(key string, at time.Duration) { v.act.PlayAt(key, at) }
 
-// openFilm is what pressing a film's row does without a line found in it: a film whose video is on the phone opens in the player held where it was left (PlayHeld); one not on the phone yet opens its page, to download it or play it from the storage, and so does one kept by its lines alone, whose page says how to have its video. A film of a NAS or a server opens in the player as well, streamed from there until it is downloaded, and so does a computer's film matched to one, which plays as that film (session.PlayKey).
+// openFilm is what pressing a film's row does without a line found in it: a film whose video is on the phone, or one already kept to stream whose computer or storage answers, opens in the player held where it was left (PlayHeld); one not kept yet opens its page, to stream or download it, and so does one kept by its lines alone, whose page says how to have its video. A film of a NAS or a server opens in the player as well, streamed from there until it is downloaded, and so does a computer's film matched to one, which plays as that film (session.PlayKey).
 func (v *view) openFilm(e catalog.Entry) {
-	if k, ok := v.s.Film(e.Key()); ok && (k.Done() && k.HasVideo() || k.FromSource()) || v.s.Matched(e.Key()) {
+	if k, ok := v.s.Film(e.Key()); ok && (k.Done() && k.HasVideo() || k.FromSource() || (k.Streamed && v.s.StreamLink(e.Key()) != "")) || v.s.Matched(e.Key()) {
 		v.act.PlayHeld(e.Key())
 		return
 	}

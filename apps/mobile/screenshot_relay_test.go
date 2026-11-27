@@ -22,6 +22,7 @@ func TestScreenshotsFilmsAway(t *testing.T) {
 	p.waitRelayJoined(id)
 	p.app.WaitFor(talkRow(id), wait)
 	d.SetOff(true)
+	p.waitRelayed(id)
 	p.app.Press(talkRow(id))
 	p.app.WaitFor("id:film-stream", reconnect)
 	shot(p, "film-storage")

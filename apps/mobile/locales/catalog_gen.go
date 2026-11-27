@@ -501,6 +501,7 @@ var Parameters = map[string][]string{
 	"FilmDeleteTitle":                {"title"},
 	"FilmDownloading":                {"percent"},
 	"FilmPaused":                     {"percent"},
+	"FilmStreamFailed":               {"computer"},
 	"FilmsAboutSize":                 {"size"},
 	"FilmsCount":                     {"count"},
 	"FilmsHit":                       {"time_", "line"},
@@ -751,6 +752,7 @@ type Translation struct {
 	FilmDeleteTitle                func(title string) string
 	FilmDownloading                func(percent int) string
 	FilmPaused                     func(percent int) string
+	FilmStreamFailed               func(computer string) string
 	FilmsAboutSize                 func(size string) string
 	FilmsCount                     func(count int) string
 	FilmsHit                       func(time_ string, line string) string
@@ -8832,6 +8834,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmPaused != nil {
 		s.FilmPaused = t.FilmPaused
 	}
+	if t.FilmStreamFailed != nil {
+		s.FilmStreamFailed = t.FilmStreamFailed
+	}
 	if t.FilmsAboutSize != nil {
 		s.FilmsAboutSize = t.FilmsAboutSize
 	}
@@ -11189,6 +11194,38 @@ func FilmStorageFailed(cx *core.Scope) string { return For(cx).FilmStorageFailed
 
 // FilmStorageFailed is the package's FilmStorageFailed in the language of msgs.
 func (msgs Messages) FilmStorageFailed() string { return msgs.text(textFilmStorageFailed) }
+
+// FilmStreamFailed says "Couldn't reach {computer}. Try again in a moment."
+// in the language the app shows under cx.
+//
+// Shown on a film's page when streaming it from the computer failed to load its lines.
+func FilmStreamFailed(cx *core.Scope, computer string) string {
+	return For(cx).FilmStreamFailed(computer)
+}
+
+// FilmStreamFailed is the package's FilmStreamFailed in the language of msgs.
+func (msgs Messages) FilmStreamFailed(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmStreamFailed(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmStreamFailed; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't reach " + msgs.arg(computer) + ". Try again in a moment."
+		case "ja":
+			return computer + " に接続できませんでした。少し待ってからもう一度お試しください。"
+		case "ko":
+			return computer + "에 연결할 수 없습니다. 잠시 후 다시 시도하세요."
+		case "zh-Hans":
+			return "连不上 " + computer + "，过一会儿再试。"
+		case "zh-Hant":
+			return "連不上 " + computer + "，過一會兒再試。"
+		}
+	}
+}
 
 // FilmResume says "Resume"
 // in the language the app shows under cx.

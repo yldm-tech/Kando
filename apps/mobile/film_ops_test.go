@@ -57,7 +57,7 @@ func TestAFilmsOptionsActOnItThroughTheComputer(t *testing.T) {
 	id := store.DesktopID(d.Fingerprint)
 	options := "id:films-options-" + id + "-f1"
 	labels := p.options(options, msgs.FilmsExportSubtitles())
-	if want := []string{msgs.FilmsSaveOffline(), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmPlay(), msgs.FilmsSaveOffline(), msgs.FilmsExportSubtitles(), msgs.FilmsRetranslate(), msgs.FilmsDeleteFromLibrary()}; !slices.Equal(labels, want) {
 		t.Fatalf("the options are %q, want %q", labels, want)
 	}
 	p.choose(msgs.FilmsExportSubtitles())
@@ -98,7 +98,7 @@ func TestAReadOnlyPhoneOnlyExportsAFilm(t *testing.T) {
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	labels := p.options("id:films-options-"+store.DesktopID(d.Fingerprint)+"-f1", msgs.FilmsExportSubtitles())
-	if want := []string{msgs.FilmsSaveOffline(), msgs.FilmsExportSubtitles()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmPlay(), msgs.FilmsSaveOffline(), msgs.FilmsExportSubtitles()}; !slices.Equal(labels, want) {
 		t.Fatalf("a read-only phone's options are %q, want %q", labels, want)
 	}
 }

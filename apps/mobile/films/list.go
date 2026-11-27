@@ -300,10 +300,10 @@ func (v *view) detailTone(cx *core.Scope, key func() string) func() core.Color {
 	}
 }
 
-// open is what pressing a film does: plays a film on the phone, or one a NAS or a server streams, from the line the search found, or where it was left (openFilm), else opens the film's page.
+// open is what pressing a film does: plays a film on the phone, or one streamed from its computer, storage, NAS or server, from the line the search found, or where it was left (openFilm), else opens the film's page.
 func (v *view) open(r catalog.Result) {
 	if h := r.Hit; h != nil {
-		if k, ok := v.s.Film(r.Key()); ok && k.Done() || v.s.Matched(r.Key()) {
+		if k, ok := v.s.Film(r.Key()); ok && (k.Done() || (k.Streamed && v.s.StreamLink(r.Key()) != "")) || v.s.Matched(r.Key()) {
 			v.playAt(r.Key(), h.At)
 			return
 		}
@@ -430,8 +430,8 @@ func poster(cx *core.Scope, s *session.Session, e func() catalog.Entry) func() c
 	}
 	remote := core.NewResource(cx, func() (source, bool) {
 		c := s.Client(e().Desktop)
-		_, kept := s.Film(e().Key())
-		return source{c, e().Desktop, e().Film.ID}, c != nil && e().Film.Poster != "" && !kept
+		k, kept := s.Film(e().Key())
+		return source{c, e().Desktop, e().Film.ID}, c != nil && e().Film.Poster != "" && (!kept || k.Poster == "")
 	}, func(ctx context.Context, src source, _ core.ResourceInfo) ([]byte, error) {
 		return s.Poster(ctx, src.c, src.desktop, src.id)
 	})

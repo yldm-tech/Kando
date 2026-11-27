@@ -162,17 +162,33 @@ func (s *Session) relayPoster(desktop, id string) (sync.RelayFilms, bool) {
 // streamFor is how long Stream waits for the storage to give a film's lines.
 const streamFor = listFor
 
-// Stream keeps film f of desktop's library to play from the user's storage away from its computer, or, for a film being made, from the computer on its network (streamMaking): its record, as a film kept to stream (store.Film.Streamed), and its lines, read by their link; then play runs with its key on the engine's goroutine, and the player streams the video from its link (StreamLink), or, for a film whose video is not in the storage, shows its lines alone. A film kept already plays as it is. failed hears why the lines could not be read.
+// hasRelayFilm reports whether desktop's storage holds film id. Engine goroutine only.
+func (s *Session) hasRelayFilm(desktop, id string) bool {
+	rf, ok := s.remote.shelf.GetUntracked()[desktop]
+	if !ok {
+		return false
+	}
+	_, listedOK := rf.films.Films[id]
+	return listedOK
+}
+
+// Stream keeps film f of desktop's library to play from its computer on its network (streamFromComputer) or from the user's storage away from its computer (streamFromStorage): its record, as a film kept to stream (store.Film.Streamed), and its lines; then play runs with its key on the engine's goroutine, and the player streams the video from its link (StreamLink), or, for a film whose video is not in the storage, shows its lines alone. A film kept already plays as it is. failed hears why the lines could not be read.
 func (s *Session) Stream(desktop, library string, f sync.Film, play func(key string), failed func(error)) {
 	key := store.Key(desktop, f.ID)
 	if _, ok := s.Film(key); ok {
 		play(key)
 		return
 	}
-	if f.Making && s.OnNetwork(desktop) {
-		s.streamMaking(desktop, library, f, play, failed)
+	if s.OnNetwork(desktop) && (f.Making || !f.SubtitlesOnly) {
+		s.streamFromComputer(desktop, library, f, play, failed)
 		return
 	}
+	s.streamFromStorage(desktop, library, f, play, failed)
+}
+
+// streamFromStorage keeps film f of desktop's library to play from the user's storage: its record, as a film kept to stream, and its lines read from the storage; then play runs with its key on the engine's goroutine.
+func (s *Session) streamFromStorage(desktop, library string, f sync.Film, play func(key string), failed func(error)) {
+	key := store.Key(desktop, f.ID)
 	rf, ok := s.remote.shelf.GetUntracked()[desktop]
 	listed, listedOK := rf.films.Films[f.ID]
 	if !ok || !listedOK {

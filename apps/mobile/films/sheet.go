@@ -42,6 +42,21 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 	if d, ok := s.Desktop(e.Desktop); ok {
 		computer = d.Name
 	}
+	canStream := !e.Film.SubtitlesOnly && s.OnNetwork(e.Desktop)
+	if !canStream {
+		if rf, ok := s.RelayFilm(e.Desktop, e.Film.ID); ok && rf.Media() != "" {
+			canStream = true
+		}
+	}
+	streamPlay := func() {
+		s.Stream(e.Desktop, e.Library.Name, e.Film, func(key string) {
+			if !e.Position.Mine && e.Position.At > 0 {
+				v.playAt(key, e.Position.At)
+				return
+			}
+			v.act.Play(key)
+		}, func(error) {})
+	}
 	var opts []option
 	switch {
 	case kept && k.Done():
@@ -71,6 +86,18 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		opts = append(opts,
 			option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.DownloadCopy(e.Key()) }},
 			option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
+	case kept && k.Streamed && !moving:
+		// Kept to stream from its computer or storage: plays while its video can stream, and downloads offline on demand.
+		if s.StreamLink(key) != "" {
+			opts = append(opts, option{label: locales.FilmPlay(cx), do: func() { v.resume(e) }})
+			if catalog.Resumable(e.Position, time.Duration(e.Film.DurationMS)*time.Millisecond) {
+				opts = append(opts, option{label: locales.FilmsPlayFromStart(cx), do: func() { v.playAt(key, 0) }})
+			}
+		}
+		if !e.Film.Making && s.Client(e.Desktop) != nil {
+			opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
+		}
+		opts = append(opts, option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
 	case kept:
 		opts = append(opts,
 			option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }},
@@ -78,9 +105,12 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 	case e.Film.Making:
 		// Being made, it plays from its computer on its network as it is made, and downloads once done.
 		if s.OnNetwork(e.Desktop) {
-			opts = append(opts, option{label: locales.FilmPlay(cx), do: func() { s.Stream(e.Desktop, e.Library.Name, e.Film, v.act.Play, func(error) {}) }})
+			opts = append(opts, option{label: locales.FilmPlay(cx), do: streamPlay})
 		}
 	case s.Client(e.Desktop) != nil:
+		if canStream {
+			opts = append(opts, option{label: locales.FilmPlay(cx), do: streamPlay})
+		}
 		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 	}
 	_, listed := s.Listed(e.Key())
