@@ -86,6 +86,18 @@ func TestTranslationHint(t *testing.T) {
 	}
 }
 
+// A translation, or a translation again, the monthly limit of tokens refused says so and offers 「AI 服务」, where 本月用量 raises it; so does a done film made without its translation for it.
+func TestHintOfTheMonthlyCap(t *testing.T) {
+	for _, err := range []error{media.ReadStageError("translate: " + media.ErrMonthlyCap.Error()), &media.StageError{Stage: media.StageTranslate, Err: media.ErrMonthlyCap}} {
+		if reason, section := hint(err); reason != en.AiusageCapReached() || section != sectionid.AI {
+			t.Errorf("%q: %q %q", err.Error(), reason, section)
+		}
+	}
+	if reason, section := TranslationHint(en, media.ErrMonthlyCap.Error(), ""); reason != en.AiusageCapReached() || section != sectionid.AI {
+		t.Fatalf("a done film: %q %q", reason, section)
+	}
+}
+
 // A stopped job's status line is kept as it is.
 func TestHintKeepsWhatIsNotAFailure(t *testing.T) {
 	if reason, section := Hint(en, en.QueueStatusCanceled(), nil); reason != en.QueueStatusCanceled() || section != "" {
@@ -173,6 +185,8 @@ func TestAI(t *testing.T) {
 		{"a proofread out of credit", core.Job{Err: media.ReadStageError("transcribe: translation API returned 402 Payment Required: top up")}, true, true},
 		{"a source over its quota", core.Job{Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(plugins.TranslateQuota + ": used up")}}, true, true},
 		{"a source down", core.Job{Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(plugins.TranslateUnavailable)}}, true, false},
+		{"the monthly limit", core.Job{Err: media.ReadStageError("translate: " + media.ErrMonthlyCap.Error())}, true, true},
+		{"a proofread at the monthly limit", core.Job{Err: media.ReadStageError("transcribe: " + media.ErrMonthlyCap.Error())}, true, true},
 		{"a download", core.Job{Err: media.ReadStageError("download: ERROR: Video unavailable")}, false, false},
 		{"no step named", core.Job{Err: errors.New("disk full")}, false, false},
 	} {

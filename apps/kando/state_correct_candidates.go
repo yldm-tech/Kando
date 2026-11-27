@@ -99,7 +99,7 @@ func (a *app) StartCandidates() {
 			}
 		case err != nil:
 			// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, as for Explain Line.
-			p.say = func(cx *ns.Scope) string { return locales.CorrectCandidatesFailed(cx, err.Error()) }
+			p.say = aiusageSay(err, locales.CorrectCandidatesFailed)
 			p.needsAI = true
 		case len(options) == 0:
 			p.say = locales.CorrectCandidatesNone

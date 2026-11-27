@@ -149,9 +149,8 @@ func (a *app) ExplainLine(i int) {
 			s, err = explain.Parse(reply)
 		}
 		if err != nil {
-			msg := err.Error()
 			l.failed, l.needsAI = true, !errors.Is(err, explain.ErrEmpty)
-			l.say = func(cx *core.Scope) string { return locales.ExplainFailed(cx, msg) }
+			l.say = aiusageSay(err, locales.ExplainFailed)
 			return
 		}
 		l.sections = s
@@ -276,8 +275,7 @@ func (a *app) AskExplain() {
 			err = explain.ErrEmpty
 		}
 		if err != nil {
-			msg := err.Error()
-			q.failed, q.say = true, func(cx *core.Scope) string { return locales.ExplainAskFailed(cx, msg) }
+			q.failed, q.say = true, aiusageSay(err, locales.ExplainAskFailed)
 			return
 		}
 		q.answer, q.say = reply, nil

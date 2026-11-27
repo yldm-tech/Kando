@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/packages/media"
 	psync "kando/packages/sync"
 )
 
@@ -39,6 +40,7 @@ func TestStudyErrKeepsWhatTheServiceSaid(t *testing.T) {
 		{errors.New("translation API returned 400 Bad Request: " + body), psync.CodeFailed, studyFailed + " (rejected)"},
 		{fmt.Errorf("explain: %w", context.DeadlineExceeded), psync.CodeFailed, studyFailed + " (timeout)"},
 		{errors.New(body), psync.CodeFailed, studyFailed},
+		{fmt.Errorf("explain: %w", media.ErrMonthlyCap), psync.CodeNoAI, studyCapped},
 		{psync.Errorf(psync.CodeNoAI, "%s", StudyNoAI), psync.CodeNoAI, StudyNoAI},
 	} {
 		var e *psync.CallError

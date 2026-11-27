@@ -80,6 +80,7 @@ type fakeApp struct {
 	offline, aiLocal        bool
 	cacheClear              CacheClear
 	usage                   aiusage.Month
+	usageLimit              int64
 	calls                   []string
 }
 

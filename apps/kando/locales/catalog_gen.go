@@ -579,6 +579,7 @@ var Parameters = map[string][]string{
 	"AiusageTokens":                            {"count"},
 	"AiusageTokensEstimated":                   {"count"},
 	"AiusageRequestsCount":                     {"count"},
+	"AiusageLimitUsed":                         {"percent"},
 	"SettingsShortcutsPresetNote":              {"player"},
 	"SettingsSpeechThreadsAuto":                {"count"},
 	"CorrectCandidatesFailed":                  {"error_"},
@@ -1402,6 +1403,7 @@ type Translation struct {
 	AiusageTokens                            func(count int) string
 	AiusageTokensEstimated                   func(count int) string
 	AiusageRequestsCount                     func(count int) string
+	AiusageLimitUsed                         func(percent int) string
 	SettingsShortcutsPresetNote              func(player string) string
 	SettingsSpeechThreadsAuto                func(count int) string
 	CorrectCandidatesFailed                  func(error_ string) string
@@ -2432,6 +2434,10 @@ const (
 	textAiusageRequests
 	textAiusageEstimatedNote
 	textAiusageNone
+	textAiusageLimit
+	textAiusageLimitTokens
+	textAiusageLimitReached
+	textAiusageCapReached
 	textSettingsAIRetries
 	textSettingsAIRetriesHint
 	textSettingsGeneralAppearance
@@ -4423,6 +4429,10 @@ var keyOfText = [numTexts]string{
 	"aiusageRequests",
 	"aiusageEstimatedNote",
 	"aiusageNone",
+	"aiusageLimit",
+	"aiusageLimitTokens",
+	"aiusageLimitReached",
+	"aiusageCapReached",
 	"settingsAIRetries",
 	"settingsAIRetriesHint",
 	"settingsGeneralAppearance",
@@ -6412,6 +6422,10 @@ var textsEn = i18n.NewTexts(""+
 	"Requests Sent"+
 	"≈ marks an estimate from the text sent and received, where the service reported no usage."+
 	"None yet"+
+	"Monthly Limit"+
+	"Tokens per Month"+
+	"Reached. Requests wait for next month or a higher limit."+
+	"This month's AI token limit is reached. Raise it in AI Service, or wait for next month."+
 	"Retries"+
 	"After a rate limit, a server error or no answer."+
 	"Appearance"+
@@ -7331,7 +7345,7 @@ var textsEn = i18n.NewTexts(""+
 	"Speech recognition"+
 	"Downloads online videos"+
 	"Version"+
-	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"+
+	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month monthly limit"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access appearance light dark mode follow system bookmarklet bookmark start at once"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold word marks readings furigana ruby pinyin level underline by level JLPT HSK CEFR vocabulary underline dashed word list"+
@@ -8398,6 +8412,10 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		91,
 		8,
+		13,
+		16,
+		56,
+		87,
 		7,
 		48,
 		10,
@@ -9317,7 +9335,7 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		23,
 		7,
-		212,
+		226,
 		131,
 		432,
 		259,
@@ -10387,6 +10405,10 @@ var textsJa = i18n.NewTexts(""+
 	"リクエスト数"+
 	"≈ はサービスが使用量を返さなかったため、送受信したテキストから見積もった値です。"+
 	"まだありません"+
+	"月間上限"+
+	"月あたりのトークン数"+
+	"上限に達しました。来月になるか上限を上げるまでリクエストを送りません。"+
+	"今月の AI トークン上限に達しました。「AI サービス」で上限を上げるか、来月までお待ちください。"+
 	"再試行"+
 	"レート制限、サーバーエラー、応答なしのとき。"+
 	"外観"+
@@ -11306,7 +11328,7 @@ var textsJa = i18n.NewTexts(""+
 	"音声認識"+
 	"オンライン動画のダウンロード"+
 	"バージョン"+
-	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行 使用量 トークン 今月"+
+	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト 行数 リクエスト 再試行 使用量 トークン 今月 月間上限"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式 NAS SMB WebDAV SFTP"+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス 外観 ライト ダーク システム ブックマークレット ブックマーク すぐに開始"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字 単語の注釈 ふりがな ルビ 読み ピンイン レベル レベルで下線 JLPT HSK 単語帳 下線 破線 単語リスト"+
@@ -12373,6 +12395,10 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		121,
 		21,
+		12,
+		30,
+		105,
+		136,
 		9,
 		66,
 		6,
@@ -13292,7 +13318,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		42,
 		15,
-		223,
+		236,
 		176,
 		548,
 		297,
@@ -14362,6 +14388,10 @@ var textsKo = i18n.NewTexts(""+
 	"요청 수"+
 	"≈는 서비스가 사용량을 알려 주지 않아 주고받은 텍스트로 추정한 값입니다."+
 	"아직 없음"+
+	"월간 한도"+
+	"월별 토큰 수"+
+	"한도에 도달했습니다. 다음 달이 되거나 한도를 올릴 때까지 요청을 보내지 않습니다."+
+	"이번 달 AI 토큰 한도에 도달했습니다. 'AI 서비스'에서 한도를 올리거나 다음 달까지 기다리십시오."+
 	"재시도"+
 	"속도 제한, 서버 오류, 응답 없음일 때."+
 	"화면 모드"+
@@ -15281,7 +15311,7 @@ var textsKo = i18n.NewTexts(""+
 	"음성 인식"+
 	"온라인 동영상 다운로드"+
 	"버전"+
-	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도 사용량 토큰 이번 달"+
+	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트 줄 수 요청 재시도 사용량 토큰 이번 달 월간 한도"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일 NAS SMB WebDAV SFTP"+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한 화면 모드 라이트 다크 시스템 북마클릿 북마크 바로 시작"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게 단어 표시 후리가나 읽기 병음 등급 등급별 밑줄 JLPT HSK 단어장 밑줄 점선 단어 목록"+
@@ -16348,6 +16378,10 @@ var textsKo = i18n.NewTexts(""+
 		10,
 		103,
 		13,
+		13,
+		17,
+		114,
+		131,
 		9,
 		51,
 		13,
@@ -17267,7 +17301,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		32,
 		6,
-		208,
+		222,
 		157,
 		437,
 		270,
@@ -18337,6 +18371,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"请求次数"+
 	"≈ 表示服务没有返回用量，按收发的文字估算。"+
 	"暂无"+
+	"每月上限"+
+	"每月 token 数"+
+	"已达上限，请求会等到下个月或调高上限后再发。"+
+	"本月 AI 用量已达上限。可在「AI 服务」里调高，或等到下个月。"+
 	"失败重试"+
 	"遇到限流、服务器错误或没有回应时。"+
 	"外观"+
@@ -19256,7 +19294,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"语音识别"+
 	"下载在线视频"+
 	"版本"+
-	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试 用量 token 本月"+
+	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接 每批 句数 请求 重试 用量 token 本月 每月上限"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式 NAS SMB WebDAV SFTP"+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限 外观 浅色 深色 跟随系统 书签小工具 书签 立即开始"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体 逐词标注 注音 假名 振假名 拼音 等级 按等级画线 JLPT HSK 生词本 已学词 下划线 虚线 词表"+
@@ -20324,6 +20362,10 @@ var textsZhHans = i18n.NewTexts(""+
 		64,
 		6,
 		12,
+		16,
+		66,
+		85,
+		12,
 		51,
 		6,
 		6,
@@ -21242,7 +21284,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		206,
+		219,
 		128,
 		390,
 		250,
@@ -22312,6 +22354,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"請求次數"+
 	"≈ 表示服務沒有回傳用量，按收發的文字估算。"+
 	"暫無"+
+	"每月上限"+
+	"每月 token 數"+
+	"已達上限，請求會等到下個月或調高上限後再送出。"+
+	"本月 AI 用量已達上限。可在「AI 服務」中調高，或等到下個月。"+
 	"失敗重試"+
 	"遇到限流、伺服器錯誤或沒有回應時。"+
 	"外觀"+
@@ -23231,7 +23277,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"語音辨識"+
 	"下載線上影片"+
 	"版本"+
-	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試 用量 token 本月"+
+	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線 每批 句數 請求 重試 用量 token 本月 每月上限"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式 NAS SMB WebDAV SFTP"+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟 外觀 淺色 深色 跟隨系統 書籤小工具 書籤 立即開始"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體 逐詞標注 注音 假名 振假名 拼音 等級 按等級畫線 JLPT HSK 生詞本 已學詞 底線 虛線 詞表"+
@@ -24299,6 +24345,10 @@ var textsZhHant = i18n.NewTexts(""+
 		64,
 		6,
 		12,
+		16,
+		69,
+		85,
+		12,
 		51,
 		6,
 		6,
@@ -25217,7 +25267,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		206,
+		219,
 		128,
 		378,
 		247,
@@ -26333,6 +26383,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.AiusageRequestsCount != nil {
 		s.AiusageRequestsCount = t.AiusageRequestsCount
+	}
+	if t.AiusageLimitUsed != nil {
+		s.AiusageLimitUsed = t.AiusageLimitUsed
 	}
 	if t.SettingsShortcutsPresetNote != nil {
 		s.SettingsShortcutsPresetNote = t.SettingsShortcutsPresetNote
@@ -34984,6 +35037,72 @@ func AiusageNone(cx *core.Scope) string { return For(cx).AiusageNone() }
 
 // AiusageNone is the package's AiusageNone in the language of msgs.
 func (msgs Messages) AiusageNone() string { return msgs.text(textAiusageNone) }
+
+// AiusageLimit says "Monthly Limit"
+// in the language the app shows under cx.
+//
+// Title and accessible name of the switch in the usage card that stops sending requests to any AI service once this month's tokens reach a number the user sets.
+func AiusageLimit(cx *core.Scope) string { return For(cx).AiusageLimit() }
+
+// AiusageLimit is the package's AiusageLimit in the language of msgs.
+func (msgs Messages) AiusageLimit() string { return msgs.text(textAiusageLimit) }
+
+// AiusageLimitTokens says "Tokens per Month"
+// in the language the app shows under cx.
+//
+// Row title and accessible name of the number field of the monthly limit, in tokens, shown while the limit is on.
+func AiusageLimitTokens(cx *core.Scope) string { return For(cx).AiusageLimitTokens() }
+
+// AiusageLimitTokens is the package's AiusageLimitTokens in the language of msgs.
+func (msgs Messages) AiusageLimitTokens() string { return msgs.text(textAiusageLimitTokens) }
+
+// AiusageLimitUsed says "{percent, number}% used"
+// in the language the app shows under cx.
+//
+// Subtitle of the Monthly Limit switch while it is on: how much of the limit this month's tokens took, as a whole percentage.
+func AiusageLimitUsed(cx *core.Scope, percent int) string { return For(cx).AiusageLimitUsed(percent) }
+
+// AiusageLimitUsed is the package's AiusageLimitUsed in the language of msgs.
+func (msgs Messages) AiusageLimitUsed(percent int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AiusageLimitUsed(percent))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AiusageLimitUsed; f != nil {
+			return f(percent)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(percent))) + "% used"
+		case "ja":
+			return i18n.FormatNumber("ja", float64(percent)) + "% 使用"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(percent)) + "% 사용"
+		case "zh-Hans":
+			return "已用 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+		case "zh-Hant":
+			return "已用 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+		}
+	}
+}
+
+// AiusageLimitReached says "Reached. Requests wait for next month or a higher limit."
+// in the language the app shows under cx.
+//
+// Subtitle of the Monthly Limit switch once this month's tokens reached the limit: Kando sends no request to an AI service until the month ends or the user raises or turns off the limit.
+func AiusageLimitReached(cx *core.Scope) string { return For(cx).AiusageLimitReached() }
+
+// AiusageLimitReached is the package's AiusageLimitReached in the language of msgs.
+func (msgs Messages) AiusageLimitReached() string { return msgs.text(textAiusageLimitReached) }
+
+// AiusageCapReached says "This month's AI token limit is reached. Raise it in AI Service, or wait for next month."
+// in the language the app shows under cx.
+//
+// Why a translation, an explanation, an answer or a lookup did not run: the monthly token limit the user set in Settings › AI Service › Usage This Month is reached, so Kando sent nothing. AI Service is the settings section's name.
+func AiusageCapReached(cx *core.Scope) string { return For(cx).AiusageCapReached() }
+
+// AiusageCapReached is the package's AiusageCapReached in the language of msgs.
+func (msgs Messages) AiusageCapReached() string { return msgs.text(textAiusageCapReached) }
 
 // SettingsAIRetries says "Retries"
 // in the language the app shows under cx.
@@ -56201,7 +56320,7 @@ func SettingsGeneralVersion(cx *core.Scope) string { return For(cx).SettingsGene
 // SettingsGeneralVersion is the package's SettingsGeneralVersion in the language of msgs.
 func (msgs Messages) SettingsGeneralVersion() string { return msgs.text(textSettingsGeneralVersion) }
 
-// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"
+// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month monthly limit"
 // in the language the app shows under cx.
 //
 // Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown.

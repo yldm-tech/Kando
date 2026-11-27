@@ -25,6 +25,10 @@ func (f *fakeApp) SetLLMRequests(size, retries int) { f.batchSize, f.retries = s
 
 func (f *fakeApp) AIUsage() aiusage.Month { return f.usage }
 
+func (f *fakeApp) AIUsageLimit() int64 { return f.usageLimit }
+
+func (f *fakeApp) SetAIUsageLimit(tokens int64) { f.usageLimit = aiusage.CleanLimit(tokens) }
+
 func (f *fakeApp) TranslateContextLines() int {
 	if f.contextLines == 0 {
 		return media.DefaultContextLines

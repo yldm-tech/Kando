@@ -223,6 +223,9 @@ type App interface {
 	SetLLMRequests(size, retries int)
 	// AIUsage is what the AI services were asked this month, by pass (media.Passes), which the page's 本月用量 shows.
 	AIUsage() aiusage.Month
+	// AIUsageLimit is the monthly limit of tokens for every AI service, 0 for none; SetAIUsageLimit sets it (aiusage.CleanLimit).
+	AIUsageLimit() int64
+	SetAIUsageLimit(tokens int64)
 
 	Language() *string
 	TranslateContext() *bool

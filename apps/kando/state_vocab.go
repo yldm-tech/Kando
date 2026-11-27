@@ -283,8 +283,7 @@ func (a *app) LookUpWord(i int, word string) {
 			return
 		case err != nil:
 			l.failed, l.needsAI = true, !errors.Is(err, lookup.ErrNoMeaning)
-			msg := err.Error()
-			l.say = func(cx *core.Scope) string { return locales.VocabLookupFailed(cx, msg) }
+			l.say = aiusageSay(err, locales.VocabLookupFailed)
 			return
 		}
 		l.entry, l.source = got.entry, got.source

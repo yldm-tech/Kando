@@ -1435,6 +1435,23 @@ aiusageEstimatedNote:
 aiusageNone:
   message: "None yet"
   description: "The only row of the usage card when no request was sent to an AI service this month."
+aiusageLimit:
+  message: "Monthly Limit"
+  description: "Title and accessible name of the switch in the usage card that stops sending requests to any AI service once this month's tokens reach a number the user sets."
+aiusageLimitTokens:
+  message: "Tokens per Month"
+  description: "Row title and accessible name of the number field of the monthly limit, in tokens, shown while the limit is on."
+aiusageLimitUsed:
+  message: "{percent, number}% used"
+  description: "Subtitle of the Monthly Limit switch while it is on: how much of the limit this month's tokens took, as a whole percentage."
+  placeholders:
+    percent: { type: "int", example: "42" }
+aiusageLimitReached:
+  message: "Reached. Requests wait for next month or a higher limit."
+  description: "Subtitle of the Monthly Limit switch once this month's tokens reached the limit: Kando sends no request to an AI service until the month ends or the user raises or turns off the limit."
+aiusageCapReached:
+  message: "This month's AI token limit is reached. Raise it in AI Service, or wait for next month."
+  description: "Why a translation, an explanation, an answer or a lookup did not run: the monthly token limit the user set in Settings › AI Service › Usage This Month is reached, so Kando sent nothing. AI Service is the settings section's name."
 settingsAIRetries:
   message: "Retries"
   description: "Row title and accessible name of the field setting how many times a failed translation request is sent again."
@@ -6080,7 +6097,7 @@ settingsGeneralVersion:
   message: "Version"
   description: "Row title: Kando's version."
 settingsKeywordsAI:
-  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month"
+  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection batch lines per request retries usage tokens this month monthly limit"
   description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
 settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style NAS SMB WebDAV SFTP"
