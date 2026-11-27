@@ -555,3 +555,34 @@ func TestEveryAPIStaleSignInKeepsNothing(t *testing.T) {
 		t.Fatalf("credential %+v, %v", endpoint, err)
 	}
 }
+
+// TestEveryAPISignInAgainIsCheckedAgain checks that signing in again after the sidebar's check found Kando's own sign-in failing, as one not found in the secure store, drops that answer: the new sign-in is checked, and the sidebar and the palette no longer say the old one is missing.
+func TestEveryAPISignInAgainIsCheckedAgain(t *testing.T) {
+	f := newFakeEveryAPI(t)
+	vault := &memoryVault{items: map[string]string{}}
+	a, tt, updates := everyapiTestApp(t, f, vault, "")
+	tools := toolsInstalled
+	tools.WhisperModel = filepath.Join(t.TempDir(), "ggml-base.bin")
+	if err := os.WriteFile(tools.WhisperModel, []byte("model"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
+	a.pipeline = tools.UseEveryAPICLI()
+	a.restoreEveryAPI(savedSettings{savedEveryAPI: savedEveryAPI{EveryAPISignedIn: true}})
+	a.everyapiLoad()
+	waitUntil(t, tt, a, updates, func() bool { return a.everyapi.loaded })
+	a.checkReadiness(true)
+	waitUntil(t, tt, a, updates, func() bool { return a.side.ready.signInDone })
+	if err := a.signInFailed(pipelineTranslator(a)); !errors.Is(err, media.ErrEveryAPILoginMissing) {
+		t.Fatalf("the missing sign-in checked as %v", err)
+	}
+
+	everyapiSignedInWith(a, f.signIn())
+	waitUntil(t, tt, a, updates, func() bool { return a.side.ready.signInDone && !a.everyapi.summaryLoading })
+	if err := a.signInFailed(pipelineTranslator(a)); err != nil {
+		t.Fatalf("after signing in again the sign-in still checks as %v", err)
+	}
+	if a.side.ready.status.State != sidebar.Ready {
+		t.Fatalf("readiness after signing in again: %+v", a.side.ready.status)
+	}
+}

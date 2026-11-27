@@ -569,6 +569,11 @@ func (a *app) everyapiSignedIn(gen int, tokens everyapi.Tokens, plain bool, err 
 	e.summary, e.haveSummary, e.summaryErr = everyapi.Summary{}, false, nil
 	cred.ready(everyapi.NewSession(e.cfg, tokens, a.everyapiSessionHooks(cred, a.everyapiStore())), nil)
 	a.everyapiInstall()
+	// What the sidebar's check found about Kando's own sign-in, and a check of it still running, is about the one this replaces, as one not found in the secure store: dropped, so the areas below check the new one.
+	if r := &a.side.ready; r.signInSource == media.CredentialLogin {
+		r.gen++
+		r.asking, r.signInDone, r.signInErr = false, false, nil
+	}
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsAISaveFailed(err.Error())
 	}

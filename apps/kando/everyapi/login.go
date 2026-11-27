@@ -68,6 +68,8 @@ func tokensOf(tok *oauth2.Token, err error) (Tokens, error) {
 			if status == http.StatusNotFound {
 				return Tokens{}, ErrUnavailable
 			}
+			// The body of an answer that is no OAuth error, as a proxy's page, is left out: the error is kept in a failed job's text, which a phone may be told.
+			return Tokens{}, fmt.Errorf("everyapi: the sign-in server answered HTTP %d", status)
 		}
 		return Tokens{}, err
 	}
@@ -186,9 +188,13 @@ func StartDevice(ctx context.Context, cfg Config) (*Device, error) {
 	return &Device{Code: auth.UserCode, URL: link, cfg: cfg, auth: auth}, nil
 }
 
-// Wait polls EveryAPI, as often as it allows, until the user approved the code, declined it (ErrDenied) or it expired (ErrExpired), or ctx ends.
+// Wait polls EveryAPI, as often as it allows, until the user approved the code, declined it (ErrDenied) or it expired (ErrExpired), or ctx ends. golang.org/x/oauth2 stops polling at the code's own expiry with a context deadline rather than with EveryAPI's expired_token, which is ErrExpired too while ctx itself has not ended.
 func (d *Device) Wait(ctx context.Context) (Tokens, error) {
-	return tokensOf(oauthConfig(d.cfg, "").DeviceAccessToken(withClient(ctx, d.cfg), d.auth, deviceParams(d.cfg)...))
+	tokens, err := tokensOf(oauthConfig(d.cfg, "").DeviceAccessToken(withClient(ctx, d.cfg), d.auth, deviceParams(d.cfg)...))
+	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+		return Tokens{}, ErrExpired
+	}
+	return tokens, err
 }
 
 // Refresh trades refresh for a new key and a new refresh token, which takes the place of refresh: EveryAPI revokes it as it answers.

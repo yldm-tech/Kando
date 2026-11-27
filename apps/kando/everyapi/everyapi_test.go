@@ -269,6 +269,40 @@ func TestDeviceSignIn(t *testing.T) {
 	}
 }
 
+// TestDeviceCodeExpires checks that a code that runs out before the user approved it says so (ErrExpired), as the code's own lifetime ends the polling, rather than as a context that timed out.
+func TestDeviceCodeExpires(t *testing.T) {
+	f := newFakeServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	d, err := StartDevice(ctx, f.config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.auth.Expiry = time.Now().Add(200 * time.Millisecond)
+	if _, err := d.Wait(ctx); !errors.Is(err, ErrExpired) {
+		t.Fatalf("Wait after the code expired = %v", err)
+	}
+	stopped, stop := context.WithCancel(context.Background())
+	stop()
+	if _, err := d.Wait(stopped); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Wait stopped by the caller = %v", err)
+	}
+}
+
+// TestTokenFailureKeepsTheBodyOut checks that a token endpoint answering without an OAuth error, as a proxy's error page, fails with its status alone: what the page said is not in the error, which a failed job keeps and a phone may be told.
+func TestTokenFailureKeepsTheBodyOut(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = fmt.Fprint(w, "<html>upstream says: top up at https://pay.example.com</html>")
+	}))
+	defer srv.Close()
+	_, err := Refresh(context.Background(), Config{APIBase: srv.URL, Client: srv.Client()}, "rt-1")
+	if err == nil || strings.Contains(err.Error(), "pay.example.com") || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("Refresh = %v", err)
+	}
+}
+
 // TestSessionRenewsOnceForConcurrentRejections checks that requests refused with the same key at the same time renew it once: the others get the key that renewal got, and the refresh token, rotated on every use, is never sent twice, which would end the sign-in. The new tokens are kept before any request gets the new key.
 func TestSessionRenewsOnceForConcurrentRejections(t *testing.T) {
 	f := newFakeServer(t)
