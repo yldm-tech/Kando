@@ -2,6 +2,18 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.76.0 - 2026-11-27
+
+### Features
+
+- Stream computer films over the local network (#524)
+- Record AI usage per month and show it in Settings › AI (#526)
+- Keep AI billing text and provider response bodies off the phone (#528)
+
+### Fixes
+
+- A work whose episodes were marked watched goes on with the next one (#525)
+
 ## 0.75.0 - 2026-11-27
 
 ### Features
