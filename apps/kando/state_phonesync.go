@@ -218,6 +218,7 @@ func (a *app) phoneSyncStart() {
 		Relay:           relay,
 		RelayEvery:      relayEvery,
 		RelayLinksUntil: relayUntil,
+		RelayMinWrite:   phoneRelayMinWrite,
 		RelayHealth:     a.phoneRelayHealth(gen),
 		Films:           a.phoneFilmsConfig(gen, a.currentStore()),
 		Addrs:           a.phone.listen,
