@@ -137,3 +137,41 @@ func TestATranslationStopsAtTheMonthlyCap(t *testing.T) {
 		t.Fatalf("%d sent", sent.Load())
 	}
 }
+
+// TestBudgetIsAskedBeforeARenewedKeyResend checks that the request sent again with the key Renew gave after the API rejected the first one is asked of Budget too: refused, it is neither sent nor metered, and the step returns ErrMonthlyCap.
+func TestBudgetIsAskedBeforeARenewedKeyResend(t *testing.T) {
+	var sent atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sent.Add(1)
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "bad key", http.StatusUnauthorized)
+			return
+		}
+		usageReply(w, `["A"]`, 5, 1)
+	}))
+	t.Cleanup(srv.Close)
+	var rec meterRecorder
+	b := budgetRecorder{allow: 1}
+	var renewed atomic.Int64
+	tr := ChatTranslator{BaseURL: srv.URL, APIKey: "stale", Model: "m", Meter: rec.meter, Budget: b.budget,
+		Credential: func(context.Context, bool) (Endpoint, error) { return Endpoint{BaseURL: srv.URL, APIKey: "stale"}, nil },
+		Renew: func(context.Context, Endpoint) (Endpoint, error) {
+			renewed.Add(1)
+			return Endpoint{BaseURL: srv.URL, APIKey: "fresh"}, nil
+		}}
+	for name, run := range map[string]func() error{
+		"chat":      func() error { _, err := tr.ChatWith(context.Background(), ChatRequest{User: "hello"}); return err },
+		"translate": func() error { _, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}}, "English"); return err },
+	} {
+		sent.Store(0)
+		renewed.Store(0)
+		b = budgetRecorder{allow: 1}
+		tr.Budget = b.budget
+		if err := run(); !errors.Is(err, ErrMonthlyCap) {
+			t.Fatalf("%s: err %v", name, err)
+		}
+		if renewed.Load() != 1 || sent.Load() != 1 || len(b.all()) != 2 {
+			t.Fatalf("%s: renewed %d, %d sent, asked %d times", name, renewed.Load(), sent.Load(), len(b.all()))
+		}
+	}
+}
