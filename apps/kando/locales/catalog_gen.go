@@ -7757,8 +7757,8 @@ var textsEn = i18n.NewTexts(""+
 	"Films and learning records saved on the phone stay there; they can't be deleted from here."+
 	"To use it again, pair it with a new code."+
 	"Away From This Network"+
-	"Sync through your storage"+
-	"When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."+
+	"Sync through cloud storage"+
+	"Links, jobs and progress go through cloud storage, encrypted with the phone's pairing key. Each exchange takes from a few seconds to a couple of minutes."+
 	"Storage"+
 	"Not set up"+
 	"Set Up…"+
@@ -9754,8 +9754,8 @@ var textsEn = i18n.NewTexts(""+
 		90,
 		41,
 		22,
-		25,
-		207,
+		26,
+		153,
 		7,
 		10,
 		9,
@@ -11754,8 +11754,8 @@ var textsJa = i18n.NewTexts(""+
 	"スマートフォンにオフライン保存した作品と学習記録は残り、ここからは削除できません。"+
 	"再び使うには、新しいコードでペアリングし直してください。"+
 	"同じネットワークにいないとき"+
-	"ストレージ経由で同期"+
-	"スマートフォンがこのネットワークにいないとき、リンク・ジョブ・進捗は「アカウントとアップロード」のストレージを経由し、ペアリングキーで暗号化されます。1 回のやり取りに数秒から数分かかります。"+
+	"クラウドストレージ経由で同期"+
+	"リンク・ジョブ・進捗はクラウドストレージを経由し、ペアリングキーで暗号化されます。1 回のやり取りに数秒から数分かかります。"+
 	"使用するストレージ"+
 	"未設定"+
 	"設定…"+
@@ -13751,8 +13751,8 @@ var textsJa = i18n.NewTexts(""+
 		123,
 		84,
 		42,
-		30,
-		284,
+		42,
+		182,
 		27,
 		9,
 		9,
@@ -15751,8 +15751,8 @@ var textsKo = i18n.NewTexts(""+
 	"휴대폰에 오프라인으로 저장한 영상과 학습 기록은 남으며, 여기서 지울 수 없습니다."+
 	"다시 쓰려면 새 코드로 다시 페어링해야 합니다."+
 	"같은 네트워크에 없을 때"+
-	"내 스토리지를 거쳐 동기화"+
-	"휴대폰이 이 네트워크에 없을 때 링크, 작업, 진행 상황은 ‘계정 및 업로드’의 스토리지를 거쳐 오가며 페어링 키로 암호화됩니다. 한 번 주고받는 데 몇 초에서 몇 분이 걸립니다."+
+	"클라우드 스토리지를 거쳐 동기화"+
+	"링크, 작업, 진행 상황은 클라우드 스토리지를 거쳐 오가며 페어링 키로 암호화됩니다. 한 번 주고받는 데 몇 초에서 몇 분이 걸립니다."+
 	"사용할 스토리지"+
 	"설정 안 됨"+
 	"설정…"+
@@ -17748,8 +17748,8 @@ var textsKo = i18n.NewTexts(""+
 		114,
 		64,
 		33,
-		36,
-		240,
+		45,
+		179,
 		22,
 		14,
 		9,
@@ -19748,8 +19748,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"手机上已经离线保存的影片和学习记录留在手机上，没法从这里删除。"+
 	"以后要再用，得用新的配对码重新配对。"+
 	"不在同一网络时"+
-	"经你的存储同步"+
-	"手机不在这个网络里时，链接、任务和进度经「账号与上传」里的存储中转，用配对密钥加密。每次往来要几秒到几分钟。"+
+	"经云存储同步"+
+	"链接、任务和进度经云存储中转，用配对密钥加密。每次往来要几秒到几分钟。"+
 	"用哪个存储"+
 	"还没设置"+
 	"去设置…"+
@@ -21745,8 +21745,8 @@ var textsZhHans = i18n.NewTexts(""+
 		93,
 		54,
 		21,
-		21,
-		162,
+		18,
+		105,
 		15,
 		12,
 		12,
@@ -23745,8 +23745,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"手機上已經離線儲存的影片和學習紀錄留在手機上，沒法從這裡刪除。"+
 	"以後要再用，得用新的配對碼重新配對。"+
 	"不在同一網路時"+
-	"經你的儲存空間同步"+
-	"手機不在這個網路裡時，連結、任務和進度經「帳號與上傳」裡的儲存空間中轉，用配對金鑰加密。每次往來要幾秒到幾分鐘。"+
+	"經雲端儲存空間同步"+
+	"連結、任務和進度經雲端儲存空間中轉，用配對金鑰加密。每次往來要幾秒到幾分鐘。"+
 	"使用哪個儲存空間"+
 	"尚未設定"+
 	"去設定…"+
@@ -25743,7 +25743,7 @@ var textsZhHant = i18n.NewTexts(""+
 		54,
 		21,
 		27,
-		168,
+		114,
 		24,
 		12,
 		12,
@@ -65567,19 +65567,19 @@ func SettingsPhoneAway(cx *core.Scope) string { return For(cx).SettingsPhoneAway
 // SettingsPhoneAway is the package's SettingsPhoneAway in the language of msgs.
 func (msgs Messages) SettingsPhoneAway() string { return msgs.text(textSettingsPhoneAway) }
 
-// SettingsPhoneRelay says "Sync through your storage"
+// SettingsPhoneRelay says "Sync through cloud storage"
 // in the language the app shows under cx.
 //
-// Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload.
+// Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through object storage, either the user's own set up in Account & Upload or Kando Hosted.
 func SettingsPhoneRelay(cx *core.Scope) string { return For(cx).SettingsPhoneRelay() }
 
 // SettingsPhoneRelay is the package's SettingsPhoneRelay in the language of msgs.
 func (msgs Messages) SettingsPhoneRelay() string { return msgs.text(textSettingsPhoneRelay) }
 
-// SettingsPhoneRelayHint says "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
+// SettingsPhoneRelayHint says "Links, jobs and progress go through cloud storage, encrypted with the phone's pairing key. Each exchange takes from a few seconds to a couple of minutes."
 // in the language the app shows under cx.
 //
-// Subtitle of the storage relay switch on the Phone Sync settings page.
+// Subtitle of the storage relay switch on the Phone Sync settings page. It sits under the heading Away From This Network, and the rows below name the storage used.
 func SettingsPhoneRelayHint(cx *core.Scope) string { return For(cx).SettingsPhoneRelayHint() }
 
 // SettingsPhoneRelayHint is the package's SettingsPhoneRelayHint in the language of msgs.

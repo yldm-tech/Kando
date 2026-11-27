@@ -7958,11 +7958,11 @@ settingsPhoneAway:
   message: "Away From This Network"
   description: "Heading of the card on the Phone Sync settings page about syncing with phones that are not on the computer's network."
 settingsPhoneRelay:
-  message: "Sync through your storage"
-  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload."
+  message: "Sync through cloud storage"
+  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through object storage, either the user's own set up in Account & Upload or Kando Hosted."
 settingsPhoneRelayHint:
-  message: "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
-  description: "Subtitle of the storage relay switch on the Phone Sync settings page."
+  message: "Links, jobs and progress go through cloud storage, encrypted with the phone's pairing key. Each exchange takes from a few seconds to a couple of minutes."
+  description: "Subtitle of the storage relay switch on the Phone Sync settings page. It sits under the heading Away From This Network, and the rows below name the storage used."
 settingsPhoneRelayStore:
   message: "Storage"
   description: "Row title on the Phone Sync settings page naming the object storage the relay goes through."

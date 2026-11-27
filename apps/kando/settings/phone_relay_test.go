@@ -7,7 +7,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 )
 
-// 经你的存储同步 turns the storage relay on, names the storage it goes through with 去设置… to 账号与上传, and while it is on says whether it works; revoking a phone then says what becomes of its messages and links in the storage.
+// 经云存储同步 turns the storage relay on, names the storage it goes through with 去设置… to 账号与上传, and while it is on says whether it works; revoking a phone then says what becomes of its messages and links in the storage.
 func TestPhonePageShowsTheStorageRelay(t *testing.T) {
 	a := newFakeApp()
 	a.section = SectionPhone
