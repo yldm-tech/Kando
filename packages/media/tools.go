@@ -32,8 +32,10 @@ type Tools struct {
 	YTDLP   string
 	FFmpeg  string
 	Whisper string
-	// EveryAPI is the path of the everyapi command-line program, whose sign-in EveryAPI translates with when it has no API key (UseEveryAPICLI); empty means not found. Kando does not download it.
+	// EveryAPI is the path of the everyapi command-line program, whose sign-in EveryAPI translates with when it has no API key and Kando is not signed in itself (UseEveryAPICLI); empty means not found. Kando does not download it.
 	EveryAPI string
+	// EveryAPILogin is Kando's own EveryAPI sign-in, when the user signed in in the app, nil when nobody did (UseEveryAPILogin).
+	EveryAPILogin EveryAPILogin
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
 	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it. A job that names the language of its own video (core.Job.SpeechLanguage) is heard in that one instead (Make).
@@ -67,10 +69,28 @@ const (
 	EveryAPIModel   = "claude-haiku-5-5"
 )
 
-// The two reasons EveryAPI without an API key cannot translate, which the app words differently: the everyapi command-line program it signs in through is not on this computer, or it is but nobody signed in to it. Check and the sign-in (UseEveryAPICLI) return them as they are, so errors.Is tells them apart and a failed job's text contains their words.
+// The reasons the everyapi command-line program's sign-in cannot translate, which the app words differently: the program is not on this computer any more, or it is but nobody signed in to it. The program's sign-in (UseEveryAPICLI) returns them as they are, so errors.Is tells them apart and a failed job's text contains their words.
 var (
 	ErrEveryAPIMissing   = errors.New("the everyapi command-line program was not found; install it from https://everyapi.ai or set EVERYAPI_API_KEY")
 	ErrEveryAPISignedOut = errors.New("EveryAPI is not signed in; run `everyapi auth login`")
+)
+
+// The reasons Kando's own EveryAPI sign-in cannot translate, which name no command-line program: nobody is signed in, neither in Kando nor in the everyapi program, or the sign-in ended (EveryAPI no longer takes it, as after it was signed out on the website); or the sign-in settings.json says there is was not found where Kando keeps it (the system's secure store). CheckTranslate returns ErrEveryAPILoginSignedOut for EveryAPI without a key or a sign-in, and the in-app sign-in returns both as they are.
+var (
+	ErrEveryAPILoginSignedOut = errors.New("EveryAPI is not signed in; sign in to EveryAPI in Kando's AI settings or enter an API key")
+	ErrEveryAPILoginMissing   = errors.New("Kando's EveryAPI sign-in was not found on this computer; sign in to EveryAPI again in Kando's AI settings")
+)
+
+// CredentialSource is where a translator's Credential comes from (ChatTranslator.CredentialSource).
+type CredentialSource uint8
+
+const (
+	// CredentialNone is a translator without a Credential: its key is its APIKey, or it needs none.
+	CredentialNone CredentialSource = iota
+	// CredentialCLI is the sign-in of the everyapi command-line program (Tools.EveryAPI).
+	CredentialCLI
+	// CredentialLogin is Kando's own EveryAPI sign-in (Tools.EveryAPILogin).
+	CredentialLogin
 )
 
 // ToolsFromEnv configures Tools from KANDO_* environment variables and the executables it can find.
@@ -114,13 +134,42 @@ func ToolsFromEnv() Tools {
 	return tools.UseEveryAPICLI()
 }
 
-// UseEveryAPICLI makes the translator sign in through the everyapi command-line program when it is EveryAPI without an API key and the program was found (EveryAPI), and takes that sign-in away otherwise, as when a key was entered or another service chosen. Whoever changes the translator's endpoint or key calls it again.
+// UseEveryAPICLI gives the translator the sign-in it uses when it is EveryAPI without an API key: Kando's own (EveryAPILogin) when the user signed in in the app, else the everyapi command-line program's when the program was found (EveryAPI), else none; and takes the sign-in away otherwise, as when a key was entered or another service chosen. So a key, from KANDO_LLM_API_KEY, EVERYAPI_API_KEY or the settings, comes before Kando's sign-in, and that before the program's. Whoever changes the translator's endpoint or key, or finds the program again, calls it again; it never drops Kando's own sign-in, which only UseEveryAPILogin changes.
 func (t Tools) UseEveryAPICLI() Tools {
-	t.Translator.Credential = nil
-	if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" && t.EveryAPI != "" {
-		t.Translator.Credential = everyAPICredential(t.EveryAPI)
+	t.Translator.Credential, t.Translator.Renew, t.Translator.CredentialSource = nil, nil, CredentialNone
+	if t.Translator.BaseURL != EveryAPIBaseURL || t.Translator.APIKey != "" {
+		return t
+	}
+	switch {
+	case t.EveryAPILogin != nil:
+		login := t.EveryAPILogin
+		t.Translator.Credential = func(ctx context.Context, renew bool) (Endpoint, error) {
+			endpoint, err := login(ctx, nil)
+			if err != nil || !renew {
+				return endpoint, err
+			}
+			return login(ctx, &endpoint)
+		}
+		t.Translator.Renew = func(ctx context.Context, rejected Endpoint) (Endpoint, error) { return login(ctx, &rejected) }
+		t.Translator.CredentialSource = CredentialLogin
+	case t.EveryAPI != "":
+		t.Translator.Credential, t.Translator.CredentialSource = everyAPICredential(t.EveryAPI), CredentialCLI
 	}
 	return t
+}
+
+// EveryAPILogin is Kando's own EveryAPI sign-in: the key to send, with rejected nil, or, with rejected the endpoint it gave that the API refused, a key in place of that one. A sign-in that renews its key once for every request refused at the same time gives the requests that come after the renewal the key it got, as their rejected key is no longer its key.
+type EveryAPILogin func(ctx context.Context, rejected *Endpoint) (Endpoint, error)
+
+// UseEveryAPILogin makes login Kando's own EveryAPI sign-in, which the translator then uses as UseEveryAPICLI says; nil signs Kando out, and the translator falls back to the everyapi command-line program's sign-in when there is one.
+func (t Tools) UseEveryAPILogin(login EveryAPILogin) Tools {
+	t.EveryAPILogin = login
+	return t.UseEveryAPICLI()
+}
+
+// EveryAPIUnsigned reports whether t is EveryAPI without an API key and without a sign-in, neither Kando's own nor the everyapi command-line program's, so it cannot translate until the user signs in or enters a key.
+func (t ChatTranslator) EveryAPIUnsigned() bool {
+	return t.Credential == nil && t.BaseURL == EveryAPIBaseURL && t.APIKey == ""
 }
 
 // LibraryExt is Kando's own library bundle suffix.
@@ -302,8 +351,8 @@ func (t Tools) CheckTranslate() error {
 		if err != nil {
 			errs = append(errs, err)
 		}
-	} else if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" {
-		errs = append(errs, ErrEveryAPIMissing)
+	} else if t.Translator.EveryAPIUnsigned() {
+		errs = append(errs, ErrEveryAPILoginSignedOut)
 	}
 	return errors.Join(errs...)
 }
@@ -557,7 +606,7 @@ func (t Tools) chats() bool {
 	switch {
 	case strings.TrimSpace(tr.Model) == "", strings.TrimSpace(tr.BaseURL) == "":
 		return false
-	case tr.BaseURL == EveryAPIBaseURL && tr.APIKey == "" && tr.Credential == nil:
+	case tr.EveryAPIUnsigned():
 		return false
 	}
 	return tr.offline() == nil

@@ -63,6 +63,10 @@ type ChatTranslator struct {
 	Attempts int
 	// Credential, when set, replaces BaseURL and APIKey for each translation. renew asks for a new key after the API rejected the previous one.
 	Credential func(ctx context.Context, renew bool) (Endpoint, error)
+	// CredentialSource is where Credential comes from: none, the everyapi command-line program (CredentialCLI) or Kando's own EveryAPI sign-in (CredentialLogin), so what is said of a sign-in that failed names the one that did (Tools.UseEveryAPICLI).
+	CredentialSource CredentialSource
+	// Renew, when set, is asked for a new key after the API rejected rejected, the endpoint Credential gave, in place of Credential with renew: a sign-in that rotates its key once for every request rejected at the same time hands the others the key it got (renewCredential).
+	Renew func(ctx context.Context, rejected Endpoint) (Endpoint, error)
 	// Client defaults to an http.Client with a two-minute timeout.
 	Client *http.Client
 	// Offline refuses, with ErrOffline and before anything is sent, every request to a service that is not on this computer (Local), as offline mode asks.
@@ -157,6 +161,14 @@ type Endpoint struct {
 	APIKey  string
 }
 
+// renewCredential asks for a key in place of the one of rejected, which the API refused: through Renew when it is set, else through Credential with renew.
+func (t ChatTranslator) renewCredential(ctx context.Context, rejected Endpoint) (Endpoint, error) {
+	if t.Renew != nil {
+		return t.Renew(ctx, rejected)
+	}
+	return t.Credential(ctx, true)
+}
+
 // Ping checks that the chat endpoint accepts one short request with the configured model.
 func (t ChatTranslator) Ping(ctx context.Context) error {
 	if strings.TrimSpace(t.Model) == "" {
@@ -233,9 +245,9 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		batchCtx := withLogSpan(ctx, batch)
 		lines, err := t.translateTexts(batchCtx, endpoint, texts, language, title, contextSoFar, progress)
 		var status *statusError
-		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+		if t.Credential != nil && !renewed && errors.As(err, &status) && status.renewable() {
 			renewed = true
-			if endpoint, err = t.Credential(ctx, true); err != nil {
+			if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 				return nil, err
 			}
 			lines, err = t.translateTexts(batchCtx, endpoint, texts, language, title, contextSoFar, progress)
@@ -413,8 +425,8 @@ func (t ChatTranslator) ChatWith(ctx context.Context, r ChatRequest) (ChatReply,
 	}
 	reply, err := t.completeWith(ctx, endpoint, body, core.Progress{}, r.Header, &sent)
 	var status *statusError
-	if t.Credential != nil && errors.As(err, &status) && status.code == http.StatusUnauthorized {
-		if endpoint, err = t.Credential(ctx, true); err != nil {
+	if t.Credential != nil && errors.As(err, &status) && status.renewable() {
+		if endpoint, err = t.renewCredential(ctx, endpoint); err != nil {
 			return ChatReply{Usage: unanswered(sent)}, err
 		}
 		reply, err = t.completeWith(ctx, endpoint, body, core.Progress{}, r.Header, &sent)
@@ -490,6 +502,11 @@ type statusError struct {
 
 // StatusCode is the HTTP status the API answered with.
 func (e *statusError) StatusCode() int { return e.code }
+
+// renewable reports whether a sign-in's key is renewed for the request and the request sent again once (ChatTranslator.Credential): the API refused the key (401), or EveryAPI refused it because the key's own spending cap is reached (403 with quota_reason key_quota_exhausted), which a new key resets and which is not the account's wallet.
+func (e *statusError) renewable() bool {
+	return e.code == http.StatusUnauthorized || e.code == http.StatusForbidden && EveryAPIQuotaReason(e.detail) == QuotaKeyCap
+}
 
 func (e *statusError) Error() string {
 	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
@@ -873,15 +890,35 @@ const (
 // statusPattern finds the HTTP status in a statusError's text.
 var statusPattern = regexp.MustCompile(`translation API returned (\d{3}) `)
 
-// creditSigns are what services write in a 403 or 429 when the account is out of credit or over its quota rather than sending too fast: OpenAI's insufficient_quota, Moonshot's exceeded_current_quota_error, billing, balance and credit, DashScope's Arrearage, and Zhipu's 余额 (balance) and 欠费 (in arrears).
-var creditSigns = []string{"insufficient_quota", "insufficient quota", "exceeded_current_quota", "billing", "balance", "credit", "arrearage", "余额", "欠费"}
+// creditSigns are what services write in a 403 or 429 when the account is out of credit or over its quota rather than sending too fast: OpenAI's insufficient_quota, Moonshot's exceeded_current_quota_error, billing, balance and credit, DashScope's Arrearage, Zhipu's 余额 (balance) and 欠费 (in arrears), and EveryAPI's insufficient_user_quota and pre_consume_token_quota_failed with their quota_reason (EveryAPIQuotaReason).
+var creditSigns = []string{"insufficient_quota", "insufficient quota", "exceeded_current_quota", "billing", "balance", "credit", "arrearage", "余额", "欠费", "insufficient_user_quota", "pre_consume_token_quota_failed", QuotaBalance, QuotaPlan}
 
-// outOfCredit reports whether an API answer with status code and body detail says the account is out of credit or over its quota: always for 402 Payment Required, and for a 403 or 429 whose body says so.
+// The reasons EveryAPI gives, in error.quota_reason of a 403, for refusing a request over money: the wallet is empty (QuotaBalance), which a top-up mends; the plan's allowance is spent (QuotaPlan), which a top-up of the wallet does not; or the cap of the key that sent it is reached (QuotaKeyCap), which a new key resets and which is no wallet's at all (statusError.renewable).
+const (
+	QuotaBalance = "insufficient_balance"
+	QuotaPlan    = "plan_exhausted"
+	QuotaKeyCap  = "key_quota_exhausted"
+)
+
+// EveryAPIQuotaReason is the quota_reason an error's text carries (QuotaBalance, QuotaPlan or QuotaKeyCap), "" for none: what the API answered is in the text of the error a failed request returns, and of a failed job's error once it was saved and read back.
+func EveryAPIQuotaReason(msg string) string {
+	for _, reason := range []string{QuotaKeyCap, QuotaPlan, QuotaBalance} {
+		if strings.Contains(msg, reason) {
+			return reason
+		}
+	}
+	return ""
+}
+
+// outOfCredit reports whether an API answer with status code and body detail says the account is out of credit or over its quota: always for 402 Payment Required, and for a 403 or 429 whose body says so, except EveryAPI's cap of one key (QuotaKeyCap), which is the key's and not the account's.
 func outOfCredit(code int, detail string) bool {
 	switch code {
 	case http.StatusPaymentRequired:
 		return true
 	case http.StatusForbidden, http.StatusTooManyRequests:
+		if EveryAPIQuotaReason(detail) == QuotaKeyCap {
+			return false
+		}
 		detail = strings.ToLower(detail)
 		for _, sign := range creditSigns {
 			if strings.Contains(detail, sign) {
