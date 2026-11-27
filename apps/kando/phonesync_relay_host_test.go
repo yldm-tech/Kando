@@ -492,3 +492,13 @@ func relayAsk(t *testing.T, a *app, updates <-chan func(), phone *psync.RelayPho
 	}
 	t.Fatal("no answer through the relay")
 }
+
+// Switching the AI service from the everyapi program's sign-in to Kando's own, which both stand in for the key behind a Credential, is another credential: the hosted relay starts again and asks with the new sign-in.
+func TestPhoneRelayHostedCredentialNamesTheSignIn(t *testing.T) {
+	sign := func(context.Context, bool) (media.Endpoint, error) { return media.Endpoint{}, nil }
+	cli := &app{pipeline: media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Credential: sign, CredentialSource: media.CredentialCLI}}}
+	login := &app{pipeline: media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Credential: sign, CredentialSource: media.CredentialLogin}}}
+	if cli.phoneHostCred() == login.phoneHostCred() {
+		t.Fatal("the program's sign-in and Kando's own read as one credential")
+	}
+}

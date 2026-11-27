@@ -98,16 +98,17 @@ func (a *app) phoneHostClient() *relayhost.Client {
 	return &relayhost.Client{Base: phoneHostAPI, Key: a.phoneHostKey()}
 }
 
-// phoneHostCred is the AI service's credential the hosted relay asks EveryAPI with, as the pipeline holds it now: its endpoint, its key and whether the everyapi program signs in. It is compared in memory with the one the running relay started with (phoneHost.cred), so Phone Sync starts again once it changes; nothing is derived from the key, and it is never saved or logged.
+// phoneHostCred is the AI service's credential the hosted relay asks EveryAPI with, as the pipeline holds it now: its endpoint, its key, whether a sign-in stands in for the key and which one, the everyapi program's or Kando's own (media.CredentialSource), so switching from one to the other asks with the new one. It is compared in memory with the one the running relay started with (phoneHost.cred), so Phone Sync starts again once it changes; nothing is derived from the key, and it is never saved or logged.
 type phoneHostCred struct {
 	base, key string
-	cli       bool
+	signIn    bool
+	source    media.CredentialSource
 }
 
 func (a *app) phoneHostCred() phoneHostCred {
 	tools, _ := a.pipeline.(media.Tools)
 	t := tools.Translator
-	return phoneHostCred{base: t.BaseURL, key: t.APIKey, cli: t.Credential != nil}
+	return phoneHostCred{base: t.BaseURL, key: t.APIKey, signIn: t.Credential != nil, source: t.CredentialSource}
 }
 
 // phoneHostBucket is the hosted bucket of the start numbered gen, which tells the app what EveryAPI says as it renews its key.
