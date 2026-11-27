@@ -53,10 +53,8 @@ func miniBar(cx *core.Scope, l *Layer, p *play) core.Node {
 		}
 		return ""
 	}
-	poster := func() core.ImageSource {
-		f, _ := p.s.Film(p.key)
-		return look.LocalPoster(p.s, f)
-	}
+	// The poster as the film's page shows it, the computer's for a film streamed without one kept.
+	poster := look.FilmPoster(cx, p.s, func() string { return p.key })
 	played := func() core.Style {
 		length := p.length.Get()
 		share := float32(0)
@@ -88,7 +86,7 @@ func miniBar(cx *core.Scope, l *Layer, p *play) core.Node {
 							}
 							return core.Style{Width: core.Pt(48), Height: core.Pt(48), Background: colors.Inset()}
 						},
-						Children: []core.Node{core.Image{SourceFunc: poster, ResizeMode: core.Cover, ElementsHidden: true, Style: fill}}},
+						Children: []core.Node{core.Image{TestID: "player-mini-poster", SourceFunc: poster, ResizeMode: core.Cover, ElementsHidden: true, Style: fill}}},
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
 						core.Text{TestID: "player-mini-line", ContentFunc: top, MaxLines: 1, Style: core.Style{FontWeight: core.FontWeightBold}, StyleFunc: func() core.Style {
 							if wide() {

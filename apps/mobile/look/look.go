@@ -2,6 +2,7 @@
 package look
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -130,6 +131,30 @@ func LocalPoster(s *session.Session, f store.Film) core.ImageSource {
 		return core.ImageSource{}
 	}
 	return core.Src(kcore.FileURL(filepath.Join(s.Store().FilmDir(f.Desktop, f.Film.ID), f.Poster)))
+}
+
+// FilmPoster is the poster of the film kept under key, as its page and its row in the Library show it: the file the phone keeps, else, for a film streamed from its computer without one, the poster its computer gives, read once and kept by the session (session.Poster); none while neither is had.
+func FilmPoster(cx *core.Scope, s *session.Session, key func() string) func() core.ImageSource {
+	type source struct {
+		c           *sync.Client
+		desktop, id string
+	}
+	remote := core.NewResource(cx, func() (source, bool) {
+		f, kept := s.Film(key())
+		c := s.Client(f.Desktop)
+		return source{c, f.Desktop, f.Film.ID}, kept && c != nil && f.Film.Poster != "" && f.Poster == ""
+	}, func(ctx context.Context, src source, _ core.ResourceInfo) ([]byte, error) {
+		return s.Poster(ctx, src.c, src.desktop, src.id)
+	})
+	return func() core.ImageSource {
+		if f, ok := s.Film(key()); ok && f.Poster != "" {
+			return LocalPoster(s, f)
+		}
+		if data, ok := remote.Get(); ok && len(data) > 0 {
+			return core.ImageSource{Data: data}
+		}
+		return core.ImageSource{}
+	}
 }
 
 // Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, downloaded, or its lines kept for a film kept without its video; for a film not on the phone, that its computer no longer serves it once a download of it found so (session.FilmGone), else "". Of a film of a source and the computer's film of the same file, it is where the copy that stands for both stands (session.Copy).

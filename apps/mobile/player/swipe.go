@@ -130,11 +130,8 @@ func (w *swiper) neighbors(cx *core.Scope) core.Node {
 	poster := func(id string, k *core.Memo[string], top core.Length) core.Node {
 		return core.Show{When: func() bool { return w.on() && k.Get() != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.View{TestID: id, PointerEvents: core.PointerEventsNone, AccessibilityElementsHidden: func() bool { return true },
-				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: top, Height: core.Pct(100), Background: core.RGB(0x000000), Animated: &core.AnimatedStyle{TranslateY: w.drag}},
-				Children: []core.Node{core.Image{ResizeMode: core.Contain, ElementsHidden: true, Style: fill, SourceFunc: func() core.ImageSource {
-					f, _ := w.p.s.Film(k.Get())
-					return look.LocalPoster(w.p.s, f)
-				}}}}
+				Style:    core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: top, Height: core.Pct(100), Background: core.RGB(0x000000), Animated: &core.AnimatedStyle{TranslateY: w.drag}},
+				Children: []core.Node{core.Image{ResizeMode: core.Contain, ElementsHidden: true, Style: fill, SourceFunc: look.FilmPoster(cx, w.p.s, k.Get)}}}
 		}}
 	}
 	return core.Group([]core.Node{poster("player-swipe-next", w.next, core.Pct(100)), poster("player-swipe-prev", w.prev, core.Pct(-100))})

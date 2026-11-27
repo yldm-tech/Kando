@@ -550,10 +550,7 @@ func backdrop(cx *core.Scope, p *play, when func() bool) core.Node {
 			core.Image{ResizeMode: core.Cover, ElementsHidden: true,
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Height: core.Pct(70),
 					Filters: []core.Filter{core.Blur(50), core.Saturate(1.4)}, Opacity: core.Alpha(0.55)},
-				SourceFunc: func() core.ImageSource {
-					f, _ := p.s.Film(p.key)
-					return look.LocalPoster(p.s, f)
-				}},
+				SourceFunc: look.FilmPoster(cx, p.s, func() string { return p.key })},
 			core.View{Style: fill.Merge(core.Style{Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 180, Stops: []core.ColorStop{
 				{Color: theme.PlayerBG.Faded(0.2), At: core.Pct(0)}, {Color: theme.PlayerBG.Faded(0.85), At: core.Pct(45)}, {Color: theme.PlayerBG, At: core.Pct(70)},
 			}}}})},

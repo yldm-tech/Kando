@@ -168,3 +168,21 @@ func TestSoundFilmStreamsAndSubtitlesOnlyDoesNot(t *testing.T) {
 		t.Fatal("subtitles-only film unexpectedly offered streaming")
 	}
 }
+
+// A computer's film streamed without its poster kept on the phone shows in the mini player the poster its computer gives, as its page and its row do.
+func TestTheMiniPlayerShowsAStreamedFilmsPoster(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	row := talkRow(store.DesktopID(d.Fingerprint))
+	p.app.WaitFor(row, wait)
+	p.app.Press(row)
+	p.app.WaitFor("id:film-stream", wait)
+	p.app.Press("id:film-stream")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.WaitUntil(wait, func() bool {
+		return string(p.app.FindMounted("id:player-mini-poster").Image.Source.Data) == "jpeg"
+	})
+}
