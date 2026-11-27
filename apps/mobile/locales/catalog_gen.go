@@ -1518,6 +1518,8 @@ const (
 	textPlayerCannotAddWord
 	textPlayerMini
 	textPlayerMinimize
+	textPlayerFullScreen
+	textPlayerExitFullScreen
 	textPlayerTabWords
 	textPlayerWordAdd
 	textPlayerWordInVocabulary
@@ -1548,6 +1550,8 @@ const (
 	textPlayerNextCancel
 	textPlayerAutoNext
 	textPlayerAutoNextNote
+	textPlayerRepeat
+	textPlayerRepeatNote
 	textSourcesTitle
 	textSourcesAdd
 	textSourcesNote
@@ -2167,6 +2171,8 @@ var keyOfText = [numTexts]string{
 	"playerCannotAddWord",
 	"playerMini",
 	"playerMinimize",
+	"playerFullScreen",
+	"playerExitFullScreen",
 	"playerTabWords",
 	"playerWordAdd",
 	"playerWordInVocabulary",
@@ -2197,6 +2203,8 @@ var keyOfText = [numTexts]string{
 	"playerNextCancel",
 	"playerAutoNext",
 	"playerAutoNextNote",
+	"playerRepeat",
+	"playerRepeatNote",
 	"sourcesTitle",
 	"sourcesAdd",
 	"sourcesNote",
@@ -2814,6 +2822,8 @@ var textsEn = i18n.NewTexts(""+
 	"Open this film once while its computer is reachable to add its words to the vocabulary."+
 	"Now Playing"+
 	"Minimize Player"+
+	"Full Screen"+
+	"Exit Full Screen"+
 	"New Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
@@ -2844,6 +2854,8 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"Play Next Automatically"+
 	"When a film ends, plays the next one of its course or playlist that's on this phone."+
+	"Repeat Film"+
+	"When the film ends, plays it again from the start. The sleep timer's End of Film still stops it."+
 	"NAS & Servers"+
 	"Add NAS or Server"+
 	"Kando only reads these: it never writes, moves or deletes anything on them. Their passwords stay in this phone's secure storage, and the films you download play without the computer."+
@@ -3458,6 +3470,8 @@ var textsEn = i18n.NewTexts(""+
 		87,
 		11,
 		15,
+		11,
+		16,
 		9,
 		17,
 		23,
@@ -3488,6 +3502,8 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		23,
 		84,
+		11,
+		96,
 		13,
 		17,
 		182,
@@ -4105,6 +4121,8 @@ var textsJa = i18n.NewTexts(""+
 	"パソコンにつながる場所で一度この映像を開くと、単語を単語帳に追加できるようになります。"+
 	"再生中"+
 	"プレーヤーをしまう"+
+	"フルスクリーン"+
+	"フルスクリーンを解除"+
 	"単語"+
 	"単語帳に追加"+
 	"単語帳にあります · 削除"+
@@ -4135,6 +4153,8 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"次の作品を自動再生"+
 	"作品が終わると、同じコースやリストでこの端末にある次の作品を再生します。"+
+	"リピート再生"+
+	"作品が終わると最初からもう一度再生します。スリープタイマーが「映像の終わり」のときは停止します。"+
 	"NAS とサーバ"+
 	"NAS またはサーバを追加"+
 	"Kando はこれらを読み取るだけで、書き込み・移動・削除は一切しません。パスワードはこの端末の安全な保管場所に保存され、ダウンロードした映画はコンピュータなしで再生できます。"+
@@ -4749,6 +4769,8 @@ var textsJa = i18n.NewTexts(""+
 		129,
 		9,
 		27,
+		21,
+		30,
 		6,
 		18,
 		34,
@@ -4779,6 +4801,8 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		27,
 		108,
+		18,
+		144,
 		16,
 		31,
 		252,
@@ -5396,6 +5420,8 @@ var textsKo = i18n.NewTexts(""+
 	"컴퓨터에 연결된 상태에서 이 영상을 한 번 열면 단어를 단어장에 추가할 수 있습니다."+
 	"재생 중"+
 	"플레이어 최소화"+
+	"전체 화면"+
+	"전체 화면 종료"+
 	"단어"+
 	"단어장에 추가"+
 	"단어장에 있음 · 삭제"+
@@ -5426,6 +5452,8 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"다음 작품 자동 재생"+
 	"작품이 끝나면 같은 강좌나 목록에서 이 휴대폰에 있는 다음 작품을 재생합니다."+
+	"반복 재생"+
+	"작품이 끝나면 처음부터 다시 재생합니다. 취침 타이머가 '영상 끝'이면 멈춥니다."+
 	"NAS 및 서버"+
 	"NAS 또는 서버 추가"+
 	"Kando는 이곳을 읽기만 하며, 아무것도 쓰거나 옮기거나 지우지 않습니다. 암호는 이 휴대폰의 보안 저장소에 보관되고, 다운로드한 영화는 컴퓨터 없이 재생됩니다."+
@@ -6040,6 +6068,8 @@ var textsKo = i18n.NewTexts(""+
 		115,
 		10,
 		22,
+		13,
+		20,
 		6,
 		19,
 		29,
@@ -6070,6 +6100,8 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		27,
 		107,
+		13,
+		109,
 		14,
 		24,
 		217,
@@ -6687,6 +6719,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"在能连上电脑时打开一次这部影片，就能把它的词加入生词本。"+
 	"正在播放"+
 	"收起播放器"+
+	"全屏"+
+	"退出全屏"+
 	"生词"+
 	"加入生词本"+
 	"已在生词本 · 移除"+
@@ -6717,6 +6751,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"自动播放下一部"+
 	"一部播完后，接着播放同一课程或列表里已在手机上的下一部。"+
+	"循环播放"+
+	"播完后从头再播一遍。睡眠定时器选“这集完”时仍会停下。"+
 	"NAS 与服务器"+
 	"添加 NAS 或服务器"+
 	"看懂只读取这些位置，从不在上面写入、移动或删除任何东西。它们的密码保存在这台手机的安全存储里，下载的影片不用电脑也能播放。"+
@@ -7332,6 +7368,8 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		15,
 		6,
+		12,
+		6,
 		15,
 		25,
 		69,
@@ -7361,6 +7399,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		12,
+		81,
 		16,
 		23,
 		183,
@@ -7978,6 +8018,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"在能連上電腦時打開一次這部影片，就能把它的詞加入生詞本。"+
 	"正在播放"+
 	"收起播放器"+
+	"全螢幕"+
+	"結束全螢幕"+
 	"生詞"+
 	"加入生詞本"+
 	"已在生詞本 · 移除"+
@@ -8008,6 +8050,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"自動播放下一部"+
 	"一部播完後，接著播放同一課程或清單裡已在手機上的下一部。"+
+	"循環播放"+
+	"播完後從頭再播一遍。睡眠定時器選「這集完」時仍會停下。"+
 	"NAS 與伺服器"+
 	"新增 NAS 或伺服器"+
 	"看懂只讀取這些位置，從不在上面寫入、移動或刪除任何東西。它們的密碼儲存在這支手機的安全儲存區裡，下載的影片不用電腦也能播放。"+
@@ -8622,6 +8666,8 @@ var textsZhHant = i18n.NewTexts(""+
 		84,
 		12,
 		15,
+		9,
+		15,
 		6,
 		15,
 		25,
@@ -8652,6 +8698,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		12,
+		81,
 		16,
 		23,
 		186,
@@ -22193,6 +22241,24 @@ func PlayerMinimize(cx *core.Scope) string { return For(cx).PlayerMinimize() }
 // PlayerMinimize is the package's PlayerMinimize in the language of msgs.
 func (msgs Messages) PlayerMinimize() string { return msgs.text(textPlayerMinimize) }
 
+// PlayerFullScreen says "Full Screen"
+// in the language the app shows under cx.
+//
+// Spoken name of the round button over the upright player's picture that shows the video on the whole screen, turned sideways for a wide video.
+func PlayerFullScreen(cx *core.Scope) string { return For(cx).PlayerFullScreen() }
+
+// PlayerFullScreen is the package's PlayerFullScreen in the language of msgs.
+func (msgs Messages) PlayerFullScreen() string { return msgs.text(textPlayerFullScreen) }
+
+// PlayerExitFullScreen says "Exit Full Screen"
+// in the language the app shows under cx.
+//
+// Spoken name of the button in the row over the full-screen picture that goes back to the upright player.
+func PlayerExitFullScreen(cx *core.Scope) string { return For(cx).PlayerExitFullScreen() }
+
+// PlayerExitFullScreen is the package's PlayerExitFullScreen in the language of msgs.
+func (msgs Messages) PlayerExitFullScreen() string { return msgs.text(textPlayerExitFullScreen) }
+
 // PlayerTabWords says "New Words"
 // in the language the app shows under cx.
 //
@@ -22665,6 +22731,24 @@ func PlayerAutoNextNote(cx *core.Scope) string { return For(cx).PlayerAutoNextNo
 
 // PlayerAutoNextNote is the package's PlayerAutoNextNote in the language of msgs.
 func (msgs Messages) PlayerAutoNextNote() string { return msgs.text(textPlayerAutoNextNote) }
+
+// PlayerRepeat says "Repeat Film"
+// in the language the app shows under cx.
+//
+// Playback setting, and the pill over the picture while it is on: once a film ends it plays again from its start, in place of the next film.
+func PlayerRepeat(cx *core.Scope) string { return For(cx).PlayerRepeat() }
+
+// PlayerRepeat is the package's PlayerRepeat in the language of msgs.
+func (msgs Messages) PlayerRepeat() string { return msgs.text(textPlayerRepeat) }
+
+// PlayerRepeatNote says "When the film ends, plays it again from the start. The sleep timer's End of Film still stops it."
+// in the language the app shows under cx.
+//
+// Under the Repeat Film switch in the playback settings.
+func PlayerRepeatNote(cx *core.Scope) string { return For(cx).PlayerRepeatNote() }
+
+// PlayerRepeatNote is the package's PlayerRepeatNote in the language of msgs.
+func (msgs Messages) PlayerRepeatNote() string { return msgs.text(textPlayerRepeatNote) }
 
 // SourcesTitle says "NAS & Servers"
 // in the language the app shows under cx.

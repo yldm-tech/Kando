@@ -20,6 +20,9 @@ const nextAfter = 8 * time.Second
 // autoNextKey is the setting 自动播放下一部 is kept under in the app's storage.
 const autoNextKey = "player.autoNext"
 
+// repeatKey is the setting 循环播放 is kept under in the app's storage, for every film as 自动播放下一部 is.
+const repeatKey = "player.repeat"
+
 // upNext is the card while it shows: the next film's key, or for one to stream its film's ID (stream), and when it plays.
 type upNext struct {
 	key    string

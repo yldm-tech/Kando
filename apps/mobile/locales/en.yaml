@@ -2764,6 +2764,12 @@ playerMiniOpen:
 playerMinimize:
   message: "Minimize Player"
   description: "Spoken name of the player's button that minimizes it to a bar over the tabs while the film plays on."
+playerFullScreen:
+  message: "Full Screen"
+  description: "Spoken name of the round button over the upright player's picture that shows the video on the whole screen, turned sideways for a wide video."
+playerExitFullScreen:
+  message: "Exit Full Screen"
+  description: "Spoken name of the button in the row over the full-screen picture that goes back to the upright player."
 playerTabWords:
   message: "New Words"
   description: "Tab of the player's panel: the film's words looked up or in the vocabulary. Their number shows beside it."
@@ -2884,6 +2890,12 @@ playerAutoNext:
 playerAutoNextNote:
   message: "When a film ends, plays the next one of its course or playlist that's on this phone."
   description: "Under the Play Next Automatically switch in the playback settings."
+playerRepeat:
+  message: "Repeat Film"
+  description: "Playback setting, and the pill over the picture while it is on: once a film ends it plays again from its start, in place of the next film."
+playerRepeatNote:
+  message: "When the film ends, plays it again from the start. The sleep timer's End of Film still stops it."
+  description: "Under the Repeat Film switch in the playback settings."
 sourcesTitle:
   message: "NAS & Servers"
   description: "Title of the Settings page, and of its row, that lists the NAS shares and servers the phone reaches itself over SMB, SFTP or WebDAV, without the computer."

@@ -60,10 +60,11 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 			Children: []core.Node{ui.IconOf(icon, 18, func() core.Color { return theme.PlayerInk })}}
 	}
 	pip := func() bool { return p.pip.Get().Supported }
-	return appSheet{Dark: true, Open: open.Get, OnClose: func() { open.Set(false) }, Label: func() string { return locales.PlayerSettings(cx) }, Children: []core.Node{
+	// The title stays over the scroll, so a drag down on it, as on the grabber, swipes the sheet away whatever the scroll does.
+	return appSheet{Dark: true, TestID: "player-settings-sheet", Open: open.Get, OnClose: func() { open.Set(false) }, Label: func() string { return locales.PlayerSettings(cx) }, Children: []core.Node{
+		core.Text{ContentFunc: func() string { return locales.PlayerSettings(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy, Padding: core.Edges{Top: 4, Left: 4}, Color: theme.PlayerInk})},
 		core.Scroll{TestID: "player-settings", Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-			core.View{Style: core.Style{Gap: 16, Padding: core.Edges{Top: 4, Bottom: 8}}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return locales.PlayerSettings(cx) }, Role: core.RoleHeader, Style: look.Title.Merge(core.Style{FontWeight: look.Heavy, Padding: core.Edges{Left: 4}, Color: theme.PlayerInk})},
+			core.View{Style: core.Style{Gap: 16, Padding: core.Edges{Bottom: 8}}, Children: []core.Node{
 				core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 					label(func() string { return locales.PlayerSpeed(cx) }),
 					segmented("player-settings-speed", func() string { return locales.PlayerSpeed(cx) }, 14, speeds, p.speed, func(r float32) { _ = p.rate.Set(r) }),
@@ -93,6 +94,12 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 					}),
 					toggle("player-settings-audio-only", false, func() string { return locales.PlayerAudioOnly(cx) }, func() string { return locales.PlayerAudioOnlyNote(cx) }, p.audioOnly.Get, func(on bool) { _ = p.audioOnly.Set(on) }),
 					toggle("player-settings-on-picture", false, func() string { return locales.PlayerOnPicture(cx) }, func() string { return locales.PlayerOnPictureNote(cx) }, p.onPicture.Get, func(on bool) { _ = p.onPicture.Set(on) }),
+					toggle("player-settings-repeat", false, func() string { return locales.PlayerRepeat(cx) }, func() string { return locales.PlayerRepeatNote(cx) }, p.repeat.Get, func(on bool) {
+						_ = p.repeat.Set(on)
+						if on {
+							p.closeNext()
+						}
+					}),
 					toggle("player-settings-auto-next", false, func() string { return locales.PlayerAutoNext(cx) }, func() string { return locales.PlayerAutoNextNote(cx) }, p.autoNext.Get, func(on bool) {
 						_ = p.autoNext.Set(on)
 						if !on {

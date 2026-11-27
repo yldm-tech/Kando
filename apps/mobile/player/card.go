@@ -78,9 +78,9 @@ func card(cx *core.Scope, p *play, w *words) core.Node {
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 12}, Children: []core.Node{
 					core.Text{TestID: "player-card-place", ContentFunc: func() string {
 						return locales.PlayerCardPlace(cx, i()+1, len(p.list()), clock(p.line(i()).Start))
-					}, MaxLines: 2, Style: mono.Merge(core.Style{FontSize: 12, LineHeight: 16, MaxWidth: core.Pct(45)}), StyleFunc: faint},
-					// The hint is a column of its own after the place, its lines flush left, as the design's.
-					core.Text{ContentFunc: hint, MaxLines: 2, Style: core.Style{FontSize: 12, LineHeight: 16, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: faint},
+					}, MaxLines: 1, Style: mono.Merge(core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 0}), StyleFunc: faint},
+					// The hint takes what the place leaves on the row, one line of it, cut short where there is not room for it all: the place, as 第 1 / 1,236 句 · 0:54, keeps to one line whole.
+					core.Text{TestID: "player-card-hint", ContentFunc: hint, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: faint},
 				}},
 				original,
 				core.Show{When: func() bool { return p.line(i()).Translation != "" }, Then: func(cx *core.Scope) core.Node {

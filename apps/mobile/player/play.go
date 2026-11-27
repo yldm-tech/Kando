@@ -94,6 +94,8 @@ type play struct {
 	sleepUntil time.Time
 	// autoNext is 自动播放下一部; card is the card that plays the next film once this one ends, and nextStop stops its countdown (next.go).
 	autoNext *core.Persisted[bool]
+	// repeat is 循环播放: the film plays again from its start once it ends, in place of the next.
+	repeat   *core.Persisted[bool]
 	card     *core.Signal[upNext]
 	nextStop func() bool
 	// revealed is the line whose texts the mode hides that a tap shows, -1 for none: the card blurs them again on the next line.
@@ -145,6 +147,7 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		delay:     core.NewSignal(cx, time.Duration(f.DelayMS)*time.Millisecond),
 		sleep:     core.NewSignal(cx, sleepOff),
 		autoNext:  core.NewPersisted(cx, autoNextKey, true, core.PersistOptions{}),
+		repeat:    core.NewPersisted(cx, repeatKey, false, core.PersistOptions{}),
 		card:      core.NewSignal(cx, upNext{}),
 		revealed:  core.NewSignal(cx, -1),
 		cut:       core.NewSignal(cx, 0),
@@ -398,18 +401,26 @@ func (p *play) hold() {
 	p.save()
 }
 
-// ended is the film played to its end: a line looped plays again, the sleep timer's End of Film holds it there, and otherwise the next film of its course or playlist plays after it (upNextAtEnd), as l, the app's player, goes on to it.
+// ended is the film played to its end: a line looped plays again, the sleep timer's End of Film holds it there, repeat plays it again from its start, and otherwise the next film of its course or playlist plays after it (upNextAtEnd), as l, the app's player, goes on to it.
+// Played again, the film is not held, so its end is not kept as where it was left nor sent at once: the position kept goes back to its start with the next report (progress), and the time watched counts on as it plays.
 func (p *play) ended(l *Layer) {
 	if i := p.loop.GetUntracked(); i >= 0 {
 		p.step(i)
 		p.playing.Set(true)
 		return
 	}
-	p.hold()
 	if p.sleep.GetUntracked() == sleepFilm {
+		p.hold()
 		p.sleep.Set(sleepOff)
 		return
 	}
+	if p.repeat.Get() && p.hasVideo() {
+		p.held.Set(false)
+		p.seek(0)
+		p.playing.Set(true)
+		return
+	}
+	p.hold()
 	p.upNextAtEnd(l)
 }
 
