@@ -134,8 +134,11 @@ func storageCard(cx *core.Scope, a App) core.Node {
 			})}
 	}}
 	usage := core.View{Style: core.Style{Padding: core.Symmetric(12, 14)}, Children: []core.Node{head, bar, legend, uploading}}
-	// 换一个存储 moves between the storages of 账号与上传, which 看懂托管 is not one of: its switch leaves it.
-	move := core.Show{When: live.Func(a, func() bool { return !a.PhoneSync().Relay.hostedInUse() }), Then: func(cx *core.Scope) core.Node {
+	// 换一个存储 moves between the storages of 账号与上传, which 看懂托管 is not one of: its switch leaves it, and the row shows only how a move to it goes.
+	move := core.Show{When: live.Func(a, func() bool {
+		r := a.PhoneSync().Relay
+		return !r.hostedInUse() || r.Storage.Moving || r.Storage.MoveErr != ""
+	}), Then: func(cx *core.Scope) core.Node {
 		return core.Group{form.Separator(true), moveRow(cx, a)}
 	}}
 	return form.Card(usage, form.Separator(true), cleanRow(cx, a), form.Separator(true), watchedList(cx, a), move)

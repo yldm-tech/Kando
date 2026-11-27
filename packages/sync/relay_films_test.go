@@ -151,7 +151,7 @@ func TestRelayHandoffMovesThePhonesToAnotherBucket(t *testing.T) {
 	slot := g.send(t, "c1", OpJobs, nil)
 	moved := newMemRelay(t, func() time.Time { return g.clock })
 	g.clock = g.clock.Add(time.Minute)
-	if err := g.relay.Handoff(ctx, moved); err != nil {
+	if err := g.relay.Handoff(ctx, moved, nil); err != nil {
 		t.Fatal(err)
 	}
 	// What waited in the old bucket was answered there before the move.
@@ -219,7 +219,7 @@ func TestAHandoffThatFailsTakesThePhonesBack(t *testing.T) {
 	var tookNew error
 	first := func() { _, tookNew = g.phone.State(ctx) }
 	moved := newMemRelay(t, func() time.Time { return g.clock })
-	if err := g.relay.Handoff(ctx, failingPuts{moved, "/D2/", &first}); err == nil {
+	if err := g.relay.Handoff(ctx, failingPuts{moved, "/D2/", &first}, nil); err == nil {
 		t.Fatal("a handoff that failed for a phone went through")
 	}
 	if tookNew != nil {

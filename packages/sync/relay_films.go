@@ -138,8 +138,8 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 	return out, nil
 }
 
-// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. Once it went through, this relay writes no state.json any more, so a turn of Run does not take the phones back; it still answers what they left here before they moved. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete. A handoff that fails partway takes the phones back: each is given a newer grant of links here, in its state.json here and in to, wherever it reads it now.
-func (r *Relay) Handoff(ctx context.Context, to RelayBucket) error {
+// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. Once it went through, this relay writes no state.json any more, so a turn of Run does not take the phones back; it still answers what they left here before they moved. linksUntil is to's LinksUntil, nil for a bucket whose key does not lapse. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete. A handoff that fails partway takes the phones back: each is given a newer grant of links here, in its state.json here and in to, wherever it reads it now.
+func (r *Relay) Handoff(ctx context.Context, to RelayBucket, linksUntil func(context.Context) (time.Time, error)) error {
 	if _, err := r.Poll(ctx); err != nil {
 		r.logf("relay: handoff: inbox: %v", err)
 	}
@@ -148,7 +148,7 @@ func (r *Relay) Handoff(ctx context.Context, to RelayBucket) error {
 	if r.handedOff {
 		return errors.New("kando sync: the relay was handed over already")
 	}
-	next := &Relay{Bucket: to, Prefix: r.Prefix, Desk: r.Desk, Devices: r.Devices, Now: r.Now, Logf: r.Logf}
+	next := &Relay{Bucket: to, Prefix: r.Prefix, Desk: r.Desk, Devices: r.Devices, Now: r.Now, Logf: r.Logf, LinksUntil: linksUntil}
 	shelf, err := r.shelf(ctx)
 	if err != nil {
 		return err

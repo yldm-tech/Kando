@@ -19,13 +19,13 @@ import (
 // phoneRelayRestartAfter is how long after the store's settings last changed Phone Sync starts again in the new store, so typing a key does not restart it at each letter. Tests shorten it.
 var phoneRelayRestartAfter = 2 * time.Second
 
-// phoneRelaySig names the store the relay would run in now, "" for none: the relay off, 离线模式 on, or no store set up; 看懂托管 is named by the key it asks EveryAPI with (phoneHostSig). Phone Sync keeps the one it started with (phoneUI.relaySig).
+// phoneRelaySig names the store the relay would run in now, "" for none: the relay off, 离线模式 on, or no store set up; 看懂托管 is one name whatever key it asks with, which phoneRelayStale compares apart. Phone Sync keeps the one it started with (phoneUI.relaySig).
 func (a *app) phoneRelaySig() string {
 	if !a.phone.relay || a.privacy.offline {
 		return ""
 	}
 	if a.phoneHostInUse() {
-		return a.phoneHostSig()
+		return "hosted"
 	}
 	cfg := a.currentStore()
 	if !storeReady(cfg) {
@@ -56,8 +56,11 @@ func (a *app) phoneRelayBucket(gen int) (phonesync.Bucket, time.Duration, func(c
 		a.phone.relayErr = err
 		return nil, 0, nil
 	}
-	return phonesync.RelayBucket(bucket), 0, nil
+	return phonesync.RelayBucket(bucket), phoneRelayEvery, nil
 }
+
+// phoneRelayEvery is how often the relay polls the bucket of 账号与上传, 0 for the relay's own (sync.RelayPoll). Tests shorten it.
+var phoneRelayEvery time.Duration
 
 // phoneRelayHealth is what the relay of the start numbered gen tells after each of its turns, on its own goroutine: posted to the app only when it says something else than the turn before, as most turns go as the last one did.
 func (a *app) phoneRelayHealth(gen int) func(err error) {
@@ -98,9 +101,15 @@ func (a *app) phoneRelayRestart() {
 	a.phoneSyncStart()
 }
 
+// phoneRelayStale reports whether the relay would run elsewhere than the running one started in: another store, or 看懂托管 asked with another credential of the AI service.
+func (a *app) phoneRelayStale() bool {
+	sig := a.phoneRelaySig()
+	return sig != a.phone.relaySig || (sig == "hosted" && a.phoneHostCred() != a.phone.host.cred)
+}
+
 // phoneRelayFollow restarts a running Phone Sync phoneRelayRestartAfter after the store the relay would run in stopped being the one it started with. 离线模式 turned on stops a running relay at once rather than after the wait, as it stops everything else under way over the network; it reports whether it did, which changes what the page reads. UI thread only.
 func (a *app) phoneRelayFollow() bool {
-	if a.phone.server == nil || a.phoneRelaySig() == a.phone.relaySig {
+	if a.phone.server == nil || !a.phoneRelayStale() {
 		return false
 	}
 	if a.privacy.offline && a.phone.relaySig != "" {
@@ -114,7 +123,7 @@ func (a *app) phoneRelayFollow() bool {
 	gen := a.phone.gen
 	a.cx.AfterFunc(phoneRelayRestartAfter, live.Do(a, func() {
 		a.phone.relayArmed = false
-		if gen == a.phone.gen && a.phone.server != nil && a.phoneRelaySig() != a.phone.relaySig {
+		if gen == a.phone.gen && a.phone.server != nil && a.phoneRelayStale() {
 			a.phoneRelayRestart()
 		}
 	}))

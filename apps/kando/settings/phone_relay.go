@@ -157,10 +157,10 @@ func hostedRow(cx *core.Scope, a App) core.Node {
 	subscribe := core.Show{When: live.Func(a, func() bool { return !relay().Plus }), Then: func(cx *core.Scope) core.Node {
 		return form.Button{Text: locales.SettingsPhoneRelayHostedSubscribe(cx), TestID: "settings-phone-relay-hosted-subscribe", OnPress: live.Do(a, a.SubscribePhoneRelay)}
 	}}
-	// Turning it off is always allowed; on, only with Plus.
+	// Turning it off is always allowed, on only with Plus; neither while a move hands the phones over.
 	toggle := ui.Switch{Label: locales.SettingsPhoneRelayHosted(cx), TestID: "settings-phone-relay-hosted",
 		Checked:  live.Func(a, func() bool { return relay().Hosted }),
-		Disabled: live.Func(a, func() bool { r := relay(); return !r.Plus && !r.Hosted }),
+		Disabled: live.Func(a, func() bool { r := relay(); return (!r.Plus && !r.Hosted) || r.Storage.Moving }),
 		OnChange: live.On(a, a.SetPhoneRelayHosted)}
 	return form.Row{Title: locales.SettingsPhoneRelayHosted(cx), SubtitleFunc: subtitle, NoGroup: true, TestID: "settings-phone-relay-hosted-row", Trailing: []core.Node{subscribe, toggle}}
 }

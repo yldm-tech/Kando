@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"log"
 	"strconv"
@@ -40,6 +38,8 @@ type phoneHost struct {
 	plusKnown bool
 	checking  bool
 	shown     bool
+	// cred is the credential the hosted bucket made last asks with (phoneHostCred).
+	cred phoneHostCred
 	// state is what the hosted bucket of the running relay last found asking for its key, known once it asked.
 	state      relayhost.State
 	stateKnown bool
@@ -98,16 +98,21 @@ func (a *app) phoneHostClient() *relayhost.Client {
 	return &relayhost.Client{Base: phoneHostAPI, Key: a.phoneHostKey()}
 }
 
-// phoneHostSig names the hosted relay with the AI service's key it asks with, so Phone Sync starts again with another key, without holding the key itself.
-func (a *app) phoneHostSig() string {
+// phoneHostCred is the AI service's credential the hosted relay asks EveryAPI with, as the pipeline holds it now: its endpoint, its key and whether the everyapi program signs in. It is compared in memory with the one the running relay started with (phoneHost.cred), so Phone Sync starts again once it changes; nothing is derived from the key, and it is never saved or logged.
+type phoneHostCred struct {
+	base, key string
+	cli       bool
+}
+
+func (a *app) phoneHostCred() phoneHostCred {
 	tools, _ := a.pipeline.(media.Tools)
 	t := tools.Translator
-	sum := sha256.Sum256([]byte(phoneHostAPI + "\n" + t.BaseURL + "\n" + t.APIKey + "\n" + strconv.FormatBool(t.Credential != nil)))
-	return "hosted:" + hex.EncodeToString(sum[:])
+	return phoneHostCred{base: t.BaseURL, key: t.APIKey, cli: t.Credential != nil}
 }
 
 // phoneHostBucket is the hosted bucket of the start numbered gen, which tells the app what EveryAPI says as it renews its key.
 func (a *app) phoneHostBucket(gen int) *relayhost.Bucket {
+	a.phone.host.cred = a.phoneHostCred()
 	return relayhost.NewBucket(a.phoneHostClient(), nil, a.phoneHostTold(gen))
 }
 
@@ -144,14 +149,39 @@ func (a *app) phoneHostTold(gen int) func(relayhost.State) {
 	}
 }
 
-// phoneHostSet chooses 看懂托管 (on), which only Kando Plus turns on, or the bucket of 账号与上传, saves that, and has a running Phone Sync take it up.
+// phoneHostSet chooses 看懂托管 (on), which only Kando Plus turns on, or the bucket of 账号与上传, and saves that. While the relay runs, it moves there as 换一个存储 does (phoneRelayMove), handing the phones over so those away from this network follow; with nowhere to hand them over to, as the bucket of 账号与上传 not set up, Phone Sync just starts again with the relay where it now goes.
 func (a *app) phoneHostSet(on bool) {
 	h := &a.phone.host
-	if on == h.on || (on && !h.plus.Active) {
+	if on == h.on || (on && !h.plus.Active) || a.phone.films.moving {
 		return
 	}
-	h.on, h.lapsed = on, false
-	h.state, h.stateKnown = relayhost.State{}, false
+	use := func() {
+		h := &a.phone.host
+		h.on, h.lapsed = on, false
+		h.state, h.stateKnown = relayhost.State{}, false
+	}
+	if on == a.phoneHostInUse() {
+		// Turned off after its Plus ended: the relay already went back.
+		use()
+		a.Save()
+		return
+	}
+	from := a.storageKind()
+	if a.phoneHostInUse() {
+		from = phoneHostKind
+	}
+	switch {
+	case a.phone.server == nil || a.phone.relaySig == "":
+	case on:
+		b := a.phoneHostBucket(a.phone.gen)
+		a.phoneRelayMove(phoneHostKind, from, b, b.LinksUntil, nil, use)
+		return
+	case storeReady(a.currentStore()):
+		bucket, err := cloud.OpenBucket(a.currentStore())
+		a.phoneRelayMove(a.storageKind(), from, phonesync.RelayBucket(bucket), nil, err, use)
+		return
+	}
+	use()
 	a.Save()
 	a.phoneRelayRestart()
 }

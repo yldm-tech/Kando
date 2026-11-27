@@ -98,12 +98,17 @@ func (f *hostedFake) serveS3(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("X-Amz-Signature") != "" {
 		token = r.URL.Query().Get("X-Amz-Security-Token")
 	}
-	key := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/kando-hosted"), "/")
+	serveMemBucket(w, r, "kando-hosted", "acct/", f.tokens[token], f.objects, &f.deletes)
+}
+
+// serveMemBucket answers r as an S3-compatible store of one bucket named bucket, path style, holding objects: a request not allowed, or for a key outside prefix, is refused; deletes counts what was deleted.
+func serveMemBucket(w http.ResponseWriter, r *http.Request, bucket, prefix string, allowed bool, objects map[string][]byte, deletes *int) {
+	key := strings.TrimPrefix(strings.TrimPrefix(r.URL.Path, "/"+bucket), "/")
 	scope := key
 	if key == "" {
 		scope = r.URL.Query().Get("prefix")
 	}
-	if !f.tokens[token] || !strings.HasPrefix(scope, "acct/") {
+	if !allowed || !strings.HasPrefix(scope, prefix) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>denied</Message></Error>`))
 		return
@@ -113,7 +118,7 @@ func (f *hostedFake) serveS3(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
 		var b strings.Builder
 		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?><ListBucketResult>`)
-		for k, body := range f.objects {
+		for k, body := range objects {
 			if strings.HasPrefix(k, scope) {
 				fmt.Fprintf(&b, `<Contents><Key>%s</Key><Size>%d</Size><LastModified>2026-11-27T09:00:00Z</LastModified></Contents>`, k, len(body))
 			}
@@ -122,13 +127,13 @@ func (f *hostedFake) serveS3(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(b.String()))
 	case r.Method == http.MethodPut:
 		body, _ := io.ReadAll(r.Body)
-		f.objects[key] = body
+		objects[key] = body
 	case r.Method == http.MethodDelete:
-		f.deletes++
-		delete(f.objects, key)
+		*deletes++
+		delete(objects, key)
 		w.WriteHeader(http.StatusNoContent)
 	default:
-		body, ok := f.objects[key]
+		body, ok := objects[key]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -137,6 +142,21 @@ func (f *hostedFake) serveS3(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write(body)
 		}
 	}
+}
+
+// ownBucket sets up a's storage as an S3-compatible bucket "relay" in memory that answers as a store does, the user's own.
+func ownBucket(t *testing.T, a *app) {
+	t.Helper()
+	var mu gosync.Mutex
+	objects, deletes := map[string][]byte{}, 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		serveMemBucket(w, r, "relay", "", true, objects, &deletes)
+	}))
+	t.Cleanup(srv.Close)
+	phoneRelayStore(t, a)
+	a.cloud.compatEndpoint = srv.URL
 }
 
 // hostedApp is Phone Sync's test app with EveryAPI as the AI service, its key entered, and the storage relay's switch on.
@@ -180,7 +200,7 @@ func TestPhoneRelayHostedNeedsPlus(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool {
 		return a.phone.server != nil && a.phone.server != running && a.phone.relayOK
 	})
-	if !strings.HasPrefix(a.phone.relaySig, "hosted:") || a.PhoneSync().Relay.Store != testlocale.Messages().SettingsPhoneRelayHosted() || tt.Exists("id:settings-phone-relay-store") {
+	if a.phone.relaySig != "hosted" || a.PhoneSync().Relay.Store != testlocale.Messages().SettingsPhoneRelayHosted() || tt.Exists("id:settings-phone-relay-store") {
 		t.Fatalf("sig %q, relay %+v", a.phone.relaySig, a.PhoneSync().Relay)
 	}
 	data, err := os.ReadFile(a.settingsPath)
@@ -206,6 +226,19 @@ func TestPhoneRelayHostedNeedsPlus(t *testing.T) {
 	if strings.Contains(joined.Grant.State, "hosted-secret") || !joined.Grant.Expires.Before(time.Now().Add(25*time.Hour)) {
 		t.Fatalf("grant state %s, expires %v", joined.Grant.State, joined.Grant.Expires)
 	}
+	// Another EveryAPI key in AI 服务: once the settings settle, the relay starts again and asks with it.
+	running = a.phone.server
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, APIKey: hostedKey + "2", Model: media.EveryAPIModel}}
+	refresh(tt, a)
+	tt.Advance(phoneRelayRestartAfter)
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.server != running })
+	if a.phone.host.cred.key != hostedKey+"2" {
+		t.Fatal("the relay did not take up the new key")
+	}
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, APIKey: hostedKey, Model: media.EveryAPIModel}}
+	refresh(tt, a)
+	tt.Advance(phoneRelayRestartAfter)
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.host.cred.key == hostedKey && a.phone.relayOK })
 	// Off again, the relay goes back to the storage of 账号与上传, of which none is set up.
 	running = a.phone.server
 	tt.Press("settings-phone-relay-hosted")
@@ -244,7 +277,7 @@ func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	f.set(func() { f.plus, f.refuse = false, "plus_required" })
 	a.phone.host.on = true
 	phoneSyncOn(t, a, tt, updates)
-	if !strings.HasPrefix(a.phone.relaySig, "hosted:") {
+	if a.phone.relaySig != "hosted" {
 		t.Fatalf("started in %q", a.phone.relaySig)
 	}
 	waitUntil(t, tt, a, updates, func() bool { return a.phone.host.lapsed })
@@ -253,7 +286,7 @@ func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.server != running })
 	m := testlocale.Messages()
 	r := a.PhoneSync().Relay
-	if a.phone.relaySig == "" || strings.HasPrefix(a.phone.relaySig, "hosted:") || !r.Hosted || !r.HostedLapsed || r.Store == m.SettingsPhoneRelayHosted() {
+	if a.phone.relaySig == "" || a.phone.relaySig == "hosted" || !r.Hosted || !r.HostedLapsed || r.Store == m.SettingsPhoneRelayHosted() {
 		t.Fatalf("sig %q, relay %+v", a.phone.relaySig, r)
 	}
 	if !tt.Exists("id:settings-phone-relay-hosted-row >> text:"+m.SettingsPhoneRelayHostedLapsed()) || !tt.Exists("id:settings-phone-relay-store") {
@@ -276,7 +309,7 @@ func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	running = a.phone.server
 	tt.Advance(phoneRelayRestartAfter)
 	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.server != running })
-	if !strings.HasPrefix(a.phone.relaySig, "hosted:") {
+	if a.phone.relaySig != "hosted" {
 		t.Fatalf("sig %q", a.phone.relaySig)
 	}
 }
@@ -347,4 +380,87 @@ func TestPhoneRelayHostedIsSaved(t *testing.T) {
 	if err := json.Unmarshal(data, &back); err != nil || !back.PhoneRelayHosted {
 		t.Fatalf("%+v, %v", back.savedPhoneRelayHost, err)
 	}
+}
+
+// A phone that joined the relay keeps working through it as 看懂托管 is turned on and off again: each switch hands it over (phoneRelayMove), so it follows the relay from the user's own bucket to the hosted one and back by reading its state.json, without coming back to the computer's network, and its calls are answered there.
+func TestPhoneRelayHostedSwitchHandsThePhonesOver(t *testing.T) {
+	a, tt, updates, f := hostedApp(t)
+	f.set(func() { f.plus = true })
+	ownBucket(t, a)
+	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery = every, 0 }(phoneHostPoll)
+	phoneHostPoll, phoneRelayEvery = 100*time.Millisecond, 100*time.Millisecond
+	// The grants a handoff mints are newer than the phone's by the clock, as a phone keeps the newest.
+	a.phone.now = time.Now
+	phoneSyncOn(t, a, tt, updates)
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.host.plusKnown && !a.phone.host.checking && a.phone.relayOK })
+	c := phoneClient(t, a, "")
+	paired, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = phoneClient(t, a, paired.Token)
+	joined, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.RelayJoin, error) {
+		var joined psync.RelayJoin
+		return joined, c.Call(ctx, psync.OpRelayJoin, nil, &joined)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// From here on the phone is away: it reaches the computer through the relay alone.
+	c.Close()
+	phone := &psync.RelayPhone{Device: paired.DeviceID, Key: joined.Key, Grant: joined.Grant}
+	relayAsk(t, a, updates, phone)
+	for _, hosted := range []bool{true, false} {
+		running := a.phone.server
+		tt.Press("settings-phone-relay-hosted")
+		waitUntil(t, tt, a, updates, func() bool {
+			return a.phone.server != nil && a.phone.server != running && !a.phone.films.moving || a.phone.films.moveErr != nil
+		})
+		if a.phone.films.moveErr != nil || a.phoneHostInUse() != hosted {
+			t.Fatalf("hosted %v: in use %v, move %v", hosted, a.phoneHostInUse(), a.phone.films.moveErr)
+		}
+		// The phone reads its state.json where it last did, and takes the grant to where the relay went.
+		if _, err := phone.State(context.Background()); err != nil {
+			t.Fatalf("hosted %v: the state after the switch: %v", hosted, err)
+		}
+		inHosted := strings.Contains(phone.Grant.State, "/kando-hosted/acct/")
+		if inHosted != hosted || hosted != strings.Contains(phone.Grant.State, "X-Amz-Security-Token=") {
+			t.Fatalf("hosted %v: the phone's grant points at %s", hosted, phone.Grant.State)
+		}
+		relayAsk(t, a, updates, phone)
+	}
+}
+
+// relayAsk has phone ask the computer for its jobs through the relay, as a phone away from its network does, and waits for the answer, applying the app's updates meanwhile. The relay takes a turn at most every ten seconds (sync.RelayMinWrite), so this takes a while.
+func relayAsk(t *testing.T, a *app, updates <-chan func(), phone *psync.RelayPhone) {
+	t.Helper()
+	ctx := context.Background()
+	id := psync.NewCallID()
+	slot, err := phone.Send(ctx, psync.Call{ID: id, V: psync.CallVersion, Op: psync.OpJobs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(45 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case fn := <-updates:
+			onEngine(a, func() {
+				fn()
+				a.Changed()
+			})
+			continue
+		case <-time.After(200 * time.Millisecond):
+		}
+		reply, ok, err := phone.Reply(ctx, slot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok {
+			if reply.ID != id || reply.Error != nil {
+				t.Fatalf("reply %+v", reply)
+			}
+			return
+		}
+	}
+	t.Fatal("no answer through the relay")
 }
