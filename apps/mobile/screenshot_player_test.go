@@ -48,6 +48,8 @@ func settle(p *phone) {
 	}
 	since := time.Now()
 	p.app.WaitUntil(time.Minute, func() bool { return time.Since(since) > 2*time.Second })
+	// The layout's transitions run on the test's clock.
+	p.app.Advance(time.Second)
 }
 
 func TestScreenshotsPlayerUprightWide(t *testing.T) {
