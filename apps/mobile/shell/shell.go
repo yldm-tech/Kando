@@ -63,6 +63,12 @@ func SystemBar(cx *core.Scope) bool { return !look.Tablet(cx) && mobile.IsAvaila
 
 // Render implements core.Node.
 func (s Shell) Render(cx *core.Scope) core.Node {
+	// TODO(nsgo#2713): a section the shell hides keeps the focus of a text field in it, so the keyboard of a search typed on one section stayed up over the next; until a hidden section lets go of it itself, a change of section takes it away first. https://github.com/nsgo-dev/nsgo/issues/2713
+	change := s.OnChange
+	s.OnChange = func(i int) {
+		cx.DismissKeyboard()
+		change(i)
+	}
 	if SystemBar(cx) {
 		return s.phone(cx)
 	}
