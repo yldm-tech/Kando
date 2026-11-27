@@ -233,11 +233,28 @@ func (a *app) phoneHostCheck() {
 			}
 			h.plus, h.plusKnown = plus, true
 			if plus.Active && h.lapsed {
-				h.lapsed = false
-				h.state, h.stateKnown = relayhost.State{}, false
+				a.phoneHostResume()
 			}
 		})
 	}()
+}
+
+// phoneHostResume has the relay go back to 看懂托管 once Plus is active again after it lapsed. With the relay running in the bucket of 账号与上传, which still takes writes, it moves there as the switch does (phoneRelayMove), so the phones away from this network follow; a move that fails leaves it where it is, and the next check tries again. With the relay nowhere, as with no bucket of 账号与上传 set up, Phone Sync just starts again there (phoneRelayFollow). While another move hands the phones over, it waits for the next check rather than cutting that move short.
+func (a *app) phoneHostResume() {
+	if a.phone.films.moving {
+		return
+	}
+	resume := func() {
+		h := &a.phone.host
+		h.lapsed = false
+		h.state, h.stateKnown = relayhost.State{}, false
+	}
+	if a.phone.server == nil || a.phone.relaySig == "" {
+		resume()
+		return
+	}
+	b := a.phoneHostBucket(a.phone.gen)
+	a.phoneRelayMove(phoneHostKind, a.storageKind(), b, b.LinksUntil, nil, resume)
 }
 
 // phoneHostStatus adds 看懂托管 to the relay as the 手机同步 page shows it, in m's language.

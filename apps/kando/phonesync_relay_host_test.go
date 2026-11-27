@@ -270,10 +270,13 @@ func TestPhoneRelayHostedFullSyncsSubtitlesOnly(t *testing.T) {
 	}
 }
 
-// Once Kando Plus and EveryAPI's grace after it ended, EveryAPI refuses the key: the relay goes back to the user's own storage, deleting nothing in the hosted one, and the row says Plus ended; Plus active again has it go back to 看懂托管.
+// Once Kando Plus and EveryAPI's grace after it ended, EveryAPI refuses the key: the relay goes back to the user's own storage, deleting nothing in the hosted one, and the row says Plus ended; Plus active again has it go back to 看懂托管, handing over the phones that joined meanwhile (phoneHostResume), so one away from this network follows by reading its state.json.
 func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	a, tt, updates, f := hostedApp(t)
-	phoneRelayStore(t, a)
+	ownBucket(t, a)
+	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery = every, 0 }(phoneHostPoll)
+	phoneHostPoll, phoneRelayEvery = 100*time.Millisecond, 100*time.Millisecond
+	a.phone.now = time.Now
 	f.set(func() { f.plus, f.refuse = false, "plus_required" })
 	a.phone.host.on = true
 	phoneSyncOn(t, a, tt, updates)
@@ -301,17 +304,42 @@ func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	if deletes != 0 {
 		t.Fatalf("%d objects deleted from the hosted storage", deletes)
 	}
-	// Plus again: the page's check has the relay go back to 看懂托管.
+	// A phone joins the relay in the user's own storage, then goes away from this network.
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.relayOK })
+	c := phoneClient(t, a, "")
+	paired, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = phoneClient(t, a, paired.Token)
+	joined, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.RelayJoin, error) {
+		var joined psync.RelayJoin
+		return joined, c.Call(ctx, psync.OpRelayJoin, nil, &joined)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+	phone := &psync.RelayPhone{Device: paired.DeviceID, Key: joined.Key, Grant: joined.Grant}
+	relayAsk(t, a, updates, phone)
+	// Plus again: the page's check hands the phones over to 看懂托管.
 	f.set(func() { f.plus, f.refuse = true, "" })
+	running = a.phone.server
 	a.phone.host.shown = false
 	refresh(tt, a)
-	waitUntil(t, tt, a, updates, func() bool { return !a.phone.host.lapsed })
-	running = a.phone.server
-	tt.Advance(phoneRelayRestartAfter)
-	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.server != running })
-	if a.phone.relaySig != "hosted" {
-		t.Fatalf("sig %q", a.phone.relaySig)
+	waitUntil(t, tt, a, updates, func() bool {
+		return a.phone.server != nil && a.phone.server != running && !a.phone.films.moving || a.phone.films.moveErr != nil
+	})
+	if a.phone.films.moveErr != nil || a.phone.relaySig != "hosted" || a.phone.host.lapsed {
+		t.Fatalf("sig %q, lapsed %v, move %v", a.phone.relaySig, a.phone.host.lapsed, a.phone.films.moveErr)
 	}
+	if _, err := phone.State(context.Background()); err != nil {
+		t.Fatalf("the state after Plus came back: %v", err)
+	}
+	if !strings.Contains(phone.Grant.State, "/kando-hosted/acct/") || !strings.Contains(phone.Grant.State, "X-Amz-Security-Token=") {
+		t.Fatalf("the phone's grant points at %s", phone.Grant.State)
+	}
+	relayAsk(t, a, updates, phone)
 }
 
 // The hosted relay's failures read in the page's words, never EveryAPI's, which may hold a price or a link; and a log line quoting a hosted link loses its session token in the log file and the feedback issue.

@@ -37,6 +37,8 @@ var (
 	ErrRelayDisabled = errors.New("the hosted relay is off on EveryAPI's side")
 	// ErrQuotaExceeded is EveryAPI's quota_exceeded: the account's storage is full.
 	ErrQuotaExceeded = errors.New("the hosted relay's storage is full")
+	// ErrMalformed is EveryAPI answering a key the bucket cannot be opened with safely: a part missing, or no folder of the account's own (Credentials.valid). Nothing is written with it.
+	ErrMalformed = errors.New("EveryAPI answered a malformed key for the hosted relay")
 )
 
 // Client asks EveryAPI for the hosted relay. It is safe for concurrent use.
@@ -88,10 +90,21 @@ func (c *Client) Credentials(ctx context.Context) (Credentials, error) {
 	if err := c.do(ctx, http.MethodPost, "/api/kando/relay/credentials", &out); err != nil {
 		return Credentials{}, err
 	}
-	if out.Endpoint == "" || out.Bucket == "" || out.AccessKeyID == "" || out.SecretAccessKey == "" || out.SessionToken == "" || out.ExpiresAt.IsZero() {
-		return Credentials{}, errors.New("EveryAPI answered an incomplete key for the hosted relay")
+	if !out.valid() {
+		return Credentials{}, ErrMalformed
 	}
 	return out, nil
+}
+
+// valid reports whether c is a key the bucket can be opened with, taken as untrusted input: an endpoint, a bucket, the three parts of the key and when it lapses, and the account's folder (Prefix), which is what keeps one account's objects from another's in EveryAPI's shared bucket, so it must name a folder: not empty, not the bucket's root, ending in "/", and with no ".." in it.
+func (c Credentials) valid() bool {
+	for _, s := range []string{c.Endpoint, c.Bucket, c.AccessKeyID, c.SecretAccessKey, c.SessionToken} {
+		if strings.TrimSpace(s) == "" {
+			return false
+		}
+	}
+	p := c.Prefix
+	return !c.ExpiresAt.IsZero() && strings.Trim(p, "/") != "" && strings.HasSuffix(p, "/") && !strings.Contains(p, "..")
 }
 
 // Plus asks EveryAPI whether the account has Kando Plus, and how much of the hosted relay's storage it uses.

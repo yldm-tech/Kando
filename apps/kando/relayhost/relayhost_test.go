@@ -142,6 +142,8 @@ type fakeEveryAPI struct {
 	auths      []string
 	// block, when set, holds a request for a key until it is closed or the request ends.
 	block chan struct{}
+	// tweak, when set, changes the key EveryAPI answers before it is sent.
+	tweak func(map[string]any)
 }
 
 const goodKey = "sk-good-0123456789abcdef"
@@ -183,11 +185,15 @@ func (f *fakeEveryAPI) serve(w http.ResponseWriter, r *http.Request) {
 		f.s3.mu.Lock()
 		f.s3.tokens[token] = true
 		f.s3.mu.Unlock()
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		answer := map[string]any{
 			"endpoint": f.s3.srv.URL, "region": "auto", "bucket": f.s3.bucket, "prefix": f.s3.prefix,
 			"access_key_id": fmt.Sprintf("AK%d", f.fetches), "secret_access_key": "hosted-secret-value", "session_token": token,
 			"expires_at": f.now().Add(f.life).Unix(), "quota_bytes": f.quota, "used_bytes": f.used, "write_allowed": f.writes,
-		})
+		}
+		if f.tweak != nil {
+			f.tweak(answer)
+		}
+		_ = json.NewEncoder(w).Encode(answer)
 	case r.Method == http.MethodGet && r.URL.Path == "/api/kando/plus":
 		_ = json.NewEncoder(w).Encode(map[string]any{"active": f.plus.Active, "plan_name": f.plus.PlanName, "renews_at": f.plus.RenewsAt.Unix(),
 			"expires_at": 0, "ai_allowance": map[string]any{"usd": 2}, "relay": map[string]any{"quota_bytes": f.plus.Relay.QuotaBytes, "used_bytes": f.plus.Relay.UsedBytes}})
@@ -603,5 +609,49 @@ func TestBucketSignsWithTheKeyHeldWhileARenewalWaits(t *testing.T) {
 	close(block)
 	if err := <-renewed; err != nil {
 		t.Fatal(err)
+	}
+}
+
+// EveryAPI's answer is untrusted: a key with a part missing, or whose folder is not one of the account's own (empty, the bucket's root, not ending in "/", or with ".."), opens no bucket: the bucket says so in words of its own and writes nothing.
+func TestBucketRefusesAMalformedKey(t *testing.T) {
+	for _, tweak := range []func(map[string]any){
+		func(m map[string]any) { m["prefix"] = "" },
+		func(m map[string]any) { m["prefix"] = "/" },
+		func(m map[string]any) { m["prefix"] = "//" },
+		func(m map[string]any) { m["prefix"] = "acct-42" },
+		func(m map[string]any) { m["prefix"] = "acct-42/../" },
+		func(m map[string]any) { m["prefix"] = "../acct-43/" },
+		func(m map[string]any) { m["endpoint"] = "" },
+		func(m map[string]any) { m["bucket"] = " " },
+		func(m map[string]any) { m["access_key_id"] = "" },
+		func(m map[string]any) { m["secret_access_key"] = "" },
+		func(m map[string]any) { m["session_token"] = "" },
+		func(m map[string]any) { delete(m, "expires_at") },
+	} {
+		g := newRig(t)
+		g.api.set(func() { g.api.tweak = tweak })
+		ctx := context.Background()
+		err := g.bucket.Put(ctx, "a", []byte("1"))
+		if !errors.Is(err, ErrMalformed) {
+			t.Fatalf("put with a malformed key: %v", err)
+		}
+		if _, err := g.bucket.PresignGet(ctx, "a", time.Hour); !errors.Is(err, ErrMalformed) {
+			t.Fatalf("presign with a malformed key: %v", err)
+		}
+		if s := g.last(t); !errors.Is(s.Err, ErrMalformed) || strings.Contains(s.Err.Error(), "hosted-secret-value") {
+			t.Fatalf("told %+v", s)
+		}
+		g.s3.mu.Lock()
+		n, seen := len(g.s3.objects), len(g.s3.seen)
+		g.s3.mu.Unlock()
+		if n != 0 || seen != 0 {
+			t.Fatalf("the bucket was reached: %d objects, %d requests", n, seen)
+		}
+	}
+	// A folder with a leading slash is the same folder.
+	g := newRig(t)
+	g.api.set(func() { g.api.tweak = func(m map[string]any) { m["prefix"] = "/acct-42/" } })
+	if err := g.bucket.Put(context.Background(), "a", []byte("1")); err != nil || !g.s3.has("acct-42/a") {
+		t.Fatalf("a leading slash: %v", err)
 	}
 }
