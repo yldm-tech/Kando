@@ -151,7 +151,7 @@ func TestListingsLeaveOutVideoSites(t *testing.T) {
 	}
 }
 
-// The App Store's App Privacy answer is Data Not Collected, as privacy.md explains, in the form fastlane uploads.
+// The App Store's App Privacy answer is Other User Content, linked to the user and used for the app's functionality alone, as privacy.md explains, in the form fastlane uploads.
 func TestAppPrivacyDetails(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("appstore", "app_privacy_details.json"))
 	if err != nil {
@@ -159,13 +159,14 @@ func TestAppPrivacyDetails(t *testing.T) {
 	}
 	var details []struct {
 		Category        string   `json:"category"`
+		Purposes        []string `json:"purposes"`
 		DataProtections []string `json:"data_protections"`
 	}
 	if err := json.Unmarshal(data, &details); err != nil {
 		t.Fatal(err)
 	}
-	if len(details) != 1 || details[0].Category != "" || !slices.Equal(details[0].DataProtections, []string{"DATA_NOT_COLLECTED"}) {
-		t.Errorf("app_privacy_details.json is %s; it should answer Data Not Collected alone", data)
+	if len(details) != 1 || details[0].Category != "OTHER_USER_CONTENT" || !slices.Equal(details[0].Purposes, []string{"APP_FUNCTIONALITY"}) || !slices.Equal(details[0].DataProtections, []string{"DATA_LINKED_TO_YOU"}) {
+		t.Errorf("app_privacy_details.json is %s; it should answer Other User Content, linked to the user, for the app's functionality alone", data)
 	}
 }
 
