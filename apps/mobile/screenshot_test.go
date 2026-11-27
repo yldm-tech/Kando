@@ -243,6 +243,20 @@ func TestScreenshotsBrowse(t *testing.T) {
 	shot(p, "film-downloaded")
 }
 
+// A film its computer lists but no longer has the files of, once a download of it found so: its page says why over its download, disabled.
+func TestScreenshotsFilmGone(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	p := startPhone(t, t.TempDir())
+	p.pair(d)
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
+	p.app.WaitFor("id:film-download", wait)
+	d.LoseFiles("f1")
+	p.app.Press("id:film-download")
+	p.app.WaitFor("id:film-gone", wait)
+	shot(p, "film-gone")
+}
+
 func TestScreenshotsDownloads(t *testing.T) {
 	shot := screenshots(t)
 	dir := t.TempDir()
