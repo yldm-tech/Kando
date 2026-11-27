@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -72,6 +73,41 @@ func TestAutomaticIsTheSystemsLanguageAfterPickingAnother(t *testing.T) {
 	if got, want := p.texts("id:settings-language"), zh.SettingsLanguage()+"\n"+zh.SettingsLanguageSystem(); got != want {
 		t.Fatalf("at the next launch the Language row reads %q, want %q", got, want)
 	}
+}
+
+// The system's tab bar of an iPhone takes the tabs' names in the language picked in Settings › Language at once, and its own name with them. UIKit shows the names the app hands it here; VoiceOver keeps reading the old ones until NSGo labels the items with them too (the TODO in package shell).
+func TestTheSystemTabBarFollowsTheInterfaceLanguage(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	// titles are the names of the tabs the system's bar is given, and its own.
+	titles := func() ([]string, string) {
+		bars := p.app.QueryMounted("id:tab-bar")
+		if len(bars) != 1 || bars[0].Component == "" {
+			t.Fatalf("%d tab bars are mounted, want one of the system's", len(bars))
+		}
+		items, _ := bars[0].NativeProps["items"].([]any)
+		var out []string
+		for _, it := range items {
+			tab, _ := it.(map[string]any)
+			title, _ := tab["title"].(string)
+			out = append(out, title)
+		}
+		label, _ := bars[0].NativeProps["label"].(string)
+		return out, label
+	}
+	named := func(m locales.Messages) []string {
+		return []string{m.FilmsTitle(), m.JobsTitle(), m.LearnTitle(), m.SettingsTitle()}
+	}
+	p.app.WaitUntil(wait, func() bool { got, _ := titles(); return slices.Equal(got, named(msgs)) })
+	p.app.SelectTab("id:tab-bar", settingsTab)
+	p.app.WaitFor("id:settings-language", wait)
+	p.app.Press("id:settings-language")
+	p.app.WaitFor("id:settings-language-page", wait)
+	p.app.Press("id:settings-language-ja")
+	ja := locales.In("ja")
+	p.app.WaitUntil(wait, func() bool { got, label := titles(); return slices.Equal(got, named(ja)) && label == ja.AppName() })
 }
 
 // What another tab shows follows a change of the interface language where it stands, built once: the tab bar's name and its tabs', and Learn's review modes and a saved line's remove action, which the screen reader reads from bindings.
