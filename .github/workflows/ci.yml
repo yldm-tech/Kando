@@ -245,6 +245,9 @@ jobs:
       # mygo-bridge.go makes the update of Kando's MyGo builds only when Release runs, where a mistake would stop a release or strand those builds, so its test runs on every change.
       - name: mygo-bridge.go
         run: .github/scripts/mygo-bridge-test.sh
+      # Phone release scripts decide mobile-v* tags, nsgo.yaml bumps and release notes when Release runs, so their tests run on every change.
+      - name: phone release scripts
+        run: .github/scripts/phone-release-test.sh
 
   cross:
     name: Build (${{ matrix.goos }})

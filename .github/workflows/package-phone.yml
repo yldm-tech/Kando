@@ -1,8 +1,8 @@
 name: Package (phone)
 
-# Builds the phone app (apps/mobile) for the stores with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA and the Android App Bundle, with a checksums-phone.txt of their SHA-256. It runs by hand only (Actions › Package (phone) › Run workflow). Every run signs the App Bundle with the app's Google Play upload key, so the artifact's App Bundle is the one to upload to Play Console by hand; Google re-signs it with the app's signing key for the store. A plain run publishes nothing and leaves the IPA unsigned, which checks that the phone app still packages for the stores. A run with testflight checked signs the IPA with the team's Apple Distribution certificate and the App Store provisioning profiles of the app and its widget extension, and uploads it to App Store Connect, where it reaches TestFlight's internal testers once Apple has processed it (#227).
+# Builds the phone app (apps/mobile) with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA, the signed Android App Bundle (.aab for Google Play) and the signed Android APK (.apk for direct install), with a checksums-phone.txt of their SHA-256. Release calls it on mobile-v* tags with testflight and play enabled; it can also be run by hand (Actions › Package (phone) › Run workflow). Every run signs the App Bundle and APK with the app's Google Play upload key; Google re-signs the App Bundle with the app's signing key for the store. A plain manual run publishes nothing and leaves the IPA unsigned, which checks that the phone app still packages. A run with testflight checked signs the IPA with the team's Apple Distribution certificate and the App Store provisioning profiles of the app and its widget extension, and uploads it to App Store Connect, where it reaches TestFlight's internal testers once Apple has processed it (#227). A run with play checked uploads the signed App Bundle to Google Play with nsgo publish when the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is set, and skips with a notice otherwise.
 #
-# Every run numbers its packages with the workflow's run number (-build-number, CFBundleVersion and Android's versionCode), since App Store Connect and Google Play take each upload of a version only with a build number greater than the last one's, and the run number only grows.
+# Every run numbers its packages with seconds since 2023-11-14T22:13:20Z (-build-number, CFBundleVersion and Android's versionCode), which stays strictly increasing across both automatic Release runs and manual Package (phone) runs and stays below Google Play's 2,100,000,000 limit until 2090.
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +10,54 @@ on:
         description: Sign the IPA for the App Store and upload it to TestFlight
         type: boolean
         default: false
+      play:
+        description: Upload the signed App Bundle to Google Play (skips if GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is unset)
+        type: boolean
+        default: false
+      play_track:
+        description: Google Play track to upload the App Bundle to when play is enabled
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+  workflow_call:
+    inputs:
+      tag:
+        description: The phone release tag (mobile-vX.Y.Z) to build, which must match the version in apps/mobile/nsgo.yaml; empty builds the checked-out commit
+        type: string
+        default: ""
+      testflight:
+        description: Sign the IPA for the App Store and upload it to TestFlight
+        type: boolean
+        default: false
+      play:
+        description: Upload the signed App Bundle to Google Play when GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is set
+        type: boolean
+        default: false
+      play_track:
+        description: Google Play track to upload the App Bundle to when play is enabled
+        type: string
+        default: internal
+    secrets:
+      IOS_DISTRIBUTION_P12:
+        required: false
+      IOS_DISTRIBUTION_P12_PASSWORD:
+        required: false
+      IOS_APPSTORE_PROFILE:
+        required: false
+      IOS_WIDGETS_APPSTORE_PROFILE:
+        required: false
+      ANDROID_UPLOAD_KEYSTORE_BASE64:
+        required: true
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD:
+        required: true
+      APPSTORE_API_KEY_ID:
+        required: false
+      APPSTORE_API_ISSUER_ID:
+        required: false
+      APPSTORE_API_KEY_P8:
+        required: false
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:
+        required: false
 
 jobs:
   build:
@@ -26,7 +74,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag }}
           persist-credentials: false
+      # A tag that does not match the version in apps/mobile/nsgo.yaml would upload packages named for another version.
+      - name: Check the version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          test "$TAG" = "mobile-v$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/mobile/nsgo.yaml)"
+      - name: Build number
+        id: build-number
+        run: |
+          echo "number=$(($(date -u +%s) - 1700000000))" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.work
@@ -87,17 +147,17 @@ jobs:
         run: |
           for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD; do
             if [ -z "${!name}" ]; then
-              echo "::error::The upload key's $name is not set, so the App Bundle cannot be signed for Google Play."
+              echo "::error::The upload key's $name is not set, so the Android packages cannot be signed."
               exit 1
             fi
           done
           keystore="$RUNNER_TEMP/upload.p12"
           (umask 077 && printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore")
           echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
-      # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes in place of an APK. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
+      # Each target is built into a folder of its own. The App Bundle is Google Play's package, which the store channel makes; the APK is built on the none channel with the same upload key for direct installs from GitHub Releases. The IPA is the App Store's whatever the channel, so its build takes none: on the store channel the app would also ask the App Store for a newer version, which it does not do today.
       - name: Build
         env:
-          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_NUMBER: ${{ steps.build-number.outputs.number }}
           KEYSTORE: ${{ steps.upload-key.outputs.keystore }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           PROFILE: ${{ steps.signing.outputs.profile }}
@@ -109,24 +169,26 @@ jobs:
           fi
           go tool nsgo build -target ios "${sign[@]}" -build-number "$BUILD_NUMBER" -output "$RUNNER_TEMP/ios" apps/mobile
           NSGO_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD" NSGO_KEY_PASSWORD="$KEYSTORE_PASSWORD" go tool nsgo build -target android_arm64 -channel store -build-number "$BUILD_NUMBER" -keystore "$KEYSTORE" -key-alias upload -output "$RUNNER_TEMP/android" apps/mobile
+          NSGO_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD" NSGO_KEY_PASSWORD="$KEYSTORE_PASSWORD" go tool nsgo build -target android_arm64 -channel none -build-number "$BUILD_NUMBER" -keystore "$KEYSTORE" -key-alias upload -output "$RUNNER_TEMP/android-apk" apps/mobile
       - name: Remove the upload key
         if: always() && steps.upload-key.outputs.keystore != ''
         env:
           KEYSTORE: ${{ steps.upload-key.outputs.keystore }}
         run: rm -f "$KEYSTORE"
-      # One IPA and one App Bundle, the IPA carrying the app's ID, the run's build number, its icon, the local network usage description iOS asks with and the export compliance answer TestFlight needs, the App Bundle signed by the upload key alone, by its certificate's SHA-256 fingerprint. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
+      # One IPA, one App Bundle and one APK: the IPA carrying the app's ID, the run's build number, its icon, the local network usage description iOS asks with and the export compliance answer TestFlight needs; the App Bundle and APK signed by the upload key alone, by its certificate's SHA-256 fingerprint. A signed IPA's app and widget extension must also carry valid signatures, each with its App Store profile embedded.
       - name: Collect the packages
         id: collect
         env:
-          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_NUMBER: ${{ steps.build-number.outputs.number }}
           SIGNED: ${{ inputs.testflight }}
           UPLOAD_KEY_SHA256: C3:37:93:08:4F:1B:33:EA:75:75:C0:3B:50:30:D1:DF:56:E8:69:D5:16:D8:40:CA:A3:89:37:2F:FD:57:71:A1
         run: |
           shopt -s nullglob
           ipas=("$RUNNER_TEMP"/ios/releases/*-ios.ipa)
           aabs=("$RUNNER_TEMP"/android/releases/*-android-arm64.aab)
-          if [ "${#ipas[@]}" -ne 1 ] || [ "${#aabs[@]}" -ne 1 ]; then
-            echo "::error::nsgo build made ${#ipas[@]} IPAs and ${#aabs[@]} App Bundles, not one each"
+          apks=("$RUNNER_TEMP"/android-apk/releases/*-android-arm64.apk)
+          if [ "${#ipas[@]}" -ne 1 ] || [ "${#aabs[@]}" -ne 1 ] || [ "${#apks[@]}" -ne 1 ]; then
+            echo "::error::nsgo build made ${#ipas[@]} IPAs, ${#aabs[@]} App Bundles and ${#apks[@]} APKs, not one each"
             exit 1
           fi
           unzip -q "${ipas[0]}" -d "$RUNNER_TEMP/ipa"
@@ -141,6 +203,20 @@ jobs:
             echo "::error::The App Bundle is signed by $signers, not the upload key $UPLOAD_KEY_SHA256"
             exit 1
           fi
+          apksigner=$(command -v apksigner || true)
+          if [ -z "$apksigner" ]; then
+            sdk_root=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/Users/runner/Library/Android/sdk}}
+            apksigner=$(find "$sdk_root/build-tools" -maxdepth 2 -name apksigner 2>/dev/null | sort -V | tail -n 1 || true)
+          fi
+          if [ -n "$apksigner" ]; then
+            apk_sig=$("$apksigner" verify --print-certs "${apks[0]}")
+            want_apk_sha=$(printf '%s' "$UPLOAD_KEY_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+            if ! grep -qF "SHA-256 digest: $want_apk_sha" <<<"$apk_sig"; then
+              echo "::error::The APK is not signed by the upload key ($want_apk_sha):"
+              echo "$apk_sig"
+              exit 1
+            fi
+          fi
           if [ "$SIGNED" = true ]; then
             app=$(dirname "$plist")
             codesign --verify --deep --strict --verbose=2 "$app"
@@ -150,9 +226,10 @@ jobs:
             done
           fi
           echo "ipa=${ipas[0]}" >> "$GITHUB_OUTPUT"
+          echo "aab=${aabs[0]}" >> "$GITHUB_OUTPUT"
           out=$RUNNER_TEMP/out
           mkdir "$out"
-          cp -- "${ipas[0]}" "${aabs[0]}" "$out/"
+          cp -- "${ipas[0]}" "${aabs[0]}" "${apks[0]}" "$out/"
           cd "$out"
           shasum -a 256 -- * > "$RUNNER_TEMP/checksums-phone.txt"
           mv "$RUNNER_TEMP/checksums-phone.txt" .
@@ -187,6 +264,20 @@ jobs:
           echo "$ASC_SHA256  $asc" | shasum -a 256 -c -
           chmod +x "$asc"
           "$asc" builds upload --app ai.yldm.kando.mobile --ipa "$IPA" --verify-timeout 2m --output table
+      # Google Play upload uses NSGo's built-in publish command (nsgo publish -target android -track <track>), which opens an edit, checks the bundle's versionCode against the track, uploads the .aab and commits the edit. When GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not yet configured, this step skips with a notice so TestFlight and the kando-phone artifact still succeed.
+      - name: Upload to Google Play
+        if: inputs.play
+        working-directory: apps/mobile
+        env:
+          NSGO_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: ${{ inputs.play_track || 'internal' }}
+          AAB: ${{ steps.collect.outputs.aab }}
+        run: |
+          if [ -z "$NSGO_PLAY_SERVICE_ACCOUNT" ]; then
+            echo "::notice::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set; skipping Google Play upload. Download the signed .aab from the kando-phone artifact or configure the secret to automate Play Console uploads."
+            exit 0
+          fi
+          go tool nsgo publish -target android -track "$PLAY_TRACK" "$AAB"
       - name: Remove the signing keychain
         if: always() && steps.signing.outputs.keychain != ''
         env:
