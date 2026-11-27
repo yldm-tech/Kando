@@ -124,6 +124,9 @@ func Tablet(cx *core.Scope) bool { return cx.Env().Idiom() == core.IdiomTablet }
 // NavPage is ui.NavPage, a page a tab's page opens, under header: on Android the system's toolbar with its back arrow, titled in Material's title large (SubPageTitle) left of the bar on the bar's frosted fill, as the design's top app bar, with header's Leading and Trailing at its ends (its Symbols are iOS's only); elsewhere ui.NavPage's own.
 // TODO(nsgo#1842): Android's toolbar is now Material 3's top app bar, 64 tall with a 22sp title (nsgo#485), but the title's size alone is set (Header.java:237-239), so it keeps the platform toolbar's title appearance; the app gives the toolbar its title as the header's view (base.NavPage.Header, which ui.NavPage makes the title view) in the design's 22pt regular; give the toolbar the title itself once the header takes the title's type https://github.com/nsgo-dev/nsgo/issues/1842
 func NavPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
+	if cx.Env().OS() == core.OSIOS && mobile.IsAvailable(cx) {
+		return ui.NavPage(cx, iosSubPage(cx, p, header), header)
+	}
 	if cx.Env().OS() != core.OSAndroid || !mobile.IsAvailable(cx) {
 		return ui.NavPage(cx, p, header)
 	}
@@ -167,6 +170,28 @@ func SubPageTitleWidth(page core.Points, buttons int) core.Points {
 		w -= core.Points(48*buttons + 12)
 	}
 	return max(w, 48)
+}
+
+// iosSubPage is p as iOS's system header shows it with its title as the header's view (base.NavPage.Header, which ui.NavPage makes the bar's title view) in the system title's 17pt semibold (Title), rather than as the page's title, so that the page itself takes no accessibility label. The page keeps its title for the back button of a page pushed over it (HeaderBackTitle), and the header's buttons move to the page's ends, as ui.NavPage keeps only the header's Scroll once the page has a Header of its own.
+// TODO(nsgo#2700): a titled screen's view is labelled with its title (core/nav.go:83-88), and iOS makes every labelled view an accessibility element (internal/platform/ios/access.go:294), so VoiceOver and UI automation reach the page as one element and none of the controls on it; give iOS's sub pages their title back (p.Title/TitleFunc) once a screen's title no longer makes it an element. HeaderBackTitle is a string with no Func twin, so the back title keeps the language the page was built in. https://github.com/nsgo-dev/nsgo/issues/2700
+func iosSubPage(cx *core.Scope, p base.NavPage, header ui.NavHeader) base.NavPage {
+	title := subPageTitle(p, header)
+	if p.Header != nil || title == nil {
+		return p
+	}
+	if p.HeaderBackTitle == "" {
+		p.HeaderBackTitle = core.Untracked(cx, title)
+	}
+	if len(header.Leading) > 0 && p.HeaderLeft == nil {
+		p.HeaderLeft = headerItems(header.Leading)
+	}
+	if len(header.Trailing) > 0 && p.HeaderRight == nil {
+		p.HeaderRight = headerItems(header.Trailing)
+		p.IOS.HeaderRightSymbols = header.Symbols
+	}
+	p.Title, p.TitleFunc = "", nil
+	p.Header = core.Text{TestID: "nav-title", ContentFunc: title, Role: core.RoleHeader, MaxLines: 1, Style: Title, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}
+	return p
 }
 
 // headerItems is the buttons of a header's end in a row, as ui.NavPage puts them in the system's header.
