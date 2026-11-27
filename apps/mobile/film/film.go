@@ -39,8 +39,8 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	type posterSource struct{ c *sync.Client }
 	remote := core.NewResource(cx, func() (posterSource, bool) {
 		c := s.Client(desktop)
-		_, ok := kept()
-		return posterSource{c}, c != nil && f.Poster != "" && !ok
+		k, ok := kept()
+		return posterSource{c}, c != nil && f.Poster != "" && (!ok || k.Poster == "")
 	}, func(ctx context.Context, src posterSource, _ core.ResourceInfo) ([]byte, error) {
 		return s.Poster(ctx, src.c, desktop, f.ID)
 	})
@@ -67,7 +67,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		if data, got := remote.Get(); got && len(data) > 0 {
 			return true
 		}
-		return f.Poster != "" && !ok && remote.Err() == nil
+		return f.Poster != "" && (!ok || k.Poster == "") && remote.Err() == nil
 	}
 	confirmDelete := func() {
 		cx.ShowAlert(core.AlertConfig{Title: locales.FilmDeleteTitle(cx, f.Title), Actions: []core.AlertAction{
@@ -114,7 +114,8 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		}
 		return videoStored
 	})
-	// streamErr is why the film could not be read from the storage, nil for none; streaming is a read under way.
+	onNetwork := core.NewMemo(cx, func() bool { return s.OnNetwork(desktop) })
+	// streamErr is why the film could not be streamed from its computer or storage, nil for none; streaming is a read under way.
 	streamErr := core.NewSignal[error](cx, nil)
 	streaming := core.NewSignal(cx, false)
 	stream := func() {
@@ -146,13 +147,19 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmResume), TestID: "film-resume", OnPress: func() { s.Resume(key) }}
 		}
 		// A film being made plays from its computer on its network as it is made; it downloads once done.
-		if f.Making && s.OnNetwork(desktop) {
+		if f.Making && onNetwork.Get() {
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}
 		}
 		download := look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", OnPress: func() { s.Download(desktop, library, f) }}
 		if f.SubtitlesOnly {
 			// Its computer keeps no video of it: downloading it keeps its lines.
 			download.Text, download.Icon = text(locales.FilmSaveLines), lucide.Captions
+		}
+		// On its computer's network, a film with a video streams directly from the computer without downloading it first.
+		if !f.SubtitlesOnly && onNetwork.Get() {
+			download.Kind = look.Tinted
+			return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
+				look.Button{Kind: look.Primary, Text: text(locales.FilmPlay), Icon: lucide.Play, TestID: "film-stream", Busy: streaming.Get, OnPress: stream}, download}}
 		}
 		// Away from its computer's network, the film plays from the user's storage, or opens for its lines alone when the storage holds no video of it.
 		switch stored.Get() {
@@ -177,7 +184,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		return core.Text{TestID: "film-making", ContentFunc: func() string { d, _ := s.Desktop(desktop); return locales.FilmMakingNote(cx, d.Name) }, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	storageFailed := core.Show{When: func() bool { return streamErr.Get() != nil }, Then: func(cx *core.Scope) core.Node {
-		return core.Text{TestID: "film-storage-failed", Content: locales.FilmStorageFailed(cx), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
+		return core.Text{TestID: "film-storage-failed", ContentFunc: func() string {
+			if stored.Get() == notStored {
+				d, _ := s.Desktop(desktop)
+				return locales.FilmStreamFailed(cx, d.Name)
+			}
+			return locales.FilmStorageFailed(cx)
+		}, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	// offline is what the phone keeps of the film, a group under its own header: where its download stands, with its bar while it moves, over the row that cancels it, or once it is whole the row that deletes it from the phone with the room that frees.
 	const (

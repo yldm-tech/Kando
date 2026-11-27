@@ -33,6 +33,7 @@ func TestAwayFromTheComputerItsFilmsComeFromTheStorage(t *testing.T) {
 	p.app.WaitFor(talkRow(id), wait)
 
 	d.SetOff(true)
+	p.waitRelayed(id)
 	p.app.Press(talkRow(id))
 	p.app.WaitFor("id:film-stream", reconnect)
 	if !p.app.Exists("id:film-download") || p.app.Exists("id:film-lines-only") {
@@ -106,6 +107,7 @@ func TestAFilmStreamedPlaysFromTheComputerAtHome(t *testing.T) {
 	p.waitRelayJoined(id)
 	p.app.WaitFor(talkRow(id), wait)
 	d.SetOff(true)
+	p.waitRelayed(id)
 	p.app.Press(talkRow(id))
 	p.app.WaitFor("id:film-stream", reconnect)
 	p.app.Press("id:film-stream")

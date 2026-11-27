@@ -5,6 +5,8 @@ import (
 
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/store"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -48,6 +50,20 @@ func (l *Layer) goOn(p *play, key string) {
 	l.key.Set(key)
 }
 
+// nextStreamable is the next film id of desktop that can be streamed now, from desktop on its network or from its storage away from it.
+func (p *play) nextStreamable(desktop, id string) (sync.Film, string, bool) {
+	if p.s.OnNetwork(desktop) {
+		if e, ok := p.s.Listed(store.Key(desktop, id)); ok && !e.Film.SubtitlesOnly {
+			return e.Film, e.Library.Name, true
+		}
+	}
+	if rf, ok := p.s.RelayFilm(desktop, id); ok && rf.Media() != "" {
+		f, _ := p.s.Film(p.key)
+		return rf.Film, f.Library, true
+	}
+	return sync.Film{}, "", false
+}
+
 // upNextAtEnd is the film ended: the card shows for the next one the phone keeps with its video or sound, or that it streams after a film it streams, unless 自动播放下一部 is off; minimized, the next one plays at once.
 func (p *play) upNextAtEnd(l *Layer) {
 	if !p.autoNext.Get() {
@@ -57,8 +73,8 @@ func (p *play) upNextAtEnd(l *Layer) {
 	up := upNext{key: next}
 	if !kept {
 		f, _ := p.s.Film(p.key)
-		rf, ok := p.s.RelayFilm(f.Desktop, f.Film.Next)
-		if next == "" || !p.streamed() || !ok || rf.Media() == "" {
+		_, _, ok := p.nextStreamable(f.Desktop, f.Film.Next)
+		if next == "" || !p.streamed() || !ok {
 			return
 		}
 		up = upNext{stream: f.Film.Next}
@@ -76,7 +92,7 @@ func (p *play) upNextAtEnd(l *Layer) {
 	})
 }
 
-// playNext plays the film of up now, as the card's 立即播放 does: one kept at once, one to stream once its lines are read from the storage.
+// playNext plays the film of up now, as the card's 立即播放 does: one kept at once, one to stream once its lines are read from its computer or storage.
 func (p *play) playNext(l *Layer, up upNext) {
 	p.closeNext()
 	if up.stream == "" {
@@ -84,11 +100,11 @@ func (p *play) playNext(l *Layer, up upNext) {
 		return
 	}
 	f, _ := p.s.Film(p.key)
-	rf, ok := p.s.RelayFilm(f.Desktop, up.stream)
+	nextFilm, lib, ok := p.nextStreamable(f.Desktop, up.stream)
 	if !ok {
 		return
 	}
-	p.s.Stream(f.Desktop, f.Library, rf.Film, func(key string) { l.goOn(p, key) }, func(error) {})
+	p.s.Stream(f.Desktop, lib, nextFilm, func(key string) { l.goOn(p, key) }, func(error) {})
 }
 
 // closeNext puts the card away, as its 取消 does, and once the film plays or seeks again.
@@ -114,8 +130,8 @@ func nextCard(cx *core.Scope, l *Layer, p *play) core.Node {
 				}
 			}
 			if f, ok := p.s.Film(p.key); ok {
-				if rf, ok := p.s.RelayFilm(f.Desktop, up.stream); ok {
-					return rf.Film.Title
+				if nf, _, ok := p.nextStreamable(f.Desktop, up.stream); ok {
+					return nf.Title
 				}
 			}
 			return ""

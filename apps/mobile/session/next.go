@@ -55,5 +55,5 @@ func (s *Session) Next(key string) (string, bool) {
 	}
 	next := s.PlayKey(store.Key(lf.Desktop, lf.Film.Next))
 	kept, ok := s.Film(next)
-	return next, ok && (kept.HasVideo() || kept.FromSource())
+	return next, ok && (kept.HasVideo() || kept.FromSource() || (kept.Streamed && s.StreamLink(next) != ""))
 }

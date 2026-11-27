@@ -143,7 +143,7 @@ func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers()
 func (s *Session) LinesKey() string {
 	var b strings.Builder
 	for _, f := range s.films.Get() {
-		if f.Done() || f.Lines != nil {
+		if f.Done() || f.Streamed || f.Lines != nil {
 			lf := f.LinesFilm()
 			b.WriteString(f.Key())
 			b.WriteByte('@')
