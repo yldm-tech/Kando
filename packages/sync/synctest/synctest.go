@@ -96,6 +96,8 @@ type Desktop struct {
 	pairHeld chan struct{}
 	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
 	off bool
+	// lost are the films, by ID, whose files it no longer has while it lists them (LoseFiles).
+	lost map[string]bool
 	// silent keeps every connection open but carries nothing on it (SetSilent); conns are the connections accepted, which silenced stay so.
 	silent  bool
 	conns   []*silentConn
@@ -238,6 +240,16 @@ func (d *Desktop) ReplaceVideo(id string, video []byte) {
 		}
 		f.Video, f.VideoSize = video, int64(len(video))
 	}
+}
+
+// LoseFiles has the desktop go on listing film id but answer 404 for its subtitles, poster and video, as a computer whose files of the film are gone from its disk while its library still lists it.
+func (d *Desktop) LoseFiles(id string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.lost == nil {
+		d.lost = map[string]bool{}
+	}
+	d.lost[id] = true
 }
 
 // Stall makes each video answer begun from now on send after bytes, then wait until the phone gives up on it, as a network that drops does; 0 sends them whole.
@@ -531,7 +543,7 @@ func (d *Desktop) film(w http.ResponseWriter, r *http.Request) (Film, bool) {
 	defer d.mu.Unlock()
 	dev := requestDeviceID(r)
 	for _, f := range d.films {
-		if f.ID == r.PathValue("id") && !d.libLockedLocked(f.Library, dev) {
+		if f.ID == r.PathValue("id") && !d.libLockedLocked(f.Library, dev) && !d.lost[f.ID] {
 			return f, true
 		}
 	}
