@@ -1549,6 +1549,8 @@ const (
 	textPlayerNextCancel
 	textPlayerAutoNext
 	textPlayerAutoNextNote
+	textPlayerRepeat
+	textPlayerRepeatNote
 	textSourcesTitle
 	textSourcesAdd
 	textSourcesNote
@@ -2199,6 +2201,8 @@ var keyOfText = [numTexts]string{
 	"playerNextCancel",
 	"playerAutoNext",
 	"playerAutoNextNote",
+	"playerRepeat",
+	"playerRepeatNote",
 	"sourcesTitle",
 	"sourcesAdd",
 	"sourcesNote",
@@ -2847,6 +2851,8 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel"+
 	"Play Next Automatically"+
 	"When a film ends, plays the next one of its course or playlist that's on this phone."+
+	"Repeat Film"+
+	"When the film ends, plays it again from the start. The sleep timer's End of Film still stops it."+
 	"NAS & Servers"+
 	"Add NAS or Server"+
 	"Kando only reads these: it never writes, moves or deletes anything on them. Their passwords stay in this phone's secure storage, and the films you download play without the computer."+
@@ -3492,6 +3498,8 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		23,
 		84,
+		11,
+		96,
 		13,
 		17,
 		182,
@@ -4140,6 +4148,8 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル"+
 	"次の作品を自動再生"+
 	"作品が終わると、同じコースやリストでこの端末にある次の作品を再生します。"+
+	"リピート再生"+
+	"作品が終わると最初からもう一度再生します。スリープタイマーが「映像の終わり」のときは停止します。"+
 	"NAS とサーバ"+
 	"NAS またはサーバを追加"+
 	"Kando はこれらを読み取るだけで、書き込み・移動・削除は一切しません。パスワードはこの端末の安全な保管場所に保存され、ダウンロードした映画はコンピュータなしで再生できます。"+
@@ -4785,6 +4795,8 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		27,
 		108,
+		18,
+		144,
 		16,
 		31,
 		252,
@@ -5433,6 +5445,8 @@ var textsKo = i18n.NewTexts(""+
 	"취소"+
 	"다음 작품 자동 재생"+
 	"작품이 끝나면 같은 강좌나 목록에서 이 휴대폰에 있는 다음 작품을 재생합니다."+
+	"반복 재생"+
+	"작품이 끝나면 처음부터 다시 재생합니다. 취침 타이머가 '영상 끝'이면 멈춥니다."+
 	"NAS 및 서버"+
 	"NAS 또는 서버 추가"+
 	"Kando는 이곳을 읽기만 하며, 아무것도 쓰거나 옮기거나 지우지 않습니다. 암호는 이 휴대폰의 보안 저장소에 보관되고, 다운로드한 영화는 컴퓨터 없이 재생됩니다."+
@@ -6078,6 +6092,8 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		27,
 		107,
+		13,
+		109,
 		14,
 		24,
 		217,
@@ -6726,6 +6742,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消"+
 	"自动播放下一部"+
 	"一部播完后，接着播放同一课程或列表里已在手机上的下一部。"+
+	"循环播放"+
+	"播完后从头再播一遍。睡眠定时器选“这集完”时仍会停下。"+
 	"NAS 与服务器"+
 	"添加 NAS 或服务器"+
 	"看懂只读取这些位置，从不在上面写入、移动或删除任何东西。它们的密码保存在这台手机的安全存储里，下载的影片不用电脑也能播放。"+
@@ -7371,6 +7389,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		12,
+		81,
 		16,
 		23,
 		183,
@@ -8019,6 +8039,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消"+
 	"自動播放下一部"+
 	"一部播完後，接著播放同一課程或清單裡已在手機上的下一部。"+
+	"循環播放"+
+	"播完後從頭再播一遍。睡眠定時器選「這集完」時仍會停下。"+
 	"NAS 與伺服器"+
 	"新增 NAS 或伺服器"+
 	"看懂只讀取這些位置，從不在上面寫入、移動或刪除任何東西。它們的密碼儲存在這支手機的安全儲存區裡，下載的影片不用電腦也能播放。"+
@@ -8664,6 +8686,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		21,
 		84,
+		12,
+		81,
 		16,
 		23,
 		186,
@@ -22686,6 +22710,24 @@ func PlayerAutoNextNote(cx *core.Scope) string { return For(cx).PlayerAutoNextNo
 
 // PlayerAutoNextNote is the package's PlayerAutoNextNote in the language of msgs.
 func (msgs Messages) PlayerAutoNextNote() string { return msgs.text(textPlayerAutoNextNote) }
+
+// PlayerRepeat says "Repeat Film"
+// in the language the app shows under cx.
+//
+// Playback setting, and the pill over the picture while it is on: once a film ends it plays again from its start, in place of the next film.
+func PlayerRepeat(cx *core.Scope) string { return For(cx).PlayerRepeat() }
+
+// PlayerRepeat is the package's PlayerRepeat in the language of msgs.
+func (msgs Messages) PlayerRepeat() string { return msgs.text(textPlayerRepeat) }
+
+// PlayerRepeatNote says "When the film ends, plays it again from the start. The sleep timer's End of Film still stops it."
+// in the language the app shows under cx.
+//
+// Under the Repeat Film switch in the playback settings.
+func PlayerRepeatNote(cx *core.Scope) string { return For(cx).PlayerRepeatNote() }
+
+// PlayerRepeatNote is the package's PlayerRepeatNote in the language of msgs.
+func (msgs Messages) PlayerRepeatNote() string { return msgs.text(textPlayerRepeatNote) }
 
 // SourcesTitle says "NAS & Servers"
 // in the language the app shows under cx.

@@ -566,7 +566,7 @@ func audioOnly(cx *core.Scope, p *play) core.Node {
 	}}
 }
 
-// pills are the states of the player over the picture's corner: the line looped, shadowing, a speed other than 1×, the sleep timer and the lines moved, clear of the full-screen button upright; on a phone on its side they sit under the row over the picture, and under the status bar too on an upright full screen (narrow).
+// pills are the states of the player over the picture's corner: the line looped, shadowing, the film repeated, a speed other than 1×, the sleep timer and the lines moved, clear of the full-screen button upright; on a phone on its side they sit under the row over the picture, and under the status bar too on an upright full screen (narrow).
 func pills(cx *core.Scope, p *play, shown, wide, narrow func() bool) core.Node {
 	dark := func() core.Color { return core.RGBA(0x000000, 0.55) }
 	pill := func(id string, when func() bool, text func() string, fill func() core.Color) core.Node {
@@ -606,6 +606,7 @@ func pills(cx *core.Scope, p *play, shown, wide, narrow func() bool) core.Node {
 				}
 				return dark()
 			}),
+			pill("player-pill-repeat", p.repeat.Get, func() string { return locales.PlayerRepeat(cx) }, dark),
 			pill("player-pill-speed", func() bool { return p.speed() != 1 }, func() string { return speedText(p.speed()) }, dark),
 			pill("player-pill-sleep", func() bool { return p.sleep.Get() != sleepOff }, func() string { return sleepPill(cx, p) }, dark),
 			pill("player-pill-delay", func() bool { return p.delay.Get() != 0 }, func() string { return locales.PlayerDelayPill(cx, delayText(p.delay.Get())) }, dark),

@@ -93,6 +93,12 @@ func settingsSheet(cx *core.Scope, p *play, l *Layer, open *core.Signal[bool]) c
 					}),
 					toggle("player-settings-audio-only", false, func() string { return locales.PlayerAudioOnly(cx) }, func() string { return locales.PlayerAudioOnlyNote(cx) }, p.audioOnly.Get, func(on bool) { _ = p.audioOnly.Set(on) }),
 					toggle("player-settings-on-picture", false, func() string { return locales.PlayerOnPicture(cx) }, func() string { return locales.PlayerOnPictureNote(cx) }, p.onPicture.Get, func(on bool) { _ = p.onPicture.Set(on) }),
+					toggle("player-settings-repeat", false, func() string { return locales.PlayerRepeat(cx) }, func() string { return locales.PlayerRepeatNote(cx) }, p.repeat.Get, func(on bool) {
+						_ = p.repeat.Set(on)
+						if on {
+							p.closeNext()
+						}
+					}),
 					toggle("player-settings-auto-next", false, func() string { return locales.PlayerAutoNext(cx) }, func() string { return locales.PlayerAutoNextNote(cx) }, p.autoNext.Get, func(on bool) {
 						_ = p.autoNext.Set(on)
 						if !on {
