@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,9 @@ import (
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
+	"kando/packages/sync"
+	"kando/packages/sync/synctest"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -255,5 +259,132 @@ func TestThePositionSliderSpansTheVideo(t *testing.T) {
 	slider := p.app.Find("id:player-position-thumb")
 	if got := slider.Props.Value; got.Max != 10 || got.Min != 0 {
 		t.Fatalf("the slider spans %v to %v, want 0 to 10 seconds", got.Min, got.Max)
+	}
+}
+
+// positionAt is the position record of film f1 the computer d keeps for library lib, in milliseconds, -1 for none.
+func positionAt(d *synctest.Desktop) float64 {
+	r, ok := d.State("lib", sync.KindPosition, "f1")
+	if !ok {
+		return -1
+	}
+	var ms float64
+	if json.Unmarshal(r.Fields[sync.FieldPositionMS].Value, &ms) != nil {
+		return -1
+	}
+	return ms
+}
+
+// A computer's film streamed from it, which the phone never played, opens where the computer left it, as Continue Watching says, not at the beginning; the video's reports from the start of the file before its seek lands keep nothing, so the beginning does not go over the computer's place, and the place it plays from is kept once it plays from there.
+func TestAStreamedFilmOpensWhereTheComputerLeftIt(t *testing.T) {
+	d := newDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor("id:films-continue-"+id+"-f1", wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-stream", wait)
+	p.app.Press("id:film-stream")
+	p.app.WaitFor("id:player-video", wait)
+	// The video starts at the beginning of the file and says so before it is asked to seek, and once more before the seek lands.
+	p.at(0)
+	p.at(300 * time.Millisecond)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 4*sec {
+		t.Fatalf("the film went to %v, want where the computer left it, 4s", s)
+	}
+	p.at(500 * time.Millisecond)
+	if got := p.texts("id:player-at"); got != "0:04" {
+		t.Fatalf("before the seek lands the playhead says %q, want 0:04", got)
+	}
+	p.app.Press("id:player-minimize")
+	time.Sleep(300 * time.Millisecond)
+	if films, err := store.Open(dir).Films(); err != nil || len(films) != 1 || films[0].PositionMS != 0 || !films[0].PositionAt.IsZero() {
+		t.Fatalf("before the seek landed the phone kept %+v, %v", films, err)
+	}
+	if got := positionAt(d); got != 4000 {
+		t.Fatalf("before the seek landed the computer's place became %v, want 4000", got)
+	}
+	// Once the video plays from there, where it plays is the film's place, the phone's and the computer's.
+	p.app.Press("id:player-mini-open")
+	p.at(4200 * time.Millisecond)
+	p.at(9500 * time.Millisecond)
+	p.app.Press("id:player-minimize")
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 9500 && positionAt(d) == 9500 })
+}
+
+// A place the phone left the film at later than the computer's is where it opens.
+func TestTheNewerPlaceOnThePhoneWins(t *testing.T) {
+	d := newDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	f := keepTalkFrom(t, dir, id)
+	f.PositionMS, f.PositionAt = 7000, now()
+	if err := store.Open(dir).SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor("id:films-continue-"+id+"-f1", wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 7*sec {
+		t.Fatalf("the film went to %v, want where the phone left it later, 7s", s)
+	}
+}
+
+// A film whose computer is out of reach, so that the Library lists it from the phone alone, opens where the computer's learning state, as the phone last synced it, left it later than the phone did.
+func TestAFilmOpensWhereTheComputerLeftItWhileTheComputerIsAway(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	d.Close()
+	f := keepTalkFrom(t, dir, id)
+	f.LibraryID = "lib"
+	st := store.Open(dir)
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	pos := sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000), Stamp: sync.Stamp{At: now().Add(time.Hour), Device: "desktop"}}}}
+	// A line saved from the film, due for review, tells the test once the learning state is read.
+	line := study.Save("l1", "f1", "Morning Talk", study.Cue{Start: sec, End: 2 * sec, Original: "Good morning.", Translation: "早上好。"}, "", now())
+	if err := st.SaveLearning(id, "lib", study.Library{Epoch: "e", Rev: 1, Records: []sync.Record{pos, line}}); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.WaitFor("id:bar-badge-tab-learn", wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 4*sec {
+		t.Fatalf("the film went to %v, want where the computer last left it, 4s", s)
+	}
+}
+
+// A film left within the last two seconds of its end opens from the beginning, as before.
+func TestAFilmLeftAtItsEndStartsAgain(t *testing.T) {
+	d := newDesktop(t)
+	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(9000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists(talkRow(id) + " >> text:YouTube · 0:10 · " + msgs.FilmDownloaded()) })
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
+	if s := p.seeks(); slices.Contains(s, 9*sec) {
+		t.Fatalf("a film left at its end went to %v, want the beginning", s)
 	}
 }

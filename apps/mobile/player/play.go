@@ -73,6 +73,9 @@ type play struct {
 	mode  *core.Persisted[string]
 	rate  *core.Persisted[float32]
 	saved time.Duration
+	// opening is where the video was asked to start as it opens, where the film was left on any device (session.Position), until it reports playing from there, -1 then: its reports from before that, from the start of the file, neither move the playhead nor keep the position, so a film opened where its computer left it does not send the beginning over that place before the seek lands. openedAt is when OnLoad asked for the seek, zero before; a video that has not reached the place openFor after it is heard from then on.
+	opening  time.Duration
+	openedAt time.Time
 	// reported is where the video last said it was, and watched how long it played since the time watched was last kept (session.Watch).
 	reported, watched time.Duration
 	// current is the line showing, -1 for none; shown is the line the card shows: the one showing, else the last one heard, else the first.
@@ -123,10 +126,12 @@ func (p *play) noteStudy() {
 
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	f, _ := s.Film(key)
+	// Where the film was left last on any device, as the Library shows it: the computer's place where it is newer than the phone's.
+	left := max(s.Position(key).At, 0)
 	playable := s.VideoFile(key) != "" || (f.Streamed || f.FromSource()) && !f.Done() && s.StreamLink(key) != ""
 	p := &play{cx: cx, s: s, key: key, ref: &core.Ref{},
 		playing:   core.NewSignal(cx, playable),
-		at:        core.NewSignal(cx, time.Duration(f.PositionMS)*time.Millisecond),
+		at:        core.NewSignal(cx, left),
 		length:    core.NewSignal(cx, time.Duration(f.Film.DurationMS)*time.Millisecond),
 		aspect:    core.NewSignal(cx, float32(16.0/9)),
 		failed:    core.NewSignal(cx, false),
@@ -144,7 +149,8 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 		revealed:  core.NewSignal(cx, -1),
 		cut:       core.NewSignal(cx, 0),
 		pip:       core.NewSignal(cx, core.PictureInPictureState{}),
-		saved:     time.Duration(f.PositionMS) * time.Millisecond,
+		saved:     left,
+		opening:   -1,
 		heard:     -1,
 		now:       time.Now,
 		toast:     ui.NewToaster(cx),
@@ -233,9 +239,29 @@ func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 			p.revealed.Set(-1)
 		}
 	})
+	if left > 0 {
+		p.opening = left
+	}
 	cx.Cleanup(p.save)
 	return p
 }
+
+// openFor is how long after it is asked to start where the film was left a video may report from before that place (opening).
+const openFor = 10 * time.Second
+
+// open is the video opened, as it reports its length (OnLoad): it starts where the film was left, or where its lines were followed to while its video was not on the phone yet, but for a film left at its end, or within resumeMargin of it, which starts from the beginning again.
+func (p *play) open(length time.Duration) {
+	at := p.at.GetUntracked()
+	if at <= 0 || length > 0 && at >= length-resumeMargin {
+		p.opening = -1
+		return
+	}
+	p.seek(at)
+	p.opening, p.openedAt = at, p.now()
+}
+
+// resumeMargin is how close to its end a film left there is taken as watched: it opens from the beginning, as catalog.Resumable leaves it out of Continue Watching.
+const resumeMargin = 2 * time.Second
 
 // hasVideo reports whether the film has a video to play: on the phone (session.VideoFile), or for a film kept to stream (streamed) in its computer's storage. A film kept by its lines alone is studied line by line, holding still, until it has. Read it in a binding.
 func (p *play) hasVideo() bool {
@@ -300,6 +326,7 @@ func (p *play) speed() float32 { return p.rate.Get() }
 
 // seek plays from at.
 func (p *play) seek(at time.Duration) {
+	p.opening = -1
 	p.closeNext()
 	at = max(at, 0)
 	p.ref.Seek(at)
@@ -312,6 +339,12 @@ func (p *play) seek(at time.Duration) {
 func (p *play) progress(at, length time.Duration) {
 	if length > 0 {
 		p.length.Set(length)
+	}
+	if p.opening >= 0 {
+		if at < p.opening-time.Second && (p.openedAt.IsZero() || p.now().Sub(p.openedAt) < openFor) {
+			return
+		}
+		p.opening = -1
 	}
 	p.at.Set(at)
 	p.watcher.Move(at, false)
@@ -385,6 +418,10 @@ func (p *play) save() { p.keep(true) }
 
 // keep keeps the position playing with the film; send sends it to the film's computer at once, else it goes with the next sync, as while the film plays on.
 func (p *play) keep(send bool) {
+	// Before the video plays from where the film was left, that place stands as it is, on the phone and on the computer.
+	if p.opening >= 0 {
+		return
+	}
 	p.saved = p.at.GetUntracked()
 	if send {
 		p.s.SavePosition(p.key, p.saved)

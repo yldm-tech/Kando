@@ -50,7 +50,8 @@ const recapEndMargin = 2 * time.Second
 func newRecapper(cx *core.Scope, p *play, held bool) *recapper {
 	f, _ := p.s.Film(p.key)
 	r := &recapper{p: p, card: core.NewSignalFunc(cx, recapCard{}, nil)}
-	at := time.Duration(f.PositionMS) * time.Millisecond
+	// Where the player opens it: where it was left last on any device (newPlay).
+	at := p.at.GetUntracked()
 	length := time.Duration(f.Film.DurationMS) * time.Millisecond
 	if !held || at <= 0 || (length > 0 && at >= length-recapEndMargin) {
 		return r

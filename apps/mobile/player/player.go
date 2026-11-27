@@ -151,10 +151,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 				if info.Size.Width > 0 && info.Size.Height > 0 {
 					p.aspect.Set(float32(info.Size.Width / info.Size.Height))
 				}
-				// Where the film was left, or where its lines were followed to while its video was not on the phone yet.
-				if at := p.at.GetUntracked(); at > 0 && (info.Duration == 0 || at < info.Duration-2*time.Second) {
-					p.seek(at)
-				}
+				p.open(info.Duration)
 			},
 			OnProgress: p.progress,
 			OnEnd:      func() { p.ended(l) },
