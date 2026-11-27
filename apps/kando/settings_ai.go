@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -208,7 +209,7 @@ func (a *app) applyLLM() {
 		key = ""
 		a.prefs.llmKey = ""
 	}
-	// Without a key EveryAPI uses EVERYAPI_API_KEY, as at startup (media.ToolsFromEnv), and otherwise the signed-in everyapi CLI, as the tools last found it (重新检测 looks again).
+	// Without a key EveryAPI uses EVERYAPI_API_KEY, as at startup (media.ToolsFromEnv), and otherwise Kando's own sign-in, or the signed-in everyapi CLI, as the tools last found it (重新检测 looks again).
 	if base == media.EveryAPIBaseURL && key == "" {
 		key = os.Getenv("EVERYAPI_API_KEY")
 		a.prefs.llmKey = key
@@ -250,20 +251,20 @@ const everyAPISite = "https://everyapi.ai"
 // everyAPIOpenURL opens a page in the user's browser. Tests replace it.
 var everyAPIOpenURL = openBrowser
 
-// everyAPIStatus is what the AI 服务 page says about the everyapi command-line program: nothing unless the service is EveryAPI without an API Key; then whether the program was found, and, once the sidebar's check asked it, whether someone is signed in to it.
+// everyAPIStatus is what the AI 服务 page says about the everyapi command-line program: nothing unless the service is EveryAPI without an API Key and Kando is not signed in itself, whose sign-in comes first (media.Tools.UseEveryAPICLI); then whether the program was found, and, once the sidebar's check asked it, whether someone is signed in to it.
 func (a *app) everyAPIStatus() settings.EveryAPI {
 	tools, ok := a.pipeline.(media.Tools)
-	if !ok || tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
+	if !ok || tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" || tools.Translator.CredentialSource == media.CredentialLogin {
 		return settings.EveryAPI{}
 	}
-	status := settings.EveryAPI{OpenErr: a.prefs.everyAPIOpenErr}
+	status := settings.EveryAPI{OpenErr: a.prefs.everyAPIOpenErr, Wanted: a.prefs.everyAPIWanted}
 	switch {
 	case tools.Translator.Credential == nil:
 		status.Missing = true
 	case a.side.ready.asking:
 		status.Checking = true
-	case a.side.ready.signInDone && a.side.ready.signInErr != nil:
-		switch err := a.side.ready.signInErr; {
+	case a.signInFailed(tools.Translator) != nil:
+		switch err := a.signInFailed(tools.Translator); {
 		case errors.Is(err, media.ErrEveryAPIMissing):
 			status.Missing = true
 		case errors.Is(err, media.ErrEveryAPISignedOut):
@@ -277,6 +278,7 @@ func (a *app) everyAPIStatus() settings.EveryAPI {
 
 // getEveryAPI opens EveryAPI's website in the browser off the UI thread, and keeps why it could not for the page to say.
 func (a *app) getEveryAPI() {
+	a.prefs.everyAPIWanted = true
 	a.everyAPIForgetOpen()
 	gen := a.prefs.everyAPIOpenGen
 	update := a.update
@@ -339,13 +341,9 @@ func (a *app) llmForgetTest() {
 // llmTypingPause is how long the Base URL and the key must rest before the models are fetched for them, so typing an address asks the service once, not at every key.
 const llmTypingPause = 700 * time.Millisecond
 
-// llmModelsKey names the service the model list was fetched for: the Base URL, the key, and whether the EveryAPI CLI's login stands in for the key.
+// llmModelsKey names the service the model list was fetched for: the Base URL, the key, and which sign-in stands in for the key, the everyapi program's or Kando's own (media.CredentialSource).
 func llmModelsKey(t media.ChatTranslator) string {
-	login := ""
-	if t.Credential != nil {
-		login = "login"
-	}
-	return strings.TrimSpace(t.BaseURL) + "\n" + t.APIKey + "\n" + login
+	return strings.TrimSpace(t.BaseURL) + "\n" + t.APIKey + "\n" + strconv.Itoa(int(t.CredentialSource))
 }
 
 // loadLLMModels fetches the AI service's model list while Settings › AI 服务 shows, once per service, Base URL and key, and again on retry. It waits for typing in the Base URL or the key to pause. It reports whether it changed the settings' state, as when it started a fetch.
@@ -423,7 +421,7 @@ func (a *app) adoptLLMModel() {
 	}
 	a.prefs.llmModel = settings.DefaultModel(preset, a.prefs.llmModels)
 	a.applyLLM()
-	if tools, ok := a.pipeline.(media.Tools); ok && (!preset.NeedsKey() || tools.Translator.APIKey != "") && !everyAPICLIMissing(tools.Translator) {
+	if tools, ok := a.pipeline.(media.Tools); ok && (!preset.NeedsKey() || tools.Translator.APIKey != "") && !tools.Translator.EveryAPIUnsigned() {
 		a.testLLM()
 	}
 }

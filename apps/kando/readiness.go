@@ -20,11 +20,12 @@ type readiness struct {
 	// checked is set once checkReadiness has run; status is what it found.
 	checked bool
 	status  sidebar.Readiness
-	// signInDone is set once a sign-in check finished, with its error in signInErr. gen numbers the sign-in checks, so the answer of one started before another is dropped. asking is set while the last one runs, so the changes that do not ask again (signIn false), as each keystroke in 「AI 服务」, wait for its answer instead of starting another.
-	signInDone bool
-	signInErr  error
-	gen        int
-	asking     bool
+	// signInDone is set once a sign-in check finished, with its error in signInErr, about the sign-in of signInSource, the everyapi program's or Kando's own (media.CredentialSource), so an answer about one is never taken for the other. gen numbers the sign-in checks, so the answer of one started before another is dropped. asking is set while the last one runs, so the changes that do not ask again (signIn false), as each keystroke in 「AI 服务」, wait for its answer instead of starting another.
+	signInDone   bool
+	signInErr    error
+	signInSource media.CredentialSource
+	gen          int
+	asking       bool
 }
 
 // The status line's messages, said in the language the app shows under the sidebar's scope each time its binding reads them (sidebar.Readiness.Message). Where they say what the library's message bar says, they are its words (locales.Precheck…).
@@ -34,6 +35,8 @@ var (
 	noSpeechModel     = locales.PrecheckNoSpeechModel
 	noLLMModel        = locales.PrecheckNoLLMModel
 	everyAPIMissing   = locales.PrecheckEveryAPIMissing
+	everyAPISignIn    = locales.PrecheckEveryAPISignIn
+	everyAPINoLogin   = locales.PrecheckEveryAPILoginMissing
 	everyAPISignedOut = locales.PrecheckEveryAPISignedOut
 	everyAPIFailed    = locales.PrecheckEveryAPIFailed
 	checkingSignIn    = locales.ReadinessCheckingSignIn
@@ -86,18 +89,23 @@ func (a *app) checkReadiness(signIn bool) {
 		a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: func(cx *ns.Scope) string { return locales.PrecheckSourceNotRunning(cx, name) }, Section: settings.SectionPlugins}
 		return
 	}
-	credential := tools.Translator.Credential
+	credential, source := tools.Translator.Credential, tools.Translator.CredentialSource
 	// Asking the everyapi CLI asks EveryAPI's servers, which offline mode does not (privacyReadiness says why the service will not translate).
 	if credential == nil || a.privacy.offline {
 		a.side.ready.status = sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
 		return
 	}
 	checking := sidebar.Readiness{State: sidebar.Checking, Message: checkingSignIn, Section: settings.SectionAI}
+	// Kando's own sign-in is read from the secure store once the window is ready (everyapiLoad), which checks again then; until it is, it is being checked, not missing.
+	if source == media.CredentialLogin && !a.everyapi.loaded {
+		a.side.ready.status = checking
+		return
+	}
 	if a.side.ready.asking && !signIn {
 		a.side.ready.status = checking
 		return
 	}
-	if a.side.ready.signInDone && !signIn {
+	if a.side.ready.signInDone && a.side.ready.signInSource == source && !signIn {
 		a.side.ready.status = signInStatus(a.side.ready.signInErr)
 		return
 	}
@@ -106,6 +114,7 @@ func (a *app) checkReadiness(signIn bool) {
 	}
 	a.side.ready.gen++
 	a.side.ready.asking = true
+	a.side.ready.signInSource = source
 	gen := a.side.ready.gen
 	a.side.ready.status = checking
 	update := a.update
@@ -122,12 +131,30 @@ func (a *app) checkReadiness(signIn bool) {
 	}()
 }
 
-// signedIn keeps an answer about the EveryAPI sign-in, from the check checkReadiness started or from 测试 in 「AI 服务」 reaching the model through the CLI's key, in place of any check still running, and shows what it means.
+// signedIn keeps an answer about the EveryAPI sign-in the pipeline uses now, the everyapi program's or Kando's own, from the check checkReadiness started or from 测试 in 「AI 服务」 reaching the model through its key, in place of any check still running, and shows what it means.
 func (a *app) signedIn(err error) {
 	a.side.ready.gen++
 	a.side.ready.asking = false
 	a.side.ready.signInDone, a.side.ready.signInErr = true, err
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		a.side.ready.signInSource = tools.Translator.CredentialSource
+	}
 	a.checkReadiness(false)
+}
+
+// signInFailed is why the last check found the sign-in t uses failing, nil when it passed, was not checked yet, or was about another sign-in than t's (readiness.signInSource), as the everyapi program's before Kando signed in itself.
+func (a *app) signInFailed(t media.ChatTranslator) error {
+	r := a.side.ready
+	if t.Credential == nil || !r.signInDone || r.signInSource != t.CredentialSource {
+		return nil
+	}
+	return r.signInErr
+}
+
+// signInUnchecked reports whether the sign-in t uses has not been checked yet, or the last check was about another sign-in.
+func (a *app) signInUnchecked(t media.ChatTranslator) bool {
+	r := a.side.ready
+	return t.Credential != nil && (!r.signInDone || r.signInSource != t.CredentialSource)
 }
 
 // toolsMissing reports the first thing tools lack that the UI thread can read at once, with the settings section that fixes it. With ownSource, a script plugin's translator chosen in Settings › 翻译 (pluginsTranslating), the films are translated without the AI service, which is then not missing.
@@ -158,8 +185,8 @@ func toolsMissing(tools media.Tools, ownSource bool) (sidebar.Readiness, bool) {
 	if strings.TrimSpace(tools.Translator.Model) == "" {
 		return missing(noLLMModel, settings.SectionAI)
 	}
-	if everyAPICLIMissing(tools.Translator) {
-		return missing(everyAPIMissing, settings.SectionAI)
+	if tools.Translator.EveryAPIUnsigned() {
+		return missing(everyAPISignIn, settings.SectionAI)
 	}
 	return sidebar.Readiness{}, false
 }
@@ -171,14 +198,13 @@ func signInStatus(err error) sidebar.Readiness {
 	return sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
 }
 
-// everyAPICLIMissing reports whether t is EveryAPI without an API Key and the everyapi command-line program it would sign in through was not found, which leaves it without a Credential (media.Tools.UseEveryAPICLI).
-func everyAPICLIMissing(t media.ChatTranslator) bool {
-	return t.Credential == nil && t.BaseURL == media.EveryAPIBaseURL && t.APIKey == ""
-}
-
-// everyAPISignInFailed is what to do about an everyapi sign-in that failed: install the program when it has gone since it was found, sign in to it when nobody is, and otherwise read on the AI 服务 page what it said, as when it timed out or crashed.
+// everyAPISignInFailed is what to do about an EveryAPI sign-in that failed: Kando's own that ended, or was not found where Kando keeps it, is signed in again in 「AI 服务」; the everyapi program's needs the program installed when it has gone since it was found, or signing in to it when nobody is; otherwise read on the AI 服务 page what it said, as when it timed out or crashed.
 func everyAPISignInFailed(err error) func(*ns.Scope) string {
 	switch {
+	case errors.Is(err, media.ErrEveryAPILoginSignedOut):
+		return everyAPISignIn
+	case errors.Is(err, media.ErrEveryAPILoginMissing):
+		return everyAPINoLogin
 	case errors.Is(err, media.ErrEveryAPIMissing):
 		return everyAPIMissing
 	case errors.Is(err, media.ErrEveryAPISignedOut):

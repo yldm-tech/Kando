@@ -82,6 +82,11 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return m.PrecheckNoSpeechModel(), sectionid.Speech
 	case strings.Contains(detail, "is not installed"):
 		return m.PrecheckNoTools(), sectionid.General
+	// Kando's own EveryAPI sign-in, which names no command-line program: none, or one that ended, and one not found where Kando keeps it.
+	case strings.Contains(detail, media.ErrEveryAPILoginSignedOut.Error()):
+		return m.PrecheckEveryAPISignIn(), sectionid.AI
+	case strings.Contains(detail, media.ErrEveryAPILoginMissing.Error()):
+		return m.PrecheckEveryAPILoginMissing(), sectionid.AI
 	case strings.Contains(detail, media.ErrEveryAPIMissing.Error()):
 		return m.PrecheckEveryAPIMissing(), sectionid.AI
 	// Before media.ErrEveryAPIMissing, Kando said this, followed by "or set EVERYAPI_API_KEY", also when the everyapi program was missing; such a failed job kept in library.json reads as signed out.
@@ -132,6 +137,15 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return msg, ""
 	}
 	return m.PrecheckFailedProcess(shorten(ToolMessage(detail), 72)), ""
+}
+
+// OutOfCredit reports whether failed is a translation the AI service refused because the account is out of credit (media.TranslateQuota), which a top-up of its wallet mends: not EveryAPI's plan whose allowance is spent (media.QuotaPlan), which it does not. A translation source of its own (failed.Source) is not the AI service. The desktop's card offers to top up EveryAPI's account then; the phone, which reads Hint, offers no purchase.
+func OutOfCredit(failed *media.StageError) bool {
+	if failed == nil || failed.Stage != media.StageTranslate || failed.Source != "" {
+		return false
+	}
+	detail := failed.Detail()
+	return media.ClassifyTranslate(detail) == media.TranslateQuota && media.EveryAPIQuotaReason(detail) != media.QuotaPlan
 }
 
 // SourceHint says in the user's words, in the language of m, what the failure of the translation source named source (media.Tools.Engine, media.StageError.Source) means, detail being what it said (media.StageError.Detail), and the settings section that fixes it ("" when none does). A plugin's translator that failed with a code Kando knows (plugins.TranslateCode) is told in words of its own: its key and its plugin's switch are in 插件, the target language in 翻译; one offline mode refused, as it is not on this computer, in 隐私. Any other failure is told with what the source said, as its words are not the AI service's.

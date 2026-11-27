@@ -60,6 +60,8 @@ type settingsUI struct {
 	// everyAPIOpenErr says why 获取 EveryAPI could not open EveryAPI's website, "" when it did, was not pressed, or the tools were detected again since. everyAPIOpenGen counts the presses, so only the last one's answer is kept.
 	everyAPIOpenErr string
 	everyAPIOpenGen int
+	// everyAPIWanted is set once 获取 EveryAPI was pressed in this run: the user chose to sign in with the everyapi command-line program, so the AI 服务 page shows its row, with 重新检测, even while it is not on this computer.
+	everyAPIWanted bool
 	// trashModel is the whisper catalog model whose move to the Trash waits to be confirmed while trashOpen. trashRelease gives back the modal flag (holdModal) the confirmation holds, nil while it is closed; speechModals gives it back once the confirmation has closed.
 	trashModel   string
 	trashOpen    bool

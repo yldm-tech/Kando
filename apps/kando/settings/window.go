@@ -26,7 +26,36 @@ import (
 type EveryAPI struct {
 	Missing, Checking, SignedOut bool
 	Failed, OpenErr              string
+	// Wanted is set once the user chose to sign in with the program (GetEveryAPI), so its row shows while it is missing too.
+	Wanted bool
 }
+
+// EveryAPIAccount is Kando's own sign-in to EveryAPI as the AI page shows it when the service is EveryAPI without an API Key (Shown), the zero value otherwise. Loading while the sign-in settings.json says Kando holds is read; SignedIn once it is, with the account's Name and Balance, "" until EveryAPI said it, Low when little is left, BalanceFailed when asking failed; NotSaved when a renewed sign-in could not be kept. SigningIn while the browser shows EveryAPI's page, or, with Code, while the code is to be entered at CodeURL. Offline is offline mode, which reaches no service. CLI is whether the everyapi command-line program is on this computer, UsingCLI whether its sign-in translates now, as far as Kando last checked it. Problem is why the last sign-in failed or the sign-in ended, Detail what went wrong for EveryAPIFailed.
+type EveryAPIAccount struct {
+	Shown, Loading, SignedIn, SigningIn, Offline bool
+	NotSaved, CLI, UsingCLI, Low, BalanceFailed  bool
+	Code, CodeURL, Name, Balance, Detail         string
+	Problem                                      EveryAPIProblem
+}
+
+// EveryAPIProblem is why Kando is not signed in to EveryAPI when something went wrong (EveryAPIAccount.Problem).
+type EveryAPIProblem uint8
+
+const (
+	EveryAPINoProblem EveryAPIProblem = iota
+	// EveryAPILoginMissing is a sign-in settings.json says Kando holds that is not where Kando keeps it.
+	EveryAPILoginMissing
+	// EveryAPINeedsTopUp is an account EveryAPI gives no key until it is topped up; EveryAPISlotsFull one that holds as many keys as it may.
+	EveryAPINeedsTopUp
+	EveryAPISlotsFull
+	// EveryAPIDenied is a sign-in declined on EveryAPI's page, EveryAPIExpired a code that ran out, EveryAPIUnavailable a server that offers Kando no sign-in.
+	EveryAPIDenied
+	EveryAPIExpired
+	EveryAPIUnavailable
+	// EveryAPIEnded is a sign-in EveryAPI no longer takes; EveryAPIFailed any other failure, which Detail says.
+	EveryAPIEnded
+	EveryAPIFailed
+)
 
 // Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it: its group's title, what it does and its key in NSGo's form ("mod+,"), which the page writes as the platform does (core.Scope.KeyLabel).
 type Shortcut struct {
@@ -181,6 +210,13 @@ type App interface {
 	// EveryAPI is what the AI page says about the everyapi command-line program, whose sign-in EveryAPI uses without an API Key; GetEveryAPI opens EveryAPI's website, where the program is downloaded, and Redetect looks for it again.
 	EveryAPI() EveryAPI
 	GetEveryAPI()
+	// EveryAPIAccount is what the AI page says about Kando's own EveryAPI sign-in. EveryAPISignIn signs in in the browser, EveryAPIUseCode with a code instead, EveryAPICancelSignIn stops a sign-in under way, EveryAPISignOut signs out and EveryAPITopUp opens the account's top-up page in the browser.
+	EveryAPIAccount() EveryAPIAccount
+	EveryAPISignIn()
+	EveryAPIUseCode()
+	EveryAPICancelSignIn()
+	EveryAPISignOut()
+	EveryAPITopUp()
 	// LLMBatchSize is how many lines a translation request carries, LLMRetries how many times a failed one is sent again; SetLLMRequests changes both, kept to media's ranges, and saves them.
 	LLMBatchSize() int
 	LLMRetries() int

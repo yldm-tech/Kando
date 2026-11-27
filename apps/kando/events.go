@@ -65,6 +65,8 @@ func (a *app) areas() []areaHooks {
 		a.libraryHooks(),
 		// The browser comes before the queue, as its ready sweeps the cookie folders of downloads that never finished (media.SweepCookieDirs) before the queue's ready starts the first job left waiting, which would make one of its own, and gives the pipeline the pages' cookies (media.Tools.SiteCookies) there too, which that job then takes.
 		a.browseHooks(),
+		// The EveryAPI sign-in comes before the queue, as its restore gives the pipeline the sign-in settings.json says Kando holds, and its ready reads it from the secure store, before the queue's ready starts the jobs left waiting, which wait for it rather than fail.
+		a.everyapiHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),
 		a.aiusageHooks(),

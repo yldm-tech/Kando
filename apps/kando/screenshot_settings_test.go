@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/aiusage"
 	"kando/apps/kando/browserext"
 	"kando/apps/kando/clitool"
+	"kando/apps/kando/everyapi"
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/phonesync"
@@ -56,15 +57,15 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionPrivacy, "settings-privacy-offline", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); a.SetOffline(true) })
 	// 手机同步 on, while the page offers a code: its QR code with the address, the code and the fingerprint, and one phone paired.
 	shootSettings(t, f, settings.SectionPhone, "settings-phone-paired", shown, models, turbo, shotPhoneSync)
-	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.
+	// EveryAPI without a key on a computer without the everyapi program, and Kando not signed in: the EveryAPI account row under API Key offers 登录, with the program as the other way.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-missing", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
 		tools.EveryAPI = ""
 		a.syncLLM(tools.UseEveryAPICLI())
 	})
-	// The everyapi program is there but nobody signed in to it, as the sidebar's check found: the row says what to run in a terminal.
+	// The everyapi program is there but nobody signed in to it, as the sidebar's check found: the account row offers 登录, and the program's row says what to run in a terminal.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
-		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
+		a.side.ready.signInDone, a.side.ready.signInErr, a.side.ready.signInSource = true, media.ErrEveryAPISignedOut, media.CredentialCLI
 	})
 	// The end of AI 服务: 本月用量 with every pass but term suggestions, the plugins' estimated as their service said no usage; the plugins' row and the 80 requests are checked headless too.
 	usage := testlocale.Messages()
@@ -72,6 +73,9 @@ func TestScreenshotsSettings(t *testing.T) {
 		"exists:id:settings-aiusage-plugin >> " + whole(usage.AiusageTokensEstimated(3*(2200+540))),
 		"exists:id:settings-aiusage-requests >> " + whole(usage.AiusageRequestsCount(80)),
 	}, shotAIUsage)
+	// Signed in to EveryAPI in Kando: the account's name and balance, with 充值 and 退出; and the same with little left.
+	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-account", shown, models, turbo, func(a *app) { shotEveryAPISignedIn(a, 12.4) })
+	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-low", shown, models, turbo, func(a *app) { shotEveryAPISignedIn(a, 0.42) })
 	// The end of 语音识别, with Japanese named as the language spoken in the videos.
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-language", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -218,6 +222,18 @@ func shotPhoneSync(a *app) {
 	seen := time.Date(2026, 11, 17, 9, 41, 0, 0, time.Local)
 	a.phone.devices = []phonesync.Device{{ID: "iphone", Name: "iPhone 17", Platform: psync.PlatformIOS, Paired: seen.Add(-48 * time.Hour), LastSeen: seen}}
 	a.phoneSyncQR()
+}
+
+// shotEveryAPISignedIn shows Kando signed in to EveryAPI as Evan, with balance dollars left, as the account summary said, without asking any server: the sign-in's tokens are made up and nothing sends them.
+func shotEveryAPISignedIn(a *app, balance float64) {
+	e := &a.everyapi
+	cred := newEveryapiCred()
+	cred.ready(everyapi.NewSession(everyapi.Config{}, everyapi.Tokens{Key: "sk-everyapi-screenshot", Refresh: "screenshot"}, everyapi.SessionHooks{}), nil)
+	e.cred, e.signedIn, e.loaded, e.name = cred, true, true, "Evan"
+	e.summary, e.haveSummary = everyapi.Summary{Name: "Evan", Balance: balance, Currency: "USD"}, true
+	// Opening the page asks what the account has; the shot shows what it said, so it does not ask.
+	e.pageOpen = true
+	a.everyapiInstall()
 }
 
 // shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service, without a key, through the everyapi program in ~/bin (writeFakeEveryAPI). setup, when given, changes the app before it is drawn.

@@ -12,13 +12,13 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Service is a translation service the second step offers, as Settings › AI 服务 lists it: its id, its name as the drop-down shows it, whether the step asks for its API Key (Key), whether it has a page where the key is made, which 获取 API Key opens (KeyPage), and whether it is set up in Settings › AI 服务 instead, as a custom endpoint, whose Base URL the step has no field for (InSettings).
+// Service is a translation service the second step offers, as Settings › AI 服务 lists it: its id, its name as the drop-down shows it, the heading it is listed under (Group), whether the step asks for its API Key (Key), whether it has a page where the key is made, which 获取 API Key opens (KeyPage), and whether it is set up in Settings › AI 服务 instead, as a custom endpoint, whose Base URL the step has no field for (InSettings).
 type Service struct {
-	ID, Name                 string
+	ID, Name, Group          string
 	Key, KeyPage, InSettings bool
 }
 
-// aiCard is the second step's card of the translation service, so the guide ends with translation working: the service, chosen in place, with which model translates or what it still needs; its API Key where it takes one, with 获取 API Key; and 测试连接 with its result. EveryAPI without a key signs in with the everyapi command-line program instead, so while that program is missing the card offers 获取 EveryAPI and 重新检测 in place of the test. 设置… opens Settings › AI 服务 for the rest, as another model or a custom endpoint.
+// aiCard is the second step's card of the translation service, so the guide ends with translation working: the service, chosen in place among an EveryAPI account, the user's own API Key and a model on this computer, with which model translates or what it still needs; its API Key where it takes one, with 获取 API Key; and 测试连接 with its result. EveryAPI without a key signs in to an account instead, so until it is signed in the card offers 登录 in place of the test. 设置… opens Settings › AI 服务 for the rest, as another model or a custom endpoint.
 type aiCard struct {
 	a  App
 	ai func() AI
@@ -36,7 +36,7 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 		}
 		return Service{ID: a.LLMProvider()}
 	})
-	missing := live.Memo(cx, a, a.OnboardingEveryAPIMissing)
+	signIn := live.Memo(cx, a, a.OnboardingEveryAPISignIn)
 	head := core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
 		rowText(func() string { return locales.OnboardingTranslationService(cx) }, func() (string, core.Color) {
 			if ai().Missing {
@@ -72,11 +72,8 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 	}}
 	settings := smallButton(cx, "onboarding-ai", func() string { return locales.OnboardingSettings(cx) },
 		ui.Button{OnPress: live.Do(a, func() { a.OpenSettings(sectionid.AI) })})
-	actions := core.Show{When: missing, Then: func(cx *core.Scope) core.Node {
-		return core.Group{
-			smallButton(cx, "onboarding-everyapi-get", func() string { return locales.SettingsAIGetEveryAPI(cx) }, ui.Button{OnPress: live.Do(a, a.GetEveryAPI)}),
-			smallButton(cx, "onboarding-everyapi-redetect", func() string { return locales.SettingsAIRedetect(cx) }, ui.Button{OnPress: live.Do(a, a.Redetect)}),
-		}
+	actions := core.Show{When: signIn, Then: func(cx *core.Scope) core.Node {
+		return smallButton(cx, "onboarding-everyapi-signin", func() string { return locales.EveryAPISignIn(cx) }, ui.Button{OnPress: live.Do(a, a.EveryAPISignIn)})
 	}, Else: func(cx *core.Scope) core.Node {
 		return smallButton(cx, "onboarding-ai-test", func() string { return locales.SettingsAITest(cx) },
 			ui.Button{Disabled: live.Func(a, a.TestingLLM), OnPress: live.Do(a, func() {
@@ -93,12 +90,12 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 	return card(head, key, rule(), foot)
 }
 
-// serviceSelect is the drop-down of the services, as Settings › AI 服务 has it; one set up there, as a custom endpoint, opens it. ui.Select takes its name and options as it is built, so it is built again when the language shown changes the names, which happens while the settings, not this field, have the keyboard.
+// serviceSelect is the drop-down of the services, as Settings › AI 服务 has it, under the headings of the three ways to translate (Service.Group); one set up there, as a custom endpoint, opens it. ui.Select takes its name and options as it is built, so it is built again when the language shown changes the names, which happens while the settings, not this field, have the keyboard.
 func serviceSelect(cx *core.Scope, a App) core.Node {
 	face := live.Memo(cx, a, func() selectFace {
 		var names []string
 		for _, s := range a.OnboardingServices(cx) {
-			names = append(names, s.ID+"\x01"+s.Name)
+			names = append(names, s.ID+"\x01"+s.Name+"\x01"+s.Group)
 		}
 		return selectFace{label: locales.SettingsAIChooseService(cx), choices: strings.Join(names, "\x00")}
 	})
@@ -106,8 +103,8 @@ func serviceSelect(cx *core.Scope, a App) core.Node {
 		f := face()
 		var options []ui.Option[string]
 		for _, choice := range strings.Split(f.choices, "\x00") {
-			id, name, _ := strings.Cut(choice, "\x01")
-			options = append(options, ui.Option[string]{Value: id, Label: name})
+			fields := strings.SplitN(choice, "\x01", 3)
+			options = append(options, ui.Option[string]{Value: fields[0], Label: fields[1], Group: fields[2]})
 		}
 		return ui.Select[string]{TestID: "onboarding-ai-service", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(150), FlexShrink: 0, AlignSelf: core.AlignCenter},
 			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, func(id string) {

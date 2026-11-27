@@ -595,14 +595,14 @@ func (a *app) paletteTranslator(noAI func(*core.Scope) string) (t media.ChatTran
 	if strings.TrimSpace(t.Model) == "" || strings.TrimSpace(t.BaseURL) == "" {
 		return t, noAI
 	}
-	if everyAPICLIMissing(t) {
-		return t, everyAPIMissing
+	if t.EveryAPIUnsigned() {
+		return t, everyAPISignIn
 	}
 	if t.Offline && !t.Local() {
 		return t, locales.PrivacyNoCloudAI
 	}
-	if t.Credential != nil && a.side.ready.signInDone && a.side.ready.signInErr != nil {
-		return t, everyAPISignInFailed(a.side.ready.signInErr)
+	if err := a.signInFailed(t); err != nil {
+		return t, everyAPISignInFailed(err)
 	}
 	return t, nil
 }

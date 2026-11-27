@@ -833,8 +833,8 @@ func (a *app) remoteNoTranslator(m locales.Messages) string {
 		return ""
 	case strings.TrimSpace(tools.Translator.Model) == "":
 		return m.PrecheckNoLLMModel()
-	case everyAPICLIMissing(tools.Translator):
-		return m.PrecheckEveryAPIMissing()
+	case tools.Translator.EveryAPIUnsigned():
+		return m.PrecheckEveryAPISignIn()
 	}
 	return ""
 }

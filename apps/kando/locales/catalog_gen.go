@@ -548,6 +548,13 @@ var Parameters = map[string][]string{
 	"DropHave":                                 {"count"},
 	"DropSkipped":                              {"count"},
 	"DropTitle":                                {"folder"},
+	"EveryAPIAccountChecking":                  {"name"},
+	"EveryAPIAccountLine":                      {"name", "balance"},
+	"EveryAPIAccountLow":                       {"name", "balance"},
+	"EveryAPIBalanceFailed":                    {"name"},
+	"EveryAPIDeviceCode":                       {"url", "code"},
+	"EveryAPIFailedOther":                      {"error_"},
+	"EveryAPITopUpFailed":                      {"url"},
 	"FilmNotesDueCount":                        {"count"},
 	"FilmNotesLines":                           {"count"},
 	"FilmNotesPlay":                            {"time_", "text"},
@@ -1364,6 +1371,13 @@ type Translation struct {
 	DropHave                                 func(count int) string
 	DropSkipped                              func(count int) string
 	DropTitle                                func(folder string) string
+	EveryAPIAccountChecking                  func(name string) string
+	EveryAPIAccountLine                      func(name string, balance string) string
+	EveryAPIAccountLow                       func(name string, balance string) string
+	EveryAPIBalanceFailed                    func(name string) string
+	EveryAPIDeviceCode                       func(url string, code string) string
+	EveryAPIFailedOther                      func(error_ string) string
+	EveryAPITopUpFailed                      func(url string) string
 	FilmNotesDueCount                        func(count int) string
 	FilmNotesLines                           func(count int) string
 	FilmNotesPlay                            func(time_ string, text string) string
@@ -2349,6 +2363,26 @@ const (
 	textDropOnlyAdd
 	textDropOnlyAddHint
 	textDropTitleSeveral
+	textEveryAPIAccount
+	textEveryAPIBrowserFailed
+	textEveryAPIBrowserSignedIn
+	textEveryAPICancel
+	textEveryAPIEnded
+	textEveryAPIFailedDenied
+	textEveryAPIFailedExpired
+	textEveryAPIFailedPaid
+	textEveryAPIFailedSlots
+	textEveryAPIFailedUnavailable
+	textEveryAPINotSaved
+	textEveryAPIOffline
+	textEveryAPISignIn
+	textEveryAPISignOut
+	textEveryAPISignedOutNote
+	textEveryAPITopUp
+	textEveryAPIUseCLI
+	textEveryAPIUseCode
+	textEveryAPIUsingCLI
+	textEveryAPIWaitingBrowser
 	textFilmNotesEmptyLines
 	textFilmNotesEmptyWords
 	textFilmNotesKind
@@ -2379,6 +2413,11 @@ const (
 	textLibexportStart
 	textLibexportDone
 	textLibraryDropReading
+	textOnboardingServicesAccount
+	textOnboardingServicesKey
+	textOnboardingServicesLocal
+	textPrecheckEveryAPILoginMissing
+	textPrecheckEveryAPISignIn
 	textSettingsAIBatchSize
 	textSettingsAIBatchSizeHint
 	textSettingsAIRequests
@@ -4315,6 +4354,26 @@ var keyOfText = [numTexts]string{
 	"dropOnlyAdd",
 	"dropOnlyAddHint",
 	"dropTitleSeveral",
+	"everyAPIAccount",
+	"everyAPIBrowserFailed",
+	"everyAPIBrowserSignedIn",
+	"everyAPICancel",
+	"everyAPIEnded",
+	"everyAPIFailedDenied",
+	"everyAPIFailedExpired",
+	"everyAPIFailedPaid",
+	"everyAPIFailedSlots",
+	"everyAPIFailedUnavailable",
+	"everyAPINotSaved",
+	"everyAPIOffline",
+	"everyAPISignIn",
+	"everyAPISignOut",
+	"everyAPISignedOutNote",
+	"everyAPITopUp",
+	"everyAPIUseCLI",
+	"everyAPIUseCode",
+	"everyAPIUsingCLI",
+	"everyAPIWaitingBrowser",
 	"filmNotesEmptyLines",
 	"filmNotesEmptyWords",
 	"filmNotesKind",
@@ -4345,6 +4404,11 @@ var keyOfText = [numTexts]string{
 	"libexportStart",
 	"libexportDone",
 	"libraryDropReading",
+	"onboardingServicesAccount",
+	"onboardingServicesKey",
+	"onboardingServicesLocal",
+	"precheckEveryAPILoginMissing",
+	"precheckEveryAPISignIn",
 	"settingsAIBatchSize",
 	"settingsAIBatchSizeHint",
 	"settingsAIRequests",
@@ -6279,6 +6343,26 @@ var textsEn = i18n.NewTexts(""+
 	"Only add them, and make subtitles as I watch"+
 	"They show in the library at once, where they are. Open one and press Make Subtitles to have them made as it plays. Nothing runs now, and nothing is translated."+
 	"Add These Videos"+
+	"EveryAPI account"+
+	"The EveryAPI sign-in didn't finish. Go back to Kando and try again."+
+	"Signed in to EveryAPI. You can close this page and go back to Kando."+
+	"Cancel"+
+	"The sign-in has ended. Sign in again."+
+	"The sign-in was declined on EveryAPI's page."+
+	"The code expired before it was entered. Sign in again."+
+	"EveryAPI gives Kando a key once the account has been topped up. Top up, then sign in again."+
+	"The account holds as many API keys as it can. Delete one on EveryAPI's website, then sign in again."+
+	"EveryAPI sign-in isn't available right now. Enter an API Key for now."+
+	"Signed in, but the sign-in couldn't be saved. You may have to sign in again after Kando restarts."+
+	"Offline mode is on. Turn it off in Privacy to sign in."+
+	"Sign In"+
+	"Sign Out"+
+	"Sign in to translate with your EveryAPI balance."+
+	"Top Up"+
+	"Use the Command Line…"+
+	"Use a Code"+
+	"Not signed in here. Translating with the sign-in of the everyapi command line."+
+	"Finish signing in in the browser…"+
 	"No saved lines in this film yet. Press B on a line you want to keep, or Save Line to Notes under Explain Line, and it joins the daily review."+
 	"No words from this film yet. Click a word on the subtitles to look it up, then Add to Vocabulary."+
 	"Show"+
@@ -6309,6 +6393,11 @@ var textsEn = i18n.NewTexts(""+
 	"Export"+
 	"Done"+
 	"Looking through the folder…"+
+	"Sign in"+
+	"Your own API Key"+
+	"On this computer"+
+	"Kando's EveryAPI sign-in wasn't found on this computer. Sign in again in “AI Service”"+
+	"Sign in to EveryAPI in “AI Service”, or enter an API Key"+
 	"Lines per Request"+
 	"More lines take fewer requests; fewer suit a small model."+
 	"Requests"+
@@ -7118,7 +7207,7 @@ var textsEn = i18n.NewTexts(""+
 	"Not signed in. Run everyapi auth login in a terminal, then choose Detect Again."+
 	"Get EveryAPI"+
 	"Get API Key"+
-	"Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."+
+	"Without an API Key, Kando translates with the EveryAPI account you sign in to. EveryAPI is run by YLDM, which also makes Kando."+
 	"Optional"+
 	"Open"+
 	"The API Key is kept only in the settings file on this computer."+
@@ -8240,6 +8329,26 @@ var textsEn = i18n.NewTexts(""+
 		44,
 		159,
 		16,
+		16,
+		67,
+		68,
+		6,
+		37,
+		44,
+		54,
+		91,
+		99,
+		69,
+		97,
+		54,
+		7,
+		8,
+		48,
+		6,
+		23,
+		10,
+		78,
+		35,
 		141,
 		97,
 		4,
@@ -8270,6 +8379,11 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		4,
 		29,
+		7,
+		16,
+		16,
+		89,
+		60,
 		17,
 		57,
 		8,
@@ -9079,7 +9193,7 @@ var textsEn = i18n.NewTexts(""+
 		79,
 		12,
 		11,
-		97,
+		127,
 		8,
 		4,
 		63,
@@ -10204,6 +10318,26 @@ var textsJa = i18n.NewTexts(""+
 	"追加だけして、見るときに字幕を作る"+
 	"すぐにライブラリに表示され、ファイルは元の場所のままです。1 本開いて「字幕を作成」を押すと、再生しながら作られます。今は何も動かず、翻訳もしません。"+
 	"これらの動画を追加"+
+	"EveryAPI アカウント"+
+	"EveryAPI のログインが完了しませんでした。Kando に戻ってもう一度お試しください。"+
+	"EveryAPI にログインしました。このページを閉じて Kando に戻れます。"+
+	"キャンセル"+
+	"ログインの有効期限が切れました。もう一度ログインしてください。"+
+	"EveryAPI のページでログインが拒否されました。"+
+	"コードが入力前に期限切れになりました。もう一度ログインしてください。"+
+	"EveryAPI はアカウントにチャージすると Kando にキーを発行します。チャージしてからもう一度ログインしてください。"+
+	"アカウントの API キーが上限に達しています。EveryAPI のサイトで 1 つ削除してからもう一度ログインしてください。"+
+	"EveryAPI のログインは現在利用できません。当面は API Key を入力してください。"+
+	"ログインしていますが、ログイン情報を保存できませんでした。Kando を再起動するともう一度ログインが必要になる場合があります。"+
+	"オフラインモードがオンです。ログインするには「プライバシー」でオフにしてください。"+
+	"ログイン"+
+	"ログアウト"+
+	"ログインすると EveryAPI アカウントの残高で翻訳します。"+
+	"チャージ"+
+	"コマンドラインを使う…"+
+	"コードを使う"+
+	"Kando ではログインしていません。everyapi コマンドラインツールのログインで翻訳しています。"+
+	"ブラウザでログインを完了してください…"+
 	"この作品にはまだ保存したセリフがありません。覚えたいセリフで B を押すか、「このセリフを解説」で「この行をノートに保存」を押すと、毎日の復習に入ります。"+
 	"この作品の単語はまだありません。字幕の単語をクリックして調べ、「単語帳に追加」を押してください。"+
 	"表示"+
@@ -10234,6 +10368,11 @@ var textsJa = i18n.NewTexts(""+
 	"書き出す"+
 	"完了"+
 	"フォルダを確認しています…"+
+	"ログイン"+
+	"自分の API Key"+
+	"このコンピュータ"+
+	"このコンピュータに Kando の EveryAPI ログインが見つかりません。「AI サービス」でもう一度ログインしてください"+
+	"「AI サービス」で EveryAPI にログインするか、API Key を入力してください"+
 	"1 回あたりの行数"+
 	"多いほどリクエストが減ります。小さなモデルには少なめが向いています。"+
 	"リクエスト"+
@@ -11043,7 +11182,7 @@ var textsJa = i18n.NewTexts(""+
 	"ログインしていません。ターミナルで everyapi auth login を実行してから、「再検出」を押してください。"+
 	"EveryAPI を入手"+
 	"API Key を取得"+
-	"API Key を入力しない場合は、このコンピュータの everyapi コマンドラインツールのログインを使います。"+
+	"API Key を入力しない場合は、ログインした EveryAPI アカウントで翻訳します。EveryAPI は Kando と同じく YLDM が運営しています。"+
 	"省略可"+
 	"開く"+
 	"API Key はこのコンピュータの設定ファイルにだけ保存されます。"+
@@ -12165,6 +12304,26 @@ var textsJa = i18n.NewTexts(""+
 		51,
 		221,
 		27,
+		24,
+		111,
+		91,
+		15,
+		93,
+		63,
+		102,
+		157,
+		155,
+		105,
+		180,
+		123,
+		12,
+		15,
+		76,
+		12,
+		33,
+		18,
+		126,
+		57,
 		225,
 		144,
 		6,
@@ -12195,6 +12354,11 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		39,
+		12,
+		17,
+		24,
+		152,
+		96,
 		23,
 		102,
 		15,
@@ -13004,7 +13168,7 @@ var textsJa = i18n.NewTexts(""+
 		138,
 		18,
 		17,
-		138,
+		166,
 		9,
 		6,
 		86,
@@ -14129,6 +14293,26 @@ var textsKo = i18n.NewTexts(""+
 	"추가만 하고, 볼 때 자막 만들기"+
 	"바로 보관함에 나타나고 파일은 제자리에 둡니다. 한 편을 열고 \"자막 만들기\"를 누르면 재생하면서 만들어집니다. 지금은 아무것도 실행하지 않고 번역하지도 않습니다."+
 	"이 동영상 추가"+
+	"EveryAPI 계정"+
+	"EveryAPI 로그인이 완료되지 않았습니다. Kando로 돌아가 다시 시도하십시오."+
+	"EveryAPI에 로그인했습니다. 이 페이지를 닫고 Kando로 돌아가십시오."+
+	"취소"+
+	"로그인이 만료되었습니다. 다시 로그인하십시오."+
+	"EveryAPI 페이지에서 로그인이 거부되었습니다."+
+	"코드를 입력하기 전에 만료되었습니다. 다시 로그인하십시오."+
+	"EveryAPI는 계정을 충전해야 Kando에 키를 발급합니다. 충전한 후 다시 로그인하십시오."+
+	"계정의 API 키가 한도에 도달했습니다. EveryAPI 웹사이트에서 하나를 삭제한 후 다시 로그인하십시오."+
+	"지금은 EveryAPI 로그인을 사용할 수 없습니다. 우선 API Key를 입력하십시오."+
+	"로그인했지만 로그인 정보를 저장하지 못했습니다. Kando를 다시 시작하면 다시 로그인해야 할 수 있습니다."+
+	"오프라인 모드가 켜져 있습니다. 로그인하려면 ‘개인정보 보호’에서 끄십시오."+
+	"로그인"+
+	"로그아웃"+
+	"로그인하면 EveryAPI 계정의 잔액으로 번역합니다."+
+	"충전"+
+	"명령줄 사용…"+
+	"코드 사용"+
+	"Kando에서는 로그인하지 않았습니다. everyapi 명령줄 도구의 로그인으로 번역합니다."+
+	"브라우저에서 로그인을 마치십시오…"+
 	"이 영상에는 아직 저장한 대사가 없습니다. 기억하고 싶은 대사에서 B를 누르거나 「이 대사 설명」에서 「이 대사를 노트에 저장」을 누르면 매일 복습에 들어갑니다."+
 	"이 영상의 단어가 아직 없습니다. 자막의 단어를 클릭해 찾아본 뒤 「단어장에 추가」를 누르세요."+
 	"보기"+
@@ -14159,6 +14343,11 @@ var textsKo = i18n.NewTexts(""+
 	"내보내기"+
 	"완료"+
 	"폴더를 살펴보는 중…"+
+	"로그인"+
+	"내 API Key"+
+	"이 컴퓨터"+
+	"이 컴퓨터에서 Kando의 EveryAPI 로그인을 찾을 수 없습니다. ‘AI 서비스’에서 다시 로그인하십시오"+
+	"‘AI 서비스’에서 EveryAPI에 로그인하거나 API Key를 입력하십시오"+
 	"요청당 줄 수"+
 	"많을수록 요청 수가 줄고, 작은 모델에는 적게 두는 편이 좋습니다."+
 	"요청"+
@@ -14968,7 +15157,7 @@ var textsKo = i18n.NewTexts(""+
 	"로그인되어 있지 않습니다. 터미널에서 everyapi auth login을 실행한 다음 ‘다시 감지’를 누르십시오."+
 	"EveryAPI 받기"+
 	"API Key 받기"+
-	"API Key를 입력하지 않으면 이 컴퓨터에 있는 everyapi 명령줄 도구의 로그인을 사용합니다."+
+	"API Key를 입력하지 않으면 로그인한 EveryAPI 계정으로 번역합니다. EveryAPI는 Kando와 마찬가지로 YLDM이 운영합니다."+
 	"선택 사항"+
 	"열기"+
 	"API Key는 이 컴퓨터의 설정 파일에만 저장됩니다."+
@@ -16090,6 +16279,26 @@ var textsKo = i18n.NewTexts(""+
 		42,
 		225,
 		20,
+		15,
+		97,
+		87,
+		6,
+		65,
+		60,
+		82,
+		111,
+		132,
+		97,
+		142,
+		108,
+		9,
+		12,
+		64,
+		6,
+		19,
+		13,
+		109,
+		50,
 		222,
 		131,
 		6,
@@ -16120,6 +16329,11 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		6,
 		29,
+		9,
+		11,
+		13,
+		129,
+		85,
 		17,
 		89,
 		6,
@@ -16929,7 +17143,7 @@ var textsKo = i18n.NewTexts(""+
 		132,
 		15,
 		14,
-		116,
+		147,
 		13,
 		6,
 		64,
@@ -18054,6 +18268,26 @@ var textsZhHans = i18n.NewTexts(""+
 	"只加入，看到哪部做哪部"+
 	"片子马上出现在资料库里，文件留在原处。打开一部，点「生成字幕」，边播边出。现在不占用电脑，也不花翻译费用。"+
 	"加入这些视频"+
+	"EveryAPI 账号"+
+	"EveryAPI 登录没有完成。回到看懂再试一次。"+
+	"已登录 EveryAPI，可以关闭这个页面回到看懂。"+
+	"取消"+
+	"登录已失效，请重新登录。"+
+	"在 EveryAPI 的页面上拒绝了登录。"+
+	"验证码在输入前过期了，请重新登录。"+
+	"EveryAPI 账户充值后才能给看懂发放 Key。充值后再登录。"+
+	"账户的 API Key 已达上限。在 EveryAPI 网站删掉一个后再登录。"+
+	"EveryAPI 登录暂时不可用，请先填 API Key。"+
+	"已登录，但登录信息没能保存，看懂重启后可能需要重新登录。"+
+	"离线模式已开启，在「隐私」里关闭后才能登录。"+
+	"登录"+
+	"退出"+
+	"登录后用 EveryAPI 账户的余额翻译。"+
+	"充值"+
+	"改用命令行…"+
+	"改用验证码"+
+	"看懂里还没有登录，目前用 everyapi 命令行工具的登录翻译。"+
+	"请在浏览器里完成登录…"+
 	"这部影片还没有存下的句子。听到想记住的句子按 B，或在「讲解这句」里点「存这句到笔记」，它会进入每天的复习。"+
 	"这部影片还没有生词。点字幕上的词查一下，再点「加入生词本」。"+
 	"显示"+
@@ -18084,6 +18318,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"导出"+
 	"完成"+
 	"正在查看文件夹…"+
+	"登录账号"+
+	"自带 API Key"+
+	"本机"+
+	"本机没有找到看懂的 EveryAPI 登录，在「AI 服务」里重新登录"+
+	"在「AI 服务」里登录 EveryAPI，或填 Key"+
 	"每批句数"+
 	"句数多，请求就少；小模型适合少一些。"+
 	"请求"+
@@ -18893,7 +19132,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"还没有登录。在终端运行 everyapi auth login 后，点「重新检测」。"+
 	"获取 EveryAPI"+
 	"获取 API Key"+
-	"不填 API Key 时，使用本机 everyapi 命令行工具的登录。"+
+	"不填 API Key 时，用登录的 EveryAPI 账号翻译。EveryAPI 和看懂一样由 YLDM 运营。"+
 	"可不填"+
 	"打开"+
 	"API Key 只保存在本机设置文件里。"+
@@ -20015,6 +20254,26 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		159,
 		18,
+		15,
+		57,
+		60,
+		6,
+		36,
+		43,
+		51,
+		73,
+		79,
+		53,
+		84,
+		66,
+		6,
+		6,
+		46,
+		6,
+		18,
+		15,
+		79,
+		33,
 		158,
 		90,
 		6,
@@ -20045,6 +20304,11 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		24,
+		12,
+		14,
+		6,
+		79,
+		49,
 		12,
 		54,
 		6,
@@ -20854,7 +21118,7 @@ var textsZhHans = i18n.NewTexts(""+
 		84,
 		15,
 		14,
-		70,
+		100,
 		9,
 		6,
 		44,
@@ -21979,6 +22243,26 @@ var textsZhHant = i18n.NewTexts(""+
 	"只加入，看到哪部做哪部"+
 	"影片馬上出現在資料庫裡，檔案留在原處。打開一部，按「產生字幕」，邊播邊出。現在不佔用電腦，也不花翻譯費用。"+
 	"加入這些影片"+
+	"EveryAPI 帳號"+
+	"EveryAPI 登入未完成。回到看懂再試一次。"+
+	"已登入 EveryAPI，可以關閉這個頁面回到看懂。"+
+	"取消"+
+	"登入已失效，請重新登入。"+
+	"在 EveryAPI 的頁面上拒絕了登入。"+
+	"驗證碼在輸入前已過期，請重新登入。"+
+	"EveryAPI 帳戶儲值後才能發放 Key 給看懂。儲值後再登入。"+
+	"帳戶的 API Key 已達上限。在 EveryAPI 網站刪除一個後再登入。"+
+	"EveryAPI 登入暫時無法使用，請先填入 API Key。"+
+	"已登入，但登入資訊未能儲存，看懂重新啟動後可能需要重新登入。"+
+	"離線模式已開啟，在「隱私」中關閉後才能登入。"+
+	"登入"+
+	"登出"+
+	"登入後用 EveryAPI 帳戶的餘額翻譯。"+
+	"儲值"+
+	"改用命令列…"+
+	"改用驗證碼"+
+	"看懂中尚未登入，目前用 everyapi 命令列工具的登入翻譯。"+
+	"請在瀏覽器中完成登入…"+
 	"這部影片還沒有存下的句子。聽到想記住的句子按 B，或在「講解這句」裡點「存這句到筆記」，它會進入每天的複習。"+
 	"這部影片還沒有生詞。點字幕上的詞查一下，再點「加入生詞本」。"+
 	"顯示"+
@@ -22009,6 +22293,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"匯出"+
 	"完成"+
 	"正在查看資料夾…"+
+	"登入帳號"+
+	"自備 API Key"+
+	"本機"+
+	"本機找不到看懂的 EveryAPI 登入，在「AI 服務」中重新登入"+
+	"在「AI 服務」中登入 EveryAPI，或填入 Key"+
 	"每批句數"+
 	"句數多，請求就少；小模型適合少一些。"+
 	"請求"+
@@ -22818,7 +23107,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"尚未登入。在終端機執行 everyapi auth login 後，按「重新偵測」。"+
 	"取得 EveryAPI"+
 	"取得 API Key"+
-	"不填 API Key 時，使用本機 everyapi 命令列工具的登入。"+
+	"不填 API Key 時，用登入的 EveryAPI 帳號翻譯。EveryAPI 和看懂一樣由 YLDM 營運。"+
 	"可不填"+
 	"開啟"+
 	"API Key 只儲存在本機的設定檔中。"+
@@ -23940,6 +24229,26 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		159,
 		18,
+		15,
+		54,
+		60,
+		6,
+		36,
+		43,
+		51,
+		74,
+		79,
+		59,
+		90,
+		66,
+		6,
+		6,
+		46,
+		6,
+		18,
+		15,
+		76,
+		33,
 		158,
 		90,
 		6,
@@ -23970,6 +24279,11 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		24,
+		12,
+		14,
+		6,
+		76,
+		52,
 		12,
 		54,
 		6,
@@ -24779,7 +25093,7 @@ var textsZhHant = i18n.NewTexts(""+
 		84,
 		15,
 		14,
-		70,
+		100,
 		9,
 		6,
 		44,
@@ -25926,6 +26240,27 @@ func Supply(lang string, t Translation) {
 	}
 	if t.DropTitle != nil {
 		s.DropTitle = t.DropTitle
+	}
+	if t.EveryAPIAccountChecking != nil {
+		s.EveryAPIAccountChecking = t.EveryAPIAccountChecking
+	}
+	if t.EveryAPIAccountLine != nil {
+		s.EveryAPIAccountLine = t.EveryAPIAccountLine
+	}
+	if t.EveryAPIAccountLow != nil {
+		s.EveryAPIAccountLow = t.EveryAPIAccountLow
+	}
+	if t.EveryAPIBalanceFailed != nil {
+		s.EveryAPIBalanceFailed = t.EveryAPIBalanceFailed
+	}
+	if t.EveryAPIDeviceCode != nil {
+		s.EveryAPIDeviceCode = t.EveryAPIDeviceCode
+	}
+	if t.EveryAPIFailedOther != nil {
+		s.EveryAPIFailedOther = t.EveryAPIFailedOther
+	}
+	if t.EveryAPITopUpFailed != nil {
+		s.EveryAPITopUpFailed = t.EveryAPITopUpFailed
 	}
 	if t.FilmNotesDueCount != nil {
 		s.FilmNotesDueCount = t.FilmNotesDueCount
@@ -32627,6 +32962,410 @@ func DropTitleSeveral(cx *core.Scope) string { return For(cx).DropTitleSeveral()
 // DropTitleSeveral is the package's DropTitleSeveral in the language of msgs.
 func (msgs Messages) DropTitleSeveral() string { return msgs.text(textDropTitleSeveral) }
 
+// EveryAPIAccount says "EveryAPI account"
+// in the language the app shows under cx.
+//
+// Title of the AI Service row about Kando's own sign-in to EveryAPI, shown when the service is EveryAPI with no API Key.
+func EveryAPIAccount(cx *core.Scope) string { return For(cx).EveryAPIAccount() }
+
+// EveryAPIAccount is the package's EveryAPIAccount in the language of msgs.
+func (msgs Messages) EveryAPIAccount() string { return msgs.text(textEveryAPIAccount) }
+
+// EveryAPIAccountChecking says "{name} · Checking the balance…"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title once signed in, while Kando asks EveryAPI what the account has.
+func EveryAPIAccountChecking(cx *core.Scope, name string) string {
+	return For(cx).EveryAPIAccountChecking(name)
+}
+
+// EveryAPIAccountChecking is the package's EveryAPIAccountChecking in the language of msgs.
+func (msgs Messages) EveryAPIAccountChecking(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIAccountChecking(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIAccountChecking; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " · Checking the balance…"
+		case "ja":
+			return name + " · 残高を確認中…"
+		case "ko":
+			return name + " · 잔액 확인 중…"
+		case "zh-Hans":
+			return name + " · 正在查询余额…"
+		case "zh-Hant":
+			return name + " · 正在查詢餘額…"
+		}
+	}
+}
+
+// EveryAPIAccountLine says "{name} · Balance {balance}"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title once signed in: the account's name and what it has left.
+func EveryAPIAccountLine(cx *core.Scope, name string, balance string) string {
+	return For(cx).EveryAPIAccountLine(name, balance)
+}
+
+// EveryAPIAccountLine is the package's EveryAPIAccountLine in the language of msgs.
+func (msgs Messages) EveryAPIAccountLine(name string, balance string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIAccountLine(name, balance))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIAccountLine; f != nil {
+			return f(name, balance)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " · Balance " + msgs.arg(balance)
+		case "ja":
+			return name + " · 残高 " + balance
+		case "ko":
+			return name + " · 잔액 " + balance
+		case "zh-Hans":
+			return name + " · 余额 " + balance
+		case "zh-Hant":
+			return name + " · 餘額 " + balance
+		}
+	}
+}
+
+// EveryAPIAccountLow says "{name} · Balance {balance}, running low"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title once signed in, when little is left: the account's name and its balance; Top Up is beside it.
+func EveryAPIAccountLow(cx *core.Scope, name string, balance string) string {
+	return For(cx).EveryAPIAccountLow(name, balance)
+}
+
+// EveryAPIAccountLow is the package's EveryAPIAccountLow in the language of msgs.
+func (msgs Messages) EveryAPIAccountLow(name string, balance string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIAccountLow(name, balance))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIAccountLow; f != nil {
+			return f(name, balance)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " · Balance " + msgs.arg(balance) + ", running low"
+		case "ja":
+			return name + " · 残高 " + balance + "、残りわずかです"
+		case "ko":
+			return name + " · 잔액 " + balance + ", 얼마 남지 않았습니다"
+		case "zh-Hans":
+			return name + " · 余额 " + balance + "，快用完了"
+		case "zh-Hant":
+			return name + " · 餘額 " + balance + "，快用完了"
+		}
+	}
+}
+
+// EveryAPIBalanceFailed says "{name} · Couldn't check the balance"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title once signed in, when asking EveryAPI for the balance failed.
+func EveryAPIBalanceFailed(cx *core.Scope, name string) string {
+	return For(cx).EveryAPIBalanceFailed(name)
+}
+
+// EveryAPIBalanceFailed is the package's EveryAPIBalanceFailed in the language of msgs.
+func (msgs Messages) EveryAPIBalanceFailed(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIBalanceFailed(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIBalanceFailed; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " · Couldn't check the balance"
+		case "ja":
+			return name + " · 残高を確認できませんでした"
+		case "ko":
+			return name + " · 잔액을 확인하지 못했습니다"
+		case "zh-Hans":
+			return name + " · 余额查询失败"
+		case "zh-Hant":
+			return name + " · 餘額查詢失敗"
+		}
+	}
+}
+
+// EveryAPIBrowserFailed says "The EveryAPI sign-in didn't finish. Go back to Kando and try again."
+// in the language the app shows under cx.
+//
+// The browser page EveryAPI's sign-in returns to when it was declined or failed.
+func EveryAPIBrowserFailed(cx *core.Scope) string { return For(cx).EveryAPIBrowserFailed() }
+
+// EveryAPIBrowserFailed is the package's EveryAPIBrowserFailed in the language of msgs.
+func (msgs Messages) EveryAPIBrowserFailed() string { return msgs.text(textEveryAPIBrowserFailed) }
+
+// EveryAPIBrowserSignedIn says "Signed in to EveryAPI. You can close this page and go back to Kando."
+// in the language the app shows under cx.
+//
+// The browser page EveryAPI's sign-in returns to, once Kando has the sign-in.
+func EveryAPIBrowserSignedIn(cx *core.Scope) string { return For(cx).EveryAPIBrowserSignedIn() }
+
+// EveryAPIBrowserSignedIn is the package's EveryAPIBrowserSignedIn in the language of msgs.
+func (msgs Messages) EveryAPIBrowserSignedIn() string { return msgs.text(textEveryAPIBrowserSignedIn) }
+
+// EveryAPICancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button on the EveryAPI account row that stops a sign-in under way.
+func EveryAPICancel(cx *core.Scope) string { return For(cx).EveryAPICancel() }
+
+// EveryAPICancel is the package's EveryAPICancel in the language of msgs.
+func (msgs Messages) EveryAPICancel() string { return msgs.text(textEveryAPICancel) }
+
+// EveryAPIDeviceCode says "Open {url} and enter {code}"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title while signing in with a code: the address to open on any device and the code to enter there.
+func EveryAPIDeviceCode(cx *core.Scope, url string, code string) string {
+	return For(cx).EveryAPIDeviceCode(url, code)
+}
+
+// EveryAPIDeviceCode is the package's EveryAPIDeviceCode in the language of msgs.
+func (msgs Messages) EveryAPIDeviceCode(url string, code string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIDeviceCode(url, code))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIDeviceCode; f != nil {
+			return f(url, code)
+		}
+		switch lang {
+		case "", "en":
+			return "Open " + msgs.arg(url) + " and enter " + msgs.arg(code)
+		case "ja":
+			return url + " を開いて " + code + " を入力してください"
+		case "ko":
+			return url + "을 열고 " + code + "를 입력하십시오"
+		case "zh-Hans":
+			return "打开 " + url + "，输入 " + code
+		case "zh-Hant":
+			return "開啟 " + url + "，輸入 " + code
+		}
+	}
+}
+
+// EveryAPIEnded says "The sign-in has ended. Sign in again."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when EveryAPI no longer takes Kando's sign-in, as after signing out on the website.
+func EveryAPIEnded(cx *core.Scope) string { return For(cx).EveryAPIEnded() }
+
+// EveryAPIEnded is the package's EveryAPIEnded in the language of msgs.
+func (msgs Messages) EveryAPIEnded() string { return msgs.text(textEveryAPIEnded) }
+
+// EveryAPIFailedDenied says "The sign-in was declined on EveryAPI's page."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when the user declined the sign-in on EveryAPI's page.
+func EveryAPIFailedDenied(cx *core.Scope) string { return For(cx).EveryAPIFailedDenied() }
+
+// EveryAPIFailedDenied is the package's EveryAPIFailedDenied in the language of msgs.
+func (msgs Messages) EveryAPIFailedDenied() string { return msgs.text(textEveryAPIFailedDenied) }
+
+// EveryAPIFailedExpired says "The code expired before it was entered. Sign in again."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when the sign-in code ran out before the user entered it.
+func EveryAPIFailedExpired(cx *core.Scope) string { return For(cx).EveryAPIFailedExpired() }
+
+// EveryAPIFailedExpired is the package's EveryAPIFailedExpired in the language of msgs.
+func (msgs Messages) EveryAPIFailedExpired() string { return msgs.text(textEveryAPIFailedExpired) }
+
+// EveryAPIFailedOther says "The sign-in didn't finish: {error}"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when signing in failed for another reason, with what went wrong.
+func EveryAPIFailedOther(cx *core.Scope, error_ string) string {
+	return For(cx).EveryAPIFailedOther(error_)
+}
+
+// EveryAPIFailedOther is the package's EveryAPIFailedOther in the language of msgs.
+func (msgs Messages) EveryAPIFailedOther(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPIFailedOther(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPIFailedOther; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "The sign-in didn't finish: " + msgs.arg(error_)
+		case "ja":
+			return "ログインが完了しませんでした：" + error_
+		case "ko":
+			return "로그인이 완료되지 않았습니다: " + error_
+		case "zh-Hans":
+			return "登录没有完成：" + error_
+		case "zh-Hant":
+			return "登入未完成：" + error_
+		}
+	}
+}
+
+// EveryAPIFailedPaid says "EveryAPI gives Kando a key once the account has been topped up. Top up, then sign in again."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when EveryAPI refused a key because the account has never been topped up.
+func EveryAPIFailedPaid(cx *core.Scope) string { return For(cx).EveryAPIFailedPaid() }
+
+// EveryAPIFailedPaid is the package's EveryAPIFailedPaid in the language of msgs.
+func (msgs Messages) EveryAPIFailedPaid() string { return msgs.text(textEveryAPIFailedPaid) }
+
+// EveryAPIFailedSlots says "The account holds as many API keys as it can. Delete one on EveryAPI's website, then sign in again."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when EveryAPI refused a key because the account has no room for another.
+func EveryAPIFailedSlots(cx *core.Scope) string { return For(cx).EveryAPIFailedSlots() }
+
+// EveryAPIFailedSlots is the package's EveryAPIFailedSlots in the language of msgs.
+func (msgs Messages) EveryAPIFailedSlots() string { return msgs.text(textEveryAPIFailedSlots) }
+
+// EveryAPIFailedUnavailable says "EveryAPI sign-in isn't available right now. Enter an API Key for now."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when EveryAPI offers no sign-in for Kando right now (it does not know Kando's client, or has nothing set up for it).
+func EveryAPIFailedUnavailable(cx *core.Scope) string { return For(cx).EveryAPIFailedUnavailable() }
+
+// EveryAPIFailedUnavailable is the package's EveryAPIFailedUnavailable in the language of msgs.
+func (msgs Messages) EveryAPIFailedUnavailable() string {
+	return msgs.text(textEveryAPIFailedUnavailable)
+}
+
+// EveryAPINotSaved says "Signed in, but the sign-in couldn't be saved. You may have to sign in again after Kando restarts."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when keeping a renewed sign-in on this computer failed.
+func EveryAPINotSaved(cx *core.Scope) string { return For(cx).EveryAPINotSaved() }
+
+// EveryAPINotSaved is the package's EveryAPINotSaved in the language of msgs.
+func (msgs Messages) EveryAPINotSaved() string { return msgs.text(textEveryAPINotSaved) }
+
+// EveryAPIOffline says "Offline mode is on. Turn it off in Privacy to sign in."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when offline mode keeps Kando from reaching EveryAPI. Privacy is the settings page (settingsSectionPrivacy).
+func EveryAPIOffline(cx *core.Scope) string { return For(cx).EveryAPIOffline() }
+
+// EveryAPIOffline is the package's EveryAPIOffline in the language of msgs.
+func (msgs Messages) EveryAPIOffline() string { return msgs.text(textEveryAPIOffline) }
+
+// EveryAPISignIn says "Sign In"
+// in the language the app shows under cx.
+//
+// Button on the EveryAPI account row, and in the first-run guide, that signs in to EveryAPI in the browser.
+func EveryAPISignIn(cx *core.Scope) string { return For(cx).EveryAPISignIn() }
+
+// EveryAPISignIn is the package's EveryAPISignIn in the language of msgs.
+func (msgs Messages) EveryAPISignIn() string { return msgs.text(textEveryAPISignIn) }
+
+// EveryAPISignOut says "Sign Out"
+// in the language the app shows under cx.
+//
+// Button on the EveryAPI account row that signs Kando out of EveryAPI and ends the sign-in at EveryAPI.
+func EveryAPISignOut(cx *core.Scope) string { return For(cx).EveryAPISignOut() }
+
+// EveryAPISignOut is the package's EveryAPISignOut in the language of msgs.
+func (msgs Messages) EveryAPISignOut() string { return msgs.text(textEveryAPISignOut) }
+
+// EveryAPISignedOutNote says "Sign in to translate with your EveryAPI balance."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when Kando is not signed in to EveryAPI.
+func EveryAPISignedOutNote(cx *core.Scope) string { return For(cx).EveryAPISignedOutNote() }
+
+// EveryAPISignedOutNote is the package's EveryAPISignedOutNote in the language of msgs.
+func (msgs Messages) EveryAPISignedOutNote() string { return msgs.text(textEveryAPISignedOutNote) }
+
+// EveryAPITopUp says "Top Up"
+// in the language the app shows under cx.
+//
+// Button that opens EveryAPI's top-up page in the browser: on the EveryAPI account row, and on the card of a job that failed because the EveryAPI account is out of credit.
+func EveryAPITopUp(cx *core.Scope) string { return For(cx).EveryAPITopUp() }
+
+// EveryAPITopUp is the package's EveryAPITopUp in the language of msgs.
+func (msgs Messages) EveryAPITopUp() string { return msgs.text(textEveryAPITopUp) }
+
+// EveryAPITopUpFailed says "The browser didn't open. Top up at {url}."
+// in the language the app shows under cx.
+//
+// Library message bar, or under the EveryAPI account row's title, when Top Up could not open the browser: the address of EveryAPI's top-up page.
+func EveryAPITopUpFailed(cx *core.Scope, url string) string { return For(cx).EveryAPITopUpFailed(url) }
+
+// EveryAPITopUpFailed is the package's EveryAPITopUpFailed in the language of msgs.
+func (msgs Messages) EveryAPITopUpFailed(url string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.EveryAPITopUpFailed(url))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].EveryAPITopUpFailed; f != nil {
+			return f(url)
+		}
+		switch lang {
+		case "", "en":
+			return "The browser didn't open. Top up at " + msgs.arg(url) + "."
+		case "ja":
+			return "ブラウザが開きませんでした。" + url + " でチャージしてください。"
+		case "ko":
+			return "브라우저가 열리지 않았습니다. " + url + "에서 충전하십시오."
+		case "zh-Hans":
+			return "浏览器没有打开。请到 " + url + " 充值。"
+		case "zh-Hant":
+			return "瀏覽器未開啟。請前往 " + url + " 儲值。"
+		}
+	}
+}
+
+// EveryAPIUseCLI says "Use the Command Line…"
+// in the language the app shows under cx.
+//
+// Secondary button on the EveryAPI account row when Kando is not signed in and the everyapi command-line program is not on this computer: opens everyapi.ai, where the program is downloaded, as signing in with it is the other way.
+func EveryAPIUseCLI(cx *core.Scope) string { return For(cx).EveryAPIUseCLI() }
+
+// EveryAPIUseCLI is the package's EveryAPIUseCLI in the language of msgs.
+func (msgs Messages) EveryAPIUseCLI() string { return msgs.text(textEveryAPIUseCLI) }
+
+// EveryAPIUseCode says "Use a Code"
+// in the language the app shows under cx.
+//
+// Button on the EveryAPI account row while the browser sign-in waits: signs in with a code typed on EveryAPI's website instead, for when the browser page cannot come back to Kando.
+func EveryAPIUseCode(cx *core.Scope) string { return For(cx).EveryAPIUseCode() }
+
+// EveryAPIUseCode is the package's EveryAPIUseCode in the language of msgs.
+func (msgs Messages) EveryAPIUseCode() string { return msgs.text(textEveryAPIUseCode) }
+
+// EveryAPIUsingCLI says "Not signed in here. Translating with the sign-in of the everyapi command line."
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title when Kando itself is not signed in but the everyapi command-line program is, whose sign-in translates meanwhile. everyapi is the program's name.
+func EveryAPIUsingCLI(cx *core.Scope) string { return For(cx).EveryAPIUsingCLI() }
+
+// EveryAPIUsingCLI is the package's EveryAPIUsingCLI in the language of msgs.
+func (msgs Messages) EveryAPIUsingCLI() string { return msgs.text(textEveryAPIUsingCLI) }
+
+// EveryAPIWaitingBrowser says "Finish signing in in the browser…"
+// in the language the app shows under cx.
+//
+// Under the EveryAPI account row's title, and in the first-run guide, while the browser shows EveryAPI's sign-in page.
+func EveryAPIWaitingBrowser(cx *core.Scope) string { return For(cx).EveryAPIWaitingBrowser() }
+
+// EveryAPIWaitingBrowser is the package's EveryAPIWaitingBrowser in the language of msgs.
+func (msgs Messages) EveryAPIWaitingBrowser() string { return msgs.text(textEveryAPIWaitingBrowser) }
+
 // FilmNotesDueCount says "{count, number}"
 // in the language the app shows under cx.
 //
@@ -33909,6 +34648,57 @@ func (msgs Messages) LibraryMakingSome(done int, total int, reason string) strin
 		}
 	}
 }
+
+// OnboardingServicesAccount says "Sign in"
+// in the language the app shows under cx.
+//
+// Heading in the first-run guide's service drop-down over EveryAPI, which is used by signing in to an account.
+func OnboardingServicesAccount(cx *core.Scope) string { return For(cx).OnboardingServicesAccount() }
+
+// OnboardingServicesAccount is the package's OnboardingServicesAccount in the language of msgs.
+func (msgs Messages) OnboardingServicesAccount() string {
+	return msgs.text(textOnboardingServicesAccount)
+}
+
+// OnboardingServicesKey says "Your own API Key"
+// in the language the app shows under cx.
+//
+// Heading in the first-run guide's service drop-down over the services in the cloud that take the user's own API Key, and a custom endpoint.
+func OnboardingServicesKey(cx *core.Scope) string { return For(cx).OnboardingServicesKey() }
+
+// OnboardingServicesKey is the package's OnboardingServicesKey in the language of msgs.
+func (msgs Messages) OnboardingServicesKey() string { return msgs.text(textOnboardingServicesKey) }
+
+// OnboardingServicesLocal says "On this computer"
+// in the language the app shows under cx.
+//
+// Heading in the first-run guide's service drop-down over the services that run on this computer, as Ollama.
+func OnboardingServicesLocal(cx *core.Scope) string { return For(cx).OnboardingServicesLocal() }
+
+// OnboardingServicesLocal is the package's OnboardingServicesLocal in the language of msgs.
+func (msgs Messages) OnboardingServicesLocal() string { return msgs.text(textOnboardingServicesLocal) }
+
+// PrecheckEveryAPILoginMissing says "Kando's EveryAPI sign-in wasn't found on this computer. Sign in again in “AI Service”"
+// in the language the app shows under cx.
+//
+// Message bar, the sidebar's status line and a failed job's card when settings.json says Kando is signed in to EveryAPI but the sign-in is not in the system's secure store.
+func PrecheckEveryAPILoginMissing(cx *core.Scope) string {
+	return For(cx).PrecheckEveryAPILoginMissing()
+}
+
+// PrecheckEveryAPILoginMissing is the package's PrecheckEveryAPILoginMissing in the language of msgs.
+func (msgs Messages) PrecheckEveryAPILoginMissing() string {
+	return msgs.text(textPrecheckEveryAPILoginMissing)
+}
+
+// PrecheckEveryAPISignIn says "Sign in to EveryAPI in “AI Service”, or enter an API Key"
+// in the language the app shows under cx.
+//
+// Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and no sign-in, or when the sign-in has ended.
+func PrecheckEveryAPISignIn(cx *core.Scope) string { return For(cx).PrecheckEveryAPISignIn() }
+
+// PrecheckEveryAPISignIn is the package's PrecheckEveryAPISignIn in the language of msgs.
+func (msgs Messages) PrecheckEveryAPISignIn() string { return msgs.text(textPrecheckEveryAPISignIn) }
 
 // SettingsAIBatchSize says "Lines per Request"
 // in the language the app shows under cx.
@@ -52978,10 +53768,10 @@ func SettingsAIGetKey(cx *core.Scope) string { return For(cx).SettingsAIGetKey()
 // SettingsAIGetKey is the package's SettingsAIGetKey in the language of msgs.
 func (msgs Messages) SettingsAIGetKey() string { return msgs.text(textSettingsAIGetKey) }
 
-// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."
+// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando translates with the EveryAPI account you sign in to. EveryAPI is run by YLDM, which also makes Kando."
 // in the language the app shows under cx.
 //
-// The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program.
+// The AI Service page's footnote when the service is EveryAPI and no API Key is filled in: the account signed in to is used, and who runs EveryAPI (YLDM is the company's name and stays as it is).
 func SettingsAIKeyEveryAPILogin(cx *core.Scope) string { return For(cx).SettingsAIKeyEveryAPILogin() }
 
 // SettingsAIKeyEveryAPILogin is the package's SettingsAIKeyEveryAPILogin in the language of msgs.

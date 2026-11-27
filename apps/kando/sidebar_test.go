@@ -524,7 +524,7 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 		{"no model", found, msgs.PrecheckNoSpeechModel(), settings.SectionSpeech},
 		{"model gone", gone, msgs.PrecheckNoSpeechModel(), settings.SectionSpeech},
 		{"no translation model", withModel, msgs.PrecheckNoLLMModel(), settings.SectionAI},
-		{"no everyapi program", noCLI, msgs.PrecheckEveryAPIMissing(), settings.SectionAI},
+		{"everyapi without a sign-in", noCLI, msgs.PrecheckEveryAPISignIn(), settings.SectionAI},
 		{"ready", keyed, msgs.ReadinessReady(), settings.SectionGeneral},
 		{"another pipeline", &fakePipeline{}, msgs.ReadinessReady(), settings.SectionGeneral},
 	}

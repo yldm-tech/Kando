@@ -151,6 +151,10 @@ func LLMTestError(m locales.Messages, err error) string {
 		return m.SettingsAITestNoBaseURL()
 	case errors.Is(err, media.ErrOffline):
 		return m.PrivacyNoCloudAI()
+	case errors.Is(err, media.ErrEveryAPILoginSignedOut):
+		return m.PrecheckEveryAPISignIn()
+	case errors.Is(err, media.ErrEveryAPILoginMissing):
+		return m.PrecheckEveryAPILoginMissing()
 	case errors.Is(err, media.ErrEveryAPIMissing):
 		return m.PrecheckEveryAPIMissing()
 	case errors.Is(err, media.ErrEveryAPISignedOut):

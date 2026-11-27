@@ -495,7 +495,7 @@ func TestOnboardingAIStatus(t *testing.T) {
 		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", APIKey: "k"}, false, nil, onboarding.AI{Text: msgs.PrecheckNoLLMModel(), Missing: true}},
 		{"no key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt"}, false, nil, onboarding.AI{Text: msgs.OnboardingAINeedsKey(), Missing: true}},
 		{"no key on this computer", media.ChatTranslator{BaseURL: "http://127.0.0.1:11434/v1", Model: "llama"}, false, nil, onboarding.AI{Text: "翻译模型：llama", Ready: true}},
-		{"everyapi without key or program", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
+		{"everyapi without key or sign-in", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: msgs.PrecheckEveryAPISignIn(), Missing: true}},
 		{"signed out", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPISignedOut, onboarding.AI{Text: msgs.PrecheckEveryAPISignedOut(), Missing: true}},
 		{"program gone since found", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPIMissing, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
 		{"sign-in not checked", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, false, nil, onboarding.AI{Text: "翻译模型：m · 用本机登录的 EveryAPI，开始处理前会检查登录"}},
@@ -514,7 +514,7 @@ func TestOnboardingAIStatus(t *testing.T) {
 	}
 }
 
-// TestOnboardingSetsUpTranslation checks that the guide's second step makes translation work without the settings: EveryAPI without its everyapi program says so and offers to get it; a cloud service chosen there takes its key in place, after which its model list is fetched and a model chosen from it, all saved; and 测试连接 shows its result there.
+// TestOnboardingSetsUpTranslation checks that the guide's second step makes translation work without the settings: EveryAPI without a sign-in says so and offers 登录; a cloud service chosen there takes its key in place, after which its model list is fetched and a model chosen from it, all saved; and 测试连接 shows its result there.
 func TestOnboardingSetsUpTranslation(t *testing.T) {
 	llmEnv(t, "", "", "")
 	tools := toolsInstalled
@@ -528,9 +528,9 @@ func TestOnboardingSetsUpTranslation(t *testing.T) {
 	}
 	tt.Press("继续")
 	msgs := testlocale.Messages()
-	wantText(t, tt, msgs.PrecheckEveryAPIMissing())
-	if !tt.Exists("id:onboarding-everyapi-get") || tt.Exists("id:onboarding-ai-key") {
-		t.Fatalf("EveryAPI without its program: %q", tt.Texts())
+	wantText(t, tt, msgs.PrecheckEveryAPISignIn())
+	if !tt.Exists("id:onboarding-everyapi-signin") || tt.Exists("id:onboarding-ai-key") {
+		t.Fatalf("EveryAPI without a sign-in: %q", tt.Texts())
 	}
 
 	tt.Press("id:onboarding-ai-service")

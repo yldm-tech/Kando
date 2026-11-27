@@ -317,6 +317,7 @@ func (a *app) feedbackSecrets() []string {
 		secrets = append(secrets, service.APIKey, service.BaseURL)
 	}
 	secrets = append(secrets, a.cloud.cloudSecrets()...)
+	secrets = append(secrets, a.everyapi.everyapiSecrets()...)
 	secrets = append(secrets, a.locations.locationSecrets()...)
 	secrets = append(secrets, a.sources.mediaSourceSecrets()...)
 	for _, kv := range os.Environ() {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/kando/film/subtitle"
@@ -101,34 +102,68 @@ func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 		return onboarding.AI{Text: settings.LLMModelsError(locales.For(cx), a.prefs.llmModelsErr), Missing: true}
 	case model == "":
 		return onboarding.AI{Text: noLLMModel(cx), Missing: true}
-	case everyAPICLIMissing(tools.Translator) && a.prefs.everyAPIOpenErr != "":
-		return onboarding.AI{Text: locales.SettingsAIEveryAPIOpenFailed(cx, a.prefs.everyAPIOpenErr), Missing: true}
-	case everyAPICLIMissing(tools.Translator):
-		return onboarding.AI{Text: everyAPIMissing(cx), Missing: true}
-	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
-		return onboarding.AI{Text: everyAPISignInFailed(a.side.ready.signInErr)(cx), Missing: true}
-	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
+	case tools.Translator.EveryAPIUnsigned() && a.everyapi.signingIn:
+		return onboarding.AI{Text: locales.EveryAPIWaitingBrowser(cx)}
+	case tools.Translator.EveryAPIUnsigned():
+		return onboarding.AI{Text: everyAPISignIn(cx), Missing: true}
+	case a.signInFailed(tools.Translator) != nil:
+		return onboarding.AI{Text: everyAPISignInFailed(a.signInFailed(tools.Translator))(cx), Missing: true}
+	case a.signInUnchecked(tools.Translator):
 		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known; 测试连接 checks it too.
 		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(cx, model)}
 	}
 	return onboarding.AI{Text: locales.OnboardingAIModel(cx, model), Ready: true}
 }
 
-// OnboardingServices are the services of Settings › AI 服务 (settings.Presets), named in the language shown under cx, the ones on this computer after their group as the settings name them. The guide asks for the key of the services in the cloud but EveryAPI, which signs in with the everyapi command-line program; those on this computer need none, and a custom endpoint is set up in the settings, where its Base URL is typed.
+// OnboardingServices are the services of Settings › AI 服务 (settings.Presets), named in the language shown under cx, the ones on this computer after their group as the settings name them, under three headings offered alike: an EveryAPI account to sign in to, the user's own API Key for a service in the cloud or a custom endpoint, and a model on this computer. Where the interface is in simplified Chinese, the services reachable from mainland China come first among those that take a key (onboardingDomestic). The guide asks for the key of the services in the cloud but EveryAPI, which signs in to an account; those on this computer need none, and a custom endpoint is set up in the settings, where its Base URL is typed.
 func (a *app) OnboardingServices(cx *ns.Scope) []onboarding.Service {
-	presets := settings.Presets(locales.For(cx))
-	out := make([]onboarding.Service, len(presets))
-	for i, preset := range presets {
-		name := preset.Name
-		if preset.Group == settings.GroupLocal {
-			name = locales.SettingsAILocalService(cx, preset.Name)
+	m := locales.For(cx)
+	presets := settings.Presets(m)
+	if m.Language() == "zh-Hans" {
+		presets = onboardingDomesticFirst(presets)
+	}
+	var account, key, local []onboarding.Service
+	for _, preset := range presets {
+		s := onboarding.Service{ID: preset.ID, Name: preset.Name, Key: preset.NeedsKey(), KeyPage: preset.KeyURL != "", InSettings: preset.Group == settings.GroupOther}
+		switch {
+		case preset.ID == "everyapi":
+			s.Group = locales.OnboardingServicesAccount(cx)
+			account = append(account, s)
+		case preset.Group == settings.GroupLocal:
+			s.Name, s.Group = locales.SettingsAILocalService(cx, preset.Name), locales.OnboardingServicesLocal(cx)
+			local = append(local, s)
+		default:
+			s.Group = locales.OnboardingServicesKey(cx)
+			key = append(key, s)
 		}
-		out[i] = onboarding.Service{ID: preset.ID, Name: name, Key: preset.NeedsKey(), KeyPage: preset.KeyURL != "", InSettings: preset.Group == settings.GroupOther}
+	}
+	return append(append(account, key...), local...)
+}
+
+// onboardingDomestic are the services that take a key reachable from mainland China, in the order the guide lists them first there.
+var onboardingDomestic = []string{"deepseek", "dashscope", "moonshot", "zhipu", "siliconflow"}
+
+// onboardingDomesticFirst is presets with onboardingDomestic first, in that order, and the others as they were.
+func onboardingDomesticFirst(presets []settings.Preset) []settings.Preset {
+	out := make([]settings.Preset, 0, len(presets))
+	for _, id := range onboardingDomestic {
+		if p, ok := settings.PresetByID(presets, id); ok {
+			out = append(out, p)
+		}
+	}
+	for _, p := range presets {
+		if !slices.Contains(onboardingDomestic, p.ID) {
+			out = append(out, p)
+		}
 	}
 	return out
 }
 
-func (a *app) OnboardingEveryAPIMissing() bool { return a.everyAPIStatus().Missing }
+// OnboardingEveryAPISignIn reports whether EveryAPI is in use without an API Key or a sign-in, which the guide's 登录 gives it.
+func (a *app) OnboardingEveryAPISignIn() bool {
+	tools, ok := a.pipeline.(media.Tools)
+	return ok && tools.Translator.EveryAPIUnsigned()
+}
 
 func (a *app) OnboardingLink() *string { return &a.onb.link }
 
