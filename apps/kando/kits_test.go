@@ -129,11 +129,11 @@ func TestKitsQuietDownloadThatFailsStaysQuiet(t *testing.T) {
 }
 
 func TestKitsRetryFromSettings(t *testing.T) {
-	// Only ffmpeg is missing, and the quiet downloads of the others fail too, so that no download succeeds before 重试 and the tools are not looked up again, which would find a Homebrew ffmpeg on the machine running the test.
+	// Only ffmpeg is missing, and the quiet downloads of the others and of Deno fail too, so that no download succeeds before 重试 and the tools are not looked up again, which would find a Homebrew ffmpeg on the machine running the test.
 	a, tt, updates := newTestApp(t, media.Tools{YTDLP: "/usr/local/bin/yt-dlp", Whisper: "/usr/local/bin/whisper-cli"})
 	release := make(chan struct{})
 	close(release)
-	fakeKits(t, a, release, "ffmpeg", "yt-dlp", "whisper-cli")
+	fakeKits(t, a, release, "ffmpeg", "yt-dlp", "whisper-cli", "deno")
 	a.kitsInstallWanted()
 	waitUntil(t, tt, a, updates, func() bool { return len(a.kits.running) == 0 })
 	if got := settings.KitsError(testlocale.Messages(), a.kits.errs["ffmpeg"]); got != "服务器返回 HTTP 503" {
@@ -215,4 +215,32 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	if src.Page == "" || rows[2].Page != src.Page || rows[2].Install != install {
 		t.Fatalf("whisper-cli's page %q and command %q, want %+v", rows[2].Page, rows[2].Install, src)
 	}
+}
+
+// TestKitsDownloadDenoQuietlyWhenTheComputerHasNone checks that Kando downloads its own Deno, which yt-dlp solves YouTube's challenges with, only when the computer has none, and quietly: Deno is not one of the programs a job needs, so neither the sidebar nor the guide show it.
+func TestKitsDownloadDenoQuietlyWhenTheComputerHasNone(t *testing.T) {
+	a, _, _ := newTestApp(t, media.Tools{})
+	fakeKits(t, a, make(chan struct{}))
+	a.kitsHooks().ready()
+	if job := a.kits.running["deno"]; job == nil || !job.quiet {
+		t.Fatalf("Deno's download is %+v, want a quiet one", job)
+	}
+	if got := a.kitsDownloading(); strings.Join(got, ",") != "yt-dlp,ffmpeg,whisper-cli" {
+		t.Fatalf("downloading %v, want the three programs alone", got)
+	}
+	a.kitsCancel()
+
+	b, _, _ := newTestApp(t, media.Tools{})
+	fakeKits(t, b, make(chan struct{}))
+	b.tools.candidates = func(program string) []string {
+		if program == "deno" {
+			return []string{"/opt/homebrew/bin/deno"}
+		}
+		return nil
+	}
+	b.kitsHooks().ready()
+	if job := b.kits.running["deno"]; job != nil {
+		t.Fatalf("Deno downloads although the computer has one: %+v", job)
+	}
+	b.kitsCancel()
 }

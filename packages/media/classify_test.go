@@ -9,7 +9,7 @@ import (
 	"kando/packages/core"
 )
 
-// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. badlink-youtube-id and badlink-youtube-url were captured the same way with yt-dlp 2026.08.19 on 2026-11-07, from a watch link whose id lost its last two characters and one that lost its v= part. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any"). hidden-x was captured with yt-dlp 2026.08.19 on 2026-11-16 with --simulate, signed out, from an X post whose video X marks as sensitive.
+// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. badlink-youtube-id and badlink-youtube-url were captured the same way with yt-dlp 2026.08.19 on 2026-11-07, from a watch link whose id lost its last two characters and one that lost its v= part. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any"). hidden-x was captured with yt-dlp 2026.08.19 on 2026-11-16 with --simulate, signed out, from an X post whose video X marks as sensitive. reload-youtube was captured with Homebrew's yt-dlp 2026.08.19 (yt-dlp-ejs 0.8.0) and Deno 2.9.7 on 2026-11-28, signed in, from https://youtu.be/jNQXAC9IVRw: its solver scripts no longer solved the challenge of YouTube's player, which 2026.11.23's did.
 func TestClassifyRealYTDLPErrors(t *testing.T) {
 	for file, want := range map[string]core.FailKind{
 		"outdated-youtube.stderr":        core.FailOutdated,
@@ -29,6 +29,7 @@ func TestClassifyRealYTDLPErrors(t *testing.T) {
 		"badlink-youtube-id.stderr":      core.FailBadLink,
 		"badlink-youtube-url.stderr":     core.FailBadLink,
 		"hidden-x.stderr":                core.FailHiddenVideo,
+		"reload-youtube.stderr":          core.FailOutdated,
 	} {
 		data, err := os.ReadFile(filepath.Join("testdata", "ytdlp", "errors", file))
 		if err != nil {

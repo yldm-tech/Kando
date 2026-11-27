@@ -78,6 +78,9 @@ func TestJobOfTypesTheFailure(t *testing.T) {
 	}{
 		{"yt-dlp too old", core.Job{Err: media.ReadStageError("download: ERROR: unable to extract"), FailKind: core.FailOutdated}, JobFacts{Reason: "yt-dlp is too old"},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailOutdated, Message: "yt-dlp is too old", Remedy: psync.RemedyUpdateYTDLP}},
+		// The phone cannot download the desktop's Deno, so it says the desktop has something to set up rather than to try again later.
+		{"no JavaScript runtime", core.Job{Err: media.ReadStageError("download: ERROR: [youtube] jNQXAC9IVRw: The page needs to be reloaded. (yt-dlp found no JavaScript runtime)"), FailKind: core.FailNoJSRuntime}, JobFacts{Reason: "YouTube needs a JavaScript runtime to download"},
+			psync.Failure{Step: psync.StepDownload, Code: psync.FailDesktopSetup, Message: "YouTube needs a JavaScript runtime to download", Remedy: psync.RemedyDesktop}},
 		{"the network", core.Job{Err: media.ReadStageError("download: timed out"), FailKind: core.FailNetwork}, JobFacts{},
 			psync.Failure{Step: psync.StepDownload, Code: psync.FailNetwork, Message: "download: timed out", Remedy: psync.RemedyRetry}},
 		{"members only", core.Job{Err: media.ReadStageError("download: members"), FailKind: core.FailMembers}, JobFacts{Reason: "members only"},

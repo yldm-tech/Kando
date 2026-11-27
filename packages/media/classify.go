@@ -31,7 +31,8 @@ var failSigns = []struct {
 	{core.FailNetwork, []string{"Temporary failure in name resolution"}},
 	{core.FailHost, []string{"Failed to resolve", "nodename nor servname", "Name or service not known"}},
 	{core.FailNetwork, []string{"Connection refused", "Unable to connect to proxy", "Network is unreachable", "timed out", "Connection reset", "No route to host"}},
-	{core.FailOutdated, []string{"Confirm you are on the latest version", "please report this issue", "Unable to extract", "No video formats found", "nsig extraction failed", "Signature extraction failed"}},
+	// YouTube answers a client whose JavaScript challenge was not solved, as the solver scripts of a yt-dlp older than YouTube's player cannot solve it, with "The page needs to be reloaded" for a signed-in download, and yt-dlp then finds no formats; one with no JavaScript runtime at all is told apart before (downloadFailKind).
+	{core.FailOutdated, []string{"Confirm you are on the latest version", "please report this issue", "Unable to extract", "No video formats found", "nsig extraction failed", "Signature extraction failed", "The page needs to be reloaded"}},
 }
 
 // ClassifyDownload reads why yt-dlp failed from what it printed on stderr, or from an error that carries those lines, as Download's does. Only its ERROR lines count: its warnings ask for an update for reasons that do not stop a download. It returns "" for an error it does not recognize.

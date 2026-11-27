@@ -4708,6 +4708,9 @@ precheckListUnnamed:
 precheckNoAudio:
   message: "The video has no sound, so there is no speech to transcribe"
   description: "Card of a failed job whose video has no sound track, as a silent screen recording: there is nothing to transcribe, and retrying cannot help."
+precheckNoJSRuntime:
+  message: "yt-dlp needs Deno, a JavaScript runtime, to download this video, and this computer has none"
+  description: "Card of a failed download, and what the phone shows of it, when yt-dlp found no JavaScript runtime to solve the site's challenge with (YouTube); an update of yt-dlp does not fix it."
 precheckNoLLMModel:
   message: "Choose a model in “AI Service” first"
   description: "Message bar and the sidebar's status line when no translation model is chosen; “AI Service” is the settings page."
@@ -5058,6 +5061,22 @@ queueRemedyNoBrowser:
 queueRemedyOpenSystemSettings:
   message: "Open System Settings"
   description: "Button of the card that opens the Full Disk Access pane of System Settings."
+queueRemedyNoJSRuntime:
+  message: "{site} needs a JavaScript runtime to download"
+  description: "Headline of a failed download's card when yt-dlp found no JavaScript runtime (Deno) to solve the site's challenge with; an update of yt-dlp does not fix it."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyNoJSRuntimeFailed:
+  message: "Couldn't download Deno: {error}. Try again, or install Deno on this computer and retry."
+  description: "Under the headline of the card of a download that needs a JavaScript runtime, when downloading Kando's own Deno failed."
+  placeholders:
+    error: { type: "String", example: "HTTP 503" }
+queueRemedyNoJSRuntimeManualWhy:
+  message: "yt-dlp solves the site's check with Deno, which isn't on this computer. Install Deno from deno.com, then retry."
+  description: "Under the headline of the card of a download that needs a JavaScript runtime, where Kando downloads no Deno of its own, as on Windows."
+queueRemedyNoJSRuntimeWhy:
+  message: "yt-dlp solves the site's check with Deno, which isn't on this computer. Kando can download it."
+  description: "Under the headline of the card of a download that needs a JavaScript runtime, where Kando can download its own Deno."
 queueRemedyOutdated:
   message: "{site} has changed, and the download component needs an update"
   description: "Headline of a failed download's card when the site changed and yt-dlp needs an update."

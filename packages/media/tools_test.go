@@ -661,6 +661,66 @@ func TestDownloadTellsYTDLPWhereFFmpegIs(t *testing.T) {
 	}
 }
 
+// yt-dlp looks for Deno, which solves YouTube's JavaScript challenges, only on PATH, which an app opened from Finder does not extend to Homebrew's folder, and Kando's own Deno is on neither; Download, the previews, the lists, the streams and the platform's subtitles name the Deno Kando found, and none when it found none, which leaves yt-dlp to look on PATH.
+func TestYTDLPIsToldWhereDenoIs(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	ctx := context.Background()
+	source := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	for name, run := range map[string]func(Tools){
+		"download":  func(tools Tools) { tools.Download(ctx, source) },
+		"preview":   func(tools Tools) { tools.Preview(ctx, source) },
+		"list":      func(tools Tools) { tools.ListVideos(ctx, "https://www.youtube.com/playlist?list=PL1", 0) },
+		"stream":    func(tools Tools) { tools.StreamURL(ctx, source) },
+		"subtitles": func(tools Tools) { tools.PlatformSubtitles(ctx, source, "en") },
+	} {
+		os.Remove(args)
+		run(Tools{YTDLP: tool, Deno: "/opt/homebrew/bin/deno", OutputDir: t.TempDir()})
+		data, _ := os.ReadFile(args)
+		if !strings.Contains(string(data), "--js-runtimes\ndeno:/opt/homebrew/bin/deno\n") {
+			t.Errorf("%s: args %s", name, data)
+		}
+		os.Remove(args)
+		run(Tools{YTDLP: tool, OutputDir: t.TempDir()})
+		data, _ = os.ReadFile(args)
+		if len(data) == 0 || strings.Contains(string(data), "--js-runtimes") {
+			t.Errorf("%s without Deno: args %s", name, data)
+		}
+	}
+}
+
+// What yt-dlp printed on 2026-11-28 for a signed-in YouTube download without a JavaScript runtime (2026.10.26, with no Deno on its PATH) and with solver scripts older than YouTube's player (Homebrew's 2026.08.19 with Deno): signed in, yt-dlp does not say it found no runtime, only that the challenge failed. Without a Deno from Kando the failure says it found none (ErrNoJSRuntime), which the job's card tells apart from an outdated yt-dlp (downloadFailKind); with one, it is an outdated yt-dlp. Signed out, yt-dlp says it found no runtime.
+func TestDownloadSaysItFoundNoJSRuntime(t *testing.T) {
+	const noRuntime = "WARNING: [youtube] No supported JavaScript runtime could be found. Only deno is enabled by default; to use another runtime add  --js-runtimes RUNTIME[:PATH]  to your command/config. YouTube extraction without a JS runtime has been deprecated, and some formats may be missing. See  https://github.com/yt-dlp/yt-dlp/wiki/EJS  for details on installing one\n"
+	const challenge = "WARNING: [youtube] jNQXAC9IVRw: n challenge solving failed: Some formats may be missing. Ensure you have a supported JavaScript runtime and challenge solver script distribution installed. Review any warnings presented before this message. For more details, refer to  https://github.com/yt-dlp/yt-dlp/wiki/EJS\n"
+	const reload = "ERROR: [youtube] jNQXAC9IVRw: The page needs to be reloaded.\n"
+	const noFormats = "ERROR: [youtube] jNQXAC9IVRw: No video formats found!; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U\n"
+	const private = "ERROR: [youtube] jNQXAC9IVRw: Private video. Sign in if you've been granted access to this video\n"
+	for _, c := range []struct {
+		stderr, deno string
+		want         core.FailKind
+	}{
+		{challenge + noFormats, "", core.FailNoJSRuntime},
+		{challenge + reload, "", core.FailNoJSRuntime},
+		{noRuntime + noFormats, "", core.FailNoJSRuntime},
+		{challenge + reload, "/opt/homebrew/bin/deno", core.FailOutdated},
+		{challenge + noFormats, "/opt/homebrew/bin/deno", core.FailOutdated},
+		// A reason yt-dlp could tell stays that reason.
+		{noRuntime + private, "", core.FailPrivate},
+		// Without any word of the challenge it is not the runtime.
+		{reload, "", core.FailOutdated},
+	} {
+		dir := t.TempDir()
+		tool := writeFakeTool(t, dir, "yt-dlp", fakeTool{Stderr: c.stderr, Exit: 1})
+		_, err := Tools{YTDLP: tool, Deno: c.deno, OutputDir: t.TempDir()}.Download(context.Background(), "https://youtu.be/jNQXAC9IVRw")
+		if err == nil {
+			t.Fatal("download succeeded")
+		}
+		if got := downloadFailKind(core.Job{Cookies: "chrome"}, err); got != c.want {
+			t.Errorf("%q with Deno %q: kind %q, want %q (%v)", c.stderr, c.deno, got, c.want, err)
+		}
+	}
+}
+
 // yt-dlp keeps a split-format video's separate tracks and its .part files in a folder of its own outside the library, so the library watcher only ever sees the merged video; the folder is the same for the same video, so a retry picks up where the last try stopped.
 func TestDownloadKeepsPartialFilesOutsideTheLibrary(t *testing.T) {
 	tool, args := argsYTDLP(t)

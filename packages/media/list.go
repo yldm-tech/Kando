@@ -56,6 +56,7 @@ func (t Tools) ListVideos(ctx context.Context, source string, limit int) (Listin
 	if limit > 0 {
 		args = append(args, "--playlist-end", strconv.Itoa(limit))
 	}
+	args = append(args, t.ytdlpRuntimeArgs()...)
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}

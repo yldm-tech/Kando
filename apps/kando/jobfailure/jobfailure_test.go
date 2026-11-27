@@ -66,6 +66,8 @@ func TestHintReadsTheStep(t *testing.T) {
 		media.ReadStageError("translate: translation API returned 401 Unauthorized: invalid key"):    en.PrecheckTranslateAuth(),
 		media.ReadStageError("download: yt-dlp: " + media.ErrOffline.Error()):                        en.PrivacyNoDownload(),
 		media.ReadStageError("check: " + media.ErrNoHTTP.Error()):                                    en.MediaSourceNoHTTP(),
+		// yt-dlp found no JavaScript runtime for YouTube's challenge (media.ErrNoJSRuntime), which no update mends.
+		media.ReadStageError("download: yt-dlp: exit status 1: ERROR: [youtube] jNQXAC9IVRw: The page needs to be reloaded. (" + media.ErrNoJSRuntime.Error() + ")"): en.PrecheckNoJSRuntime(),
 		errors.New("boom"): en.PrecheckFailedProcess("boom"),
 		// A step's error with no error says the step failed, and does not panic.
 		&media.StageError{Stage: media.StageExport}: en.PrecheckFailedExport(""),

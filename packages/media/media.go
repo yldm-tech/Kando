@@ -53,9 +53,12 @@ type Pipeline interface {
 	Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error)
 }
 
-// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out. A job that borrows none (core.CookiesNone, as the Add sheet's 未登录 chose) only wants one.
+// downloadFailKind is why job's download failed, as err says (ClassifyDownload): a site that still wants a login while the browser's is borrowed has let that login run out. A job that borrows none (core.CookiesNone, as the Add sheet's 未登录 chose) only wants one. A failure yt-dlp could not say better, or took for an outdated extractor, after it found no JavaScript runtime (ErrNoJSRuntime) wants one, which no update of yt-dlp gives.
 func downloadFailKind(job core.Job, err error) core.FailKind {
 	kind := ClassifyDownload(err.Error())
+	if (kind == "" || kind == core.FailOutdated) && strings.Contains(err.Error(), ErrNoJSRuntime.Error()) {
+		return core.FailNoJSRuntime
+	}
 	if job.Browser() != "" && (kind == core.FailLogin || kind == core.FailAge) {
 		kind = core.FailLoginExpired
 	}

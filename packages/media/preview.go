@@ -40,6 +40,7 @@ func (t Tools) Preview(ctx context.Context, source string) (Preview, error) {
 	ctx, cancel := context.WithTimeout(ctx, PreviewTimeout)
 	defer cancel()
 	args := []string{"-J", "--no-playlist", "--skip-download", "--ignore-no-formats-error", "--no-warnings"}
+	args = append(args, t.ytdlpRuntimeArgs()...)
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}

@@ -2,6 +2,7 @@ package media
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -175,6 +176,66 @@ func TestInstallKitRejectsUnsafeArchives(t *testing.T) {
 	}
 }
 
+func zipOf(t *testing.T, entries ...tarEntry) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, e := range entries {
+		h := &zip.FileHeader{Name: e.name, Method: zip.Deflate}
+		h.SetMode(os.FileMode(e.mode))
+		if e.kind == tar.TypeDir {
+			h.SetMode(os.ModeDir | os.FileMode(e.mode))
+		}
+		if e.kind == tar.TypeSymlink {
+			h.SetMode(os.ModeSymlink | 0o777)
+		}
+		w, err := zw.CreateHeader(h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(e.body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// Deno publishes its builds as a .zip of the one program, which may run once it is in.
+func TestInstallKitUnpacksZip(t *testing.T) {
+	data := zipOf(t, tarEntry{name: "deno", mode: 0o755, body: "#!/bin/sh\n"})
+	dir := t.TempDir()
+	path, err := InstallKit(context.Background(), Kit{ID: "deno", Program: "deno", Version: "2.9.8", URL: serve(t, data), SHA256: sha(data), Zip: true}, dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(dir, "deno", "deno"); path != want || !isExecutable(path) {
+		t.Fatalf("path %q is not the executable %q", path, want)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "deno", kitVersionFile)); strings.TrimSpace(string(got)) != "2.9.8" {
+		t.Fatalf("version file %q", got)
+	}
+}
+
+func TestInstallKitRejectsUnsafeZips(t *testing.T) {
+	cases := map[string]tarEntry{
+		"parent":   {name: "../evil", mode: 0o755, body: "x"},
+		"absolute": {name: "/tmp/evil", mode: 0o755, body: "x"},
+		"symlink":  {name: "deno", kind: tar.TypeSymlink, body: "/bin/sh"},
+	}
+	for name, entry := range cases {
+		t.Run(name, func(t *testing.T) {
+			data := zipOf(t, entry)
+			_, err := InstallKit(context.Background(), Kit{ID: "deno", Program: "deno", URL: serve(t, data), SHA256: sha(data), Zip: true}, t.TempDir(), nil)
+			if !errors.Is(err, errUnsafeEntry) {
+				t.Fatalf("err = %v, want errUnsafeEntry", err)
+			}
+		})
+	}
+}
+
 func TestInstallKitWithoutProgram(t *testing.T) {
 	data := tarGz(t, tarEntry{name: "LICENSE", mode: 0o644, body: "MIT"})
 	_, err := InstallKit(context.Background(), Kit{ID: "whisper", Program: "whisper-cli", URL: serve(t, data), SHA256: sha(data), Archive: true}, t.TempDir(), nil)
@@ -219,10 +280,10 @@ func TestInstallKitStatus(t *testing.T) {
 	}
 }
 
-// Every platform Kando ships for gets the three programs, each pinned to a checksum.
+// Every platform Kando ships for gets the three programs and Deno, each pinned to a checksum.
 func TestKitsArePinned(t *testing.T) {
 	for _, platform := range []string{"darwin-arm64", "darwin-amd64", "linux-amd64", "linux-arm64"} {
-		for _, program := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
+		for _, program := range []string{"yt-dlp", "ffmpeg", "whisper-cli", "deno"} {
 			kit, ok := kitOn(platform, program)
 			if !ok {
 				t.Errorf("%s has no kit for %s", platform, program)
@@ -307,10 +368,11 @@ func TestKitStale(t *testing.T) {
 	}
 }
 
+// Deno is a fallback everywhere: the computer's, as Homebrew's, runs when there is one.
 func TestKitsFallBackOnlyOnLinuxForFFmpegAndWhisper(t *testing.T) {
 	for platform, list := range kits {
 		for _, kit := range list {
-			want := strings.HasPrefix(platform, "linux-") && kit.Program != "yt-dlp"
+			want := kit.Program == "deno" || strings.HasPrefix(platform, "linux-") && kit.Program != "yt-dlp"
 			if kit.Fallback != want {
 				t.Errorf("%s %s: Fallback = %v, want %v", platform, kit.Program, kit.Fallback, want)
 			}

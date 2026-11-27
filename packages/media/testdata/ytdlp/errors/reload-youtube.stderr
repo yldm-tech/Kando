@@ -1,0 +1,16 @@
+WARNING: Your yt-dlp version (2026.08.19) is older than 90 days!
+         It is strongly recommended to always use the latest version.
+         You installed yt-dlp with pip or using the wheel from PyPi; Use that to update.
+         To suppress this warning, add --no-update to your command/config.
+WARNING: [youtube] [jsc] Error solving n challenge request using "deno" provider: Error running deno process (returncode: 1): [0m[1m[31merror[0m: Uncaught (in promise) TypeError: a.addOnDisposeCallback is not a function
+    at [0m[1m[3mObject.g.X[0m ([0m[36meval at <anonymous> (file:///Users/someone/$deno$stdin.js:58:6268)[0m, [0m[36m<anonymous>[0m:[0m[33m4345[0m:[0m[33m7[0m)
+    at new [0m[1m[3mQD[0m ([0m[36meval at <anonymous> (file:///Users/someone/$deno$stdin.js:58:6268)[0m, [0m[36m<anonymous>[0m:[0m[33m20769[0m:[0m[33m7[0m)
+    at [0m[1m[3meval[0m ([0m[36meval at <anonymous> (file:///Users/someone/$deno$stdin.js:58:6268)[0m, [0m[36m<anonymous>[0m:[0m[33m90934[0m:[0m[33m13[0m)
+    at [0m[1m[3meval[0m ([0m[36meval at <anonymous> (file:///Users/someone/$deno$stdin.js:58:6268)[0m, [0m[36m<anonymous>[0m:[0m[33m128694[0m:[0m[33m3[0m)
+    at [0m[2m[38;5;245mfile:///Users/someone/[0m[0m[36m$deno$stdin.js[0m:[0m[33m58[0m:[0m[33m6289[0m
+    at [0m[2m[38;5;245mfile:///Users/someone/[0m[0m[36m$deno$stdin.js[0m:[0m[33m58[0m:[0m[33m6295[0m
+    at [0m[2m[38;5;245mfile:///Users/someone/[0m[0m[36m$deno$stdin.js[0m:[0m[33m59[0m:[0m[33m36[0m.
+         input = NChallengeInput(player_url='https://www.youtube.com/s/player/b485e332/player_ias.vflset/en_US/base.js', challenges=['etOvmnOnT1b4TT7U3', 'Ao0qh135jQOakHThz', 'nbdlmiZM1ByMAqvcm'])
+         Please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+WARNING: [youtube] jNQXAC9IVRw: n challenge solving failed: Some formats may be missing. Ensure you have a supported JavaScript runtime and challenge solver script distribution installed. Review any warnings presented before this message. For more details, refer to  https://github.com/yt-dlp/yt-dlp/wiki/EJS
+ERROR: [youtube] jNQXAC9IVRw: The page needs to be reloaded.

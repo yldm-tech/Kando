@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,8 @@ type Tools struct {
 	YTDLP   string
 	FFmpeg  string
 	Whisper string
+	// Deno is the path of the Deno that yt-dlp solves YouTube's JavaScript challenges with (ytdlpRuntimeArgs); empty means not found, and yt-dlp then looks for one on PATH itself. It is not one of the programs a job needs (Check): yt-dlp downloads without it from the sites that set no challenge, and from YouTube only what it serves without one.
+	Deno string
 	// EveryAPI is the path of the everyapi command-line program, whose sign-in EveryAPI translates with when it has no API key and Kando is not signed in itself (UseEveryAPICLI); empty means not found. Kando does not download it.
 	EveryAPI string
 	// EveryAPILogin is Kando's own EveryAPI sign-in, when the user signed in in the app, nil when nobody did (UseEveryAPILogin).
@@ -125,6 +128,7 @@ func ToolsFromEnv() Tools {
 		YTDLP:        lookTool("yt-dlp"),
 		FFmpeg:       lookTool("ffmpeg"),
 		Whisper:      lookTool("whisper-cli"),
+		Deno:         lookTool("deno"),
 		EveryAPI:     lookTool("everyapi"),
 		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
@@ -288,11 +292,12 @@ func Candidates(name string) []string {
 	return found
 }
 
-// Relook finds yt-dlp, ffmpeg, whisper-cli and the everyapi command-line program again, and signs the translator in through everyapi as UseEveryAPICLI does, so a program installed since Kando started is used without restarting it. The output directory and the translator's endpoint, model and key stay as they are.
+// Relook finds yt-dlp, ffmpeg, whisper-cli, Deno and the everyapi command-line program again, and signs the translator in through everyapi as UseEveryAPICLI does, so a program installed since Kando started is used without restarting it. The output directory and the translator's endpoint, model and key stay as they are.
 func (t Tools) Relook() Tools {
 	t.YTDLP = lookTool("yt-dlp")
 	t.FFmpeg = lookTool("ffmpeg")
 	t.Whisper = lookTool("whisper-cli")
+	t.Deno = lookTool("deno")
 	t.EveryAPI = lookTool("everyapi")
 	return t.UseEveryAPICLI()
 }
@@ -434,6 +439,7 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 	if t.FFmpeg != "" {
 		args = append(args, "--ffmpeg-location", t.FFmpeg)
 	}
+	args = append(args, t.ytdlpRuntimeArgs()...)
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}
@@ -445,16 +451,38 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 			args = append(args, "--user-agent", userAgent)
 		}
 	}
-	if _, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
+	if _, stderr, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) || exit.ExitCode() != ytdlpMaxDownloadsExit || reader.path == "" {
-			return "", withClosedBrowserData(err, t.Cookies)
+			return "", withNoJSRuntime(withClosedBrowserData(err, t.Cookies), stderr, t.Deno)
 		}
 	}
 	if reader.path == "" {
 		return "", errors.New("yt-dlp did not report the downloaded file")
 	}
 	return reader.path, nil
+}
+
+// ytdlpRuntimeArgs has yt-dlp solve YouTube's JavaScript challenges with the Deno Kando found (Tools.Deno), by its path: yt-dlp looks for Deno only on PATH, which an app opened from Finder or a desktop launcher does not extend to Homebrew's folder, and Kando's own Deno is in neither. Without one, the formats YouTube serves only to a client that solved them are missing, which a signed-in download, that yt-dlp asks of YouTube's web clients, fails for ("The page needs to be reloaded", "No video formats found"). Empty when Kando found no Deno, and yt-dlp looks on PATH as it would.
+func (t Tools) ytdlpRuntimeArgs() []string {
+	if t.Deno == "" {
+		return nil
+	}
+	return []string{"--js-runtimes", "deno:" + t.Deno}
+}
+
+// ErrNoJSRuntime is wrapped by a download's error when yt-dlp failed to solve the site's JavaScript challenge while Kando found no Deno to give it (Tools.Deno), which no update of yt-dlp mends: a Deno does.
+var ErrNoJSRuntime = errors.New("yt-dlp found no JavaScript runtime")
+
+// ytdlpChallengeSigns are how yt-dlp warns that it could not solve YouTube's JavaScript challenge (extractor/youtube/jsc): it found none of the runtimes it may run, which it says only of the clients it asks signed out, or the challenge failed, which it says of every client, signed in too, whether it had no runtime or its solver scripts are older than YouTube's player.
+var ytdlpChallengeSigns = []string{"No supported JavaScript runtime could be found", "challenge solving failed"}
+
+// withNoJSRuntime wraps err, a failed download's, in ErrNoJSRuntime when stderr, what yt-dlp printed, warns that it could not solve the challenge while deno, the Deno Kando gave it, is empty: yt-dlp looks only on PATH, which Kando searched too (lookTool), so it had none. With a Deno the failure is its solver scripts', which an update of yt-dlp mends (core.FailOutdated).
+func withNoJSRuntime(err error, stderr, deno string) error {
+	if deno != "" || !slices.ContainsFunc(ytdlpChallengeSigns, func(sign string) bool { return strings.Contains(stderr, sign) }) {
+		return err
+	}
+	return fmt.Errorf("%w (%w)", err, ErrNoJSRuntime)
 }
 
 // ytdlpMaxDownloadsExit is how yt-dlp exits once it has downloaded as many videos as --max-downloads allows, which it does after the one video every download asks for, and also when that video was already downloaded. The video it names (after_move:filepath) is then there, and the download succeeded.
