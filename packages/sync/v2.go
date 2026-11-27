@@ -201,7 +201,7 @@ const (
 	StepSkipped = "skipped"
 )
 
-// Failure is why a job failed: the step that failed, a code the phone tells the user by, a message in the desktop's words for logs, and Remedy, what the phone can offer to do about it.
+// Failure is why a job failed: the step that failed, a code the phone tells the user by, a message in the desktop's words for logs, and Remedy, what the phone can offer to do about it. A failure of the desktop's AI service or of a translation source carries no Message: neither what the service answered, which may hold its prices or links to buy credit, nor the desktop's own words of it, which may tell its user to top an account up, reach a phone, which tells the user by the code alone (FailAIUnavailable, FailTranslation, FailDesktopSetup).
 type Failure struct {
 	Step    string `json:"step"`
 	Code    string `json:"code"`
@@ -209,7 +209,7 @@ type Failure struct {
 	Remedy  string `json:"remedy,omitempty"`
 }
 
-// The codes of Failure. A phone that does not know a code tells the user Message.
+// The codes of Failure. A phone that does not know a code tells the user Message, and its own words for a failure it does not know (FailOther's) when Message is empty, so a code is added to v2 without a new version.
 const (
 	FailNetwork      = "network"
 	FailRateLimited  = "rate_limited"
@@ -229,7 +229,9 @@ const (
 	FailNoSpeech     = "no_speech"
 	FailDesktopSetup = "desktop_setup"
 	FailTranslation  = "translation"
-	FailOther        = "failed"
+	// FailAIUnavailable is the desktop's AI service, or a translation source of its own, refusing the account rather than the request, as one out of credit or over its quota: nothing a retry or the phone mends, so it comes with RemedyDesktop and an empty Message. An addition to v2: a phone from before it tells the user FailOther's words.
+	FailAIUnavailable = "ai_unavailable"
+	FailOther         = "failed"
 )
 
 // The remedies of Failure.

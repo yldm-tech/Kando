@@ -1,6 +1,9 @@
 package phonesync
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,5 +23,30 @@ func TestExplainLinesLeaveOutWhatComesAfter(t *testing.T) {
 	}
 	if before, _ := ExplainLines(psync.LineExplain{Lines: req.Lines}, 3); len(before) != 0 {
 		t.Fatalf("the first line went with %+v", before)
+	}
+}
+
+// StudyErr tells a phone why the AI service failed by a code and a phrase of its own, never with what the service answered: an account refused is no_ai, anything else failed, with the kind of failure; an error the app gave a code keeps it.
+func TestStudyErrKeepsWhatTheServiceSaid(t *testing.T) {
+	body := `{"error":"Top up at https://pay.example.com: 1,000 credits for $9.99"}`
+	for _, tc := range []struct {
+		err  error
+		code string
+		msg  string
+	}{
+		{errors.New("translation API returned 402 Payment Required: " + body), psync.CodeNoAI, studyRefused},
+		{errors.New("translation API returned 401 Unauthorized: " + body), psync.CodeNoAI, studyRefused},
+		{errors.New("translation API returned 400 Bad Request: " + body), psync.CodeFailed, studyFailed + " (rejected)"},
+		{fmt.Errorf("explain: %w", context.DeadlineExceeded), psync.CodeFailed, studyFailed + " (timeout)"},
+		{errors.New(body), psync.CodeFailed, studyFailed},
+		{psync.Errorf(psync.CodeNoAI, "%s", StudyNoAI), psync.CodeNoAI, StudyNoAI},
+	} {
+		var e *psync.CallError
+		if got := StudyErr(tc.err); !errors.As(got, &e) || e.Code != tc.code || e.Message != tc.msg {
+			t.Errorf("%v: %v, want %s: %s", tc.err, got, tc.code, tc.msg)
+		}
+	}
+	if StudyErr(nil) != nil {
+		t.Error("no error is an error")
 	}
 }

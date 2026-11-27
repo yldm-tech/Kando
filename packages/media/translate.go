@@ -825,6 +825,9 @@ var translateSigns = []struct {
 	{TranslateMalformed, []string{"not a JSON array of strings", "lines for", "returned no choices", "decode translation response"}},
 }
 
+// AIAnswered reports whether msg, an error's text, holds an AI service's answer other than 200 (a statusError, as ClassifyTranslate reads its status): what the service wrote back is in it, which may hold its prices or a link to buy credit.
+func AIAnswered(msg string) bool { return statusPattern.MatchString(msg) }
+
 // ClassifyTranslate reads why a translation failed from its error's text, which is what a failed job keeps once it has been saved and read back. It returns "" for an error it does not recognize.
 func ClassifyTranslate(msg string) TranslateFail {
 	if m := statusPattern.FindStringSubmatchIndex(msg); m != nil {

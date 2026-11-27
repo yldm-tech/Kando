@@ -88,6 +88,13 @@ func TestJobOfTypesTheFailure(t *testing.T) {
 			psync.Failure{Step: psync.StepTranscribe, Code: psync.FailNoSpeech, Message: "No speech"}},
 		{"a redo's translation", core.Job{Err: media.ReadStageError("translate: 500"), Redo: core.RedoTranslation}, JobFacts{Reason: "The AI service failed"},
 			psync.Failure{Step: psync.StepTranslate, Code: psync.FailTranslation, Message: "The AI service failed", Remedy: psync.RemedyRetry}},
+		// The AI service's words, and the desktop's of them, stay on the desktop: the code alone says it.
+		{"an account out of credit", core.Job{Err: media.ReadStageError("translate: translation API returned 402 Payment Required: top up at https://pay.example.com")}, JobFacts{Reason: "Top it up, then retry.", Setup: true, AI: true, AIUnavailable: true},
+			psync.Failure{Step: psync.StepTranslate, Code: psync.FailAIUnavailable, Remedy: psync.RemedyDesktop}},
+		{"a key the AI service rejects", core.Job{Err: media.ReadStageError("translate: translation API returned 401 Unauthorized: bad key")}, JobFacts{Reason: "Check the key.", Setup: true, AI: true},
+			psync.Failure{Step: psync.StepTranslate, Code: psync.FailDesktopSetup, Remedy: psync.RemedyDesktop}},
+		{"the AI service's own words", core.Job{Err: media.ReadStageError("translate: translation API returned 400 Bad Request: see https://example.com")}, JobFacts{AI: true},
+			psync.Failure{Step: psync.StepTranslate, Code: psync.FailTranslation, Remedy: psync.RemedyRetry}},
 	} {
 		tc.job.Stage, tc.job.Source = core.StageFailed, link
 		got := JobOf(tc.job, tc.facts)

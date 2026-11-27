@@ -157,3 +157,31 @@ func TestSourceHintOffline(t *testing.T) {
 		}
 	}
 }
+
+// AI tells the failures of the AI service and of a translation source from the others, and an account they refused from a request: a 402, or a 429 that says the quota ran out, wherever it came; a source's quota code; anything else of the translation step; and nothing of a download, a canceled job or one that did not fail.
+func TestAI(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		job             core.Job
+		ai, unavailable bool
+	}{
+		{"out of credit", core.Job{Err: media.ReadStageError("translate: translation API returned 402 Payment Required: top up")}, true, true},
+		{"over the quota", core.Job{Err: media.ReadStageError("translate: translation API returned 429 Too Many Requests: insufficient_quota")}, true, true},
+		{"too fast", core.Job{Err: media.ReadStageError("translate: translation API returned 429 Too Many Requests: slow down")}, true, false},
+		{"a key rejected", core.Job{Err: media.ReadStageError("translate: translation API returned 401 Unauthorized: bad key")}, true, false},
+		{"a reply out of shape", core.Job{Err: media.ReadStageError("translate: not a JSON array of strings")}, true, false},
+		{"a proofread out of credit", core.Job{Err: media.ReadStageError("transcribe: translation API returned 402 Payment Required: top up")}, true, true},
+		{"a source over its quota", core.Job{Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(plugins.TranslateQuota + ": used up")}}, true, true},
+		{"a source down", core.Job{Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New(plugins.TranslateUnavailable)}}, true, false},
+		{"a download", core.Job{Err: media.ReadStageError("download: ERROR: Video unavailable")}, false, false},
+		{"no step named", core.Job{Err: errors.New("disk full")}, false, false},
+	} {
+		tc.job.Stage = core.StageFailed
+		if ai, unavailable := AI(tc.job); ai != tc.ai || unavailable != tc.unavailable {
+			t.Errorf("%s: AI %v, unavailable %v; want %v, %v", tc.name, ai, unavailable, tc.ai, tc.unavailable)
+		}
+	}
+	if ai, _ := AI(core.Job{Stage: core.StageComplete, Err: media.ReadStageError("translate: translation API returned 402 Payment Required: x")}); ai {
+		t.Error("a job that did not fail is the AI service's failure")
+	}
+}

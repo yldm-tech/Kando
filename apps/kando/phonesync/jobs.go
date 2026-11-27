@@ -10,11 +10,13 @@ import (
 	psync "kando/packages/sync"
 )
 
-// JobFacts is what the app says of a job beside the job itself: the name its card shows, the protocol's ID of the library it saves into, and for a failed job the reason its card gives, in English, and whether a setting on the desktop fixes it (a card that offers 打开设置).
+// JobFacts is what the app says of a job beside the job itself: the name its card shows, the protocol's ID of the library it saves into, and for a failed job the reason its card gives, in English, whether a setting on the desktop fixes it (a card that offers 打开设置), whether it failed in the AI service or a translation source (AI, jobfailure.AI), whose words a phone is never told, and whether that refused the account (AIUnavailable), as one out of credit.
 type JobFacts struct {
 	Title, Library string
 	Reason         string
 	Setup          bool
+	AI             bool
+	AIUnavailable  bool
 }
 
 // JobOf is job as protocol v2 tells it (psync.Job): its state, each step's, and for one that failed, why, typed by what yt-dlp said (core.FailKind) or the step that failed.
@@ -126,14 +128,19 @@ var failKinds = map[core.FailKind]string{
 	core.FailHiddenVideo:  psync.FailHiddenVideo,
 }
 
-// failureOf is why job failed in step.
+// failureOf is why job failed in step. A failure of the AI service or a translation source (JobFacts.AI) carries no Message: neither what the service answered nor the desktop's reason, which may name a price, a link to buy credit or tell the user to top up, reaches a phone (psync.Failure); its code says it, FailAIUnavailable for an account the service refused.
 func failureOf(job core.Job, step string, facts JobFacts) *psync.Failure {
-	f := &psync.Failure{Step: step, Code: psync.FailOther, Message: facts.Reason}
-	if f.Message == "" && job.Err != nil {
-		f.Message = job.Err.Error()
+	f := &psync.Failure{Step: step, Code: psync.FailOther}
+	if !facts.AI {
+		f.Message = facts.Reason
+		if f.Message == "" && job.Err != nil {
+			f.Message = job.Err.Error()
+		}
 	}
 	code, known := failKinds[job.FailKind]
 	switch {
+	case facts.AIUnavailable:
+		f.Code = psync.FailAIUnavailable
 	case known:
 		f.Code = code
 	case facts.Setup:
@@ -148,7 +155,7 @@ func failureOf(job core.Job, step string, facts JobFacts) *psync.Failure {
 		f.Remedy = psync.RemedyUpdateYTDLP
 	case psync.FailNetwork, psync.FailRateLimited, psync.FailHost, psync.FailOther, psync.FailTranslation:
 		f.Remedy = psync.RemedyRetry
-	case psync.FailLogin, psync.FailLoginExpired, psync.FailCookies, psync.FailMembers, psync.FailAge, psync.FailHiddenVideo, psync.FailDesktopSetup:
+	case psync.FailLogin, psync.FailLoginExpired, psync.FailCookies, psync.FailMembers, psync.FailAge, psync.FailHiddenVideo, psync.FailDesktopSetup, psync.FailAIUnavailable:
 		f.Remedy = psync.RemedyDesktop
 	}
 	return f

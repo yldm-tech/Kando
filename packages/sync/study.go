@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -19,8 +20,20 @@ const (
 	OpRecap = "study.recap"
 )
 
-// CodeNoAI is a lookup or an explanation the desktop cannot ask for: no AI service is set in its settings, or the one set cannot answer, as while it is offline or signed out; Message says why, in English (status 409).
+// CodeNoAI is a lookup or an explanation the desktop cannot ask for: no AI service is set in its settings, or the one set cannot answer, as while it is offline or signed out, or refuses the desktop's account, as one out of credit; Message says which in a fixed phrase of the desktop's, in English, never with what the service answered or the desktop's words to its own user (status 409).
 const CodeNoAI = "no_ai"
+
+// studyFailed is the Message of a lookup, an explanation, a follow-up question or a recap that failed with an error the StudyService did not give a code (CallError): what the AI service answered stays on the desktop, as it may hold the service's prices or a link to buy credit, which a phone must never show.
+const studyFailed = "the desktop's AI service did not answer"
+
+// studyErr is err as a call of the study's answers it: a CallError as the StudyService gave it, anything else CodeFailed with studyFailed alone.
+func studyErr(err error) error {
+	var e *CallError
+	if err == nil || errors.As(err, &e) {
+		return err
+	}
+	return &CallError{Code: CodeFailed, Message: studyFailed}
+}
 
 // WordLookup is a word a phone looks up: the word as tapped, the original of the line it was tapped in, as what it means is what it means there, and the film and library the line is of, whose language and title the desktop asks with; a film the desktop does not serve is asked about without them.
 type WordLookup struct {
@@ -226,7 +239,8 @@ func (d *Desk) answerStudy(ctx context.Context, caller Caller, call Call) (any, 
 		if err := req.Check(); err != nil {
 			return nil, err
 		}
-		return d.Study.LookUp(ctx, caller, req)
+		out, err := d.Study.LookUp(ctx, caller, req)
+		return out, studyErr(err)
 	case OpExplainAsk:
 		var req ExplainAsk
 		if err := args(call, &req); err != nil {
@@ -235,7 +249,8 @@ func (d *Desk) answerStudy(ctx context.Context, caller Caller, call Call) (any, 
 		if err := req.Check(); err != nil {
 			return nil, err
 		}
-		return d.Study.Ask(ctx, caller, req)
+		out, err := d.Study.Ask(ctx, caller, req)
+		return out, studyErr(err)
 	case OpRecap:
 		var req FilmRecap
 		if err := args(call, &req); err != nil {
@@ -244,7 +259,8 @@ func (d *Desk) answerStudy(ctx context.Context, caller Caller, call Call) (any, 
 		if err := req.Check(); err != nil {
 			return nil, err
 		}
-		return d.Study.Recap(ctx, caller, req)
+		out, err := d.Study.Recap(ctx, caller, req)
+		return out, studyErr(err)
 	}
 	var req LineExplain
 	if err := args(call, &req); err != nil {
@@ -253,7 +269,8 @@ func (d *Desk) answerStudy(ctx context.Context, caller Caller, call Call) (any, 
 	if err := req.Check(); err != nil {
 		return nil, err
 	}
-	return d.Study.Explain(ctx, caller, req)
+	out, err := d.Study.Explain(ctx, caller, req)
+	return out, studyErr(err)
 }
 
 // LookUp has the desktop look word up as it reads in req.Line.
