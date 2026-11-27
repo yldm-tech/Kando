@@ -151,6 +151,24 @@ func TestContinue(t *testing.T) {
 	}
 }
 
+// Episodes marked watched keep no time they played (MarkWatched), so a work none of whose episodes played goes on with the first not watched, and starts again once every one was marked.
+func TestContinueAfterMarkedWatched(t *testing.T) {
+	a := newFakeApp()
+	eps := withShow(a)
+	w, _ := a.Works().Of(eps[0].Key)
+	for _, ep := range eps {
+		a.durations[ep.VideoPath] = time.Minute
+	}
+	a.furthest[eps[0].VideoPath], a.furthest[eps[1].VideoPath] = time.Minute, time.Minute
+	if f, how := Continue(a, w, a.items); f.Key != eps[2].Key || how != GoOnNext {
+		t.Fatalf("a work whose first two episodes were marked watched goes on with %s, %d", f.Key, how)
+	}
+	a.furthest[eps[2].VideoPath] = time.Minute
+	if f, how := Continue(a, w, a.items); f.Key != eps[0].Key || how != GoOnAgain {
+		t.Fatalf("a work marked watched whole goes on with %s, %d", f.Key, how)
+	}
+}
+
 // In the list a work is a row of its name and how many episodes it holds, selected while they all are, which Return opens the page of.
 func TestAWorkIsARowOfTheList(t *testing.T) {
 	a := newFakeApp()

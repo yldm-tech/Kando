@@ -107,7 +107,7 @@ type Played interface {
 	PlayedAt(path string) time.Time
 }
 
-// The ways a work goes on (Continue): from the film watched last, stopped partway; with the film after the one watched to its end last; from its first film, none being watched yet; or from its first again, every one being watched.
+// The ways a work goes on (Continue): from the film watched last, stopped partway; with the film after the one watched to its end last, or the first not watched; from its first film, none being watched yet; or from its first again, every one being watched.
 const (
 	GoOnResume = iota
 	GoOnNext
@@ -115,7 +115,7 @@ const (
 	GoOnAgain
 )
 
-// Continue is the film of w, among all, a work goes on with, and how (GoOnResume and the others): the film played last when it was stopped partway; else the one after the film played last, a film that failed passed over; else its first. Every film of the work counts, those the page does not show too, so a card under 未看 goes on where the work does.
+// Continue is the film of w, among all, a work goes on with, and how (GoOnResume and the others): the film played last when it was stopped partway; else the one after the film played last, a film that failed passed over; else the first not watched, as when films were marked watched (MarkWatched) and none played; else its first, from the start when none was watched and again when every one was. Every film of the work counts, those the page does not show too, so a card under 未看 goes on where the work does.
 func Continue(p Played, w *Work, all []Film) (Film, int) {
 	byKey := make(map[string]Film, len(all))
 	for _, f := range all {
@@ -146,16 +146,17 @@ func continueAmong(p Played, films []Film) (Film, int) {
 			last, at = i, played
 		}
 	}
-	if last < 0 {
-		return films[0], GoOnStart
-	}
-	if !watchedOf(p, films[last]).end {
-		return films[last], GoOnResume
-	}
-	for _, f := range films[last+1:] {
-		if f.Stage != core.StageFailed && !watchedOf(p, f).end {
-			return f, GoOnNext
+	if last >= 0 {
+		if !watchedOf(p, films[last]).end {
+			return films[last], GoOnResume
 		}
+		for _, f := range films[last+1:] {
+			if f.Stage != core.StageFailed && !watchedOf(p, f).end {
+				return f, GoOnNext
+			}
+		}
+	} else if !slices.ContainsFunc(films, func(f Film) bool { return watchedOf(p, f).end }) {
+		return films[0], GoOnStart
 	}
 	for _, f := range films {
 		if !watchedOf(p, f).end && f.Stage != core.StageFailed {
