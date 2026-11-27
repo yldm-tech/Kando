@@ -1,6 +1,6 @@
 name: Package (phone)
 
-# Builds the phone app (apps/mobile) with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA, the signed Android App Bundle (.aab for Google Play) and the signed Android APK (.apk for direct install), with a checksums-phone.txt of their SHA-256. Release calls it on mobile-v* tags with testflight and play enabled; it can also be run by hand (Actions › Package (phone) › Run workflow). Every run signs the App Bundle and APK with the app's Google Play upload key; Google re-signs the App Bundle with the app's signing key for the store. A plain manual run publishes nothing and leaves the IPA unsigned, which checks that the phone app still packages. A run with testflight checked signs the IPA with the team's Apple Distribution certificate and the App Store provisioning profiles of the app and its widget extension, and uploads it to App Store Connect, where it reaches TestFlight's internal testers once Apple has processed it (#227). A run with play checked uploads the signed App Bundle to Google Play with nsgo publish when the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is set, and skips with a notice otherwise.
+# Builds the phone app (apps/mobile) with nsgo build (go tool nsgo, the version apps/mobile/go.mod pins) and keeps the packages as the run's artifact kando-phone: the iOS app's IPA, the signed Android App Bundle (.aab for Google Play) and the signed Android APK (.apk for direct install), with a checksums-phone.txt of their SHA-256. Release calls it on every vX.Y.Z tag (with testflight and play enabled whenever phone code changed since the previous release, and always producing the signed Android APK for the GitHub Release); it can also be run by hand (Actions › Package (phone) › Run workflow). Every run signs the App Bundle and APK with the app's Google Play upload key; Google re-signs the App Bundle with the app's signing key for the store. A plain manual run publishes nothing and leaves the IPA unsigned, which checks that the phone app still packages. A run with testflight checked signs the IPA with the team's Apple Distribution certificate and the App Store provisioning profiles of the app and its widget extension, and uploads it to App Store Connect, where it reaches TestFlight's internal testers once Apple has processed it (#227). A run with play checked uploads the signed App Bundle to Google Play with nsgo publish when the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is set, and skips with a notice otherwise.
 #
 # Every run numbers its packages with seconds since 2023-11-14T22:13:20Z (-build-number, CFBundleVersion and Android's versionCode), which stays strictly increasing across both automatic Release runs and manual Package (phone) runs and stays below Google Play's 2,100,000,000 limit until 2090.
 on:
@@ -22,7 +22,7 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: The phone release tag (mobile-vX.Y.Z) to build, which must match the version in apps/mobile/nsgo.yaml; empty builds the checked-out commit
+        description: The release tag (vX.Y.Z) to build, which must match the version in apps/mobile/nsgo.yaml; empty builds the checked-out commit
         type: string
         default: ""
       testflight:
@@ -82,7 +82,7 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          test "$TAG" = "mobile-v$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/mobile/nsgo.yaml)"
+          test "$TAG" = "v$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/mobile/nsgo.yaml)"
       - name: Build number
         id: build-number
         run: |

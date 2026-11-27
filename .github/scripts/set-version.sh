@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # set-version.sh <vX.Y.Z>
 #
-# Writes a release's version into the files that carry it: the app's nsgo.yaml, from which nsgo build names the app's version and its packages, and the browser extension's manifest.json, which takes the app's version (apps/kando/browse, whose test checks they agree). Each file must hold its version exactly once, so that a moved or renamed line fails here rather than going unbumped.
+# Writes a release's version into the files that carry it: the desktop app's nsgo.yaml, the browser extension's manifest.json (apps/kando/browse, whose test checks they agree), and the phone app's nsgo.yaml. Each file must hold its version exactly once, so that a moved or renamed line fails here rather than going unbumped.
 set -euo pipefail
 
 tag=$1
@@ -27,3 +27,4 @@ bump() {
 
 bump apps/kando/nsgo.yaml '^version: [0-9.]+$' "version: $version"
 bump apps/kando/resources/browser-extension/manifest.json '^  "version": "[0-9.]+",$' "  \"version\": \"$version\","
+bump apps/mobile/nsgo.yaml '^version: [0-9.]+$' "version: $version"
