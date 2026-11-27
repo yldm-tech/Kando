@@ -38,6 +38,8 @@ type Relay struct {
 	Health func(err error)
 	// Films, when set, is what the desktop put in the bucket for its phones (relay_films.go), listed in every phone's state.json with links to the files; nil, or a nil answer, lists none. It is called on Run's goroutine.
 	Films func() *RelayFiles
+	// LinksUntil, when set, is the latest a link signed now can stay good, as when the bucket's key is a short-lived one whose links lapse with it; zero, or a nil LinksUntil, is RelayURLLifetime from now. It may renew the key first, and is called on the goroutine that signs.
+	LinksUntil func(ctx context.Context) (time.Time, error)
 
 	// minting is held from looking at a phone's grant to storing a new one, so two turns (a join and Publish) never mint for the same phone at once.
 	minting gosync.Mutex
@@ -78,7 +80,7 @@ func (r *Relay) logf(format string, args ...any) {
 	}
 }
 
-// Grant is device's newest grant, made anew when it has none, it is RelayRegrant old, or half its slots are used.
+// Grant is device's newest grant, made anew when it has none, it is RelayRegrant old or half its links' life is spent (LinksUntil), or half its slots are used.
 func (r *Relay) Grant(ctx context.Context, device string) (RelayGrant, error) {
 	return r.grant(ctx, device, false)
 }
@@ -96,7 +98,7 @@ func (r *Relay) grant(ctx context.Context, device string, fresh bool) (RelayGran
 	var current RelayGrant
 	reuse := false
 	if g != nil {
-		current, reuse = g.RelayGrant, !fresh && r.now().Sub(g.Minted) < RelayRegrant && len(g.used) < RelaySlots/2
+		current, reuse = g.RelayGrant, !fresh && r.now().Sub(g.Minted) < RelayRegrant && len(g.used) < RelaySlots/2 && !halfSpent(g.Minted, g.Expires, r.now())
 	}
 	r.mu.Unlock()
 	if reuse {
@@ -120,19 +122,50 @@ func (r *Relay) grant(ctx context.Context, device string, fresh bool) (RelayGran
 	return minted, nil
 }
 
+// halfSpent reports whether a link signed at minted that lapses at expires has lived half its life by now, after which it is signed anew: a grant or a film's link of RelayURLLifetime after RelayRegrant all the same, one cut short by LinksUntil sooner.
+func halfSpent(minted, expires, now time.Time) bool {
+	return !now.Before(minted.Add(expires.Sub(minted) / 2))
+}
+
+// linkLife is how long a link signed at now stays good: RelayURLLifetime, cut short by LinksUntil.
+func (r *Relay) linkLife(ctx context.Context, now time.Time) (time.Duration, error) {
+	if r.LinksUntil == nil {
+		return RelayURLLifetime, nil
+	}
+	until, err := r.LinksUntil(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if until.IsZero() {
+		return RelayURLLifetime, nil
+	}
+	life := min(RelayURLLifetime, until.Sub(now))
+	if life < time.Minute {
+		// A key that lapses within the minute signs no link worth handing a phone: the bucket renews it before it signs again.
+		return 0, ErrRelayKeyLapsing
+	}
+	return life, nil
+}
+
+// ErrRelayKeyLapsing is the error of signing a link with a short-lived key that lapses within the minute (LinksUntil).
+var ErrRelayKeyLapsing = errors.New("the relay's key lapses too soon to sign a link")
+
 // mint signs a new grant's links for device.
 func (r *Relay) mint(ctx context.Context, device string, now time.Time) (RelayGrant, error) {
-	g := RelayGrant{Minted: now, Expires: now.Add(RelayURLLifetime)}
-	var err error
-	if g.State, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayStateName(device), RelayURLLifetime); err != nil {
+	life, err := r.linkLife(ctx, now)
+	if err != nil {
+		return RelayGrant{}, err
+	}
+	g := RelayGrant{Minted: now, Expires: now.Add(life)}
+	if g.State, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayStateName(device), life); err != nil {
 		return RelayGrant{}, err
 	}
 	for range RelaySlots {
 		s := RelaySlot{ID: newSlotID()}
-		if s.Put, err = r.Bucket.PresignPut(ctx, r.Prefix+RelayInbox(device, s.ID), RelayURLLifetime); err != nil {
+		if s.Put, err = r.Bucket.PresignPut(ctx, r.Prefix+RelayInbox(device, s.ID), life); err != nil {
 			return RelayGrant{}, err
 		}
-		if s.Reply, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayReply(device, s.ID), RelayURLLifetime); err != nil {
+		if s.Reply, err = r.Bucket.PresignGet(ctx, r.Prefix+RelayReply(device, s.ID), life); err != nil {
 			return RelayGrant{}, err
 		}
 		g.Slots = append(g.Slots, s)

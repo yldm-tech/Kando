@@ -15,7 +15,7 @@ import (
 //
 // Layout. Under RelayPrefix, each film has a folder of a random name below RelayFilmsFolder: its video as "video" with the file's extension, its lines as RelaySubtitlesFile (a Subtitles, as PathSubtitles answers them) and its poster as "poster" with the image's extension. A film the desktop shares the lines of alone has no video there: one whose video the user keeps off the bucket to save room, one cleaned up after it was watched, or one that keeps no video at all; a phone shows and studies its lines and says the video is on the computer. The objects are not sealed, so the system player streams the video from its link; their names are random, and only the links in a phone's state.json reach them.
 //
-// Links. The desktop presigns a GET link for each file, good for RelayURLLifetime, and signs it anew once it is RelayRegrant old, as it does a grant, so a phone that reads its state.json holds links that are good for days; between two signings a state.json lists the same links and is not written again for them. A link reaches its file whoever holds it, so every phone is given the same.
+// Links. The desktop presigns a GET link for each file, good for RelayURLLifetime (or until the bucket's short-lived key lapses, Relay.LinksUntil), and signs it anew once it is RelayRegrant old or half its life is spent, as it does a grant, so a phone that reads its state.json holds links that are good for days; between two signings a state.json lists the same links and is not written again for them. A link reaches its file whoever holds it, so every phone is given the same.
 //
 // The phone. RelayFilms reads a film's lines, poster and video by these links as Client reads them on the local network, the video by ranges, so a download that stopped goes on from where it stopped.
 
@@ -57,10 +57,10 @@ type RelayFilmFiles struct {
 	Video, Subtitles, Poster string
 }
 
-// filmLink is a presigned link to a film's file, and when it was signed.
+// filmLink is a presigned link to a film's file, when it was signed and when it lapses.
 type filmLink struct {
-	url    string
-	minted time.Time
+	url             string
+	minted, expires time.Time
 }
 
 // shelf is what Films gives, as the phones' state.json lists it, nil when it gives nothing: the links of the files, each signed anew once it is RelayRegrant old. It is called on Run's goroutine.
@@ -77,6 +77,8 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 	signed := r.filmLinks
 	r.mu.Unlock()
 	kept := map[string]filmLink{}
+	// life is how long a link signed in this turn stays good, asked once, at the first link signed (linkLife).
+	var life time.Duration
 	link := func(name string) (string, error) {
 		if name == "" {
 			return "", nil
@@ -84,15 +86,21 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 		if l, ok := kept[name]; ok {
 			return l.url, nil
 		}
-		if l, ok := signed[name]; ok && now.Sub(l.minted) < RelayRegrant {
+		if l, ok := signed[name]; ok && now.Sub(l.minted) < RelayRegrant && !halfSpent(l.minted, l.expires, now) {
 			kept[name] = l
 			return l.url, nil
 		}
-		u, err := r.Bucket.PresignGet(ctx, r.Prefix+name, RelayURLLifetime)
+		if life == 0 {
+			var err error
+			if life, err = r.linkLife(ctx, now); err != nil {
+				return "", err
+			}
+		}
+		u, err := r.Bucket.PresignGet(ctx, r.Prefix+name, life)
 		if err != nil {
 			return "", err
 		}
-		kept[name] = filmLink{url: u, minted: now}
+		kept[name] = filmLink{url: u, minted: now, expires: now.Add(life)}
 		return u, nil
 	}
 	out := &RelayShelf{Libraries: append([]Library{}, files.Libraries...), Films: []RelayFilm{}}
