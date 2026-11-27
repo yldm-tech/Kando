@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/mobile/store"
+
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -111,4 +113,23 @@ func TestScreenshotsPlayerFullScreenWide(t *testing.T) {
 	p.app.WaitFor("id:player-fullscreen-exit", wait)
 	settle(p)
 	shot(p, "player-fullscreen-small-16x9")
+}
+
+// A film streamed from its computer, minimized: the mini player shows the poster its computer gives, as the film's page does.
+func TestScreenshotsPlayerMiniStreamed(t *testing.T) {
+	shot := screenshots(t)
+	d := storeDesktop(t)
+	dir := t.TempDir()
+	studyNoted(t, dir)
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(402, 874))
+	row := talkRow(store.DesktopID(d.Fingerprint))
+	p.app.WaitFor(row, wait)
+	p.app.Press(row)
+	p.app.WaitFor("id:film-stream", wait)
+	p.app.Press("id:film-stream")
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	settle(p)
+	shot(p, "player-mini-streamed")
 }
