@@ -14,3 +14,20 @@ func TestFirstLinkIsTheVideoLinkInSharedText(t *testing.T) {
 		}
 	}
 }
+
+func TestSharedTakesTheFirstLinkAmongTheTexts(t *testing.T) {
+	for _, c := range []struct {
+		in   []string
+		want string
+	}{
+		{[]string{"Never Gonna Give You Up", "https://youtu.be/abc"}, "https://youtu.be/abc"},
+		{[]string{"Title https://youtu.be/abc", "https://youtu.be/def"}, "https://youtu.be/abc"},
+		{[]string{"  ", "no link here", "other words"}, "no link here"},
+		{[]string{" "}, ""},
+		{nil, ""},
+	} {
+		if got := Shared(c.in); got != c.want {
+			t.Errorf("Shared(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

@@ -27,11 +27,15 @@ apple:
   # Settings › Offline Films shows the films' share of the device and about how much of it is free (session/space.go, NSGo's Scope.DiskSpace), which Apple lets an app read only with a reason in its privacy manifest: 85F4.1, to show the user the space. The reading stays on the device.
   privacy:
     accessed_apis: { NSPrivacyAccessedAPICategoryDiskSpace: [85F4.1] }
+  # Kando in the share sheet of YouTube, Safari, Bilibili and any app that shares a link or text: nsgo build puts a share extension (<id>.share, NSGoShare.appex) into the iOS package, which takes a share whose every attachment is one of these and keeps it in the app group (group.<id>, the widgets' too) until the app is next active, when mobile.OnShared hands it to the Add sheet (share.go). It is signed with its own provisioning profile (sign.share_profile, -share-profile), which grants that app group.
+  share_types: [public.url, public.plain-text]
 # Android: the runtime's manifest asks for INTERNET, which the app reaches the computer with; HTTPS to the computer needs no cleartext exception, plain HTTP to the phone's own loopback server does (loopback_cleartext). CAMERA lets the pairing page read the computer's QR code from the camera's live picture (Scope.ScanCode, which NSGo offers on Android only to an app whose manifest lists it); Android asks the user for it the first time the page scans. POST_NOTIFICATIONS lets the daily review reminder (session/learning.go) ask to show notifications from Android 13, where the system refuses an app whose manifest does not list it. No target_sdk: the runtime's own targetSdkVersion (API 36 since NSGo's bump in #441) is the level Google Play requires of new apps and updates, and nsgo build refuses a lower one for a store build.
 android:
   permissions: [CAMERA, POST_NOTIFICATIONS]
   # The player plays a film the computer is still making from the phone's loopback server, over plain HTTP, which Android refuses from API 28 unless the app's network security policy allows it; this allows it to loopback alone, every other host staying HTTPS only.
   loopback_cleartext: true
+  # Kando in the share sheet: the launcher takes Android's SEND of text, as YouTube and Chrome share a link, which mobile.OnShared hands to the Add sheet (share.go).
+  share_types: [text/plain]
 
 # Kando's own modules of go.work, which nsgo build checks as third-party dependencies when it collects the license notices; core passes only because it embeds a third-party license file (the segmenter's dictionary).
 # TODO(nsgo#1814): nsgo build counts a go.work module (Module.Main) as a third-party dependency, so one with no recognized license file stops the build; drop this list once it counts them as the app's own https://github.com/nsgo-dev/nsgo/issues/1814

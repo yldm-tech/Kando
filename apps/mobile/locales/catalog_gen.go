@@ -985,6 +985,7 @@ const (
 	textAddLinkPlaceholder
 	textAddNotALink
 	textAddPaste
+	textAddSharedFile
 	textAddQuality
 	textAddQuality720
 	textAddQualityBest
@@ -1633,6 +1634,7 @@ var keyOfText = [numTexts]string{
 	"addLinkPlaceholder",
 	"addNotALink",
 	"addPaste",
+	"addSharedFile",
 	"addQuality",
 	"addQuality720",
 	"addQualityBest",
@@ -2279,6 +2281,7 @@ var textsEn = i18n.NewTexts(""+
 	"Paste a YouTube, Bilibili or other link"+
 	"This isn't a link to a video on the web."+
 	"Paste"+
+	"Kando takes links to videos. Share the video's link instead."+
 	"Save"+
 	"720P"+
 	"Best quality"+
@@ -2922,6 +2925,7 @@ var textsEn = i18n.NewTexts(""+
 		39,
 		40,
 		5,
+		60,
 		4,
 		4,
 		12,
@@ -3568,6 +3572,7 @@ var textsJa = i18n.NewTexts(""+
 	"YouTube や bilibili などのリンクを貼り付け"+
 	"Web 上の動画のリンクではありません。"+
 	"貼り付け"+
+	"Kando が受け取れるのは動画のリンクだけです。動画のリンクを共有してください。"+
 	"保存"+
 	"720P"+
 	"最高画質"+
@@ -4211,6 +4216,7 @@ var textsJa = i18n.NewTexts(""+
 		54,
 		52,
 		12,
+		111,
 		6,
 		4,
 		12,
@@ -4857,6 +4863,7 @@ var textsKo = i18n.NewTexts(""+
 	"YouTube, bilibili 등의 링크 붙여넣기"+
 	"웹 동영상 링크가 아닙니다."+
 	"붙여넣기"+
+	"Kando는 동영상 링크만 받습니다. 동영상 링크를 공유해 주세요."+
 	"저장"+
 	"720P"+
 	"최고 화질"+
@@ -5500,6 +5507,7 @@ var textsKo = i18n.NewTexts(""+
 		44,
 		37,
 		12,
+		83,
 		6,
 		4,
 		13,
@@ -6146,6 +6154,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"粘贴 YouTube、哔哩哔哩等链接"+
 	"这不是网上视频的链接。"+
 	"粘贴"+
+	"看懂只接收视频链接，请改为分享视频的链接。"+
 	"保存"+
 	"720P"+
 	"最高画质"+
@@ -6789,6 +6798,7 @@ var textsZhHans = i18n.NewTexts(""+
 		38,
 		33,
 		6,
+		63,
 		6,
 		4,
 		12,
@@ -7435,6 +7445,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"貼上 YouTube、嗶哩嗶哩等連結"+
 	"這不是網路影片的連結。"+
 	"貼上"+
+	"看懂只接收影片連結，請改為分享影片的連結。"+
 	"儲存"+
 	"720P"+
 	"最高畫質"+
@@ -8078,6 +8089,7 @@ var textsZhHant = i18n.NewTexts(""+
 		38,
 		33,
 		6,
+		63,
 		6,
 		4,
 		12,
@@ -9756,6 +9768,15 @@ func AddPaste(cx *core.Scope) string { return For(cx).AddPaste() }
 
 // AddPaste is the package's AddPaste in the language of msgs.
 func (msgs Messages) AddPaste() string { return msgs.text(textAddPaste) }
+
+// AddSharedFile says "Kando takes links to videos. Share the video's link instead."
+// in the language the app shows under cx.
+//
+// Toast when another app shares only a file, such as a picture or a video file, to the app, which takes links alone.
+func AddSharedFile(cx *core.Scope) string { return For(cx).AddSharedFile() }
+
+// AddSharedFile is the package's AddSharedFile in the language of msgs.
+func (msgs Messages) AddSharedFile() string { return msgs.text(textAddSharedFile) }
 
 // AddQuality says "Save"
 // in the language the app shows under cx.

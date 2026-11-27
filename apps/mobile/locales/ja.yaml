@@ -11,6 +11,7 @@ addNoteOffline: "{name} はオフラインです。リンクはこのスマー�
 addNoteOfflineRelay: "{name} はオフラインです。リンクはストレージで待機し、オンラインになると開始されます。"
 addNoteRelay: "同じネットワークにいないので、リンクはストレージ経由で {name} に届きます。1〜2 分ほどで処理が始まります。"
 addPaste: "貼り付け"
+addSharedFile: "Kando が受け取れるのは動画のリンクだけです。動画のリンクを共有してください。"
 addQuality: "保存"
 addQuality720: "720P"
 addQualityBest: "最高画質"

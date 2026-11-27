@@ -11,6 +11,7 @@ addNoteOffline: "{name}이(가) 오프라인입니다. 링크는 이 휴대폰�
 addNoteOfflineRelay: "{name}이(가) 오프라인입니다. 링크는 스토리지에서 기다렸다가 다시 연결되면 시작됩니다."
 addNoteRelay: "같은 네트워크에 없어 링크가 스토리지를 거쳐 {name}에 전달됩니다. 1~2분 안에 처리가 시작됩니다."
 addPaste: "붙여넣기"
+addSharedFile: "Kando는 동영상 링크만 받습니다. 동영상 링크를 공유해 주세요."
 addQuality: "저장"
 addQuality720: "720P"
 addQualityBest: "최고 화질"
