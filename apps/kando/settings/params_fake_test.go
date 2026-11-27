@@ -1,8 +1,11 @@
 package settings
 
-import "kando/packages/media"
+import (
+	"kando/apps/kando/aiusage"
+	"kando/packages/media"
+)
 
-// The fake's reads and writes of the settings this file's pages add: the AI requests, the context lines, the speech parameters, the appearance and the shortcut preset.
+// The fake's reads and writes of the settings this file's pages add: the AI requests and usage, the context lines, the speech parameters, the appearance and the shortcut preset.
 
 func (f *fakeApp) LLMBatchSize() int {
 	if f.batchSize == 0 {
@@ -19,6 +22,8 @@ func (f *fakeApp) LLMRetries() int {
 }
 
 func (f *fakeApp) SetLLMRequests(size, retries int) { f.batchSize, f.retries = size, &retries }
+
+func (f *fakeApp) AIUsage() aiusage.Month { return f.usage }
 
 func (f *fakeApp) TranslateContextLines() int {
 	if f.contextLines == 0 {

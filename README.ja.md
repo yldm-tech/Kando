@@ -323,7 +323,7 @@ go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 ap
 
 ## CI とリリース
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、Developer ID やコード署名証明書なしで macOS、Windows、Linux 向けのパッケージをビルドし、インストール済みの Kando がダウンロードするアップデートに署名して、パッケージにチェックサムを添えて GitHub のリリースを公開します。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、macOS、Windows、Linux 向けのパッケージをビルドし（macOS 用は Developer ID で署名して Apple の公証を受け、Windows 用は Certum のコード署名証明書で署名します）、インストール済みの Kando がダウンロードするアップデートに署名して、パッケージにチェックサムを添えて GitHub のリリースを公開します。
 
 ## ライセンス
 

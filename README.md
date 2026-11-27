@@ -314,7 +314,7 @@ Repository layout:
 
 ## CI and releases
 
-The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the packages and their checksums.
+The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux, the macOS ones signed with a Developer ID and notarized by Apple and the Windows ones signed with a Certum code signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the packages and their checksums.
 
 ## License
 

@@ -93,7 +93,7 @@
   "dlLinuxNote": "Debian、Ubuntu 也可以下载 .deb，用 apt 安装。",
   "dlLinuxButton": "x86-64 的 .deb",
   "dlLinuxArm": "ARM64 的 .deb",
-  "dlWinBody": "大多数电脑下载 x64 的安装程序，ARM 处理器的 Windows 电脑下载 arm64 的，下载后运行即可。安装程序暂时没有签名，如果 SmartScreen 弹出警告，点“更多信息”，再点“仍要运行”。",
+  "dlWinBody": "大多数电脑下载 x64 的安装程序，ARM 处理器的 Windows 电脑下载 arm64 的，下载后运行即可。安装程序已签名，但证书刚开始使用、还没有积累信誉时，SmartScreen 仍可能在运行前弹出警告：点“更多信息”，再点“仍要运行”。",
   "dlWinButton": "下载 Windows 版",
   "dlWinArm": "ARM 版",
   "dlWinNote": "在 Windows 上，yt-dlp、ffmpeg 和 whisper-cli 暂时不会自动下载，请用包管理器装好，并放进 PATH。",

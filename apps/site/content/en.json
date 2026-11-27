@@ -93,7 +93,7 @@
   "dlLinuxNote": "On Debian and Ubuntu you can also install the .deb with apt.",
   "dlLinuxButton": ".deb for x86-64",
   "dlLinuxArm": ".deb for ARM64",
-  "dlWinBody": "Download the x64 installer for most PCs, or the arm64 one for a Windows on Arm PC, and run it. It isn't signed yet, so if SmartScreen warns, choose More info, then Run anyway.",
+  "dlWinBody": "Download the x64 installer for most PCs, or the arm64 one for a Windows on Arm PC, and run it. It is signed, but while its certificate is new to SmartScreen, SmartScreen may warn before it runs: choose More info, then Run anyway.",
   "dlWinButton": "Download for Windows",
   "dlWinArm": "ARM64",
   "dlWinNote": "On Windows Kando doesn't download yt-dlp, ffmpeg and whisper-cli yet: install them with a package manager and put them on your PATH.",

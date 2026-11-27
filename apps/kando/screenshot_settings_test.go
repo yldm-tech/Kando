@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/aiusage"
 	"kando/apps/kando/browserext"
 	"kando/apps/kando/clitool"
 	"kando/apps/kando/hotkey"
@@ -65,6 +66,12 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})
+	// The end of AI 服务: 本月用量 with every pass but term suggestions, the plugins' estimated as their service said no usage; the plugins' row and the 80 requests are checked headless too.
+	usage := testlocale.Messages()
+	shootSettingsAt(t, f, settings.SectionAI, "settings-ai-usage", shown, models, turbo, true, []string{
+		"exists:id:settings-aiusage-plugin >> " + whole(usage.AiusageTokensEstimated(3*(2200+540))),
+		"exists:id:settings-aiusage-requests >> " + whole(usage.AiusageRequestsCount(80)),
+	}, shotAIUsage)
 	// The end of 语音识别, with Japanese named as the language spoken in the videos.
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-language", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -174,6 +181,27 @@ func shotBrowserExt(a *app, connected bool) {
 	}
 }
 
+// shotAIUsage counts a month of requests in the ledger, at a fixed date, as the meter would have: translations, proofreading and the final proofread through EveryAPI, questions to a service on this computer, and plugins' requests whose service said no usage.
+func shotAIUsage(a *app) {
+	a.aiusage.now = func() time.Time { return time.Date(2026, 11, 20, 12, 0, 0, 0, time.Local) }
+	month := aiusage.MonthOf(a.aiusage.now())
+	for range 42 {
+		a.aiusage.ledger.Add(month, media.PassTranslate, "api.everyapi.ai", 3120, 1480, false)
+	}
+	for range 18 {
+		a.aiusage.ledger.Add(month, media.PassProofread, "api.everyapi.ai", 2650, 610, false)
+	}
+	for range 6 {
+		a.aiusage.ledger.Add(month, media.PassReview, "api.everyapi.ai", 9800, 1200, false)
+	}
+	for range 11 {
+		a.aiusage.ledger.Add(month, media.PassChat, "localhost", 1400, 380, false)
+	}
+	for range 3 {
+		a.aiusage.ledger.Add(month, media.PassPlugin, "api.everyapi.ai", 2200, 540, true)
+	}
+}
+
 // shotSignIn shows Chrome, Firefox and Safari on the computer, with browser chosen in 浏览器登录 and its check finished with trouble, as the app's own check would leave them.
 func shotSignIn(a *app, browser string, trouble media.LoginTrouble) {
 	a.queue.ytdlp.browsers = []media.Browser{media.Browsers[0], media.Browsers[1], media.Browsers[5]}
@@ -204,7 +232,7 @@ func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, sh
 	shootSettingsAt(t, f, section, name, shown, models, turbo, true, nil, setup...)
 }
 
-// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead.
+// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead, and one "exists:<selector>" only checks that it is on the page.
 func shootSettingsPressed(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, press []string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, press, setup...)
@@ -249,6 +277,13 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			if scroll, ok := strings.CutPrefix(selector, "scroll-end:"); ok {
 				tt.Scroll(scroll, 4000)
 				refresh(tt, a)
+				continue
+			}
+			// "exists:<selector>" only checks that the selector is on the page, so a scene fails headless when what it shows is missing.
+			if check, ok := strings.CutPrefix(selector, "exists:"); ok {
+				if !tt.Exists(check) {
+					t.Fatalf("nothing at %s; texts %q", check, tt.Texts())
+				}
 				continue
 			}
 			if !tt.Exists(selector) {

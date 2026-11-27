@@ -93,7 +93,7 @@
   "dlLinuxNote": "Debian や Ubuntu では .deb を apt でインストールすることもできます。",
   "dlLinuxButton": "x86-64 用 .deb",
   "dlLinuxArm": "ARM64 用 .deb",
-  "dlWinBody": "ほとんどの PC は x64、Arm 版 Windows の PC は arm64 のインストーラーをダウンロードして実行します。まだ署名していないため、SmartScreen の警告が出たら「詳細情報」から「実行」を選んでください。",
+  "dlWinBody": "ほとんどの PC は x64、Arm 版 Windows の PC は arm64 のインストーラーをダウンロードして実行します。署名済みですが、証明書の信頼がまだ SmartScreen に蓄積されていないうちは、実行前に警告が出ることがあります。「詳細情報」から「実行」を選んでください。",
   "dlWinButton": "Windows 版をダウンロード",
   "dlWinArm": "ARM 版",
   "dlWinNote": "Windows では yt-dlp、ffmpeg、whisper-cli をまだ自動でダウンロードしないので、パッケージマネージャーで入れて PATH に置いてください。",
