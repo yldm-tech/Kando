@@ -160,8 +160,11 @@ func TestBudgetIsAskedBeforeARenewedKeyResend(t *testing.T) {
 			return Endpoint{BaseURL: srv.URL, APIKey: "fresh"}, nil
 		}}
 	for name, run := range map[string]func() error{
-		"chat":      func() error { _, err := tr.ChatWith(context.Background(), ChatRequest{User: "hello"}); return err },
-		"translate": func() error { _, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}}, "English"); return err },
+		"chat": func() error { _, err := tr.ChatWith(context.Background(), ChatRequest{User: "hello"}); return err },
+		"translate": func() error {
+			_, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}}, "English")
+			return err
+		},
 	} {
 		sent.Store(0)
 		renewed.Store(0)
