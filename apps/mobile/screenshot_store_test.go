@@ -102,9 +102,15 @@ func storeWords(due time.Time) []sync.Record {
 // storeKeep puts the talk from d on the phone in dir, downloaded with its poster and left at at, and days of watching behind it.
 func storeKeep(t *testing.T, d *synctest.Desktop, dir string, at time.Duration) store.Film {
 	t.Helper()
+	return storeKeepVideo(t, d, dir, at, "talk.mp4")
+}
+
+// storeKeepVideo is storeKeep with the video of testdata/store named asset, as talk-portrait.mp4, the talk cut to an upright 9:16 picture.
+func storeKeepVideo(t *testing.T, d *synctest.Desktop, dir string, at time.Duration, asset string) store.Film {
+	t.Helper()
 	st := store.Open(dir)
 	film := storeTalk
-	video := storeAsset(t, "talk.mp4")
+	video := storeAsset(t, asset)
 	film.VideoSize = int64(len(video))
 	f := store.Film{Desktop: store.DesktopID(d.Fingerprint), Library: "Japanese", Video: "video.mp4", Poster: "poster.jpg", Added: now(), PositionMS: at.Milliseconds(), Film: film}
 	if err := st.SaveFilm(f); err != nil {
