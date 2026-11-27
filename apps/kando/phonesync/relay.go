@@ -1,6 +1,7 @@
 package phonesync
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -15,22 +16,23 @@ import (
 // forgetTimeout is how long unpairing a phone waits for the store to delete its folders.
 const forgetTimeout = time.Minute
 
-// relayEvery and relayMinWrite are how often the relay polls the inboxes and the least time between two of its turns (psync.Relay's Every and MinWrite). Tests shorten them.
+// relayEvery and relayMinWrite are how often the relay polls the inboxes, unless Config.RelayEvery says otherwise, and the least time between two of its turns (psync.Relay's Every and MinWrite). Tests shorten them.
 var relayEvery, relayMinWrite = psync.RelayPoll, psync.RelayMinWrite
 
 // startRelay starts the relay in bucket, under the folder named by the certificate's fingerprint, until Close. Start calls it before the server listens, as the handlers read s.relay and s.desk.Relay.
 func (s *Server) startRelay(bucket psync.RelayBucket) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.relay = &psync.Relay{
-		Bucket:   bucket,
-		Prefix:   psync.RelayPrefix(s.fingerprint),
-		Desk:     s.desk,
-		Devices:  s.devices.relayDevices,
-		Now:      s.cfg.Now,
-		Logf:     s.cfg.Logf,
-		Every:    relayEvery,
-		MinWrite: relayMinWrite,
-		Health:   s.cfg.RelayHealth,
+		Bucket:     bucket,
+		Prefix:     psync.RelayPrefix(s.fingerprint),
+		Desk:       s.desk,
+		Devices:    s.devices.relayDevices,
+		Now:        s.cfg.Now,
+		Logf:       s.cfg.Logf,
+		Every:      cmp.Or(s.cfg.RelayEvery, relayEvery),
+		MinWrite:   relayMinWrite,
+		Health:     s.cfg.RelayHealth,
+		LinksUntil: s.cfg.RelayLinksUntil,
 	}
 	s.desk.Relay = relayJoiner{s}
 	s.done.Add(1)
