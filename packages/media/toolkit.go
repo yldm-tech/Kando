@@ -2,6 +2,7 @@ package media
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -17,9 +18,9 @@ import (
 	"strings"
 )
 
-// Kit is a program Kando downloads for itself when the computer does not have it: yt-dlp from its own releases, ffmpeg and whisper-cli from the Tools workflow's release (.github/workflows/tools.yml). Each lives in a folder of its own under OwnToolsDir, named by ID.
+// Kit is a program Kando downloads for itself when the computer does not have it: yt-dlp from its own releases, ffmpeg and whisper-cli from the Tools workflow's release (.github/workflows/tools.yml), and Deno, the JavaScript runtime yt-dlp solves YouTube's challenges with (Tools.Deno), from Deno's own releases. Each lives in a folder of its own under OwnToolsDir, named by ID.
 type Kit struct {
-	// ID is the kit's folder: "yt-dlp", "ffmpeg" or "whisper".
+	// ID is the kit's folder: "yt-dlp", "ffmpeg", "whisper" or "deno".
 	ID string
 	// Program is the program Kando runs from the folder, as lookTool names it.
 	Program string
@@ -29,8 +30,9 @@ type Kit struct {
 	SHA256 string
 	// Size is how many bytes URL serves, for the progress shown before the server says.
 	Size int64
-	// Archive is set for a .tar.gz unpacked into the folder; otherwise URL serves the program itself.
+	// Archive is set for a .tar.gz unpacked into the folder, and Zip for a .zip, as Deno publishes its builds; with neither URL serves the program itself.
 	Archive bool
+	Zip     bool
 	// Fallback is set for a kit Kando runs only when the computer has no copy of the program that works, and downloads only then. Without it the kit is Kando's own copy of choice: downloaded even when the computer has one, and run before it (Candidates), so a package manager that upgrades what the computer's copy is built on cannot break Kando. On Linux, ffmpeg and whisper-cli are fallbacks: the distribution's packages keep their libraries in step, the computer's ffmpeg usually encodes H.264 (libx264) where the kit's LGPL build may not, and its whisper-cli may run on the graphics card where the kit's runs on the processor.
 	Fallback bool
 	// Updates is set for a kit whose program updates itself in place, as the standalone yt-dlp does with -U: a later Version of the kit does not replace it, as it may be older than what the program updated itself to.
@@ -44,35 +46,43 @@ var OwnToolsDir string
 const toolsRelease = "https://github.com/yldm-tech/Kando/releases/download/tools-1/"
 
 const (
-	ytdlpVersion   = "2026.10.26"
+	ytdlpVersion   = "2026.11.23"
 	ffmpegVersion  = "9.0.2"
 	whisperVersion = "1.9.5"
+	denoVersion    = "2.9.8"
 )
 
 // ytdlpRelease is the yt-dlp release the kit starts from. Once downloaded it is the standalone build, which 更新并重试 updates in place with -U (FindYTDLPInstall).
 const ytdlpRelease = "https://github.com/yt-dlp/yt-dlp/releases/download/" + ytdlpVersion + "/"
 
+// denoRelease is the Deno release the deno kit is. YouTube serves its videos' addresses only to a client that solves a challenge in JavaScript, which yt-dlp hands to a JavaScript runtime with the solver scripts its standalone build carries (https://github.com/yt-dlp/yt-dlp/wiki/EJS); a signed-in download, which yt-dlp asks of YouTube's web clients, finds no formats without it. Deno is the runtime yt-dlp enables by default. The kit is a fallback: the computer's Deno, as Homebrew's, is run when there is one.
+const denoRelease = "https://github.com/denoland/deno/releases/download/v" + denoVersion + "/"
+
 // kits is every kit by platform, as GOOS-GOARCH. A platform not listed, such as Windows, gets none, and its user installs the programs.
 var kits = map[string][]Kit{
 	"darwin-arm64": {
-		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_macos", SHA256: "0f922c15ccc0b83eefa1c8bc9104e434318c4bf16e408e1ee93b7745a6efe0aa", Size: 37466304, Updates: true},
+		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_macos", SHA256: "57654854886d0398a798895aadf5173e2749fbb5e249b9f3728022ab376e11fb", Size: 37478576, Updates: true},
 		{ID: "ffmpeg", Program: "ffmpeg", Version: ffmpegVersion, URL: toolsRelease + "ffmpeg-" + ffmpegVersion + "-darwin-arm64.tar.gz", SHA256: "4f5b8adcee835fc19730d0825bfb08d0571275d64299794096c6a62fea481b02", Size: 21843581, Archive: true},
 		{ID: "whisper", Program: "whisper-cli", Version: whisperVersion, URL: toolsRelease + "whisper-" + whisperVersion + "-darwin-arm64.tar.gz", SHA256: "68c198fe26d55f9e896b3954b44331a09217eae0688e9c476344735f86ffde5b", Size: 2076700, Archive: true},
+		{ID: "deno", Program: "deno", Version: denoVersion, URL: denoRelease + "deno-aarch64-apple-darwin.zip", SHA256: "9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e", Size: 38770795, Zip: true, Fallback: true},
 	},
 	"darwin-amd64": {
-		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_macos", SHA256: "0f922c15ccc0b83eefa1c8bc9104e434318c4bf16e408e1ee93b7745a6efe0aa", Size: 37466304, Updates: true},
+		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_macos", SHA256: "57654854886d0398a798895aadf5173e2749fbb5e249b9f3728022ab376e11fb", Size: 37478576, Updates: true},
 		{ID: "ffmpeg", Program: "ffmpeg", Version: ffmpegVersion, URL: toolsRelease + "ffmpeg-" + ffmpegVersion + "-darwin-amd64.tar.gz", SHA256: "a4039acf7c791771ea69833f210e81206741e866be194b5af8b482e5e61215a9", Size: 24730159, Archive: true},
 		{ID: "whisper", Program: "whisper-cli", Version: whisperVersion, URL: toolsRelease + "whisper-" + whisperVersion + "-darwin-amd64.tar.gz", SHA256: "7fbb244309fa704bd9f9b4d60d9544372545ea5faa3d1bf05220593432912ae0", Size: 2367533, Archive: true},
+		{ID: "deno", Program: "deno", Version: denoVersion, URL: denoRelease + "deno-x86_64-apple-darwin.zip", SHA256: "4b2f5edd2639b7470f034238b321d7002d8dfb4726d8558f52c17afac370eb2c", Size: 42797031, Zip: true, Fallback: true},
 	},
 	"linux-amd64": {
-		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_linux", SHA256: "767ba9dce7052aa196f8b12652f433d76de128ba168966fa84b6394d5e6c6795", Size: 41166968, Updates: true},
+		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_linux", SHA256: "249ddb058234276bc449b9cd9492aad9f133bda5923c61a9e39983ae114ef17d", Size: 41184064, Updates: true},
 		{ID: "ffmpeg", Program: "ffmpeg", Version: ffmpegVersion, URL: toolsRelease + "ffmpeg-" + ffmpegVersion + "-linux-amd64.tar.gz", SHA256: "c8c7c08510b22177854931c685a83fe24188b6f0eaff831c3aaddd3fef8743a3", Size: 58572283, Archive: true, Fallback: true},
 		{ID: "whisper", Program: "whisper-cli", Version: whisperVersion, URL: toolsRelease + "whisper-" + whisperVersion + "-linux-amd64.tar.gz", SHA256: "852ec0ed30acda5ab8be6f9e821d3a49f9a5dd1387de9d63a9d0c3a7ecf4a7b3", Size: 7272399, Archive: true, Fallback: true},
+		{ID: "deno", Program: "deno", Version: denoVersion, URL: denoRelease + "deno-x86_64-unknown-linux-gnu.zip", SHA256: "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609", Size: 41963064, Zip: true, Fallback: true},
 	},
 	"linux-arm64": {
-		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_linux_aarch64", SHA256: "e87e9533e89fe5889abaa21f5114dfe7756d6aa6219b83551add04d48b18e483", Size: 40789792, Updates: true},
+		{ID: "yt-dlp", Program: "yt-dlp", Version: ytdlpVersion, URL: ytdlpRelease + "yt-dlp_linux_aarch64", SHA256: "fb847a2e4a9ddc8cf5fcfb4bb7f42ba8969ecf72068def0278074f9d300bd13c", Size: 40807480, Updates: true},
 		{ID: "ffmpeg", Program: "ffmpeg", Version: ffmpegVersion, URL: toolsRelease + "ffmpeg-" + ffmpegVersion + "-linux-arm64.tar.gz", SHA256: "2a5a384c8e79e97e0f35b7915ce7d81295bf3168230aaab26dd3946655f68c79", Size: 53741884, Archive: true, Fallback: true},
 		{ID: "whisper", Program: "whisper-cli", Version: whisperVersion, URL: toolsRelease + "whisper-" + whisperVersion + "-linux-arm64.tar.gz", SHA256: "7273286ed3ba373477e394609a9856482a67c588829f09a349888bec2fb8ac71", Size: 1172279, Archive: true, Fallback: true},
+		{ID: "deno", Program: "deno", Version: denoVersion, URL: denoRelease + "deno-aarch64-unknown-linux-gnu.zip", SHA256: "d49596c20b9788cf8f5d8ddf644103d4bde56ed239753f0bdb92ba9361d51905", Size: 40120596, Zip: true, Fallback: true},
 	},
 }
 
@@ -174,11 +184,16 @@ func InstallKit(ctx context.Context, kit Kit, dir string, progress func(written,
 		return "", err
 	}
 	unpacked := filepath.Join(staging, kit.ID)
-	if kit.Archive {
+	switch {
+	case kit.Archive:
 		if err := untarGz(download, unpacked); err != nil {
 			return "", fmt.Errorf("%s: %w", kit.ID, err)
 		}
-	} else {
+	case kit.Zip:
+		if err := unzipTo(download, unpacked); err != nil {
+			return "", fmt.Errorf("%s: %w", kit.ID, err)
+		}
+	default:
 		if err := os.Mkdir(unpacked, 0o755); err != nil {
 			return "", err
 		}
@@ -235,7 +250,7 @@ func fetchChecked(ctx context.Context, kit Kit, dest string, progress func(writt
 	return nil
 }
 
-// errUnsafeEntry is untarGz's error for an entry that is not a plain file or folder inside the archive.
+// errUnsafeEntry is the unpackers' error for an entry that is not a plain file or folder inside the archive.
 var errUnsafeEntry = errors.New("archive entry outside its folder")
 
 // untarGz unpacks the regular files and folders of the .tar.gz at src into dir, keeping whether each file may run.
@@ -262,42 +277,99 @@ func untarGz(src, dir string) error {
 		if err != nil {
 			return err
 		}
-		name := path.Clean(strings.TrimPrefix(h.Name, "./"))
-		if name == "." {
+		target, skip, err := entryTarget(dir, h.Name)
+		if err != nil {
+			return err
+		}
+		if skip {
 			continue
 		}
-		// filepath.IsLocal judges the name as this system reads paths. On Windows a backslash is a separator too, so ..\evil, which a check of slashes alone let through and filepath.Join put beside dir, is refused, as are names with a drive letter or a reserved device name such as NUL.
-		local := filepath.FromSlash(name)
-		if !filepath.IsLocal(local) {
-			return fmt.Errorf("%w: %s", errUnsafeEntry, h.Name)
-		}
-		target := filepath.Join(dir, local)
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0o755); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			mode := os.FileMode(0o644)
-			if h.Mode&0o111 != 0 {
-				mode = 0o755
-			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(out, tr); err != nil {
-				out.Close()
-				return err
-			}
-			if err := out.Close(); err != nil {
+			if err := writeEntry(target, tr, h.Mode&0o111 != 0); err != nil {
 				return err
 			}
 		default:
 			return fmt.Errorf("%w: %s", errUnsafeEntry, h.Name)
 		}
 	}
+}
+
+// unzipTo unpacks the regular files and folders of the .zip at src into dir, keeping whether each file may run, as untarGz does a .tar.gz.
+func unzipTo(src, dir string) error {
+	zr, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for _, f := range zr.File {
+		target, skip, err := entryTarget(dir, f.Name)
+		if err != nil {
+			return err
+		}
+		if skip {
+			continue
+		}
+		mode := f.Mode()
+		switch {
+		case mode.IsDir():
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return err
+			}
+		case mode.IsRegular():
+			r, err := f.Open()
+			if err != nil {
+				return err
+			}
+			err = writeEntry(target, r, mode&0o111 != 0)
+			r.Close()
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("%w: %s", errUnsafeEntry, f.Name)
+		}
+	}
+	return nil
+}
+
+// entryTarget is where an archive's entry called name goes under dir; skip is set for the archive's own top folder ("." or "./"). A name that would go outside dir is errUnsafeEntry.
+func entryTarget(dir, name string) (target string, skip bool, err error) {
+	clean := path.Clean(strings.TrimPrefix(name, "./"))
+	if clean == "." {
+		return "", true, nil
+	}
+	// filepath.IsLocal judges the name as this system reads paths. On Windows a backslash is a separator too, so ..\evil, which a check of slashes alone let through and filepath.Join put beside dir, is refused, as are names with a drive letter or a reserved device name such as NUL.
+	local := filepath.FromSlash(clean)
+	if !filepath.IsLocal(local) {
+		return "", false, fmt.Errorf("%w: %s", errUnsafeEntry, name)
+	}
+	return filepath.Join(dir, local), false, nil
+}
+
+// writeEntry writes a regular file of an archive to target, which must not be there yet, as one that may run when executable is set.
+func writeEntry(target string, r io.Reader, executable bool) error {
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	if executable {
+		mode = 0o755
+	}
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, r); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

@@ -1636,6 +1636,43 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	}
 }
 
+// A download yt-dlp could not make for want of a JavaScript runtime is not an outdated yt-dlp: its card offers 下载 Deno 并重试 where Kando downloads its own Deno, says while it downloads, and runs the download again once it is in; where Kando downloads none it says how to install Deno and offers 重试.
+func TestNoJSRuntimeCardDownloadsDenoAndRetries(t *testing.T) {
+	a, tt, updates := newTestApp(t, media.Tools{})
+	film := failedJob(t, a, "https://youtu.be/jNQXAC9IVRw", core.FailNoJSRuntime, "chrome")
+	r, ok := a.FailureRemedy(film)
+	if !ok || r.Headline != "YouTube 要用 JavaScript 运行环境才能下载" || r.Why != "yt-dlp 要用 Deno 通过网站的校验，本机还没有。从 deno.com 安装 Deno 后重试。" ||
+		strings.Join(remedyLabels(r), ",") != "重试" || r.Actions[0].ID != remedyRedetectRetry {
+		t.Fatalf("without a Deno to download: %+v", r)
+	}
+
+	release := make(chan struct{})
+	fakeKits(t, a, release)
+	r, _ = a.FailureRemedy(film)
+	if r.Why != "yt-dlp 要用 Deno 通过网站的校验，本机还没有，看懂可以帮你下载。" || strings.Join(remedyLabels(r), ",") != "下载 Deno 并重试" || r.Actions[0].ID != remedyDownloadDeno {
+		t.Fatalf("with a Deno to download: %+v", r)
+	}
+	a.RunRemedy(film, remedyDownloadDeno)
+	if job := a.kits.running["deno"]; job == nil || job.quiet {
+		t.Fatalf("Deno's download is %+v, want one that shows", job)
+	}
+	if r, _ = a.FailureRemedy(film); !r.Working || r.Headline != "正在下载 Deno…" {
+		t.Fatalf("while Deno downloads: %+v", r)
+	}
+	close(release)
+	waitUntil(t, tt, a, updates, func() bool {
+		job, _ := a.library.Find(film.JobID)
+		return a.kits.running["deno"] == nil && job.FailKind != core.FailNoJSRuntime
+	})
+	if a.pipeline.(media.Tools).Deno == "" {
+		t.Fatal("the pipeline has no Deno once it is in")
+	}
+	if len(a.queue.ytdlp.denoRetry) != 0 {
+		t.Fatalf("still waiting to retry %v", a.queue.ytdlp.denoRetry)
+	}
+	a.kitsCancel()
+}
+
 func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
 	var opened string
 	old := openExternal

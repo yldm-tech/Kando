@@ -126,6 +126,8 @@ var failKinds = map[core.FailKind]string{
 	core.FailCookies:      psync.FailCookies,
 	core.FailBadLink:      psync.FailBadLink,
 	core.FailHiddenVideo:  psync.FailHiddenVideo,
+	// The desktop's yt-dlp has no JavaScript runtime: a download of Deno there mends it, which the phone cannot start, so it says the desktop has a setting to make (RemedyDesktop) rather than to try again.
+	core.FailNoJSRuntime: psync.FailDesktopSetup,
 }
 
 // failureOf is why job failed in step. A failure of the AI service or a translation source (JobFacts.AI) carries no Message: neither what the service answered nor the desktop's reason, which may name a price, a link to buy credit or tell the user to top up, reaches a phone (psync.Failure); its code says it, FailAIUnavailable for an account the service refused.

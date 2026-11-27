@@ -98,6 +98,9 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return m.PrecheckEveryAPISignedOut(), sectionid.AI
 	case strings.Contains(detail, "KANDO_LLM_MODEL"):
 		return m.PrecheckNoLLMModel(), sectionid.AI
+	// yt-dlp could not solve the site's JavaScript challenge without a runtime (core.FailNoJSRuntime), which no update of yt-dlp mends; the card offers to download Deno.
+	case strings.Contains(detail, media.ErrNoJSRuntime.Error()):
+		return m.PrecheckNoJSRuntime(), ""
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):
 		return m.PrecheckNoSpeech(), ""
 	// A job that failed before media.ErrNoAudio kept ffmpeg's own words in library.json.

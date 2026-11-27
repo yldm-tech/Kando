@@ -290,4 +290,6 @@ const (
 	FailBadLink FailKind = "badlink"
 	// FailHiddenVideo is a post on X that showed yt-dlp no video: X leaves the video out of a sensitive post, or a protected account's, for a viewer who is signed out, or signed in to an account that does not show sensitive media or does not follow the protected one. Whether the job borrowed a browser's sign-in (Job.Cookies) tells which; it is not a sign-in that ran out (FailLoginExpired).
 	FailHiddenVideo FailKind = "hiddenvideo"
+	// FailNoJSRuntime is a site, as YouTube, that serves its videos only to a client that solves a challenge in JavaScript, while yt-dlp found no JavaScript runtime to solve it with: a Deno on the computer, or Kando's own, mends it; an update of yt-dlp does not.
+	FailNoJSRuntime FailKind = "jsruntime"
 )

@@ -139,6 +139,7 @@ func (a *app) queueHooks() areaHooks {
 		toolsChanged: func(redetected bool) {
 			if redetected {
 				a.queueRetryWithKit()
+				a.queueRetryWithDeno()
 			}
 			a.queueReadYTDLP()
 			a.queueFreshenYTDLP()

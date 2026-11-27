@@ -861,6 +861,8 @@ var Parameters = map[string][]string{
 	"QueueRemedyLoginExpired":                  {"site"},
 	"QueueRemedyLoginExpiredWhy":               {"browser", "site"},
 	"QueueRemedyLoginNeed":                     {"host"},
+	"QueueRemedyNoJSRuntime":                   {"site"},
+	"QueueRemedyNoJSRuntimeFailed":             {"error_"},
 	"QueueRemedyOutdated":                      {"site"},
 	"QueueRemedyOutdatedDownloadWhy":           {"version", "hint"},
 	"QueueRemedyOutdatedLatest":                {"site"},
@@ -1685,6 +1687,8 @@ type Translation struct {
 	QueueRemedyLoginExpired                  func(site string) string
 	QueueRemedyLoginExpiredWhy               func(browser string, site string) string
 	QueueRemedyLoginNeed                     func(host string) string
+	QueueRemedyNoJSRuntime                   func(site string) string
+	QueueRemedyNoJSRuntimeFailed             func(error_ string) string
 	QueueRemedyOutdated                      func(site string) string
 	QueueRemedyOutdatedDownloadWhy           func(version string, hint string) string
 	QueueRemedyOutdatedLatest                func(site string) string
@@ -3074,6 +3078,7 @@ const (
 	textPrecheckEveryAPISignedOut
 	textPrecheckListUnnamed
 	textPrecheckNoAudio
+	textPrecheckNoJSRuntime
 	textPrecheckNoLLMModel
 	textPrecheckNoLibrary
 	textPrecheckNoSpeech
@@ -3141,6 +3146,8 @@ const (
 	textQueueRemedyNetworkWhy
 	textQueueRemedyNoBrowser
 	textQueueRemedyOpenSystemSettings
+	textQueueRemedyNoJSRuntimeManualWhy
+	textQueueRemedyNoJSRuntimeWhy
 	textQueueRemedyOutdatedWhy
 	textQueueRemedyPremium
 	textQueueRemedyPremiumNeed
@@ -5069,6 +5076,7 @@ var keyOfText = [numTexts]string{
 	"precheckEveryAPISignedOut",
 	"precheckListUnnamed",
 	"precheckNoAudio",
+	"precheckNoJSRuntime",
 	"precheckNoLLMModel",
 	"precheckNoLibrary",
 	"precheckNoSpeech",
@@ -5136,6 +5144,8 @@ var keyOfText = [numTexts]string{
 	"queueRemedyNetworkWhy",
 	"queueRemedyNoBrowser",
 	"queueRemedyOpenSystemSettings",
+	"queueRemedyNoJSRuntimeManualWhy",
+	"queueRemedyNoJSRuntimeWhy",
 	"queueRemedyOutdatedWhy",
 	"queueRemedyPremium",
 	"queueRemedyPremiumNeed",
@@ -7062,6 +7072,7 @@ var textsEn = i18n.NewTexts(""+
 	"Run everyapi auth login in a terminal, or enter an API Key in “AI Service”"+
 	"This is a link to a playlist, not to one video. List its videos first, then add them."+
 	"The video has no sound, so there is no speech to transcribe"+
+	"yt-dlp needs Deno, a JavaScript runtime, to download this video, and this computer has none"+
 	"Choose a model in “AI Service” first"+
 	"Create or open a library first"+
 	"No speech was recognized in the video"+
@@ -7129,6 +7140,8 @@ var textsEn = i18n.NewTexts(""+
 	"Check your network connection, then retry."+
 	"Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Chromium, then look again."+
 	"Open System Settings"+
+	"yt-dlp solves the site's check with Deno, which isn't on this computer. Install Deno from deno.com, then retry."+
+	"yt-dlp solves the site's check with Deno, which isn't on this computer. Kando can download it."+
 	"This computer's yt-dlp is too old. Updating takes a few seconds."+
 	"Video for Bilibili Premium members only"+
 	"It needs Bilibili Premium."+
@@ -9052,6 +9065,7 @@ var textsEn = i18n.NewTexts(""+
 		78,
 		85,
 		59,
+		91,
 		40,
 		30,
 		37,
@@ -9119,6 +9133,8 @@ var textsEn = i18n.NewTexts(""+
 		42,
 		141,
 		20,
+		111,
+		94,
 		64,
 		39,
 		26,
@@ -11045,6 +11061,7 @@ var textsJa = i18n.NewTexts(""+
 	"ターミナルで everyapi auth login を実行してログインするか、「AI サービス」で API Key を入力してください"+
 	"再生リストのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"+
 	"この動画には音声がないため、文字起こしできません"+
+	"この動画のダウンロードには JavaScript ランタイムの Deno が必要ですが、このコンピュータにはありません"+
 	"先に「AI サービス」でモデルを選択してください"+
 	"先にライブラリを作成するか開いてください"+
 	"動画から話し声を認識できませんでした"+
@@ -11112,6 +11129,8 @@ var textsJa = i18n.NewTexts(""+
 	"ネットワーク接続を確認してから再試行してください。"+
 	"このコンピュータには、ログインを借用できるブラウザが見つかりませんでした。Chrome、Firefox、Edge、Brave、Chromium のいずれかでログインしてから、もう一度探してください。"+
 	"システム設定を開く"+
+	"yt-dlp はサイトのチェックを Deno で通過しますが、このコンピュータにはありません。deno.com から Deno をインストールしてから再試行してください。"+
+	"yt-dlp はサイトのチェックを Deno で通過しますが、このコンピュータにはありません。Kando がダウンロードできます。"+
 	"このコンピュータの yt-dlp は古すぎます。アップデートは数秒で終わります。"+
 	"大会員限定の動画"+
 	"大会員が必要です。"+
@@ -13035,6 +13054,7 @@ var textsJa = i18n.NewTexts(""+
 		138,
 		134,
 		72,
+		141,
 		66,
 		60,
 		54,
@@ -13102,6 +13122,8 @@ var textsJa = i18n.NewTexts(""+
 		75,
 		235,
 		27,
+		199,
+		157,
 		104,
 		24,
 		27,
@@ -15028,6 +15050,7 @@ var textsKo = i18n.NewTexts(""+
 	"터미널에서 everyapi auth login을 실행해 로그인하거나 ‘AI 서비스’에서 API Key를 입력하십시오"+
 	"재생목록 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."+
 	"이 동영상에는 소리가 없어 받아쓸 대사가 없습니다"+
+	"이 동영상을 다운로드하려면 JavaScript 런타임 Deno가 필요하지만 이 컴퓨터에는 없습니다"+
 	"먼저 ‘AI 서비스’에서 모델을 선택하십시오"+
 	"먼저 라이브러리를 만들거나 여십시오"+
 	"동영상에서 말소리를 인식하지 못했습니다"+
@@ -15095,6 +15118,8 @@ var textsKo = i18n.NewTexts(""+
 	"네트워크 연결을 확인한 후 다시 시도하십시오."+
 	"이 컴퓨터에서 로그인을 빌려 쓸 수 있는 브라우저를 찾지 못했습니다. Chrome, Firefox, Edge, Brave 또는 Chromium에서 로그인한 후 다시 찾으십시오."+
 	"시스템 설정 열기"+
+	"yt-dlp는 Deno로 사이트의 확인을 통과하는데, 이 컴퓨터에는 없습니다. deno.com에서 Deno를 설치한 후 다시 시도하십시오."+
+	"yt-dlp는 Deno로 사이트의 확인을 통과하는데, 이 컴퓨터에는 없습니다. Kando가 다운로드할 수 있습니다."+
 	"이 컴퓨터의 yt-dlp가 너무 오래되었습니다. 업데이트는 몇 초면 끝납니다."+
 	"Bilibili 프리미엄 회원 전용 동영상"+
 	"Bilibili 프리미엄 회원이어야 합니다."+
@@ -17018,6 +17043,7 @@ var textsKo = i18n.NewTexts(""+
 		122,
 		117,
 		69,
+		116,
 		60,
 		51,
 		57,
@@ -17085,6 +17111,8 @@ var textsKo = i18n.NewTexts(""+
 		63,
 		186,
 		23,
+		155,
+		134,
 		97,
 		45,
 		48,
@@ -19011,6 +19039,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"在终端运行 everyapi auth login 登录，或在「AI 服务」里填 Key"+
 	"这是播放列表链接，不是单个视频。请先列出它的视频再加入。"+
 	"这个视频没有声音，没有可以识别的台词"+
+	"下载这个视频要用 JavaScript 运行环境 Deno，本机还没有"+
 	"先在「AI 服务」里选一个模型"+
 	"先新建或打开一个资料库"+
 	"视频里没有识别出说话的声音"+
@@ -19078,6 +19107,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"检查网络连接后再重试。"+
 	"这台电脑上没找到能借用登录的浏览器。在 Chrome、Firefox、Edge、Brave 或 Chromium 里登录后，重新查找。"+
 	"打开系统设置"+
+	"yt-dlp 要用 Deno 通过网站的校验，本机还没有。从 deno.com 安装 Deno 后重试。"+
+	"yt-dlp 要用 Deno 通过网站的校验，本机还没有，看懂可以帮你下载。"+
 	"本机的 yt-dlp 太旧了，更新几秒就好。"+
 	"大会员专享视频"+
 	"需要大会员。"+
@@ -21001,6 +21032,7 @@ var textsZhHans = i18n.NewTexts(""+
 		76,
 		84,
 		54,
+		71,
 		39,
 		33,
 		39,
@@ -21068,6 +21100,8 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		133,
 		18,
+		98,
+		88,
 		50,
 		21,
 		18,
@@ -22994,6 +23028,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"在終端機執行 everyapi auth login 登入，或在「AI 服務」中填入 Key"+
 	"這是播放清單連結，不是單一影片。請先列出它的影片再加入。"+
 	"這部影片沒有聲音，沒有可以辨識的台詞"+
+	"下載這部影片需要 JavaScript 執行環境 Deno，本機還沒有"+
 	"先在「AI 服務」中選一個模型"+
 	"先新增或打開一個資料庫"+
 	"影片中沒有辨識出說話的聲音"+
@@ -23061,6 +23096,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"檢查網路連線後再重試。"+
 	"這台電腦上找不到可借用登入的瀏覽器。在 Chrome、Firefox、Edge、Brave 或 Chromium 中登入後，重新尋找。"+
 	"打開系統設定"+
+	"yt-dlp 要用 Deno 通過網站的驗證，本機還沒有。從 deno.com 安裝 Deno 後重試。"+
+	"yt-dlp 要用 Deno 通過網站的驗證，本機還沒有，看懂可以幫你下載。"+
 	"本機的 yt-dlp 太舊了，更新只要幾秒。"+
 	"大會員專屬影片"+
 	"需要大會員。"+
@@ -24984,6 +25021,7 @@ var textsZhHant = i18n.NewTexts(""+
 		82,
 		84,
 		54,
+		71,
 		39,
 		33,
 		39,
@@ -25051,6 +25089,8 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		133,
 		18,
+		98,
+		88,
 		50,
 		21,
 		18,
@@ -27229,6 +27269,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueRemedyLoginNeed != nil {
 		s.QueueRemedyLoginNeed = t.QueueRemedyLoginNeed
+	}
+	if t.QueueRemedyNoJSRuntime != nil {
+		s.QueueRemedyNoJSRuntime = t.QueueRemedyNoJSRuntime
+	}
+	if t.QueueRemedyNoJSRuntimeFailed != nil {
+		s.QueueRemedyNoJSRuntimeFailed = t.QueueRemedyNoJSRuntimeFailed
 	}
 	if t.QueueRemedyOutdated != nil {
 		s.QueueRemedyOutdated = t.QueueRemedyOutdated
@@ -49871,6 +49917,15 @@ func PrecheckNoAudio(cx *core.Scope) string { return For(cx).PrecheckNoAudio() }
 // PrecheckNoAudio is the package's PrecheckNoAudio in the language of msgs.
 func (msgs Messages) PrecheckNoAudio() string { return msgs.text(textPrecheckNoAudio) }
 
+// PrecheckNoJSRuntime says "yt-dlp needs Deno, a JavaScript runtime, to download this video, and this computer has none"
+// in the language the app shows under cx.
+//
+// Card of a failed download, and what the phone shows of it, when yt-dlp found no JavaScript runtime to solve the site's challenge with (YouTube); an update of yt-dlp does not fix it.
+func PrecheckNoJSRuntime(cx *core.Scope) string { return For(cx).PrecheckNoJSRuntime() }
+
+// PrecheckNoJSRuntime is the package's PrecheckNoJSRuntime in the language of msgs.
+func (msgs Messages) PrecheckNoJSRuntime() string { return msgs.text(textPrecheckNoJSRuntime) }
+
 // PrecheckNoLLMModel says "Choose a model in “AI Service” first"
 // in the language the app shows under cx.
 //
@@ -51458,6 +51513,94 @@ func QueueRemedyOpenSystemSettings(cx *core.Scope) string {
 // QueueRemedyOpenSystemSettings is the package's QueueRemedyOpenSystemSettings in the language of msgs.
 func (msgs Messages) QueueRemedyOpenSystemSettings() string {
 	return msgs.text(textQueueRemedyOpenSystemSettings)
+}
+
+// QueueRemedyNoJSRuntime says "{site} needs a JavaScript runtime to download"
+// in the language the app shows under cx.
+//
+// Headline of a failed download's card when yt-dlp found no JavaScript runtime (Deno) to solve the site's challenge with; an update of yt-dlp does not fix it.
+func QueueRemedyNoJSRuntime(cx *core.Scope, site string) string {
+	return For(cx).QueueRemedyNoJSRuntime(site)
+}
+
+// QueueRemedyNoJSRuntime is the package's QueueRemedyNoJSRuntime in the language of msgs.
+func (msgs Messages) QueueRemedyNoJSRuntime(site string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyNoJSRuntime(site))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyNoJSRuntime; f != nil {
+			return f(site)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(site) + " needs a JavaScript runtime to download"
+		case "ja":
+			return site + " のダウンロードには JavaScript ランタイムが必要です"
+		case "ko":
+			return site + "을(를) 다운로드하려면 JavaScript 런타임이 필요합니다"
+		case "zh-Hans":
+			return site + " 要用 JavaScript 运行环境才能下载"
+		case "zh-Hant":
+			return site + " 需要 JavaScript 執行環境才能下載"
+		}
+	}
+}
+
+// QueueRemedyNoJSRuntimeFailed says "Couldn't download Deno: {error}. Try again, or install Deno on this computer and retry."
+// in the language the app shows under cx.
+//
+// Under the headline of the card of a download that needs a JavaScript runtime, when downloading Kando's own Deno failed.
+func QueueRemedyNoJSRuntimeFailed(cx *core.Scope, error_ string) string {
+	return For(cx).QueueRemedyNoJSRuntimeFailed(error_)
+}
+
+// QueueRemedyNoJSRuntimeFailed is the package's QueueRemedyNoJSRuntimeFailed in the language of msgs.
+func (msgs Messages) QueueRemedyNoJSRuntimeFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyNoJSRuntimeFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyNoJSRuntimeFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't download Deno: " + msgs.arg(error_) + ". Try again, or install Deno on this computer and retry."
+		case "ja":
+			return "Deno をダウンロードできませんでした：" + error_ + "。もう一度試すか、このコンピュータに Deno をインストールしてから再試行してください。"
+		case "ko":
+			return "Deno를 다운로드할 수 없습니다: " + error_ + ". 다시 시도하거나 이 컴퓨터에 Deno를 설치한 후 다시 시도하십시오."
+		case "zh-Hans":
+			return "没能下载 Deno：" + error_ + "。再试一次，或在本机安装 Deno 后重试。"
+		case "zh-Hant":
+			return "無法下載 Deno：" + error_ + "。再試一次，或在本機安裝 Deno 後重試。"
+		}
+	}
+}
+
+// QueueRemedyNoJSRuntimeManualWhy says "yt-dlp solves the site's check with Deno, which isn't on this computer. Install Deno from deno.com, then retry."
+// in the language the app shows under cx.
+//
+// Under the headline of the card of a download that needs a JavaScript runtime, where Kando downloads no Deno of its own, as on Windows.
+func QueueRemedyNoJSRuntimeManualWhy(cx *core.Scope) string {
+	return For(cx).QueueRemedyNoJSRuntimeManualWhy()
+}
+
+// QueueRemedyNoJSRuntimeManualWhy is the package's QueueRemedyNoJSRuntimeManualWhy in the language of msgs.
+func (msgs Messages) QueueRemedyNoJSRuntimeManualWhy() string {
+	return msgs.text(textQueueRemedyNoJSRuntimeManualWhy)
+}
+
+// QueueRemedyNoJSRuntimeWhy says "yt-dlp solves the site's check with Deno, which isn't on this computer. Kando can download it."
+// in the language the app shows under cx.
+//
+// Under the headline of the card of a download that needs a JavaScript runtime, where Kando can download its own Deno.
+func QueueRemedyNoJSRuntimeWhy(cx *core.Scope) string { return For(cx).QueueRemedyNoJSRuntimeWhy() }
+
+// QueueRemedyNoJSRuntimeWhy is the package's QueueRemedyNoJSRuntimeWhy in the language of msgs.
+func (msgs Messages) QueueRemedyNoJSRuntimeWhy() string {
+	return msgs.text(textQueueRemedyNoJSRuntimeWhy)
 }
 
 // QueueRemedyOutdated says "{site} has changed, and the download component needs an update"

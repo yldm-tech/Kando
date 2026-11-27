@@ -241,6 +241,7 @@ func (t Tools) fetchSubtitles(ctx context.Context, source, language string, whic
 	if t.FFmpeg != "" {
 		args = append(args, "--ffmpeg-location", t.FFmpeg)
 	}
+	args = append(args, t.ytdlpRuntimeArgs()...)
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}

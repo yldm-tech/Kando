@@ -60,6 +60,22 @@ func (a *app) kitsInstallWanted() {
 			a.kitsStart(program, true)
 		}
 	}
+	a.kitsDenoWanted()
+}
+
+// kitsDenoWanted starts downloading Kando's own Deno, quietly, when the computer has none and Kando has not got it, or has an earlier version than this Kando pins: yt-dlp solves YouTube's challenges with it (media.Tools.Deno). Deno is not one of the programs a job needs (toolhealth.Programs), so it is not run to check it, and the computer's copy is taken as it is found.
+func (a *app) kitsDenoWanted() {
+	kit, ok := media.KitFor("deno")
+	if !ok || a.kits.quietFailed["deno"] {
+		return
+	}
+	own := media.OwnTool("deno")
+	switch {
+	case own == "" && len(a.tools.candidates("deno")) == 0:
+		a.kitsStart("deno", true)
+	case own != "" && media.KitStale(kit):
+		a.kitsStart("deno", true)
+	}
 }
 
 // kitsCanInstall reports whether Kando can download program here.

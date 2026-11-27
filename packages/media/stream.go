@@ -47,6 +47,7 @@ func (t Tools) StreamURL(ctx context.Context, source string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, streamTimeout)
 	defer cancel()
 	args := []string{"--no-playlist", "--no-warnings", "-f", streamFormat, "--get-url"}
+	args = append(args, t.ytdlpRuntimeArgs()...)
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}

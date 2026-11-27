@@ -30,6 +30,8 @@ type ytdlpState struct {
 	kitRetry     bool
 	freshened    time.Time
 	freshenTried time.Time
+	// denoRetry is the jobs 下载 Deno 并重试 asked to run again once Kando's own Deno is in (queueRetryWithDeno).
+	denoRetry []string
 }
 
 // The remedies' action IDs (films.RemedyAction.ID). A borrowed login is remedyBorrow followed by the browser's --cookies-from-browser name.
@@ -46,6 +48,10 @@ const (
 	remedySites = "sites"
 	// remedyDownloadYTDLP downloads Kando's own yt-dlp (media.Kit) in place of one Kando cannot update, and then runs the download again with it.
 	remedyDownloadYTDLP = "download-ytdlp"
+	// remedyDownloadDeno downloads Kando's own Deno (media.Kit), the JavaScript runtime yt-dlp solves YouTube's challenges with, and then runs the downloads that wanted one again (queueRetryWithDeno).
+	remedyDownloadDeno = "download-deno"
+	// remedyRedetectRetry looks for the programs again, which finds a Deno the user installed since, and runs the download again.
+	remedyRedetectRetry = "redetect-retry"
 	// remedyChooseBrowser opens Settings › 通用, whose 浏览器登录 chooses the browser every download borrows the login of, for a card whose browser's login could not be read.
 	remedyChooseBrowser = "choose-browser"
 	// remedyOwnTool is followed by a program's name: it runs Kando's own copy of the program, downloading it when needed (toolsUseOwn), for a card of a job that failed because the copy it ran does not start, and runs that job again, and every other one it stopped, once the program works. remedyToolSettings opens Settings › 通用, whose row of the program links to its page, where Kando downloads no copy of its own.
@@ -191,6 +197,8 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		r = a.cookiesRemedy(job, other)
 	case core.FailHiddenVideo:
 		r = a.hiddenVideoRemedy(job, other)
+	case core.FailNoJSRuntime:
+		r = a.noJSRuntimeRemedy(site)
 	default:
 		return films.Remedy{}, false
 	}
@@ -275,6 +283,42 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 	}
 	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: m.QueueRemedyUpdate(), Primary: true}}
 	return r
+}
+
+// noJSRuntimeRemedy is the card of a download yt-dlp could not make because it found no JavaScript runtime to solve the site's challenge with (core.FailNoJSRuntime), which no update of yt-dlp mends: 下载 Deno 并重试 where Kando downloads its own Deno, which runs the download again once it is in, and the card says so while it downloads; elsewhere, as on Windows, how to install Deno, and 重试, which looks for it again first.
+func (a *app) noJSRuntimeRemedy(site string) films.Remedy {
+	m := a.messages()
+	if _, downloading := a.kitsProgress("deno"); downloading {
+		return films.Remedy{Headline: m.QueueRemedyToolDownloading("Deno"), Why: m.QueueRemedyToolDownloadingWhy(), Working: true,
+			Actions: []films.RemedyAction{{ID: remedyDownloadDeno, Label: m.QueueRemedyToolDownloadingAction(), Primary: true, Disabled: true}}}
+	}
+	r := films.Remedy{Headline: m.QueueRemedyNoJSRuntime(site)}
+	if !a.kitsCanInstall("deno") {
+		r.Why = m.QueueRemedyNoJSRuntimeManualWhy()
+		r.Actions = []films.RemedyAction{{ID: remedyRedetectRetry, Label: m.QueueRemedyRetry(), Primary: true}}
+		return r
+	}
+	r.Why = m.QueueRemedyNoJSRuntimeWhy()
+	if err := a.kits.errs["deno"]; err != nil {
+		r.Why = m.QueueRemedyNoJSRuntimeFailed(settings.KitsError(m, err))
+	}
+	r.Actions = []films.RemedyAction{{ID: remedyDownloadDeno, Label: m.QueueRemedyToolDownload("Deno"), Primary: true}}
+	return r
+}
+
+// queueRetryWithDeno runs again, once the tools were looked up again and the pipeline has a Deno, the failed downloads 下载 Deno 并重试 asked for. A download of Deno that failed leaves them waiting, so the card offers it again and the retry waits for the next one that lands.
+func (a *app) queueRetryWithDeno() {
+	tools, ok := a.pipeline.(media.Tools)
+	if len(a.queue.ytdlp.denoRetry) == 0 || !ok || tools.Deno == "" {
+		return
+	}
+	ids := a.queue.ytdlp.denoRetry
+	a.queue.ytdlp.denoRetry = nil
+	for _, id := range ids {
+		if job, found := a.library.Find(id); found && job.Stage == core.StageFailed && job.FailKind == core.FailNoJSRuntime {
+			a.queueRetry(job)
+		}
+	}
 }
 
 // queueYTDLPHint says how the user updates a yt-dlp Kando cannot update itself, by how it was installed, in the language of m.
@@ -370,6 +414,14 @@ func (a *app) RunRemedy(item films.Film, action string) {
 	case action == remedyDownloadYTDLP:
 		a.queue.ytdlp.kitRetry = true
 		a.kitsInstall("yt-dlp")
+	case action == remedyDownloadDeno:
+		if !slices.Contains(a.queue.ytdlp.denoRetry, job.ID) {
+			a.queue.ytdlp.denoRetry = append(a.queue.ytdlp.denoRetry, job.ID)
+		}
+		a.kitsInstall("deno")
+	case action == remedyRedetectRetry:
+		a.redetectTools()
+		a.queueRetry(job)
 	case action == remedyRetry:
 		// An X post that showed no video to a download the Add sheet sent out signed out (core.CookiesNone) is tried again with the browser Settings › 通用 › 浏览器登录 names, which its card asked to choose.
 		if job.FailKind == core.FailHiddenVideo && job.Cookies == core.CookiesNone {
