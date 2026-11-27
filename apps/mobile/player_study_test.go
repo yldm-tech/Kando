@@ -45,6 +45,20 @@ func openStudy(t *testing.T, d *synctest.Desktop) (*phone, store.Film) {
 	return openStudyIn(t, d, t.TempDir())
 }
 
+// studyNoted keeps in dir that the player said once where lookups go (store.Prefs.StudyNoted), so a test or a scene that asks the computer meets the player as it is from then on, without that note over it (TestTheFirstLookupSaysOnceWhereTheLinesGo).
+func studyNoted(t *testing.T, dir string) {
+	t.Helper()
+	st := store.Open(dir)
+	prefs, err := st.Prefs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prefs.StudyNoted = true
+	if err := st.SavePrefs(prefs); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // openStudyIn is openStudy with the phone's data in dir, which may hold what the phone kept before.
 func openStudyIn(t *testing.T, d *synctest.Desktop, dir string) (*phone, store.Film) {
 	t.Helper()
@@ -210,6 +224,43 @@ func TestALookupWithoutAnAIServiceSaysWhere(t *testing.T) {
 	}
 }
 
+// The first lookup the phone asks its computer for says, once, that the lines it uses go to the AI service set up there; the next lookup and an explanation say nothing more, nor does the phone once it starts again.
+func TestTheFirstLookupSaysOnceWhereTheLinesGo(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Meaning: "n. 早晨", Language: "简体中文"})
+	d.SetExplanation("A greeting for the morning.")
+	dir := t.TempDir()
+	note := "id:player-toasts >> text:" + msgs.PlayerStudyNote("Studio")
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	secrets := pairedWith(t, d, dir)
+	t.Run("first", func(t *testing.T) {
+		p := startPhone(t, dir, secrets)
+		openKeptStudy(p, f)
+		playStudy(p)
+		if p.app.Exists(note) {
+			t.Fatal("the note shows before anything was asked")
+		}
+		p.app.Press(`id:player-card >> text:"morning"`)
+		p.app.WaitFor(note, wait)
+		p.app.WaitFor("id:player-word-meaning", wait)
+		if prefs, _ := store.Open(dir).Prefs(); !prefs.StudyNoted {
+			p.app.WaitUntil(wait, func() bool { prefs, _ := store.Open(dir).Prefs(); return prefs.StudyNoted })
+		}
+	})
+	p := startPhone(t, dir, secrets)
+	openKeptStudy(p, f)
+	playStudy(p)
+	p.app.Press(`id:player-card >> text:"Good"`)
+	p.app.WaitFor("id:player-word-sheet", wait)
+	closeWordSheet(p)
+	p.at(3200 * time.Millisecond)
+	p.app.Press("id:player-explain-line")
+	p.app.WaitFor("id:player-explain-text", wait)
+	if p.app.Exists(note) {
+		t.Fatal("the note shows again")
+	}
+}
+
 // Explain sends the line with the lines around it to the computer, whose AI service's explanation the sheet shows with the model and the computer.
 func TestExplainAsksTheComputer(t *testing.T) {
 	d := newDesktop(t)
@@ -314,7 +365,12 @@ func TestAFollowUpWithoutAnAIServiceSaysWhere(t *testing.T) {
 // openStudyAt opens the talk from its page, as openStudy does, left at at on the phone before: the player holds there.
 func openStudyAt(t *testing.T, d *synctest.Desktop, at time.Duration) *phone {
 	t.Helper()
-	dir := t.TempDir()
+	return openStudyAtIn(t, d, t.TempDir(), at)
+}
+
+// openStudyAtIn is openStudyAt with the phone's data in dir, which may hold what the phone kept before.
+func openStudyAtIn(t *testing.T, d *synctest.Desktop, dir string, at time.Duration) *phone {
+	t.Helper()
 	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
 	f.PositionMS = at.Milliseconds()
 	if err := store.Open(dir).SaveFilm(f); err != nil {
@@ -929,7 +985,11 @@ func TestDeletingTheFilmPlayingMinimizedStopsIt(t *testing.T) {
 func TestBackMinimizesThePlayerBeforeItLeavesThePageUnderIt(t *testing.T) {
 	d := newDesktop(t)
 	d.SetEntry("morning", sync.WordEntry{Word: "morning", Meaning: "n. 早晨", Language: "简体中文"})
-	p, f := studyPlayer(t, d)
+	// The note on where lookups go was read before, so Back meets the word card alone.
+	dir := t.TempDir()
+	studyNoted(t, dir)
+	p, f := openStudyIn(t, d, dir)
+	playStudy(p)
 	p.app.Press(`id:player-card >> text:"morning"`)
 	p.app.WaitFor("id:player-word-vocab", wait)
 	p.app.Back()

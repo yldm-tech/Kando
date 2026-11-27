@@ -216,7 +216,11 @@ func TestTheInfoTabSaysWhereTheFilmComesFrom(t *testing.T) {
 func TestBackAfterAddingAWordGoesToItsToastFirst(t *testing.T) {
 	d := newDesktop(t)
 	d.SetEntry("morning", sync.WordEntry{Word: "morning", Meaning: "n. 早晨", Language: "简体中文"})
-	p, _ := studyPlayer(t, d)
+	// The note on where lookups go was read before, so the vocabulary's toast is the only one.
+	dir := t.TempDir()
+	studyNoted(t, dir)
+	p, _ := openStudyIn(t, d, dir)
+	playStudy(p)
 	p.app.Press(`id:player-card >> text:"morning"`)
 	p.app.WaitFor("id:player-word-vocab", wait)
 	p.app.Press("id:player-word-vocab")

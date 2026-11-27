@@ -754,6 +754,8 @@ func failureTitle(cx *core.Scope, f sync.Failure, site string) string {
 		return locales.JobsFailSetup(cx)
 	case sync.FailTranslation:
 		return locales.JobsFailTranslation(cx)
+	case sync.FailAIUnavailable:
+		return locales.JobsFailAIUnavailable(cx)
 	case sync.FailOther, "":
 		return locales.JobsFailOther(cx)
 	}

@@ -114,6 +114,13 @@ func (p *play) say(kind, title string) {
 	p.toast.Show(ui.ToastContent{ID: kind, Title: title})
 }
 
+// noteStudy tells the user, before the first lookup, explanation, follow-up question or recap this phone asks a computer for, that the lines it uses go to the AI service set up on the film's computer; it says so once, ever (session.NoteStudy).
+func (p *play) noteStudy() {
+	if p.s.NoteStudy() {
+		p.toast.Show(ui.ToastContent{ID: "study-note", Title: locales.PlayerStudyNote(p.cx, computer(p)), Duration: 6 * time.Second})
+	}
+}
+
 func newPlay(cx *core.Scope, s *session.Session, key string) *play {
 	f, _ := s.Film(key)
 	playable := s.VideoFile(key) != "" || (f.Streamed || f.FromSource()) && !f.Done() && s.StreamLink(key) != ""

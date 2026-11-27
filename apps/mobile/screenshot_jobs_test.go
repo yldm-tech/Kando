@@ -54,6 +54,20 @@ func TestScreenshotsJobsFailed(t *testing.T) {
 	shot(p, "jobs-failed")
 }
 
+// TestScreenshotsJobsAIUnavailable renders the Jobs page with a job whose translation the AI service on the computer could not do, as with its account out of credit: the phone's own neutral words, and the button to try again once it is fixed there.
+func TestScreenshotsJobsAIUnavailable(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	j := moved(d, "job1", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 2, 0)
+	j.Title, j.Steps[2].State, j.Failure = "Street Food in Osaka", sync.StepFailed, &sync.Failure{Step: sync.StepTranslate, Code: sync.FailAIUnavailable, Remedy: sync.RemedyDesktop}
+	d.SetJob(j)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-retry-job1", wait)
+	shot(p, "jobs-ai-unavailable")
+}
+
 // TestScreenshotsJobsOffline renders the Jobs page once the computer dropped out of reach, with a running and a paused job waiting for it.
 func TestScreenshotsJobsOffline(t *testing.T) {
 	shot := screenshots(t)

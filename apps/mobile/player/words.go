@@ -76,6 +76,7 @@ func (w *words) look(i int, word string) {
 	w.gen++
 	gen := w.gen
 	w.lookup.Set(lookup{open: true, word: word, line: i, busy: true})
+	w.p.noteStudy()
 	w.p.s.LookUp(w.p.key, word, w.p.list()[i].Original, func(e sync.WordEntry, err error) {
 		if gen != w.gen || !w.lookup.GetUntracked().open {
 			return
@@ -110,6 +111,7 @@ func (w *words) explainLine(i int) {
 	w.lookup.Set(lookup{})
 	w.explain.Set(explanation{open: true, line: i, busy: true})
 	lines, at := w.p.around(i)
+	w.p.noteStudy()
 	w.p.s.Explain(w.p.key, lines, at, func(x sync.Explanation, err error) {
 		if gen != w.gen || !w.explain.GetUntracked().open {
 			return
@@ -160,6 +162,7 @@ func (w *words) ask(question string) {
 	w.explain.Set(e)
 	gen := w.gen
 	lines, at := w.p.around(e.line)
+	w.p.noteStudy()
 	w.p.s.Ask(w.p.key, lines, at, explained, asked, question, func(a sync.ExplainAnswer, err error) {
 		e := w.explain.GetUntracked()
 		if gen != w.gen || !e.open || n >= len(e.asked) {

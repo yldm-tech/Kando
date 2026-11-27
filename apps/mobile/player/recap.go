@@ -97,6 +97,7 @@ func (r *recapper) begin(list []cues.Cue) {
 	r.card.Set(recapCard{open: true, at: c.at, busy: true})
 	r.gen++
 	gen := r.gen
+	p.noteStudy()
 	p.s.Recap(p.key, r.watch, func(got sync.Recap, err error) {
 		c := r.card.GetUntracked()
 		if gen != r.gen || !c.open {

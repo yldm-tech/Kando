@@ -664,6 +664,27 @@ func TestAFailedJobSaysWhatCanBeDoneAboutIt(t *testing.T) {
 	p.app.WaitFor("id:add-link", wait)
 }
 
+// A job whose AI service on the computer could not be used, as one out of credit, says so in the phone's own neutral words and offers to try again once it is fixed on the computer: nothing of the computer's own, which carries no message for it, nor of payment.
+func TestAJobTheComputersAIServiceCouldNotDoSaysSoNeutrally(t *testing.T) {
+	d := newDesktop(t)
+	j := moved(d, "job1", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 2, 0)
+	j.Steps[2].State, j.Failure = sync.StepFailed, &sync.Failure{Step: sync.StepTranslate, Code: sync.FailAIUnavailable, Remedy: sync.RemedyDesktop}
+	d.SetJob(j)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-failure-job1", wait)
+	if got := p.app.Find("id:jobs-failure-job1").Text; got != msgs.JobsFailAIUnavailable() {
+		t.Fatalf("the failure says %q, want %q", got, msgs.JobsFailAIUnavailable())
+	}
+	if got := p.app.Find("id:jobs-failure-body-job1").Text; got != msgs.JobsRemedyDesktop("Studio") {
+		t.Fatalf("the failure's remedy says %q", got)
+	}
+	if got := p.texts("id:jobs-retry-job1"); got != msgs.JobsFixedRetry() {
+		t.Fatalf("the failure's button reads %q", got)
+	}
+}
+
 // A computer that drops out of reach says when it last answered, not when its jobs were listed, though it was followed over its events for hours after; its unfinished jobs say they wait for it, over their pictures and under their titles, and one with no site to name says so as a sentence.
 func TestAComputerOutOfReachSaysWhenItLastAnswered(t *testing.T) {
 	var later atomic.Int64
