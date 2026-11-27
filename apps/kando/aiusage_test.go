@@ -138,3 +138,51 @@ func TestAIUsageIsKeptAcrossLaunches(t *testing.T) {
 		t.Fatalf("after a restart %+v", got)
 	}
 }
+
+// A plugin's kando.llm.chat asks the AI service under plugin, not chat, though it goes through the command palette's translator.
+func TestAPluginsChatCountsAsPlugin(t *testing.T) {
+	srv, _ := fakeLLM(t, "pong")
+	a, tt, updates, _, _ := contribApp(t, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
+	onEngine(a, a.aiusageAttach)
+	if got, err := scriptsCall(t, a, tt, updates, "acme.wiki", "chat", 50); err != nil || got.(map[string]any)["text"] != "pong" {
+		t.Fatalf("chat: %v, %v", got, err)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.AIUsage().Total().Requests > 0 })
+	month := a.AIUsage()
+	if month.ByPass[media.PassPlugin].Requests != 1 || len(month.ByPass) != 1 {
+		t.Fatalf("counted %+v", month)
+	}
+}
+
+// A task pack's run asks the AI service under plugin, with the tokens the service said.
+func TestAPluginTaskCountsAsPlugin(t *testing.T) {
+	tools, asks := pluginTaskLLM(t)
+	a, tt, updates, _ := pluginTaskOpen(t, tools, 20*time.Second, pluginTaskSoFar)
+	onEngine(a, a.aiusageAttach)
+	apply(tt, a, func() { a.pluginsRunTask("example.who") })
+	waitUntil(t, tt, a, updates, func() bool { return !a.plugins.task.busy && a.AIUsage().Total().Requests > 0 })
+	month := a.AIUsage()
+	want := aiusage.Count{Prompt: 100, Completion: 20, Requests: 1}
+	if len(asks()) != 1 || month.ByPass[media.PassPlugin] != want || len(month.ByPass) != 1 {
+		t.Fatalf("%d asks, counted %+v", len(asks()), month)
+	}
+}
+
+// A ledger file that cannot be read is copied to ai-usage.json.bad before the next request's save writes over it.
+func TestADamagedLedgerIsKeptAside(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, aiusage.FileName)
+	if err := os.WriteFile(path, []byte(`{"months": [`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := newApp(cloudTools(), func(fn func()) { fn() })
+	a.settingsPath = filepath.Join(dir, "settings.json")
+	a.restoreSettings(savedSettings{})
+	a.pipeline.(media.Tools).Translator.Meter(media.PassChat, "localhost", media.ChatUsage{Prompt: 10, Completion: 2})
+	if bad, err := os.ReadFile(path + ".bad"); err != nil || string(bad) != `{"months": [` {
+		t.Fatalf("ai-usage.json.bad: %q, %v", bad, err)
+	}
+	if l, err := aiusage.Load(path); err != nil || l.Month(aiusage.MonthOf(time.Now())).Total().Requests != 1 {
+		t.Fatalf("the ledger after the save: %+v, %v", l, err)
+	}
+}

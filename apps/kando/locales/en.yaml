@@ -1309,7 +1309,7 @@ aiusageTokensEstimated:
   placeholders:
     count: { type: "int", example: "125000" }
 aiusageRequests:
-  message: "Requests"
+  message: "Requests Sent"
   description: "Title of the last row of the usage card: how many requests were sent to AI services this month."
 aiusageRequestsCount:
   message: "{count, number}"
@@ -1317,10 +1317,10 @@ aiusageRequestsCount:
   placeholders:
     count: { type: "int", example: "348" }
 aiusageEstimatedNote:
-  message: "≈ The service didn't report the usage, so it was estimated from the text sent and received."
+  message: "≈ marks an estimate from the text sent and received, where the service reported no usage."
   description: "Footnote under the usage card when some counts are estimated."
 aiusageNone:
-  message: "Nothing sent to an AI service this month"
+  message: "None yet"
   description: "The only row of the usage card when no request was sent to an AI service this month."
 settingsAIRetries:
   message: "Retries"

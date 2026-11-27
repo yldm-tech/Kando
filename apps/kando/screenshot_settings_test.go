@@ -66,8 +66,12 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})
-	// The end of AI 服务: 本月用量 with every pass but term suggestions, the plugins' estimated as their service said no usage.
-	shootSettingsScrolled(t, f, settings.SectionAI, "settings-ai-usage", shown, models, turbo, shotAIUsage)
+	// The end of AI 服务: 本月用量 with every pass but term suggestions, the plugins' estimated as their service said no usage; the plugins' row and the 80 requests are checked headless too.
+	usage := testlocale.Messages()
+	shootSettingsAt(t, f, settings.SectionAI, "settings-ai-usage", shown, models, turbo, true, []string{
+		"exists:id:settings-aiusage-plugin >> " + whole(usage.AiusageTokensEstimated(3*(2200+540))),
+		"exists:id:settings-aiusage-requests >> " + whole(usage.AiusageRequestsCount(80)),
+	}, shotAIUsage)
 	// The end of 语音识别, with Japanese named as the language spoken in the videos.
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-language", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -228,7 +232,7 @@ func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, sh
 	shootSettingsAt(t, f, section, name, shown, models, turbo, true, nil, setup...)
 }
 
-// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead.
+// shootSettingsPressed is shootSettings with the controls of press pressed, in order, before the shot, as a row's details opened on Settings › 插件; each must be on the page. An entry "scroll-end:<selector>" scrolls that scroll view to its end instead, and one "exists:<selector>" only checks that it is on the page.
 func shootSettingsPressed(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, press []string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, press, setup...)
@@ -273,6 +277,13 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			if scroll, ok := strings.CutPrefix(selector, "scroll-end:"); ok {
 				tt.Scroll(scroll, 4000)
 				refresh(tt, a)
+				continue
+			}
+			// "exists:<selector>" only checks that the selector is on the page, so a scene fails headless when what it shows is missing.
+			if check, ok := strings.CutPrefix(selector, "exists:"); ok {
+				if !tt.Exists(check) {
+					t.Fatalf("nothing at %s; texts %q", check, tt.Texts())
+				}
 				continue
 			}
 			if !tt.Exists(selector) {

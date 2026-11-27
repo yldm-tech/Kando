@@ -6320,9 +6320,9 @@ var textsEn = i18n.NewTexts(""+
 	"Term Suggestions"+
 	"Questions & Explanations"+
 	"Plugins"+
-	"Requests"+
-	"≈ The service didn't report the usage, so it was estimated from the text sent and received."+
-	"Nothing sent to an AI service this month"+
+	"Requests Sent"+
+	"≈ marks an estimate from the text sent and received, where the service reported no usage."+
+	"None yet"+
 	"Retries"+
 	"After a rate limit, a server error or no answer."+
 	"Appearance"+
@@ -8281,9 +8281,9 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		24,
 		7,
+		13,
+		91,
 		8,
-		93,
-		40,
 		7,
 		48,
 		10,
@@ -10247,7 +10247,7 @@ var textsJa = i18n.NewTexts(""+
 	"プラグイン"+
 	"リクエスト数"+
 	"≈ はサービスが使用量を返さなかったため、送受信したテキストから見積もった値です。"+
-	"今月はまだ使用していません"+
+	"まだありません"+
 	"再試行"+
 	"レート制限、サーバーエラー、応答なしのとき。"+
 	"外観"+
@@ -12208,7 +12208,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		18,
 		121,
-		39,
+		21,
 		9,
 		66,
 		6,
@@ -14172,7 +14172,7 @@ var textsKo = i18n.NewTexts(""+
 	"플러그인"+
 	"요청 수"+
 	"≈는 서비스가 사용량을 알려 주지 않아 주고받은 텍스트로 추정한 값입니다."+
-	"이번 달 사용량이 아직 없습니다"+
+	"아직 없음"+
 	"재시도"+
 	"속도 제한, 서버 오류, 응답 없음일 때."+
 	"화면 모드"+
@@ -16133,7 +16133,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		10,
 		103,
-		43,
+		13,
 		9,
 		51,
 		13,
@@ -18097,7 +18097,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"插件"+
 	"请求次数"+
 	"≈ 表示服务没有返回用量，按收发的文字估算。"+
-	"本月还没有用量"+
+	"暂无"+
 	"失败重试"+
 	"遇到限流、服务器错误或没有回应时。"+
 	"外观"+
@@ -20058,7 +20058,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		64,
-		21,
+		6,
 		12,
 		51,
 		6,
@@ -22022,7 +22022,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"外掛"+
 	"請求次數"+
 	"≈ 表示服務沒有回傳用量，按收發的文字估算。"+
-	"本月還沒有用量"+
+	"暫無"+
 	"失敗重試"+
 	"遇到限流、伺服器錯誤或沒有回應時。"+
 	"外觀"+
@@ -23983,7 +23983,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		64,
-		21,
+		6,
 		12,
 		51,
 		6,
@@ -34136,7 +34136,7 @@ func (msgs Messages) AiusageTokensEstimated(count int) string {
 	}
 }
 
-// AiusageRequests says "Requests"
+// AiusageRequests says "Requests Sent"
 // in the language the app shows under cx.
 //
 // Title of the last row of the usage card: how many requests were sent to AI services this month.
@@ -34177,7 +34177,7 @@ func (msgs Messages) AiusageRequestsCount(count int) string {
 	}
 }
 
-// AiusageEstimatedNote says "≈ The service didn't report the usage, so it was estimated from the text sent and received."
+// AiusageEstimatedNote says "≈ marks an estimate from the text sent and received, where the service reported no usage."
 // in the language the app shows under cx.
 //
 // Footnote under the usage card when some counts are estimated.
@@ -34186,7 +34186,7 @@ func AiusageEstimatedNote(cx *core.Scope) string { return For(cx).AiusageEstimat
 // AiusageEstimatedNote is the package's AiusageEstimatedNote in the language of msgs.
 func (msgs Messages) AiusageEstimatedNote() string { return msgs.text(textAiusageEstimatedNote) }
 
-// AiusageNone says "Nothing sent to an AI service this month"
+// AiusageNone says "None yet"
 // in the language the app shows under cx.
 //
 // The only row of the usage card when no request was sent to an AI service this month.
