@@ -71,8 +71,12 @@ type phoneUI struct {
 	ledgers   map[string]*phoneLedger
 	priming   map[string]bool
 	stateSign uint64
-	// watchedSign sums up which videos were watched to their end as phones were last told (phoneSyncPublishWatched).
+	// watchedSign sums up which videos were watched to their end as phones were last told (phoneSyncPublishWatched); lockSign sums up which known libraries are password-protected or locked on the desktop (phoneSyncPublishLocks).
 	watchedSign uint64
+	lockSign    uint64
+	// unlocked is the password-protected libraries each paired device unlocked for its own session, by device ID then cleaned library folder (state_phonesync_libraries.go); unlockFails tracks recent wrong-password timestamps per device.
+	unlocked    map[string]map[string]bool
+	unlockFails map[string][]time.Time
 	// activity is what the phones did since Kando opened, the latest first (phoneLog); handoffClosed names the place a phone left a film whose offer to continue here the user closed (phoneHandoffClose); readOnlyErr and resolveErr are why the last change of a phone's read-only switch, or the last conflict settled on the page, failed (state_phonesync_linked.go).
 	activity                []settings.PhoneActivity
 	handoffClosed           string
@@ -122,6 +126,7 @@ func (a *app) phoneSyncHooks() areaHooks {
 			a.phoneSyncPublish()
 			a.phoneSyncPublishState()
 			a.phoneSyncPublishWatched()
+			a.phoneSyncPublishLocks()
 			a.phoneClockArm()
 			stopped := a.phoneRelayFollow()
 			return a.phoneSyncFollow() || stopped
@@ -206,6 +211,7 @@ func (a *app) phoneSyncStart() {
 		FilmOps:       phoneFilmOps{a},
 		Marks:         phoneMarks{a},
 		Watched:       a.phoneWatched,
+		Libraries:     phoneLibraries{a},
 		Relay:         a.phoneRelayBucket(),
 		RelayHealth:   a.phoneRelayHealth(gen),
 		Films:         a.phoneFilmsConfig(gen, a.currentStore()),
@@ -230,6 +236,7 @@ func (a *app) phoneSyncStart() {
 			}
 			a.phone.server, a.phone.running, a.phone.fingerprint, a.phone.name = srv, true, srv.Fingerprint(), name
 			a.phone.watchedSign = a.phoneWatchedSign()
+			a.phone.lockSign = a.phoneLockSign()
 			if port := srv.Port(); port != 0 && port != a.phone.port {
 				a.phone.port = port
 				a.Save()
@@ -251,7 +258,10 @@ func (a *app) phoneSyncStop() {
 		}
 	}
 	a.phoneStateKeepAll()
-	a.phone.running, a.phone.fingerprint, a.phone.shown, a.phone.watchedSign = false, nil, false, 0
+	a.phoneClearUnlocked("")
+	clear(a.phone.unlockFails)
+	a.lockSettle()
+	a.phone.running, a.phone.fingerprint, a.phone.shown, a.phone.watchedSign, a.phone.lockSign = false, nil, false, 0, 0
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
 	a.phone.readOnlyErr, a.phone.resolveErr = "", ""
 	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = "", false, nil
@@ -293,6 +303,7 @@ func (a *app) phoneSyncRevoke(id string) {
 	if err := a.phone.server.Revoke(id); err != nil {
 		a.phone.revokeErr = err.Error()
 	} else {
+		a.phoneClearDeviceUnlocked(id)
 		a.phoneLog("", settings.ActivityRevoked, name, 0, 0)
 	}
 	a.phoneSyncPull()
@@ -430,17 +441,17 @@ func (s phoneShelf) ResumeAt(string) time.Duration { return 0 }
 
 func (s phoneShelf) Furthest(path string) time.Duration { return s.furthest[path] }
 
-// Libraries are the libraries the app knows, named as the library drop-down names them, locked ones left out.
+// Libraries are the libraries the app knows, named as the library drop-down names them, with Locked and HasPassword set for the calling device (phonesync.DeviceOf).
 func (s phoneSource) Libraries(ctx context.Context) ([]phonesync.Library, error) {
 	a := s.a
+	dev := phonesync.DeviceOf(ctx)
 	return remote.OnUI(ctx, a.update, func() ([]phonesync.Library, error) {
 		dirs := a.knownLibraries()
 		labels := films.LibraryLabels(a.messages(), dirs)
 		out := []phonesync.Library{}
 		for i, dir := range dirs {
-			if !a.libraryLocked(dir) {
-				out = append(out, phonesync.Library{ID: phoneLibraryID(dir), Name: labels[i], Dir: dir})
-			}
+			locked := a.phoneLibraryLocked(dir, dev)
+			out = append(out, phonesync.Library{ID: phoneLibraryID(dir), Name: labels[i], Dir: dir, Locked: locked, HasPassword: a.LibraryHasPassword(dir)})
 		}
 		return out, nil
 	})
@@ -553,8 +564,9 @@ func phoneDoneOf(all []films.Film, shelf phoneShelf) []films.Film {
 // listed is every film of lib as the app files it: the jobs the shelf keeps for it and the videos in its folder (films.List), with what the app holds of them. A library locked since it was listed, or whose folder cannot be read, is not found.
 func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films.Film, phoneShelf, error) {
 	a := s.a
+	dev := phonesync.DeviceOf(ctx)
 	shelf, err := remote.OnUI(ctx, a.update, func() (phoneShelf, error) {
-		if a.libraryLocked(lib.Dir) {
+		if a.phoneLibraryLocked(lib.Dir, dev) {
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
 		// The open library's split works as the app holds them, which a save that failed may leave apart from its file; another's are read from its file below.

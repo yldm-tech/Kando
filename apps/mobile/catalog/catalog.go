@@ -36,9 +36,9 @@ type Listing struct {
 	Libraries []Library
 }
 
-// Load reads what the computer c serves: its libraries, the films of each, those being made among them (sync.Film.Making), and, where it serves protocol v2's learning state, where they were left, device being the ID it paired this phone under. A library the computer no longer serves, as one locked meanwhile, is left out; any other failure fails the listing. A computer that serves no learning state lists no positions.
+// Load reads what the computer c serves: its libraries (including locked password-protected ones on desktops that support sync.WithLocked), the films of each unlocked library, those being made among them (sync.Film.Making), and, where it serves protocol v2's learning state, where they were left, device being the ID it paired this phone under. A library the computer no longer serves, as one locked meanwhile, is left out; any other failure fails the listing. A computer that serves no learning state lists no positions.
 func Load(ctx context.Context, c *sync.Client, device string) (Listing, error) {
-	libs, err := c.Libraries(ctx)
+	libs, err := c.LibrariesWithLocked(ctx)
 	if err != nil {
 		return Listing{}, err
 	}
@@ -46,6 +46,10 @@ func Load(ctx context.Context, c *sync.Client, device string) (Listing, error) {
 	errs := make([]error, len(libs))
 	var wg gosync.WaitGroup
 	for i, lib := range libs {
+		if lib.Locked {
+			out[i] = Library{Library: lib}
+			continue
+		}
 		wg.Go(func() {
 			films, err := c.Films(ctx, lib.ID)
 			if err != nil {
@@ -207,7 +211,9 @@ func SourceOf(f sync.Film) string {
 type Scope struct {
 	Desktop, ID, Name string
 	// Computer is the computer's name, for the switcher to say.
-	Computer string
+	Computer    string
+	Locked      bool
+	HasPassword bool
 }
 
 // Holds reports whether e is a film of the library s names.
@@ -229,7 +235,7 @@ func Libraries(computers []Computer, entries []Entry) []Scope {
 	}
 	for _, c := range computers {
 		for _, lib := range c.Listing.Libraries {
-			if s := (Scope{Desktop: c.ID, ID: lib.ID, Name: lib.Name, Computer: c.Name}); !seen(s) {
+			if s := (Scope{Desktop: c.ID, ID: lib.ID, Name: lib.Name, Computer: c.Name, Locked: lib.Locked, HasPassword: lib.HasPassword}); !seen(s) {
 				out = append(out, s)
 			}
 		}

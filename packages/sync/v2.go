@@ -300,7 +300,7 @@ func StatusOf(code string) int {
 	switch code {
 	case CodeUnauthorized:
 		return http.StatusUnauthorized
-	case CodeNoCode, CodeWrongCode, CodeCodeUsed, CodeCodeExpired, CodeLinksOff, CodeReadOnly:
+	case CodeNoCode, CodeWrongCode, CodeCodeUsed, CodeCodeExpired, CodeLinksOff, CodeReadOnly, CodeWrongPassword:
 		return http.StatusForbidden
 	case CodeTooMany:
 		return http.StatusTooManyRequests

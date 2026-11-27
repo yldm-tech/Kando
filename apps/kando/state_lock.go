@@ -191,6 +191,7 @@ func (a *app) LockNow() {
 		return
 	}
 	a.lock.unlocked = ""
+	a.phoneClearUnlocked(a.snap().LibraryDir)
 	a.lock.screen = lockTry{}
 	a.openKey = ""
 	a.stopPlayback()
@@ -347,6 +348,7 @@ func (a *app) lockAnswered(run int, ok bool, made shelf.Lock, err, verr error, h
 		return
 	}
 	// The library whose password was just set stays open: it locks at Lock Now, on quitting or when another library opens.
+	a.phoneClearUnlocked(dir)
 	if mode == lock.Set && dir == filepath.Clean(a.snap().LibraryDir) {
 		a.lock.unlocked = dir
 	}
@@ -417,6 +419,7 @@ func (a *app) lockMoved(old, next string) bool {
 	if a.lock.unlocked != "" && a.lock.unlocked == filepath.Clean(old) {
 		a.lock.unlocked = filepath.Clean(next)
 	}
+	a.phoneMoveUnlocked(old, next)
 	return a.library.MoveLock(old, next)
 }
 

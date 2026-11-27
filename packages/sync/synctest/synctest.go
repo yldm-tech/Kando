@@ -82,6 +82,8 @@ type Desktop struct {
 	marks marks
 	// watch is what phones said of the films being made they watch (making.go).
 	watch watching
+	// locks holds password-protected libraries and per-device unlock state (libraries.go).
+	locks locks
 	desk  *sync.Desk
 	libs  []sync.Library
 	films []Film
@@ -128,7 +130,7 @@ func start(t testing.TB, name string, cert *tls.Certificate) *Desktop {
 	t.Helper()
 	d := &Desktop{Name: name, tokens: map[string]bool{}, names: map[string]string{}, modTime: time.Unix(1_700_000_000, 0), target: "zh-Hans", context: true}
 	d.queue.receive = sync.ReceiveQueue
-	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Marks: markService{d}, Watch: watchService{d}, Journal: sync.NewJournal(), Desktop: name}
+	d.desk = &sync.Desk{Service: jobService{d}, State: stateService{d}, Settings: settingsService{d}, Study: studyService{d}, Subscriptions: subscriptionService{d}, Glossary: glossaryService{d}, Films: filmService{d}, Marks: markService{d}, Watch: watchService{d}, Libraries: libraryService{d}, Journal: sync.NewJournal(), Desktop: name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+sync.PathPair, d.pair)
 	mux.HandleFunc("GET "+sync.PathLibraries, d.authed(d.libraries))
@@ -423,13 +425,31 @@ func (d *Desktop) libraries(w http.ResponseWriter, r *http.Request) {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	writeJSON(w, sync.Libraries{Libraries: slices.Clone(d.libs)})
+	dev := requestDeviceID(r)
+	withLocked := sync.AsksWith(r.URL.Query().Get(sync.QueryWith), sync.WithLocked)
+	out := make([]sync.Library, 0, len(d.libs))
+	for _, lib := range d.libs {
+		locked := d.libLockedLocked(lib.ID, dev)
+		if locked {
+			if !withLocked {
+				continue
+			}
+			out = append(out, sync.Library{ID: lib.ID, Name: lib.Name, Locked: true, HasPassword: true})
+			continue
+		}
+		if withLocked && d.libHasPasswordLocked(lib.ID) {
+			lib.HasPassword = true
+		}
+		out = append(out, lib)
+	}
+	writeJSON(w, sync.Libraries{Libraries: out})
 }
 
 func (d *Desktop) filmList(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if !slices.ContainsFunc(d.libs, func(l sync.Library) bool { return l.ID == r.PathValue("lib") }) {
+	libID := r.PathValue("lib")
+	if !slices.ContainsFunc(d.libs, func(l sync.Library) bool { return l.ID == libID }) || d.libLockedLocked(libID, requestDeviceID(r)) {
 		fail(w, http.StatusNotFound, sync.CodeNotFound)
 		return
 	}
@@ -448,8 +468,9 @@ func (d *Desktop) filmList(w http.ResponseWriter, r *http.Request) {
 func (d *Desktop) film(w http.ResponseWriter, r *http.Request) (Film, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	dev := requestDeviceID(r)
 	for _, f := range d.films {
-		if f.ID == r.PathValue("id") {
+		if f.ID == r.PathValue("id") && !d.libLockedLocked(f.Library, dev) {
 			return f, true
 		}
 	}

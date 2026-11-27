@@ -70,9 +70,9 @@ func (a *app) lockVaultOpened(dir string) {
 	a.lock.vault.opened[filepath.Clean(dir)] = true
 }
 
-// lockNeeds reports whether the files of the library at dir are in use, so its image stays attached: it is the unlocked library, its files are being moved into or out of its image, a film is being moved into or out of it, or the queue's running job downloads or processes a film into it.
+// lockNeeds reports whether the files of the library at dir are in use, so its image stays attached: it is the unlocked library, a paired phone holds it unlocked, its files are being moved into or out of its image, a film is being moved into or out of it, or the queue's running job downloads or processes a film into it.
 func (a *app) lockNeeds(dir string) bool {
-	if dir == a.lock.unlocked || dir == a.lock.passed || dir == a.lock.vault.work {
+	if dir == a.lock.unlocked || dir == a.lock.passed || dir == a.lock.vault.work || a.phoneHasUnlocked(dir) {
 		return true
 	}
 	return a.lockMoving(dir) || a.lockJobIn(dir)

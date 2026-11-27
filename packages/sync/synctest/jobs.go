@@ -172,7 +172,7 @@ type jobService struct{ d *Desktop }
 func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	s.d.mu.Lock()
 	defer s.d.mu.Unlock()
-	ops := []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain, sync.OpExplainAsk, sync.OpRecap, sync.OpSettingsGet, sync.OpSettingsPut}
+	ops := []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain, sync.OpExplainAsk, sync.OpRecap, sync.OpSettingsGet, sync.OpSettingsPut, sync.OpLibraryUnlock, sync.OpLibraryLock}
 	if !s.d.subs.none {
 		ops = append(ops, sync.OpSubscriptions, sync.OpSubscribe, sync.OpSubscriptionSet, sync.OpSubscriptionTake, sync.OpUnsubscribe)
 	}

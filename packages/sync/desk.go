@@ -83,6 +83,8 @@ type Desk struct {
 	Marks MarkService
 	// Watch answers OpFilmWatch (watch.go), nil for a desktop that does not make films first for phones, which answers it CodeUnsupported.
 	Watch WatchService
+	// Libraries answers OpLibraryUnlock and OpLibraryLock (libraries.go), nil for a desktop that does not unlock locked libraries for phones, which answers them CodeUnsupported.
+	Libraries LibraryService
 	// Relay answers OpRelayJoin, nil while the desktop's storage relay is off, which answers it CodeUnsupported.
 	Relay   RelayJoiner
 	Journal *Journal
@@ -280,6 +282,8 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 		return d.answerMarks(ctx, caller, call)
 	case OpFilmWatch:
 		return d.answerWatch(ctx, caller, call)
+	case OpLibraryUnlock, OpLibraryLock:
+		return d.answerLibraries(ctx, caller, call)
 	case OpEvents:
 		var w EventsWait
 		if err := args(call, &w); err != nil {

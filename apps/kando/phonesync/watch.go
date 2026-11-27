@@ -23,6 +23,9 @@ func (s *Server) findMaking(ctx context.Context, id string) (served, error) {
 		return served{}, err
 	}
 	for _, lib := range libs {
+		if lib.Locked {
+			continue
+		}
 		making, err := s.makingFor(ctx, lib, false)
 		if errors.Is(err, ErrNotFound) {
 			continue

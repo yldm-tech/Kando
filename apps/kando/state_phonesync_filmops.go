@@ -32,6 +32,9 @@ func (a *app) phoneFilmFind(ctx context.Context, id string) (phoneFilmFound, err
 		return phoneFilmFound{}, err
 	}
 	for _, lib := range libs {
+		if lib.Locked {
+			continue
+		}
 		items, shelf, err := src.items(ctx, lib)
 		if err != nil {
 			continue
@@ -46,8 +49,8 @@ func (a *app) phoneFilmFind(ctx context.Context, id string) (phoneFilmFound, err
 }
 
 // phoneFilmJob is the done film f's job on the shelf, on the engine's goroutine: not found once its library is locked or the film left the shelf, and a conflict for a film Kando did not make the subtitles of, or whose job is waiting or running again. what names what the phone asked for, in the error.
-func (a *app) phoneFilmJob(f phoneFilmFound, what string) (core.Job, error) {
-	if a.libraryLocked(f.lib.Dir) {
+func (a *app) phoneFilmJob(deviceID string, f phoneFilmFound, what string) (core.Job, error) {
+	if a.phoneLibraryLocked(f.lib.Dir, deviceID) {
 		return core.Job{}, psync.Errorf(psync.CodeNotFound, "no film %q", f.film.ID)
 	}
 	job, ok := a.library.Find(f.item.JobID)
@@ -68,7 +71,7 @@ func (p phoneFilmOps) RetranslateFilm(ctx context.Context, caller psync.Caller, 
 		return psync.Job{}, err
 	}
 	return remote.OnUI(ctx, a.update, func() (psync.Job, error) {
-		job, err := a.phoneFilmJob(f, "translate it again")
+		job, err := a.phoneFilmJob(caller.DeviceID, f, "translate it again")
 		if err != nil {
 			return psync.Job{}, err
 		}
@@ -97,7 +100,7 @@ func (p phoneFilmOps) DownloadFilmVideo(ctx context.Context, caller psync.Caller
 		return psync.Job{}, err
 	}
 	return remote.OnUI(ctx, a.update, func() (psync.Job, error) {
-		job, err := a.phoneFilmJob(f, "download its video")
+		job, err := a.phoneFilmJob(caller.DeviceID, f, "download its video")
 		if err != nil {
 			return psync.Job{}, err
 		}
@@ -121,7 +124,7 @@ func (p phoneFilmOps) DeleteFilm(ctx context.Context, caller psync.Caller, ref p
 	// The Trash answers later on the engine's goroutine, so the film's files are asked to go there on it and the answer is waited for here.
 	trashed := make(chan error, 1)
 	_, err = remote.OnUI(ctx, a.update, func() (struct{}, error) {
-		if a.libraryLocked(f.lib.Dir) {
+		if a.phoneLibraryLocked(f.lib.Dir, caller.DeviceID) {
 			return struct{}{}, psync.Errorf(psync.CodeNotFound, "no film %q", f.film.ID)
 		}
 		name := films.Name(f.item)
@@ -157,14 +160,14 @@ type phoneExport struct {
 }
 
 // ExportFilm is the film's subtitles as the export dialog writes them (subexport), in the format and with the lines it last chose, the user's corrections laid over them and the lines marked as no speech left out, named as 导出到影片文件夹 names the file. The lines are read off the engine's goroutine, as a phone reads them (phoneSource.Cues).
-func (p phoneFilmOps) ExportFilm(ctx context.Context, _ psync.Caller, ref psync.FilmRef) (psync.SubtitleFile, error) {
+func (p phoneFilmOps) ExportFilm(ctx context.Context, caller psync.Caller, ref psync.FilmRef) (psync.SubtitleFile, error) {
 	a := p.a
 	f, err := a.phoneFilmFind(ctx, ref.ID)
 	if err != nil {
 		return psync.SubtitleFile{}, err
 	}
 	how, err := remote.OnUI(ctx, a.update, func() (phoneExport, error) {
-		if a.libraryLocked(f.lib.Dir) {
+		if a.phoneLibraryLocked(f.lib.Dir, caller.DeviceID) {
 			return phoneExport{}, psync.Errorf(psync.CodeNotFound, "no film %q", f.film.ID)
 		}
 		return phoneExport{choice: a.export.choice, delay: a.player.delays[f.item.VideoPath], placeholder: a.messages().SubexportPlaceholder()}, nil

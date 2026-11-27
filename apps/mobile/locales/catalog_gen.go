@@ -516,6 +516,9 @@ var Parameters = map[string][]string{
 	"FilmsLeftHere":                  {"device"},
 	"FilmsLeftOn":                    {"device", "time_"},
 	"FilmsLibrary":                   {"name"},
+	"FilmsLibraryLockAction":         {"name"},
+	"FilmsUnlockTitle":               {"name"},
+	"FilmsUnlockNote":                {"computer"},
 	"FilmsLibraryOn":                 {"library", "computer"},
 	"FilmsNoResults":                 {"query"},
 	"FilmsOptions":                   {"title"},
@@ -763,6 +766,9 @@ type Translation struct {
 	FilmsLeftHere                  func(device string) string
 	FilmsLeftOn                    func(device string, time_ string) string
 	FilmsLibrary                   func(name string) string
+	FilmsLibraryLockAction         func(name string) string
+	FilmsUnlockTitle               func(name string) string
+	FilmsUnlockNote                func(computer string) string
 	FilmsLibraryOn                 func(library string, computer string) string
 	FilmsNoResults                 func(query string) string
 	FilmsOptions                   func(title string) string
@@ -1067,6 +1073,13 @@ const (
 	textFilmsEmpty
 	textFilmsLibraries
 	textFilmsLibrariesNote
+	textFilmsLibraryLocked
+	textFilmsUnlockPassword
+	textFilmsUnlockCancel
+	textFilmsUnlockConfirm
+	textFilmsUnlockWrong
+	textFilmsUnlockTooMany
+	textFilmsUnlockFailed
 	textFilmsNoDesktop
 	textFilmsNoSource
 	textFilmsPair
@@ -1707,6 +1720,13 @@ var keyOfText = [numTexts]string{
 	"filmsEmpty",
 	"filmsLibraries",
 	"filmsLibrariesNote",
+	"filmsLibraryLocked",
+	"filmsUnlockPassword",
+	"filmsUnlockCancel",
+	"filmsUnlockConfirm",
+	"filmsUnlockWrong",
+	"filmsUnlockTooMany",
+	"filmsUnlockFailed",
 	"filmsNoDesktop",
 	"filmsNoSource",
 	"filmsPair",
@@ -2345,6 +2365,13 @@ var textsEn = i18n.NewTexts(""+
 	"No films ready yet"+
 	"Library"+
 	"A library is just a .kando folder, so you can keep separate ones for different purposes."+
+	"Locked"+
+	"Password"+
+	"Cancel"+
+	"Unlock"+
+	"Wrong password. Try again."+
+	"Too many wrong passwords. Try again in a minute."+
+	"Could not unlock. Make sure the computer is reachable and try again."+
 	"Don’t have the desktop app yet?"+
 	"No films from this source yet"+
 	"Connect a Computer"+
@@ -2980,6 +3007,13 @@ var textsEn = i18n.NewTexts(""+
 		18,
 		7,
 		88,
+		6,
+		8,
+		6,
+		6,
+		26,
+		48,
+		68,
 		33,
 		29,
 		18,
@@ -3618,6 +3652,13 @@ var textsJa = i18n.NewTexts(""+
 	"再生できる動画はまだありません"+
 	"ライブラリ"+
 	"ライブラリは .kando フォルダです。用途ごとに分けて置けます。"+
+	"ロック中"+
+	"パスワード"+
+	"キャンセル"+
+	"ロック解除"+
+	"パスワードが正しくありません。やり直してください。"+
+	"パスワードの間違いが多すぎます。1分ほど待ってからやり直してください。"+
+	"ロックを解除できませんでした。コンピュータがオンラインか確認してやり直してください。"+
 	"デスクトップ版をお持ちでないですか？"+
 	"このソースの動画はまだありません"+
 	"コンピュータに接続"+
@@ -4253,6 +4294,13 @@ var textsJa = i18n.NewTexts(""+
 		45,
 		15,
 		86,
+		12,
+		15,
+		15,
+		15,
+		75,
+		103,
+		126,
 		54,
 		48,
 		27,
@@ -4891,6 +4939,13 @@ var textsKo = i18n.NewTexts(""+
 	"아직 재생할 수 있는 영상이 없습니다"+
 	"보관함"+
 	"보관함은 .kando 폴더라서 용도별로 나눠 둘 수 있습니다."+
+	"잠김"+
+	"비밀번호"+
+	"취소"+
+	"잠금 해제"+
+	"비밀번호가 올바르지 않습니다. 다시 시도하세요."+
+	"비밀번호를 너무 많이 틀렸습니다. 1분 후에 다시 시도하세요."+
+	"잠금을 해제할 수 없습니다. 컴퓨터가 온라인 상태인지 확인하고 다시 시도하세요."+
 	"데스크톱 앱이 아직 없나요?"+
 	"이 출처의 영상이 아직 없습니다"+
 	"컴퓨터 연결"+
@@ -5526,6 +5581,13 @@ var textsKo = i18n.NewTexts(""+
 		50,
 		9,
 		74,
+		6,
+		12,
+		6,
+		13,
+		66,
+		82,
+		110,
 		37,
 		43,
 		16,
@@ -6164,6 +6226,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"还没有可以播放的影片"+
 	"资料库"+
 	"资料库就是一个 .kando 文件夹，可以按用途分开放。"+
+	"已锁定"+
+	"密码"+
+	"取消"+
+	"解锁"+
+	"密码不正确，请重试。"+
+	"密码错误次数过多，请一分钟后再试。"+
+	"无法解锁，请确认电脑在线后再试。"+
 	"还没装电脑版？"+
 	"这个来源下还没有影片"+
 	"连接电脑"+
@@ -6799,6 +6868,13 @@ var textsZhHans = i18n.NewTexts(""+
 		30,
 		9,
 		68,
+		9,
+		6,
+		6,
+		6,
+		30,
+		51,
+		48,
 		21,
 		30,
 		12,
@@ -7437,6 +7513,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"還沒有可以播放的影片"+
 	"資料庫"+
 	"資料庫就是一個 .kando 資料夾，可以按用途分開放。"+
+	"已鎖定"+
+	"密碼"+
+	"取消"+
+	"解鎖"+
+	"密碼不正確，請重試。"+
+	"密碼錯誤次數過多，請一分鐘後再試。"+
+	"無法解鎖，請確認電腦在線後再試。"+
 	"還沒裝電腦版？"+
 	"這個來源下還沒有影片"+
 	"連接電腦"+
@@ -8072,6 +8155,13 @@ var textsZhHant = i18n.NewTexts(""+
 		30,
 		9,
 		68,
+		9,
+		6,
+		6,
+		6,
+		30,
+		51,
+		48,
 		21,
 		30,
 		12,
@@ -8786,6 +8876,15 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsLibrary != nil {
 		s.FilmsLibrary = t.FilmsLibrary
+	}
+	if t.FilmsLibraryLockAction != nil {
+		s.FilmsLibraryLockAction = t.FilmsLibraryLockAction
+	}
+	if t.FilmsUnlockTitle != nil {
+		s.FilmsUnlockTitle = t.FilmsUnlockTitle
+	}
+	if t.FilmsUnlockNote != nil {
+		s.FilmsUnlockNote = t.FilmsUnlockNote
 	}
 	if t.FilmsLibraryOn != nil {
 		s.FilmsLibraryOn = t.FilmsLibraryOn
@@ -11708,6 +11807,163 @@ func (msgs Messages) FilmsLibrary(name string) string {
 		}
 	}
 }
+
+// FilmsLibraryLocked says "Locked"
+// in the language the app shows under cx.
+//
+// Library switcher sheet: subtitle tag on a password-protected library that is currently locked.
+func FilmsLibraryLocked(cx *core.Scope) string { return For(cx).FilmsLibraryLocked() }
+
+// FilmsLibraryLocked is the package's FilmsLibraryLocked in the language of msgs.
+func (msgs Messages) FilmsLibraryLocked() string { return msgs.text(textFilmsLibraryLocked) }
+
+// FilmsLibraryLockAction says "Lock {name}"
+// in the language the app shows under cx.
+//
+// Spoken name of the lock button on an unlocked password-protected library row.
+func FilmsLibraryLockAction(cx *core.Scope, name string) string {
+	return For(cx).FilmsLibraryLockAction(name)
+}
+
+// FilmsLibraryLockAction is the package's FilmsLibraryLockAction in the language of msgs.
+func (msgs Messages) FilmsLibraryLockAction(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLibraryLockAction(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLibraryLockAction; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Lock " + msgs.arg(name)
+		case "ja":
+			return "「" + name + "」をロック"
+		case "ko":
+			return "‘" + name + "’ 잠그기"
+		case "zh-Hans":
+			return "锁定「" + name + "」"
+		case "zh-Hant":
+			return "鎖定「" + name + "」"
+		}
+	}
+}
+
+// FilmsUnlockTitle says "Unlock {name}"
+// in the language the app shows under cx.
+//
+// Title of the password sheet that unlocks a password-protected library on the computer for this device.
+func FilmsUnlockTitle(cx *core.Scope, name string) string { return For(cx).FilmsUnlockTitle(name) }
+
+// FilmsUnlockTitle is the package's FilmsUnlockTitle in the language of msgs.
+func (msgs Messages) FilmsUnlockTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsUnlockTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsUnlockTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Unlock " + msgs.arg(name)
+		case "ja":
+			return "「" + name + "」をロック解除"
+		case "ko":
+			return "‘" + name + "’ 잠금 해제"
+		case "zh-Hans":
+			return "解锁「" + name + "」"
+		case "zh-Hant":
+			return "解鎖「" + name + "」"
+		}
+	}
+}
+
+// FilmsUnlockNote says "Enter the library password to view it on this device. {computer} stays locked."
+// in the language the app shows under cx.
+//
+// Note in the unlock password sheet explaining that unlocking only opens the library on this phone.
+func FilmsUnlockNote(cx *core.Scope, computer string) string {
+	return For(cx).FilmsUnlockNote(computer)
+}
+
+// FilmsUnlockNote is the package's FilmsUnlockNote in the language of msgs.
+func (msgs Messages) FilmsUnlockNote(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsUnlockNote(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsUnlockNote; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Enter the library password to view it on this device. " + msgs.arg(computer) + " stays locked."
+		case "ja":
+			return "このデバイスで見るにはライブラリのパスワードを入力してください。" + computer + " の画面はロックされたままです。"
+		case "ko":
+			return "이 기기에서 보려면 보관함 비밀번호를 입력하세요. " + computer + " 화면은 잠긴 상태로 유지됩니다."
+		case "zh-Hans":
+			return "输入资料库密码以在此设备上查看，" + computer + " 屏幕会保持锁定。"
+		case "zh-Hant":
+			return "輸入資料庫密碼以在此裝置上檢視，" + computer + " 畫面會保持鎖定。"
+		}
+	}
+}
+
+// FilmsUnlockPassword says "Password"
+// in the language the app shows under cx.
+//
+// Label and placeholder of the password field in the library unlock sheet.
+func FilmsUnlockPassword(cx *core.Scope) string { return For(cx).FilmsUnlockPassword() }
+
+// FilmsUnlockPassword is the package's FilmsUnlockPassword in the language of msgs.
+func (msgs Messages) FilmsUnlockPassword() string { return msgs.text(textFilmsUnlockPassword) }
+
+// FilmsUnlockCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Cancel button in the library unlock sheet.
+func FilmsUnlockCancel(cx *core.Scope) string { return For(cx).FilmsUnlockCancel() }
+
+// FilmsUnlockCancel is the package's FilmsUnlockCancel in the language of msgs.
+func (msgs Messages) FilmsUnlockCancel() string { return msgs.text(textFilmsUnlockCancel) }
+
+// FilmsUnlockConfirm says "Unlock"
+// in the language the app shows under cx.
+//
+// Confirm button in the library unlock sheet.
+func FilmsUnlockConfirm(cx *core.Scope) string { return For(cx).FilmsUnlockConfirm() }
+
+// FilmsUnlockConfirm is the package's FilmsUnlockConfirm in the language of msgs.
+func (msgs Messages) FilmsUnlockConfirm() string { return msgs.text(textFilmsUnlockConfirm) }
+
+// FilmsUnlockWrong says "Wrong password. Try again."
+// in the language the app shows under cx.
+//
+// Error shown in the library unlock sheet when the password is wrong.
+func FilmsUnlockWrong(cx *core.Scope) string { return For(cx).FilmsUnlockWrong() }
+
+// FilmsUnlockWrong is the package's FilmsUnlockWrong in the language of msgs.
+func (msgs Messages) FilmsUnlockWrong() string { return msgs.text(textFilmsUnlockWrong) }
+
+// FilmsUnlockTooMany says "Too many wrong passwords. Try again in a minute."
+// in the language the app shows under cx.
+//
+// Error shown in the library unlock sheet after too many wrong password attempts.
+func FilmsUnlockTooMany(cx *core.Scope) string { return For(cx).FilmsUnlockTooMany() }
+
+// FilmsUnlockTooMany is the package's FilmsUnlockTooMany in the language of msgs.
+func (msgs Messages) FilmsUnlockTooMany() string { return msgs.text(textFilmsUnlockTooMany) }
+
+// FilmsUnlockFailed says "Could not unlock. Make sure the computer is reachable and try again."
+// in the language the app shows under cx.
+//
+// Error shown in the library unlock sheet when the computer could not be reached or failed to open the library.
+func FilmsUnlockFailed(cx *core.Scope) string { return For(cx).FilmsUnlockFailed() }
+
+// FilmsUnlockFailed is the package's FilmsUnlockFailed in the language of msgs.
+func (msgs Messages) FilmsUnlockFailed() string { return msgs.text(textFilmsUnlockFailed) }
 
 // FilmsLibraryOn says "{library} on {computer}"
 // in the language the app shows under cx.

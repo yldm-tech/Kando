@@ -140,7 +140,7 @@ func phoneStateCall[T any](ctx context.Context, a *app, lib string, fn func(st *
 	if err != nil {
 		return zero, err
 	}
-	i := slices.IndexFunc(libs, func(l phonesync.Library) bool { return l.ID == lib })
+	i := slices.IndexFunc(libs, func(l phonesync.Library) bool { return l.ID == lib && !l.Locked })
 	if i < 0 {
 		return zero, psync.Errorf(psync.CodeNotFound, "no library %q", lib)
 	}
@@ -160,7 +160,7 @@ func phoneStateCall[T any](ctx context.Context, a *app, lib string, fn func(st *
 	making = slices.DeleteFunc(making, func(f phonesync.Film) bool { return f.Video == "" })
 	disk := phoneStateReadDisk(libs[i], slices.Concat(films, making))
 	return remote.OnUI(ctx, a.update, func() (T, error) {
-		st, err := a.phoneStateRead(libs[i], films, making, disk)
+		st, err := a.phoneStateRead(phonesync.DeviceOf(ctx), libs[i], films, making, disk)
 		if err != nil {
 			return zero, err
 		}
@@ -177,8 +177,8 @@ func phoneStateCall[T any](ctx context.Context, a *app, lib string, fn func(st *
 }
 
 // phoneStateRead takes the learning state of lib, whose films are films, those being made making, and whose files disk holds as read just before, into its ledger, which it reads the first time: the study record (the open library's as the app holds it), the resume positions of its films and their corrections (the open film's as the player holds them). The ledger stamps what changed on the desktop since it last took it in. A library locked since it was listed, or whose files are being moved into or out of its encrypted image, is not found, so nothing is read from or written into its folder while they are; one whose study record or ledger cannot be read fails, rather than tell phones its lines are gone. A study record that took lines from saved-lines.json is saved first, so the lines keep their IDs; while it cannot be, its lines are left as the ledger has them. UI thread only.
-func (a *app) phoneStateRead(lib phonesync.Library, films, making []phonesync.Film, disk phoneStateDisk) (*phoneStateLib, error) {
-	if a.libraryLocked(lib.Dir) || a.lockFilesAway(lib.Dir) {
+func (a *app) phoneStateRead(deviceID string, lib phonesync.Library, films, making []phonesync.Film, disk phoneStateDisk) (*phoneStateLib, error) {
+	if a.phoneLibraryLocked(lib.Dir, deviceID) || a.lockFilesAway(lib.Dir) {
 		return nil, psync.Errorf(psync.CodeNotFound, "no library %q", lib.ID)
 	}
 	st := &phoneStateLib{lib: lib, list: slices.Concat(films, making), films: map[string]phonesync.Film{}, keys: map[string]string{}, edits: maps.Clone(disk.edits)}
@@ -532,7 +532,7 @@ func (a *app) phoneStatePrime(dir string) {
 // phoneStateKeepAll keeps every ledger read, but those of libraries locked or being moved into or out of their encrypted image, and forgets them, as Phone Sync stops: the open library's changes taken in since the last call are kept, and a start reads them again. UI thread only.
 func (a *app) phoneStateKeepAll() {
 	for dir := range a.phone.ledgers {
-		if a.libraryLocked(dir) || a.lockFilesAway(dir) {
+		if (a.LibraryLocked(dir) && !a.phoneHasUnlocked(dir)) || a.lockFilesAway(dir) {
 			continue
 		}
 		if err := a.phoneStateKeepLedger(dir); err != nil {

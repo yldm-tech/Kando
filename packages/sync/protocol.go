@@ -30,12 +30,13 @@ const (
 // FilmsPath is PathFilms for library lib.
 func FilmsPath(lib string) string { return "/v1/libraries/" + lib + "/films" }
 
-// QueryWith asks PathFilms for kinds of film a phone from before them did not know, so a desktop lists them only to a phone that asks, as "?with=subtitles_only,sound": WithSubtitlesOnly for the films that keep no video (Film.SubtitlesOnly), which a phone knew a film by; WithSound for the films of sound alone (Film.Sound), whose file a phone from before them would keep as an MP4 it cannot play (Extension); WithMaking for the films still being made (Film.Making), which a phone from before them would keep as done.
+// QueryWith asks PathFilms or PathLibraries for kinds a phone from before them did not know, so a desktop lists them only to a phone that asks, as "?with=subtitles_only,sound": WithSubtitlesOnly for the films that keep no video (Film.SubtitlesOnly), which a phone knew a film by; WithSound for the films of sound alone (Film.Sound), whose file a phone from before them would keep as an MP4 it cannot play (Extension); WithMaking for the films still being made (Film.Making), which a phone from before them would keep as done; WithLocked on PathLibraries for password-protected libraries still locked for this phone (Library.Locked).
 const (
 	QueryWith         = "with"
 	WithSubtitlesOnly = "subtitles_only"
 	WithSound         = "sound"
 	WithMaking        = "making"
+	WithLocked        = "locked"
 )
 
 // AsksWith reports whether query, a request's QueryWith, asks for kind among the kinds it names.
@@ -77,11 +78,13 @@ type PairResponse struct {
 	Desktop  string `json:"desktop"`
 }
 
-// Library is a library of the desktop's: its ID, its name as the desktop shows it, and how many films it holds that a phone can play. A locked library is never listed.
+// Library is a library of the desktop's: its ID, its name as the desktop shows it, and how many films it holds that a phone can play. A locked library is omitted unless the phone asks with WithLocked, in which case Locked is true, Films is 0, and none of its films is served until the phone unlocks it (OpLibraryUnlock). HasPassword is true for any password-protected library (locked or unlocked) when WithLocked was asked, so the phone can offer to lock it again (OpLibraryLock).
 type Library struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Films int    `json:"films"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Films       int    `json:"films"`
+	Locked      bool   `json:"locked,omitzero"`
+	HasPassword bool   `json:"has_password,omitzero"`
 }
 
 // Libraries is PathLibraries' answer.
@@ -169,6 +172,8 @@ const (
 	CodeNotFound = "not_found"
 	// CodeInvalid is a request the desktop cannot read (status 400).
 	CodeInvalid = "invalid"
+	// CodeWrongPassword is a library unlock whose password did not match (status 403).
+	CodeWrongPassword = "wrong_password"
 	// CodeFailed is anything else that went wrong on the desktop (status 500).
 	CodeFailed = "failed"
 )

@@ -14,12 +14,12 @@ import (
 // phoneSubscriptions is the subscriptions a paired phone follows and changes over protocol v2 (psync.SubscriptionService), as the sidebar's list and a subscription's page show and change them: those of every library the app knows, the locked ones left out, which a phone neither sees nor acts on. A phone subscribes the open library as the control socket does (remoteSubscribe); the checks stay the app's, on its own schedule.
 type phoneSubscriptions struct{ a *app }
 
-func (p phoneSubscriptions) Subscriptions(ctx context.Context, _ psync.Caller) (psync.SubscriptionList, error) {
+func (p phoneSubscriptions) Subscriptions(ctx context.Context, caller psync.Caller) (psync.SubscriptionList, error) {
 	a := p.a
 	return remote.OnUI(ctx, a.update, func() (psync.SubscriptionList, error) {
 		out := psync.SubscriptionList{Subscriptions: []psync.Subscription{}}
 		for _, sub := range a.subs.store.Subs {
-			if a.phoneSubscriptionServed(sub) {
+			if a.phoneSubscriptionServed(sub, caller.DeviceID) {
 				out.Subscriptions = append(out.Subscriptions, phoneSubscriptionOf(sub))
 			}
 		}
@@ -41,7 +41,7 @@ func (p phoneSubscriptions) Subscribe(ctx context.Context, caller psync.Caller, 
 	}
 	return remote.OnUI(ctx, a.update, func() (psync.Subscribed, error) {
 		sub, ok := a.subscribeFind(got.Subscription.ID)
-		if !ok || !a.phoneSubscriptionServed(*sub) {
+		if !ok || !a.phoneSubscriptionServed(*sub, caller.DeviceID) {
 			return psync.Subscribed{}, psync.Errorf(psync.CodeNotFound, "subscription %q was removed", got.Subscription.ID)
 		}
 		if !got.Already {
@@ -52,10 +52,10 @@ func (p phoneSubscriptions) Subscribe(ctx context.Context, caller psync.Caller, 
 }
 
 // SetSubscription turns the auto-download of a subscription on or off, as its page's 新视频 does between 自动加入队列 and 先问我, and pauses or resumes its checks.
-func (p phoneSubscriptions) SetSubscription(ctx context.Context, _ psync.Caller, req psync.SubscriptionSet) (psync.Subscription, error) {
+func (p phoneSubscriptions) SetSubscription(ctx context.Context, caller psync.Caller, req psync.SubscriptionSet) (psync.Subscription, error) {
 	a := p.a
 	return remote.OnUI(ctx, a.update, func() (psync.Subscription, error) {
-		sub, err := a.phoneSubscription(req.ID)
+		sub, err := a.phoneSubscription(req.ID, caller.DeviceID)
 		if err != nil {
 			return psync.Subscription{}, err
 		}
@@ -80,7 +80,7 @@ func (p phoneSubscriptions) SetSubscription(ctx context.Context, _ psync.Caller,
 func (p phoneSubscriptions) TakeSubscription(ctx context.Context, caller psync.Caller, req psync.SubscriptionTake) (psync.Subscription, error) {
 	a := p.a
 	return remote.OnUI(ctx, a.update, func() (psync.Subscription, error) {
-		sub, err := a.phoneSubscription(req.ID)
+		sub, err := a.phoneSubscription(req.ID, caller.DeviceID)
 		if err != nil {
 			return psync.Subscription{}, err
 		}
@@ -101,7 +101,7 @@ func (p phoneSubscriptions) TakeSubscription(ctx context.Context, caller psync.C
 func (p phoneSubscriptions) Unsubscribe(ctx context.Context, caller psync.Caller, req psync.SubscriptionRef) error {
 	a := p.a
 	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
-		sub, err := a.phoneSubscription(req.ID)
+		sub, err := a.phoneSubscription(req.ID, caller.DeviceID)
 		if err != nil {
 			return struct{}{}, err
 		}
@@ -113,15 +113,15 @@ func (p phoneSubscriptions) Unsubscribe(ctx context.Context, caller psync.Caller
 	return err
 }
 
-// phoneSubscriptionServed reports whether a phone sees sub: its library is one the app knows and is not locked. UI thread only.
-func (a *app) phoneSubscriptionServed(sub subscribe.Sub) bool {
-	return a.subscribeKnown(sub.Library) && !a.libraryLocked(sub.Library)
+// phoneSubscriptionServed reports whether deviceID sees sub: its library is one the app knows and is not locked for deviceID. UI thread only.
+func (a *app) phoneSubscriptionServed(sub subscribe.Sub, deviceID string) bool {
+	return a.subscribeKnown(sub.Library) && !a.phoneLibraryLocked(sub.Library, deviceID)
 }
 
-// phoneSubscription is the subscription with id a phone may act on, not found when it is gone or its library is forgotten or locked. UI thread only.
-func (a *app) phoneSubscription(id string) (*subscribe.Sub, error) {
+// phoneSubscription is the subscription with id deviceID may act on, not found when it is gone or its library is forgotten or locked. UI thread only.
+func (a *app) phoneSubscription(id, deviceID string) (*subscribe.Sub, error) {
 	sub, ok := a.subscribeFind(id)
-	if !ok || !a.phoneSubscriptionServed(*sub) {
+	if !ok || !a.phoneSubscriptionServed(*sub, deviceID) {
 		return nil, psync.Errorf(psync.CodeNotFound, "no subscription %q", id)
 	}
 	return sub, nil

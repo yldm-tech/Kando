@@ -42,7 +42,7 @@ func (p phoneMarks) FilmMarks(ctx context.Context, caller psync.Caller, ref psyn
 		state pluginsMarkState
 	}
 	got, err := remote.OnUI(ctx, a.update, func() (found, error) {
-		if a.libraryLocked(f.lib.Dir) {
+		if a.phoneLibraryLocked(f.lib.Dir, caller.DeviceID) {
 			return found{}, psync.Errorf(psync.CodeNotFound, "no film %q", f.film.ID)
 		}
 		// The vocabulary the app holds is the open library's, so the words of a film of another library are not underlined.

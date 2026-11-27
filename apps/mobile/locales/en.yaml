@@ -496,6 +496,42 @@ filmsLibrary:
   description: "Spoken name of the Library's switcher, with the library it shows."
   placeholders:
     name: { type: "String", example: "Japanese Class" }
+filmsLibraryLocked:
+  message: "Locked"
+  description: "Library switcher sheet: subtitle tag on a password-protected library that is currently locked."
+filmsLibraryLockAction:
+  message: "Lock {name}"
+  description: "Spoken name of the lock button on an unlocked password-protected library row."
+  placeholders:
+    name: { type: "String", example: "Private" }
+filmsUnlockTitle:
+  message: "Unlock {name}"
+  description: "Title of the password sheet that unlocks a password-protected library on the computer for this device."
+  placeholders:
+    name: { type: "String", example: "Private" }
+filmsUnlockNote:
+  message: "Enter the library password to view it on this device. {computer} stays locked."
+  description: "Note in the unlock password sheet explaining that unlocking only opens the library on this phone."
+  placeholders:
+    computer: { type: "String", example: "MacBook Pro" }
+filmsUnlockPassword:
+  message: "Password"
+  description: "Label and placeholder of the password field in the library unlock sheet."
+filmsUnlockCancel:
+  message: "Cancel"
+  description: "Cancel button in the library unlock sheet."
+filmsUnlockConfirm:
+  message: "Unlock"
+  description: "Confirm button in the library unlock sheet."
+filmsUnlockWrong:
+  message: "Wrong password. Try again."
+  description: "Error shown in the library unlock sheet when the password is wrong."
+filmsUnlockTooMany:
+  message: "Too many wrong passwords. Try again in a minute."
+  description: "Error shown in the library unlock sheet after too many wrong password attempts."
+filmsUnlockFailed:
+  message: "Could not unlock. Make sure the computer is reachable and try again."
+  description: "Error shown in the library unlock sheet when the computer could not be reached or failed to open the library."
 filmsLibraryOn:
   message: "{library} on {computer}"
   description: "In the Library's switcher: a library, by its name and its computer's."

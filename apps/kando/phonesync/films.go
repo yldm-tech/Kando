@@ -245,6 +245,9 @@ func (f *films) turn(ctx context.Context) error {
 	var all []listed
 	var shelf []psync.Library
 	for _, lib := range libs {
+		if lib.Locked {
+			continue
+		}
 		list, err := f.s.cfg.Source.Films(ctx, lib)
 		if errors.Is(err, ErrNotFound) {
 			continue

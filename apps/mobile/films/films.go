@@ -219,11 +219,11 @@ func addPill(cx *core.Scope, label func() string, press func()) core.Node {
 		Children: []core.Node{ui.Icon(look.Plus, 14, ui.Inherited), core.Text{ContentFunc: label, MaxLines: 1, Style: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightBold}}}}
 }
 
-// hasLibrary reports whether lib is among the libraries the merged list has.
+// hasLibrary reports whether lib is among the unlocked libraries the merged list has.
 func (v *view) hasLibrary(lib catalog.Scope) bool {
 	for _, l := range catalog.Libraries(v.s.Computers(), v.entries.Get()) {
 		if l.Desktop == lib.Desktop && l.ID == lib.ID && l.Name == lib.Name {
-			return true
+			return !l.Locked
 		}
 	}
 	return false

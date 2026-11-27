@@ -24,9 +24,24 @@ import (
 	psync "kando/packages/sync"
 )
 
-// Library is a library the app serves: its ID in the protocol, its name as the app shows it, and its folder.
+// Library is a library the app serves: its ID in the protocol, its name as the app shows it, its folder, and whether it has a password or is locked for the calling device.
 type Library struct {
 	ID, Name, Dir string
+	Locked        bool
+	HasPassword   bool
+}
+
+type deviceKey struct{}
+
+// WithDevice returns ctx tagged with the paired device ID making the request, so Source.Libraries and Source.Films know which device unlocked which password-protected libraries.
+func WithDevice(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, deviceKey{}, id)
+}
+
+// DeviceOf returns the paired device ID tagged on ctx by WithDevice, or "" when none is (such as background relay turns).
+func DeviceOf(ctx context.Context) string {
+	id, _ := ctx.Value(deviceKey{}).(string)
+	return id
 }
 
 // Film is a film the app serves, done processing: its ID in the protocol, what the protocol says of it, and its files. A film that keeps no video (SubtitlesOnly) is served by its subtitles alone, and only to a phone that asks for such films (psync.WithSubtitlesOnly).
@@ -107,6 +122,8 @@ type Config struct {
 	Marks psync.MarkService
 	// Watched is told, on a request's goroutine, that the phone of caller watches film f, being made, at at, and whether its user claimed it (psync.FilmWatch.Claim); nil answers psync.OpFilmWatch unsupported.
 	Watched func(caller psync.Caller, f Film, at time.Duration, claim bool)
+	// Libraries unlocks and locks password-protected libraries for paired phones over protocol v2; nil answers them unsupported.
+	Libraries psync.LibraryService
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
 	Relay       Bucket
 	RelayHealth func(err error)
@@ -194,7 +211,7 @@ func Start(cfg Config) (*Server, error) {
 	if jobs == nil {
 		jobs = noJobs{}
 	}
-	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Films: cfg.FilmOps, Marks: cfg.Marks, Watch: s.watching(), Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
+	s.desk = &psync.Desk{Service: jobs, State: cfg.State, Settings: cfg.Settings, Study: cfg.Study, Subscriptions: cfg.Subscriptions, Glossary: cfg.Glossary, Films: cfg.FilmOps, Marks: cfg.Marks, Watch: s.watching(), Libraries: cfg.Libraries, Journal: psync.NewJournal(), Desktop: cfg.Name, Now: cfg.Now}
 	s.http = &http.Server{
 		Handler:           s.routes(),
 		TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13},
@@ -559,17 +576,25 @@ func sourceContext(r *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), sourceTimeout)
 }
 
-// libraries answers the libraries, each with how many films a phone can play, those that keep no video left out, as a phone from before them listed only these.
-func (s *Server) libraries(w http.ResponseWriter, r *http.Request, _ Device) {
+// libraries answers the libraries, each with how many films a phone can play, those that keep no video left out, as a phone from before them listed only these. Locked password-protected libraries are omitted unless the phone asks for psync.WithLocked, in which case their ID and name are listed with Locked set and Films 0.
+func (s *Server) libraries(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
+	ctx = WithDevice(ctx, dev.ID)
 	libs, err := s.cfg.Source.Libraries(ctx)
 	if err != nil {
 		s.sourceFailed(w, r, err)
 		return
 	}
+	withLocked := psync.AsksWith(r.URL.Query().Get(psync.QueryWith), psync.WithLocked)
 	out := psync.Libraries{Libraries: []psync.Library{}}
 	for _, lib := range libs {
+		if lib.Locked {
+			if withLocked {
+				out.Libraries = append(out.Libraries, psync.Library{ID: lib.ID, Name: lib.Name, Locked: true, HasPassword: true})
+			}
+			continue
+		}
 		films, err := s.filmsFor(ctx, lib, false)
 		if err != nil && !errors.Is(err, ErrNotFound) {
 			s.sourceFailed(w, r, err)
@@ -581,15 +606,16 @@ func (s *Server) libraries(w http.ResponseWriter, r *http.Request, _ Device) {
 				n++
 			}
 		}
-		out.Libraries = append(out.Libraries, psync.Library{ID: lib.ID, Name: lib.Name, Films: n})
+		out.Libraries = append(out.Libraries, psync.Library{ID: lib.ID, Name: lib.Name, Films: n, HasPassword: withLocked && lib.HasPassword})
 	}
 	writeJSON(w, http.StatusOK, out)
 }
 
 // films answers the films of library {lib}: those with their video, and those that keep none, those of sound alone and those being made for a phone that asks for them (psync.WithSubtitlesOnly, psync.WithSound, psync.WithMaking).
-func (s *Server) films(w http.ResponseWriter, r *http.Request, _ Device) {
+func (s *Server) films(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
+	ctx = WithDevice(ctx, dev.ID)
 	lib, err := s.library(ctx, r.PathValue("lib"))
 	if err != nil {
 		s.sourceFailed(w, r, err)
@@ -622,9 +648,10 @@ func (s *Server) films(w http.ResponseWriter, r *http.Request, _ Device) {
 }
 
 // subtitles answers the lines of film {id}.
-func (s *Server) subtitles(w http.ResponseWriter, r *http.Request, _ Device) {
+func (s *Server) subtitles(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
 	defer cancel()
+	ctx = WithDevice(ctx, dev.ID)
 	f, err := s.film(ctx, r.PathValue("id"))
 	if err != nil {
 		s.sourceFailed(w, r, err)
@@ -642,9 +669,9 @@ func (s *Server) subtitles(w http.ResponseWriter, r *http.Request, _ Device) {
 }
 
 // poster answers film {id}'s poster file.
-func (s *Server) poster(w http.ResponseWriter, r *http.Request, _ Device) {
+func (s *Server) poster(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
-	f, err := s.film(ctx, r.PathValue("id"))
+	f, err := s.film(WithDevice(ctx, dev.ID), r.PathValue("id"))
 	cancel()
 	if err == nil && f.Poster == "" {
 		err = ErrNotFound
@@ -657,9 +684,9 @@ func (s *Server) poster(w http.ResponseWriter, r *http.Request, _ Device) {
 }
 
 // video answers film {id}'s video file, by ranges when asked, with an ETag that changes when the file does. A film that keeps no video has none.
-func (s *Server) video(w http.ResponseWriter, r *http.Request, _ Device) {
+func (s *Server) video(w http.ResponseWriter, r *http.Request, dev Device) {
 	ctx, cancel := sourceContext(r)
-	f, err := s.film(ctx, r.PathValue("id"))
+	f, err := s.film(WithDevice(ctx, dev.ID), r.PathValue("id"))
 	cancel()
 	// A film being made before its video or a link's sound is in has nothing to play yet.
 	if err == nil && (f.SubtitlesOnly || f.Making && !fileThere(f.played())) {
@@ -720,14 +747,14 @@ func (s *Server) sourceFailed(w http.ResponseWriter, r *http.Request, err error)
 	}
 }
 
-// library is the library with ID id among those the app serves.
+// library is the unlocked library with ID id among those the app serves.
 func (s *Server) library(ctx context.Context, id string) (Library, error) {
 	libs, err := s.cfg.Source.Libraries(ctx)
 	if err != nil {
 		return Library{}, err
 	}
 	for _, lib := range libs {
-		if lib.ID == id {
+		if lib.ID == id && !lib.Locked {
 			return lib, nil
 		}
 	}
@@ -756,6 +783,9 @@ func (s *Server) findIn(ctx context.Context, id string, cached bool) (served, er
 		return served{}, err
 	}
 	for _, lib := range libs {
+		if lib.Locked {
+			continue
+		}
 		for _, list := range []func(context.Context, Library, bool) ([]served, error){s.filmsFor, s.makingFor} {
 			films, err := list(ctx, lib, cached)
 			if errors.Is(err, ErrNotFound) {
@@ -903,6 +933,7 @@ func (s *Server) call(w http.ResponseWriter, r *http.Request, dev Device) {
 	r.Body = io.NopCloser(bytes.NewReader(data))
 	ctx, cancel := context.WithTimeout(r.Context(), callTimeout(head.Op))
 	defer cancel()
+	ctx = WithDevice(ctx, dev.ID)
 	psync.HandleCall(w, r.WithContext(ctx), s.desk, psync.Caller{DeviceID: dev.ID, Name: dev.Name, ReadOnly: dev.ReadOnly})
 }
 

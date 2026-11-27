@@ -33,7 +33,7 @@ func (s phoneStudy) film(ctx context.Context, library, film string) films.Film {
 	if err != nil {
 		return films.Film{}
 	}
-	i := slices.IndexFunc(libs, func(l phonesync.Library) bool { return l.ID == library })
+	i := slices.IndexFunc(libs, func(l phonesync.Library) bool { return l.ID == library && !l.Locked })
 	if i < 0 {
 		return films.Film{}
 	}
