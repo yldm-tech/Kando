@@ -249,6 +249,38 @@ func TestTheMonthlyLimitStopsATranslationAndRaisingItResumes(t *testing.T) {
 	}
 }
 
+// A raise of the monthly limit too small for the film it translates again stops it again, quietly, and the next raise that is enough still translates it: the film is not forgotten because the redo the first raise queued ended without its error.
+func TestARaiseTooSmallForAFilmLeavesItForTheNext(t *testing.T) {
+	tools, requests := aiusageLLM(t)
+	lib, job := aiusageTalk(t)
+	a, tt, updates := newTestApp(t, tools)
+	a.aiusage.now = func() time.Time { return time.Date(2026, 11, 20, 12, 0, 0, 0, time.Local) }
+	a.aiusageAttach()
+	a.aiusage.ledger.Add("2026-11", media.PassTranslate, "api.everyapi.ai", 5*aiusage.MinLimit, 0, false)
+	a.SetAIUsageLimit(4 * aiusage.MinLimit)
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.library.Jobs = []core.Job{job}
+	a.refreshLibrary()
+	refresh(tt, a)
+	tt.Press("补译未译的句子")
+	settle(t, a, tt, updates)
+	ended := func() bool { _, ended := a.queue.redoEnded["talk"]; return ended && a.queue.active == "" }
+	waitUntil(t, tt, a, updates, ended)
+	// One step of the field's buttons: still under what the month counted.
+	a.SetAIUsageLimit(4*aiusage.MinLimit + aiusage.LimitStep)
+	settle(t, a, tt, updates)
+	waitUntil(t, tt, a, updates, ended)
+	if got := stageOf(t, a, "talk"); requests.Load() != 0 || got.Stage != core.StageComplete || got.Untranslated != 1 {
+		t.Fatalf("%d requests sent, job %+v", requests.Load(), got)
+	}
+	a.SetAIUsageLimit(10 * aiusage.MinLimit)
+	settle(t, a, tt, updates)
+	waitUntil(t, tt, a, updates, func() bool { return stageOf(t, a, "talk").Untranslated == 0 && a.queue.active == "" })
+	if requests.Load() == 0 {
+		t.Fatal("nothing sent once the limit was raised enough")
+	}
+}
+
 // Explain Line at the monthly limit sends nothing and says the limit is reached, rather than what the error says.
 func TestExplainingALineAtTheMonthlyLimitSaysSo(t *testing.T) {
 	tools, asks := explainLLM(t)

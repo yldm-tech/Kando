@@ -29,6 +29,8 @@ type aiusageUI struct {
 	tokens int64
 	// limit is what the translator's Budget reads, from any goroutine: the limit and the tokens counted in the month it was taken in.
 	limit *atomic.Pointer[aiusage.Limit]
+	// resumed is the films aiusageResume translated again, by job ID, until one completes: one the limit stops again ends quietly, as a refill does, its error dropped (queueRedoEnded), so this is what tells the next raise that it stopped at the limit.
+	resumed map[string]bool
 }
 
 func newAIUsageUI() aiusageUI {
@@ -137,6 +139,9 @@ func (a *app) aiusageUseLimit(tokens int64) {
 // aiusageResume queues, behind the jobs waiting, the done films of the open library the limit stopped, to translate their lines left (core.RedoMissing), or translate them again as their redo asked (core.RedoTranslation): those made without their translation from where the limit refused it (core.Job.TranslationErr), and those whose translation again since launch ended at it (jobQueue.redoEnded). They end quietly, as a refill does.
 func (a *app) aiusageResume() {
 	for _, job := range a.library.Jobs {
+		if _, ended := a.queue.redoEnded[job.ID]; !ended && job.Stage == core.StageComplete {
+			delete(a.aiusage.resumed, job.ID)
+		}
 		redo, into, ok := a.aiusageStopped(job)
 		if !ok || job.ID == a.queue.active {
 			continue
@@ -149,12 +154,16 @@ func (a *app) aiusageResume() {
 			a.queue.refills = map[string]bool{}
 		}
 		a.queue.refills[job.ID] = true
+		if a.aiusage.resumed == nil {
+			a.aiusage.resumed = map[string]bool{}
+		}
+		a.aiusage.resumed[job.ID] = true
 		delete(a.lib.quotes, job.SubtitlePath)
 		a.queueAdd(ready)
 	}
 }
 
-// aiusageStopped reports whether job is a done film the monthly limit stopped, and how to translate it again: its lines left for one made without them, or as the redo that ended at the limit asked.
+// aiusageStopped reports whether job is a done film the monthly limit stopped, and how to translate it again: its lines left for one made without them, or as the redo that ended at the limit asked, one this translated again among them, which a raise too small for it stopped again.
 func (a *app) aiusageStopped(job core.Job) (redo core.Redo, into string, ok bool) {
 	if job.Stage != core.StageComplete || job.SameLanguage || job.TranslationSource != "" {
 		return "", "", false
@@ -163,7 +172,9 @@ func (a *app) aiusageStopped(job core.Job) (redo core.Redo, into string, ok bool
 		return core.RedoMissing, "", true
 	}
 	ended, was := a.queue.redoEnded[job.ID]
-	if !was || ended.Err == nil || media.ClassifyTranslate(ended.Err.Error()) != media.TranslateCap {
+	// A redo this resumed that ended again kept no error (aiusageUI.resumed).
+	capped := was && (ended.Err == nil && a.aiusage.resumed[job.ID] || ended.Err != nil && media.ClassifyTranslate(ended.Err.Error()) == media.TranslateCap)
+	if !capped {
 		return "", "", false
 	}
 	switch ended.Redo {
