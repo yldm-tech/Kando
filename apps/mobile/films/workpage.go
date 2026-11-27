@@ -26,6 +26,9 @@ func WorkPage(cx *core.Scope, s *session.Session, act Actions, desktop, id strin
 	goOn := func() (catalog.Entry, int) { return catalog.GoOn(work.Get()) }
 	button := func() string {
 		e, how := goOn()
+		if e.Film.ID == "" {
+			return ""
+		}
 		switch how {
 		case catalog.GoOnStart:
 			return locales.FilmsWorkStart(cx, e.Film.WorkIndex)
@@ -76,12 +79,25 @@ func WorkPage(cx *core.Scope, s *session.Session, act Actions, desktop, id strin
 	}}, ui.NavHeader{OnBack: back, Scroll: ref})
 }
 
-// workGoOn plays the film the work goes on with (catalog.GoOn) where it was left, as Continue Watching does (Resume); a work watched through starts its first film again from the beginning, once it is on the phone.
+// workGoOn plays the film the work goes on with (catalog.GoOn) where it was left, as Continue Watching does (Resume); a work watched through starts its first film again from the beginning, once its video can play on the phone. A film kept by its lines alone, or not on the phone yet, opens its page.
 func workGoOn(s *session.Session, act Actions, goOn func() (catalog.Entry, int)) {
 	e, how := goOn()
-	if k, ok := s.Film(e.Key()); how == catalog.GoOnAgain && (ok && k.Done() || s.Matched(e.Key())) {
+	if e.Film.ID == "" {
+		return
+	}
+	k, ok := s.Film(e.Key())
+	playable := ok && (k.Done() && k.HasVideo() || k.FromSource()) || s.Matched(e.Key())
+	if !playable {
+		act.Film(e)
+		return
+	}
+	if how == catalog.GoOnAgain {
 		act.PlayAt(e.Key(), 0)
 		return
 	}
-	Resume(s, act, e)
+	if !e.Position.Mine && e.Position.At > 0 {
+		act.PlayAt(e.Key(), e.Position.At)
+		return
+	}
+	act.Play(e.Key())
 }

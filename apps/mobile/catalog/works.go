@@ -47,9 +47,17 @@ func WorkOf(entries []Entry, desktop, id string) (Work, bool) {
 func ordered(w Work) Work {
 	slices.SortStableFunc(w.Films, func(a, b Entry) int { return cmp.Compare(a.Film.WorkIndex, b.Film.WorkIndex) })
 	count := map[string]int{}
+	latest := map[string]time.Time{}
 	for _, e := range w.Films {
-		count[e.Film.WorkTitle]++
-		if t := e.Film.WorkTitle; t != "" && count[t] > count[w.Title] {
+		t := e.Film.WorkTitle
+		if t == "" {
+			continue
+		}
+		count[t]++
+		if e.Film.Updated.After(latest[t]) {
+			latest[t] = e.Film.Updated
+		}
+		if w.Title == "" || count[t] > count[w.Title] || count[t] == count[w.Title] && latest[t].After(latest[w.Title]) {
 			w.Title = t
 		}
 	}
@@ -136,7 +144,22 @@ func GoOn(w Work) (Entry, int) {
 		}
 	}
 	if last < 0 {
-		return w.Films[0], GoOnStart
+		anyWatched := false
+		for _, e := range w.Films {
+			if Watched(e) {
+				anyWatched = true
+				break
+			}
+		}
+		if !anyWatched {
+			return w.Films[0], GoOnStart
+		}
+		for _, e := range w.Films {
+			if !Watched(e) {
+				return e, GoOnNext
+			}
+		}
+		return w.Films[0], GoOnAgain
 	}
 	if !Watched(w.Films[last]) {
 		return w.Films[last], GoOnResume

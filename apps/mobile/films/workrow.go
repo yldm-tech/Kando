@@ -138,8 +138,9 @@ func (v *view) workText(cx *core.Scope, w func() catalog.Work, id string) []core
 	}
 }
 
-// workCell is a work of a tablet's grid: its poster, with how many of its films were not watched at its corner, its name and what it says under it.
+// workCell is a work of a tablet's grid: its poster, with how many of its films were not watched (or a check once all were) at its corner, its name and what it says under it.
 func (v *view) workCell(cx *core.Scope, r func() catalog.Row) core.Node {
+	colors := ui.ColorsOf(cx)
 	w := func() catalog.Work { return workOf(r) }
 	id := r().Work.Desktop + "-" + r().Work.ID
 	return core.View{Style: core.Style{Width: core.Pct(33.333), Padding: core.Symmetric(0, 8)}, Children: []core.Node{
@@ -156,9 +157,18 @@ func (v *view) workCell(cx *core.Scope, r func() catalog.Row) core.Node {
 				core.View{Children: []core.Node{
 					v.poster(cx, goOnEntry(w), 0, 14, false),
 					core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(6), Right: core.Pt(6)}, Children: []core.Node{
-						core.Show{When: func() bool { return catalog.Unwatched(w()) > 0 }, Then: func(cx *core.Scope) core.Node {
-							return look.Count{TestID: "films-work-unwatched-" + id, Count: func() int { return catalog.Unwatched(w()) }, Ring: true}
-						}},
+						core.Show{When: func() bool { return catalog.Unwatched(w()) > 0 },
+							Then: func(cx *core.Scope) core.Node {
+								return look.Count{TestID: "films-work-unwatched-" + id, Count: func() int { return catalog.Unwatched(w()) }, Ring: true}
+							},
+							Else: func(cx *core.Scope) core.Node {
+								return core.View{TestID: "films-work-watched-" + id, Role: core.RoleImage, LabelFunc: func() string { return locales.FilmsWorkAllWatched(cx) }, PointerEvents: core.PointerEventsNone,
+									Style: core.Style{Width: core.Pt(20), Height: core.Pt(20), CornerRadius: 10, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+									StyleFunc: func() core.Style {
+										return core.Style{Background: colors.Surface(), BorderWidth: 1, BorderColor: colors.Line()}
+									},
+									Children: []core.Node{ui.Icon(lucide.Check, 12, colors.Muted)}}
+							}},
 					}},
 				}},
 				core.View{Style: core.Style{Gap: 4}, Children: v.workText(cx, w, id)},

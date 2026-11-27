@@ -76,6 +76,16 @@ func TestGoOnGoesOnWithTheWorkWhereItWasLeft(t *testing.T) {
 	if e, how := GoOn(w); e.Film.ID != "e1" || how != GoOnStart || Unwatched(w) != 3 {
 		t.Fatalf("none played: %s %d", e.Film.ID, how)
 	}
+	// e1 marked watched on the computer without ever playing (zero PlayedAt): goes on with e2; all marked watched starts again.
+	w.Films[0].Film.Watched = true
+	if e, how := GoOn(w); e.Film.ID != "e2" || how != GoOnNext || Unwatched(w) != 2 {
+		t.Fatalf("marked watched without played_at: %s %d", e.Film.ID, how)
+	}
+	w.Films[1].Film.Watched, w.Films[2].Film.Watched = true, true
+	if e, how := GoOn(w); e.Film.ID != "e1" || how != GoOnAgain || Unwatched(w) != 0 {
+		t.Fatalf("all marked watched without played_at: %s %d", e.Film.ID, how)
+	}
+	w.Films[0].Film.Watched, w.Films[1].Film.Watched, w.Films[2].Film.Watched = false, false, false
 	// e1 watched on the computer, e2 left partway on the phone before it.
 	w.Films[0].Film.Watched, w.Films[0].Film.PlayedAt = true, at(10)
 	w.Films[1].Position = Position{At: 20 * time.Second, When: at(5), Mine: true}
@@ -111,5 +121,13 @@ func TestWorkOfListsTheWorksFilms(t *testing.T) {
 	}
 	if _, ok := WorkOf(entries, "d1", "none"); ok {
 		t.Fatal("a work of no films")
+	}
+	// On a title count tie, the newer listing's title wins.
+	older := episode("d1", "e1", 1)
+	older.Film.WorkTitle, older.Film.Updated = "Old Name", time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	newer := episode("d1", "e2", 2)
+	newer.Film.WorkTitle, newer.Film.Updated = "New Name", time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)
+	if tied, ok := WorkOf([]Entry{older, newer}, "d1", "w1"); !ok || tied.Title != "New Name" {
+		t.Fatalf("tied titles picked %q", tied.Title)
 	}
 }
