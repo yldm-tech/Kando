@@ -213,9 +213,8 @@ func (a *app) pluginsRunTask(id string) {
 			r.say = func(cx *ns.Scope) string { return locales.PluginsTaskCutOff(cx, limit) }
 			return
 		case err != nil:
-			msg := err.Error()
 			r.failed = true
-			r.say = func(cx *ns.Scope) string { return locales.PluginsTaskFailed(cx, msg) }
+			r.say = aiusageSay(err, locales.PluginsTaskFailed)
 			// A reply that is not what the pack asked for is the pack's or the model's, not the settings'.
 			if !errors.Is(err, task.ErrEmpty) && !errors.Is(err, task.ErrMalformed) {
 				r.fix = "ai"

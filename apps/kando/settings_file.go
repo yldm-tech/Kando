@@ -177,6 +177,7 @@ type savedSettings struct {
 	savedTray         // state_tray.go
 	savedStudy        // state_saved.go
 	savedPrivacy      // state_privacy.go
+	savedAIUsage      // state_aiusage.go
 	savedSubexport    // state_subexport.go
 	savedTools        // state_tools.go
 	savedPlugins      // state_plugins.go
@@ -210,6 +211,7 @@ func (s *savedSettings) clean() {
 	s.savedTray.clean()
 	s.savedStudy.clean()
 	s.savedPrivacy.clean()
+	s.savedAIUsage.clean()
 	s.savedSubexport.clean()
 	s.savedTools.clean()
 	s.savedPlugins.clean()

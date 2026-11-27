@@ -652,7 +652,7 @@ func (a *app) paletteSend(t media.ChatTranslator, item films.Film, system, user 
 		a.palette.cancel = nil
 		if err != nil {
 			// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
-			a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func(cx *core.Scope) string { return failed(cx, err.Error()) }}
+			a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: aiusageSay(err, failed)}
 			return
 		}
 		text, refs := paletteParseReply(reply, seen)

@@ -742,20 +742,20 @@ func (m *making) run(length time.Duration, language string, watch Watcher) core.
 			case d.in.redraft:
 				// A line made again for a term keeps its draft when that fails; the final proofread makes it with the term.
 			case m.ctx.Err() != nil:
-			case d.in.final && (errors.Is(d.err, ErrOffline) || given):
+			case d.in.final && (refusedUnsent(d.err) || given):
 				// The service is gone, or fails block after block: the film stays a draft where it is not proofread yet, as one done with blocks the final proofread did not get to.
 				logf(m.ctx, "final proofread: given up for the blocks left")
 				finals = false
 				relanguage()
-			case (errors.Is(d.err, ErrOffline) || given) && m.redo:
+			case (refusedUnsent(d.err) || given) && m.redo:
 				// A redo without its translation, or its proofreading, would replace the film's subtitles with lesser ones: it fails, leaving the film as it was.
 				return m.fail(StageTranslate, d.err)
-			case (errors.Is(d.err, ErrOffline) || given) && !d.in.final && d.language == "":
+			case (refusedUnsent(d.err) || given) && !d.in.final && d.language == "":
 				// The service is not there, or fails cell after cell: the film, in its own language, is made with the lines of the cells left as heard. It is not translated, so it has no translation that failed (TranslationErr).
 				logf(m.ctx, "draft: proofreading given up for the cells left, their lines stay as heard")
 				proofreadOff = true
 				relanguage()
-			case errors.Is(d.err, ErrOffline) || given:
+			case refusedUnsent(d.err) || given:
 				// The service is not there, or fails cell after cell: the film is made without the translation of the cells left, as it is without a translator.
 				logf(m.ctx, "draft: translation given up for the cells left, %d to draft and %d to hear, which stay untranslated", len(p.Draft), len(p.Hear))
 				notTranslated = d.err.Error()
@@ -1319,7 +1319,7 @@ func fillMissing(ctx context.Context, p Pipeline, job *core.Job, language, devic
 			err = fmt.Errorf("%d translated lines for %d untranslated lines", len(translated), len(segments))
 		}
 		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, ErrOffline) || !skippableBatch(err) || failedRun+1 >= maxFailedBatches {
+			if ctx.Err() != nil || refusedUnsent(err) || !skippableBatch(err) || failedRun+1 >= maxFailedBatches {
 				return failed(StageTranslate, err)
 			}
 			logf(withLogSpan(ctx, segments), "fill missing: batch left untranslated: %v", err)
@@ -1603,6 +1603,11 @@ type draftInput struct {
 	// final is the final proofread of a block (its one unit), its lines' translations as they are now in translations.
 	final        bool
 	translations []core.Segment
+}
+
+// refusedUnsent reports whether err is a request Kando refused itself before sending it, which every request is until the user changes a setting: offline mode for a service off this computer (ErrOffline), or the monthly limit of tokens reached (ErrMonthlyCap).
+func refusedUnsent(err error) bool {
+	return errors.Is(err, ErrOffline) || errors.Is(err, ErrMonthlyCap)
 }
 
 // refusesAccount reports whether err is the AI service refusing the account rather than the request: a key it rejects, or an account out of credit (TranslateAuth, TranslateQuota), which fails whatever is sent.

@@ -32,7 +32,7 @@ func Stage(job core.Job) media.Stage {
 	return failed.Stage
 }
 
-// AI reports whether job failed in its AI service or in a translation source of its own (media.Tools.Engine, media.StageError.Source): in its translation, or with what an AI service answered anywhere else (media.AIAnswered). Such a failure's words, what the service said and the reason Hint gives of it, stay on this computer: what a service answers may hold its prices or a link to buy credit, and Hint's words for an account out of credit tell the user to top it up, neither of which a phone may show. Unavailable is the service refusing the account rather than the request, as one out of credit or over its quota (media.TranslateQuota, plugins.TranslateQuota), which neither a retry nor a setting mends.
+// AI reports whether job failed in its AI service or in a translation source of its own (media.Tools.Engine, media.StageError.Source): in its translation, or with what an AI service answered anywhere else (media.AIAnswered). Such a failure's words, what the service said and the reason Hint gives of it, stay on this computer: what a service answers may hold its prices or a link to buy credit, and Hint's words for an account out of credit tell the user to top it up, neither of which a phone may show. Unavailable is the service refusing the account rather than the request, as one out of credit or over its quota (media.TranslateQuota, plugins.TranslateQuota), which neither a retry nor a setting mends, or the monthly limit of tokens refusing it (media.TranslateCap), which only the desktop's settings or the next month mend.
 func AI(job core.Job) (ai, unavailable bool) {
 	if job.Stage != core.StageFailed || job.Err == nil {
 		return false, false
@@ -48,6 +48,10 @@ func AI(job core.Job) (ai, unavailable bool) {
 	}
 	if media.AIAnswered(detail) {
 		return true, media.ClassifyTranslate(detail) == media.TranslateQuota
+	}
+	// The monthly limit of tokens the user set refused the request before it was sent, whichever step asked: like an account out of credit, neither a retry nor the phone mends it, and Hint's words for it name the desktop's settings.
+	if media.ClassifyTranslate(detail) == media.TranslateCap {
+		return true, true
 	}
 	return failed != nil && failed.Stage == media.StageTranslate, false
 }
@@ -114,6 +118,9 @@ func Hint(m locales.Messages, detail string, failed *media.StageError) (reason, 
 		return m.PrivacyNoDownload(), sectionid.Privacy
 	case strings.Contains(detail, media.ErrOffline.Error()):
 		return m.PrivacyNoCloudAI(), sectionid.AI
+	// The monthly limit of tokens refused the request before it was sent, whichever step asked: 本月用量 in 「AI 服务」 raises it.
+	case strings.Contains(detail, media.ErrMonthlyCap.Error()):
+		return m.AiusageCapReached(), sectionid.AI
 	}
 	if stage == media.StageTranslate {
 		switch media.ClassifyTranslate(rest) {

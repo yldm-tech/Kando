@@ -220,3 +220,42 @@ func (l Ledger) Save(path string) error {
 	}
 	return err
 }
+
+// The monthly limit of tokens the user may set: DefaultLimit when it is turned on, between MinLimit and MaxLimit, which its field steps by LimitStep; 0 is no limit.
+const (
+	DefaultLimit = 1_000_000
+	MinLimit     = 10_000
+	MaxLimit     = 1_000_000_000
+	LimitStep    = 10_000
+)
+
+// CleanLimit is tokens as a limit: 0 for none, as anything at or below 0 is, else within MinLimit and MaxLimit.
+func CleanLimit(tokens int64) int64 {
+	if tokens <= 0 {
+		return 0
+	}
+	return min(max(tokens, MinLimit), MaxLimit)
+}
+
+// Limit is the monthly limit of tokens and what was counted against it, which a request asks before it is sent (Refuses) from whichever goroutine sends it: Used is the tokens counted in Month, and Tokens the limit, 0 for none.
+type Limit struct {
+	Month        string
+	Used, Tokens int64
+}
+
+// Refuses reports whether a request of estimate tokens, made in month, would go over the limit: what was counted in the month and estimate together above Tokens. No limit refuses nothing, and a month other than Month starts with nothing counted.
+func (l Limit) Refuses(month string, estimate int) bool {
+	if l.Tokens <= 0 {
+		return false
+	}
+	used := l.Used
+	if month != l.Month {
+		used = 0
+	}
+	return used+int64(max(estimate, 0)) > l.Tokens
+}
+
+// Reached reports whether what was counted in month has reached the limit, so no request goes until the month ends or the limit is raised.
+func (l Limit) Reached(month string) bool {
+	return l.Tokens > 0 && month == l.Month && l.Used >= l.Tokens
+}

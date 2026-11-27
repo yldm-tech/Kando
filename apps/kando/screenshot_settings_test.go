@@ -73,6 +73,11 @@ func TestScreenshotsSettings(t *testing.T) {
 		"exists:id:settings-aiusage-plugin >> " + whole(usage.AiusageTokensEstimated(3*(2200+540))),
 		"exists:id:settings-aiusage-requests >> " + whole(usage.AiusageRequestsCount(80)),
 	}, shotAIUsage)
+	// The same with 每月上限 on at 500,000 tokens, of which the month took 69%.
+	shootSettingsAt(t, f, settings.SectionAI, "settings-ai-usage-limit", shown, models, turbo, true, []string{
+		"exists:id:settings-aiusage-limit-tokens",
+		"exists:" + whole(usage.AiusageLimitUsed(69)),
+	}, shotAIUsage, func(a *app) { a.SetAIUsageLimit(500_000) })
 	// Signed in to EveryAPI in Kando: the account's name and balance, with 充值 and 退出; and the same with little left.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-account", shown, models, turbo, func(a *app) { shotEveryAPISignedIn(a, 12.4) })
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-low", shown, models, turbo, func(a *app) { shotEveryAPISignedIn(a, 0.42) })

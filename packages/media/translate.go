@@ -75,6 +75,8 @@ type ChatTranslator struct {
 	Pass string
 	// Meter, when set, is told of every request written to the service, retries, renewed keys and halves included, once each, from the goroutine that sent it, which may be one of a pipeline's: the pass (Passes), the host of the endpoint (MeterHost) and the tokens the request took, those the reply's usage says, else estimated from the request and the reply (ChatUsage.Estimated). A request that got no reply the service counted, a rate limit, a server error, a rejected key or one that timed out after it went, is the estimate of its prompt, as the service may bill it. Ping's request is not metered.
 	Meter func(pass, host string, u ChatUsage)
+	// Budget, when set, is asked before each request is written to the service, retries, renewed keys and halves included, from the goroutine that would send it, which may be one of a pipeline's: the pass (Passes) and the estimate of the request's prompt (EstimateTokens). An error refuses the request, which is then neither sent nor metered, and is what the step returns; ErrMonthlyCap is the one for the monthly limit of tokens the user set. Ping's request is not asked of it.
+	Budget func(pass string, estimate int) error
 }
 
 // The passes Meter reports requests under, in the order Passes lists them.
@@ -341,8 +343,11 @@ func (e *UntranslatedError) Error() string {
 
 func (e *UntranslatedError) Unwrap() error { return e.Err }
 
-// skippableBatch reports whether a batch that failed with err can be left untranslated while the rest of the film goes on: a reply that could not be read or had the wrong lines, a request that timed out or lost its connection, a rate limit or a server error that outlasted its retries. A key, model or address the API rejects is not, nor an account out of credit: they fail every batch.
+// skippableBatch reports whether a batch that failed with err can be left untranslated while the rest of the film goes on: a reply that could not be read or had the wrong lines, a request that timed out or lost its connection, a rate limit or a server error that outlasted its retries. A key, model or address the API rejects is not, nor an account out of credit, nor a request the monthly limit refused (ErrMonthlyCap): they fail every batch.
 func skippableBatch(err error) bool {
+	if errors.Is(err, ErrMonthlyCap) {
+		return false
+	}
 	var status *statusError
 	if errors.As(err, &status) {
 		if outOfCredit(status.code, status.detail) {
@@ -885,6 +890,8 @@ const (
 	TranslateNetwork TranslateFail = "network"
 	// TranslateMalformed is a reply that was not the batch's lines, after the batch was sent again.
 	TranslateMalformed TranslateFail = "malformed"
+	// TranslateCap is a request Kando did not send, as the tokens counted this month reached the limit the user set (ErrMonthlyCap).
+	TranslateCap TranslateFail = "cap"
 )
 
 // statusPattern finds the HTTP status in a statusError's text.
@@ -944,6 +951,9 @@ func AIAnswered(msg string) bool { return statusPattern.MatchString(msg) }
 
 // ClassifyTranslate reads why a translation failed from its error's text, which is what a failed job keeps once it has been saved and read back. It returns "" for an error it does not recognize.
 func ClassifyTranslate(msg string) TranslateFail {
+	if strings.Contains(msg, ErrMonthlyCap.Error()) {
+		return TranslateCap
+	}
 	if m := statusPattern.FindStringSubmatchIndex(msg); m != nil {
 		code, _ := strconv.Atoi(msg[m[2]:m[3]])
 		switch {
@@ -1014,7 +1024,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 	return t.completeWith(ctx, endpoint, body, progress, nil, nil)
 }
 
-// completeWith is complete with header added to each request (ChatRequest.Header), counting in sent, when it is not nil, the requests that were written to the service whatever came of them, which the service may bill, and telling Meter of each of them.
+// completeWith is complete with header added to each request (ChatRequest.Header), counting in sent, when it is not nil, the requests that were written to the service whatever came of them, which the service may bill, and telling Meter of each of them. Each request is first asked of Budget, whose refusal is returned as it is, nothing sent.
 func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, body []byte, progress core.Progress, header http.Header, sent *int) (chatResponse, error) {
 	client := t.Client
 	if client == nil {
@@ -1022,6 +1032,12 @@ func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, bod
 	}
 	delay := retryBaseDelay
 	for attempt := 1; ; attempt++ {
+		// Each attempt is asked of Budget, a retry too, as what was counted may have reached the limit while it waited.
+		if t.Budget != nil {
+			if err := t.Budget(t.pass(), promptEstimate(body)); err != nil {
+				return chatResponse{}, err
+			}
+		}
 		reply, retryAfter, wrote, err := completeOnce(ctx, client, endpoint, body, header)
 		if wrote {
 			if sent != nil {

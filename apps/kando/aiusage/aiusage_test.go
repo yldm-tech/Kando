@@ -137,3 +137,25 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Fatalf("broken file: %+v, %v", l, err)
 	}
 }
+
+// A limit refuses the request that would take what was counted this month over it, and nothing in another month or with no limit; it is reached once what was counted is at it.
+func TestLimitRefusesWhatWouldGoOverIt(t *testing.T) {
+	l := Limit{Month: "2026-11", Used: 9_000, Tokens: 10_000}
+	if l.Refuses("2026-11", 1_000) || !l.Refuses("2026-11", 1_001) || l.Reached("2026-11") {
+		t.Fatal("the limit is 10000 tokens, 9000 counted")
+	}
+	if l.Refuses("2026-12", 10_000) || l.Reached("2026-12") {
+		t.Fatal("a new month starts with nothing counted")
+	}
+	if (Limit{Month: "2026-11", Used: 10_000, Tokens: 10_000}).Reached("2026-11") != true {
+		t.Fatal("10000 of 10000 is reached")
+	}
+	if (Limit{Month: "2026-11", Used: 1 << 40}).Refuses("2026-11", 1<<30) {
+		t.Fatal("no limit refuses nothing")
+	}
+	for in, want := range map[int64]int64{-5: 0, 0: 0, 1: MinLimit, 2_000_000: 2_000_000, MaxLimit + 1: MaxLimit} {
+		if got := CleanLimit(in); got != want {
+			t.Fatalf("CleanLimit(%d) = %d, want %d", in, got, want)
+		}
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/aiusage"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/lookup"
@@ -324,5 +325,37 @@ func TestPhoneSyncTellsAPhoneNothingOfTheAIServicesBilling(t *testing.T) {
 				phoneWantNoBilling(t, name, e.ErrorBody)
 			}
 		})
+	}
+}
+
+// A phone's explanation, and a job, the desktop's monthly limit refused are told as the AI service on the computer that cannot answer for now, with no word of the desktop's for the limit, which names its settings; nothing is sent to the AI service.
+func TestPhoneSyncTellsTheMonthlyLimitAsAnAIServiceUnavailable(t *testing.T) {
+	a, tt, updates, dir, _ := phoneSyncApp(t)
+	phoneSyncOn(t, a, tt, updates)
+	c := phoneClient(t, a, "")
+	if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {
+		t.Fatal(err)
+	}
+	srv, seen := fakeLLM(t, `{"meaning":"打招呼。"}`)
+	onEngine(a, func() {
+		a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+		a.prefs.language = "简体中文"
+		a.aiusageAttach()
+		a.aiusage.ledger.Add(aiusage.MonthOf(a.aiusage.now()), media.PassChat, "localhost", aiusage.MinLimit, 0, false)
+		a.SetAIUsageLimit(aiusage.MinLimit)
+	})
+	_, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Explanation, error) {
+		return c.Explain(ctx, psync.LineExplain{Library: phoneLibraryID(dir), Film: "yt", Index: 0, Lines: []psync.Cue{{StartMS: 0, Original: "Hello there", Translation: "你好"}}})
+	})
+	phoneWantCode(t, err, http.StatusConflict, psync.CodeNoAI)
+	var e *psync.Error
+	if errors.As(err, &e); strings.Contains(e.Message, "Settings") || len(*seen) != 0 {
+		t.Fatalf("explain: %v, the AI service asked %d times", err, len(*seen))
+	}
+	job := core.Job{ID: "capped", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Redo: core.RedoMissing, Err: media.ReadStageError("translate: " + media.ErrMonthlyCap.Error())}
+	var got psync.Job
+	onEngine(a, func() { got = a.phoneJobOf(job) })
+	if f := got.Failure; f == nil || f.Code != psync.FailAIUnavailable || f.Message != "" || f.Remedy != psync.RemedyDesktop {
+		t.Fatalf("the job's failure %+v", got.Failure)
 	}
 }

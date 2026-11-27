@@ -81,3 +81,44 @@ func TestAIUsageSaysWhenNothingWasSent(t *testing.T) {
 		t.Fatalf("texts %q", app.Texts())
 	}
 }
+
+// 每月上限 is off by default, with no field; turned on it is the default limit, its field shows and says how much of it the month took, then that it is reached; a number typed in sets it, and turned off it is none again.
+func TestAIUsageLimit(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionAI
+	a.usage = aiusage.Month{Month: "2026-11", ByPass: map[string]aiusage.Count{"translate": {Prompt: 250_000, Requests: 10}}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists("id:settings-aiusage-limit") || app.Exists("id:settings-aiusage-limit-tokens") || app.Exists(whole(msgs.AiusageLimitUsed(25))) {
+		t.Fatalf("off: %q", app.Texts())
+	}
+	app.Press("id:settings-aiusage-limit")
+	if a.usageLimit != aiusage.DefaultLimit || !app.Exists("id:settings-aiusage-limit-tokens") || !app.Exists(whole(msgs.AiusageLimitUsed(25))) {
+		t.Fatalf("on: limit %d, %q", a.usageLimit, app.Texts())
+	}
+	app.Clear("id:settings-aiusage-limit-tokens")
+	app.Type("id:settings-aiusage-limit-tokens", "200,000")
+	app.Submit("id:settings-aiusage-limit-tokens")
+	if a.usageLimit != 200_000 || !app.Exists(whole(msgs.AiusageLimitReached())) {
+		t.Fatalf("typed: limit %d, %q", a.usageLimit, app.Texts())
+	}
+	app.Press("id:settings-aiusage-limit")
+	if a.usageLimit != 0 || app.Exists("id:settings-aiusage-limit-tokens") || app.Exists(whole(msgs.AiusageLimitReached())) {
+		t.Fatalf("off again: limit %d, %q", a.usageLimit, app.Texts())
+	}
+}
+
+// The limit's field writes its tokens grouped by threes, and reads them back with or without the commas.
+func TestAIUsageLimitGroupsItsDigits(t *testing.T) {
+	for v, want := range map[float64]string{10_000: "10,000", 1_000_000: "1,000,000", 999: "999", 123_456_789: "123,456,789"} {
+		if got := aiUsageGrouped(v); got != want {
+			t.Fatalf("%v: %q, want %q", v, got, want)
+		}
+		if back, ok := aiUsageUngrouped(want); !ok || back != v {
+			t.Fatalf("%q read back as %v, %v", want, back, ok)
+		}
+	}
+	if _, ok := aiUsageUngrouped("many"); ok {
+		t.Fatal("not a number")
+	}
+}
