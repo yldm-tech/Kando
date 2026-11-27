@@ -63,6 +63,7 @@ type suggestion struct {
 
 // SuggestTerms asks for suggestions for the film's glossary in batches of suggestBatch translated lines, through the same endpoint and model translations use, and ranks what the batches found (rankSuggestions) against the glossary the context carries (WithGlossary). A term is kept from a batch only when one of the batch's original lines holds it. A batch whose reply cannot be used after it was sent again suggests nothing, and the rest of the film is still read; a key, model or address the API rejects, or an account out of credit, fails it.
 func (t ChatTranslator) SuggestTerms(ctx context.Context, original, translated []core.Segment, title, language string) ([]core.Term, error) {
+	t.Pass = PassSuggest
 	if len(original) != len(translated) {
 		return nil, fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}

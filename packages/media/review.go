@@ -59,6 +59,7 @@ type reviewChange struct {
 
 // Review proofreads translated, the translation of original into language, in batches of reviewBatch lines, through the same endpoint and model translations use. Lines left untranslated are not sent. A change is kept only when its line is the one its number names, as it was sent, and it is of a kind the final proofread knows (core.Proof.Valid); a locked term's translation is kept as the glossary gives it, so a change that would write it otherwise is dropped. A batch whose reply cannot be used after it was sent again suggests nothing, and the rest of the film is still read; a key, model or address the API rejects, or an account out of credit, fails the pass, which Make tries again, then leaves the block a draft.
 func (t ChatTranslator) Review(ctx context.Context, original, translated []core.Segment, title, language string) ([]core.Proof, error) {
+	t.Pass = PassReview
 	if len(original) != len(translated) {
 		return nil, fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}

@@ -67,6 +67,82 @@ type ChatTranslator struct {
 	Client *http.Client
 	// Offline refuses, with ErrOffline and before anything is sent, every request to a service that is not on this computer (Local), as offline mode asks.
 	Offline bool
+	// Pass names what the requests are for in Meter's reports. Translate, Proofread, Review and SuggestTerms name their own; empty is PassChat.
+	Pass string
+	// Meter, when set, is told of every request written to the service, retries, renewed keys and halves included, once each, from the goroutine that sent it, which may be one of a pipeline's: the pass (Passes), the host of the endpoint (MeterHost) and the tokens the request took, those the reply's usage says, else estimated from the request and the reply (ChatUsage.Estimated). A request that got no reply the service counted, a rate limit, a server error, a rejected key or one that timed out after it went, is the estimate of its prompt, as the service may bill it. Ping's request is not metered.
+	Meter func(pass, host string, u ChatUsage)
+}
+
+// The passes Meter reports requests under, in the order Passes lists them.
+const (
+	PassTranslate = "translate"
+	PassProofread = "proofread"
+	PassReview    = "review"
+	PassSuggest   = "suggest"
+	PassChat      = "chat"
+	PassPlugin    = "plugin"
+)
+
+// Passes is every pass Meter reports, in the order a breakdown of usage lists them.
+var Passes = []string{PassTranslate, PassProofread, PassReview, PassSuggest, PassChat, PassPlugin}
+
+// everyAPITitle is the X-Title a request to EveryAPI carries unless the caller gives its own (ChatRequest.Header), so the user's bill there says Kando sent it.
+const everyAPITitle = "Kando"
+
+// pass is the pass Meter reports this translator's requests under (Pass).
+func (t ChatTranslator) pass() string {
+	if t.Pass == "" {
+		return PassChat
+	}
+	return t.Pass
+}
+
+// meter tells Meter of one request written to endpoint with body: the usage reply says when err is nil and it says any, else the estimate of body's prompt with, when err is nil, that of the reply's text.
+func (t ChatTranslator) meter(endpoint Endpoint, body []byte, reply chatResponse, err error) {
+	if t.Meter == nil {
+		return
+	}
+	if err == nil {
+		if u := reply.Usage; u != nil && (u.PromptTokens > 0 || u.CompletionTokens > 0) {
+			t.Meter(t.pass(), MeterHost(endpoint.BaseURL), ChatUsage{Prompt: u.PromptTokens, Completion: u.CompletionTokens})
+			return
+		}
+	}
+	u := ChatUsage{Prompt: promptEstimate(body), Estimated: true}
+	if err == nil {
+		for _, c := range reply.Choices {
+			u.Completion += EstimateTokens(c.Message.Content)
+		}
+	}
+	t.Meter(t.pass(), MeterHost(endpoint.BaseURL), u)
+}
+
+// promptEstimate is the estimate of the tokens of the messages in body, a chatRequest (EstimateTokens); 0 for a body that is not one.
+func promptEstimate(body []byte) int {
+	var req chatRequest
+	if json.Unmarshal(body, &req) != nil {
+		return 0
+	}
+	n := 0
+	for _, m := range req.Messages {
+		n += EstimateTokens(m.Content)
+	}
+	return n
+}
+
+// MeterHost is the host Meter reports for a request to baseURL: its host name in lower case, without the port; "" when baseURL has none.
+func MeterHost(baseURL string) string {
+	u, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(u.Hostname())
+}
+
+// everyAPIHost reports whether baseURL is EveryAPI's: everyapi.ai or a host under it.
+func everyAPIHost(baseURL string) bool {
+	host := MeterHost(baseURL)
+	return host == "everyapi.ai" || strings.HasSuffix(host, ".everyapi.ai")
 }
 
 // ErrNoModel and ErrNoBaseURL are what Ping and Chat return before they send anything, when the model or the endpoint is not set.
@@ -116,6 +192,7 @@ func (t ChatTranslator) Ping(ctx context.Context) error {
 }
 
 func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	t.Pass = PassTranslate
 	if strings.TrimSpace(language) == "" {
 		return nil, fmt.Errorf("target language is empty")
 	}
@@ -277,7 +354,7 @@ func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, 
 // ErrReplyCutOff is a reply the model stopped writing because it reached its token limit (finish_reason "length"), ChatRequest.MaxTokens or the model's own; ChatWith returns it with the text written so far and the tokens taken.
 var ErrReplyCutOff = errors.New("the reply was cut off at its token limit")
 
-// ChatRequest is one conversation ChatWith sends: the system instruction and the user's message; MaxTokens, when above 0, caps the reply's tokens (max_tokens); Header adds headers to the request, such as X-Title, which some services show on the user's bill. Header cannot replace Content-Type or Authorization, which ChatWith sets.
+// ChatRequest is one conversation ChatWith sends: the system instruction and the user's message; MaxTokens, when above 0, caps the reply's tokens (max_tokens); Header adds headers to the request, such as X-Title, which some services show on the user's bill, each replacing one Kando sets of the same name, as the X-Title a request to EveryAPI carries. Header cannot replace Content-Type or Authorization, which ChatWith sets.
 type ChatRequest struct {
 	System, User string
 	MaxTokens    int
@@ -897,7 +974,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 	return t.completeWith(ctx, endpoint, body, progress, nil, nil)
 }
 
-// completeWith is complete with header added to each request (ChatRequest.Header), counting in sent, when it is not nil, the requests that were written to the service whatever came of them, which the service may bill.
+// completeWith is complete with header added to each request (ChatRequest.Header), counting in sent, when it is not nil, the requests that were written to the service whatever came of them, which the service may bill, and telling Meter of each of them.
 func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, body []byte, progress core.Progress, header http.Header, sent *int) (chatResponse, error) {
 	client := t.Client
 	if client == nil {
@@ -906,8 +983,11 @@ func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, bod
 	delay := retryBaseDelay
 	for attempt := 1; ; attempt++ {
 		reply, retryAfter, wrote, err := completeOnce(ctx, client, endpoint, body, header)
-		if wrote && sent != nil {
-			*sent++
+		if wrote {
+			if sent != nil {
+				*sent++
+			}
+			t.meter(endpoint, body, reply, err)
 		}
 		if err == nil || retryAfter < 0 || attempt >= t.attempts() {
 			return reply, err
@@ -934,7 +1014,7 @@ func (t ChatTranslator) completeWith(ctx context.Context, endpoint Endpoint, bod
 	}
 }
 
-// completeOnce makes one request, with header added to it, Content-Type and Authorization aside, and reports whether the request was written to the service (sent), which a request that could not connect, or whose ctx was done before it went, was not. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit that does not say the account is out of credit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
+// completeOnce makes one request, with header in place of the headers of the same names it would carry, Content-Type and Authorization aside, and X-Title: Kando when it goes to EveryAPI and header does not name its own, and reports whether the request was written to the service (sent), which a request that could not connect, or whose ctx was done before it went, was not. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit that does not say the account is out of credit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
 func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, body []byte, header http.Header) (reply chatResponse, retryAfter time.Duration, sent bool, err error) {
 	if err := ctx.Err(); err != nil {
 		return reply, -1, false, err
@@ -950,6 +1030,12 @@ func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, b
 		return reply, -1, false, err
 	}
 	defer func() { sent = wrote.Load() }()
+	if everyAPIHost(endpoint.BaseURL) {
+		req.Header.Set("X-Title", everyAPITitle)
+	}
+	for name := range header {
+		req.Header.Del(name)
+	}
 	for name, values := range header {
 		for _, v := range values {
 			req.Header.Add(name, v)
