@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -508,6 +509,10 @@ func TestTheAppearanceIsTheOneChosenInSettings(t *testing.T) {
 		if want.saved == store.AppearanceDark {
 			// Dark, the page is the design's black under its cards.
 			p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-page").Style.Background == core.RGB(0x000000) })
+		}
+		// The row's tile is colored in either look, so it shows on the dark card as on the light one.
+		if got := p.app.Find("id:settings-appearance >> text:◐").Parent.Style.Background; got != theme.TileBlue {
+			t.Errorf("under %s the Appearance row's tile is %v, want %v", want.value, got, theme.TileBlue)
 		}
 	}
 }
