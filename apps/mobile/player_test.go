@@ -136,6 +136,31 @@ func TestTheLineListMarksTheLinePlayingAndPlaysTheOneTapped(t *testing.T) {
 	}
 }
 
+// A film past an hour gives the start of every line room for its h:mm:ss, which in the column of a shorter film's m:ss ran into the line's text.
+func TestTheLineListMakesRoomForAnHour(t *testing.T) {
+	short, _ := openPlayer(t)
+	narrow := short.app.Find("id:player-line-start >> nth=0").Frame.Size.Width
+
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	long := append(slices.Clone(talkCues), sync.Cue{StartMS: 3_753_000, EndMS: 3_755_000, Original: "Later.", Translation: "回头见。"})
+	if err := store.Open(dir).SaveCues(f.Desktop, f.Film.ID, long); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") })
+	if got := p.texts("id:player-line >> nth=4"); !strings.Contains(got, "1:02:33") {
+		t.Fatalf("the line past an hour reads %q", got)
+	}
+	for i, r := range p.app.Query("id:player-line-start") {
+		if w := r.Frame.Size.Width; w <= narrow {
+			t.Errorf("line %d's start is %v wide in a film past an hour, as wide as a short film's %v", i, w, narrow)
+		}
+	}
+}
+
 // keptPosition is the position the film's record on disk holds, -1 for none read.
 func (p *phone) keptPosition() int64 {
 	films, err := store.Open(p.dir).Films()

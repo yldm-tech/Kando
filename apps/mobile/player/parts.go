@@ -310,6 +310,13 @@ func lines(cx *core.Scope, p *play, compact bool) core.Node {
 	if compact {
 		first, second = core.Style{FontSize: 14, LineHeight: 19}, core.Style{FontSize: 12, LineHeight: 16}
 	}
+	// The start of each line takes as wide a column in every row of a film: wide enough for an hour's h:mm:ss once the film runs past one, so the lines past an hour are not cut short into their text.
+	clockWidth := core.NewMemo(cx, func() core.Points {
+		if l := p.list(); len(l) > 0 && l[len(l)-1].Start >= time.Hour {
+			return 52
+		}
+		return 34
+	})
 	list := core.List{TestID: "player-lines", Ref: ref, EstimatedSize: 64,
 		Style:             core.Style{FlexGrow: 1, FlexShrink: 1},
 		Count:             func() int { return len(p.list()) },
@@ -365,7 +372,7 @@ func lines(cx *core.Scope, p *play, compact bool) core.Node {
 					return st
 				},
 				Children: []core.Node{
-					core.View{Style: core.Style{Width: core.Pt(34), FlexShrink: 0, Direction: core.Row, Gap: 3}, Children: []core.Node{
+					core.View{TestID: "player-line-start", Style: core.Style{FlexShrink: 0, Direction: core.Row, Gap: 3}, StyleFunc: func() core.Style { return core.Style{Width: core.Pt(clockWidth.Get())} }, Children: []core.Node{
 						core.View{Style: core.Style{Width: core.Pt(2), CornerRadius: 1}, StyleFunc: func() core.Style {
 							if looped() {
 								return core.Style{Background: theme.PlayerBlue}
