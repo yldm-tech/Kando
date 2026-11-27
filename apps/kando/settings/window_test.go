@@ -730,9 +730,9 @@ func TestAIPageEveryAPIAccount(t *testing.T) {
 		t.Fatalf("code: %q", app.Texts())
 	}
 	change(app, a, func() {
-		a.account = EveryAPIAccount{Shown: true, SignedIn: true, Name: "Evan", Balance: "$12.40", CLI: true}
+		a.account = EveryAPIAccount{Shown: true, SignedIn: true, Name: "Mika", Balance: "$12.40", CLI: true}
 	})
-	if !app.Exists(whole(msgs.EveryAPIAccountLine("Evan", "$12.40"))) || app.Exists("id:settings-everyapi-signin") || app.Exists("id:settings-everyapi-get") {
+	if !app.Exists(whole(msgs.EveryAPIAccountLine("Mika", "$12.40"))) || app.Exists("id:settings-everyapi-signin") || app.Exists("id:settings-everyapi-get") {
 		t.Fatalf("signed in: %q", app.Texts())
 	}
 	app.Press("id:settings-everyapi-topup")
@@ -741,7 +741,7 @@ func TestAIPageEveryAPIAccount(t *testing.T) {
 		t.Fatalf("calls %q", a.calls)
 	}
 	change(app, a, func() { a.account.Balance, a.account.Low = "$0.40", true })
-	if !app.Exists(whole(msgs.EveryAPIAccountLow("Evan", "$0.40"))) {
+	if !app.Exists(whole(msgs.EveryAPIAccountLow("Mika", "$0.40"))) {
 		t.Fatalf("low: %q", app.Texts())
 	}
 	change(app, a, func() { a.account = EveryAPIAccount{Shown: true, CLI: true, Problem: EveryAPINeedsTopUp} })

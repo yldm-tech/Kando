@@ -37,13 +37,15 @@ type fakeEveryAPI struct {
 	refreshes map[string]bool
 	keys      map[string]bool
 	revoked   bool
-	refreshed atomic.Int32
-	requests  atomic.Int32
-	quota     int64
+	// revokedTokens are the refresh tokens /revoke was given.
+	revokedTokens map[string]bool
+	refreshed     atomic.Int32
+	requests      atomic.Int32
+	quota         int64
 }
 
 func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
-	f := &fakeEveryAPI{refreshes: map[string]bool{}, keys: map[string]bool{}, quota: 6_200_000}
+	f := &fakeEveryAPI{refreshes: map[string]bool{}, keys: map[string]bool{}, revokedTokens: map[string]bool{}, quota: 6_200_000}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -59,6 +61,7 @@ func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
 		f.mu.Lock()
 		if _, ok := f.refreshes[r.PostFormValue("token")]; ok {
 			f.revoked = true
+			f.revokedTokens[r.PostFormValue("token")] = true
 		}
 		f.mu.Unlock()
 		fmt.Fprint(w, `{}`)
@@ -71,7 +74,7 @@ func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
 			fmt.Fprint(w, `{"success":false}`)
 			return
 		}
-		fmt.Fprintf(w, `{"success":true,"data":{"username":"evan","display_name":"Evan","wallet":{"quota":%d,"currency":"USD"},"pricing":{"quota_per_unit":500000}}}`, f.quota)
+		fmt.Fprintf(w, `{"success":true,"data":{"username":"mika","display_name":"Mika","wallet":{"quota":%d,"currency":"USD"},"pricing":{"quota_per_unit":500000}}}`, f.quota)
 	})
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.requests.Add(1)
@@ -224,10 +227,10 @@ func TestEveryAPISignInAndOut(t *testing.T) {
 	}
 	var saved savedSettings
 	a.saveEveryAPI(&saved)
-	if !saved.EveryAPISignedIn || saved.EveryAPIName != "Evan" || saved.EveryAPIFallbackKey != "" || saved.EveryAPIFallbackRefresh != "" {
+	if !saved.EveryAPISignedIn || saved.EveryAPIName != "Mika" || saved.EveryAPIFallbackKey != "" || saved.EveryAPIFallbackRefresh != "" {
 		t.Fatalf("settings.json keeps %+v", saved.savedEveryAPI)
 	}
-	if !hasText(page, msgs.EveryAPIAccountLine("Evan", "$12.40")) || !page.Exists("id:settings-everyapi-topup") {
+	if !hasText(page, msgs.EveryAPIAccountLine("Mika", "$12.40")) || !page.Exists("id:settings-everyapi-topup") {
 		t.Fatalf("signed in: %q", page.Texts())
 	}
 
@@ -270,7 +273,7 @@ func TestEveryAPIStartupWaitsForTheStoredSignIn(t *testing.T) {
 	}
 	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
 	a.pipeline = tools.UseEveryAPICLI()
-	a.restoreEveryAPI(savedSettings{savedEveryAPI: savedEveryAPI{EveryAPISignedIn: true, EveryAPIName: "Evan"}})
+	a.restoreEveryAPI(savedSettings{savedEveryAPI: savedEveryAPI{EveryAPISignedIn: true, EveryAPIName: "Mika"}})
 	if tr := pipelineTranslator(a); tr.CredentialSource != media.CredentialLogin {
 		t.Fatalf("restored source %v", tr.CredentialSource)
 	}
@@ -498,5 +501,57 @@ func TestEveryAPIOutOfCreditOffersTopUp(t *testing.T) {
 	a.pipeline = tools
 	if r, ok := a.FailureRemedy(films.Film{JobID: wallet.ID}); ok && len(r.Actions) > 0 && r.Actions[0].ID == remedyTopUp {
 		t.Fatalf("another service offers EveryAPI's top-up: %+v", r)
+	}
+}
+
+// TestEveryAPIStaleSignInKeepsNothing checks the sign-in that was stopped while EveryAPI was already giving it tokens: the user cancels it and signs in again, the new sign-in finishes, and only then does the old one get its tokens. The old one keeps nothing where the sign-in is kept and gives its tokens back to EveryAPI, and the new sign-in stays the one the store and the pipeline hold.
+func TestEveryAPIStaleSignInKeepsNothing(t *testing.T) {
+	f := newFakeEveryAPI(t)
+	vault := &memoryVault{items: map[string]string{}}
+	browseTo(t)
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	var calls atomic.Int32
+	old := f.signIn()
+	saved := everyapiLogin
+	everyapiLogin = func(ctx context.Context, cfg everyapi.Config, b everyapi.Browser) (everyapi.Tokens, error) {
+		if calls.Add(1) == 1 {
+			// EveryAPI had answered already: the stop comes too late for this exchange.
+			close(entered)
+			<-release
+			return old, nil
+		}
+		return saved(ctx, cfg, b)
+	}
+	t.Cleanup(func() { everyapiLogin = saved })
+	a, tt, updates := everyapiTestApp(t, f, vault, "")
+	page := settingsOpenAt(a, tt, settings.SectionAI)
+	page.Press("id:settings-everyapi-signin")
+	<-entered
+	page.Press("id:settings-everyapi-cancel")
+	page.Press("id:settings-everyapi-signin")
+	waitUntil(t, tt, a, updates, func() bool { return a.everyapi.signedIn })
+	current := vault.get(everyapiAccountRefresh)
+	if current == "" || current == old.Refresh {
+		t.Fatalf("the new sign-in was not kept: %v", vault.items)
+	}
+	close(release)
+	revoked := func() bool { f.mu.Lock(); defer f.mu.Unlock(); return f.revokedTokens[old.Refresh] }
+	deadline := time.After(10 * time.Second)
+	for !revoked() {
+		select {
+		case fn := <-updates:
+			apply(tt, a, fn)
+		case <-time.After(20 * time.Millisecond):
+		case <-deadline:
+			t.Fatal("the stopped sign-in did not give its tokens back")
+		}
+	}
+	if got := vault.get(everyapiAccountRefresh); got != current {
+		t.Fatalf("the store holds %q, want the new sign-in's %q", got, current)
+	}
+	endpoint, err := pipelineTranslator(a).Credential(context.Background(), false)
+	if err != nil || endpoint.APIKey != vault.get(everyapiAccountKey) || endpoint.APIKey == old.Key || !a.everyapi.signedIn {
+		t.Fatalf("credential %+v, %v", endpoint, err)
 	}
 }

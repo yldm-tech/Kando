@@ -189,7 +189,7 @@ func (f *fakeServer) account(w http.ResponseWriter, r *http.Request) {
 		f.reply(w, f.status, map[string]any{"success": false, "message": "insufficient balance"})
 		return
 	}
-	f.reply(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"username": "evan", "display_name": "Evan", "wallet": map[string]any{"quota": f.quota, "currency": "USD"}}})
+	f.reply(w, http.StatusOK, map[string]any{"success": true, "data": map[string]any{"username": "mika", "display_name": "Mika", "wallet": map[string]any{"quota": f.quota, "currency": "USD"}}})
 }
 
 // browse is a browser that follows the sign-in page's redirect back to Kando's loopback address.
@@ -387,7 +387,7 @@ func TestRevokeAndSummary(t *testing.T) {
 	f.mu.Unlock()
 	cfg := f.config()
 	s, err := FetchSummary(context.Background(), cfg, key)
-	if err != nil || s.Name != "Evan" || s.Balance != 12.4 || s.Currency != "USD" || s.Low() {
+	if err != nil || s.Name != "Mika" || s.Balance != 12.4 || s.Currency != "USD" || s.Low() {
 		t.Fatalf("summary = %+v, %v", s, err)
 	}
 	f.status = http.StatusPaymentRequired

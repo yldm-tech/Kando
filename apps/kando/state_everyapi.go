@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -66,7 +67,9 @@ type everyapiUI struct {
 	cancelSignIn context.CancelFunc
 	device       *everyapi.Device
 	signInGen    int
-	problem      error
+	// attempts says which sign-in may keep its tokens, from the sign-in's own goroutine (everyapiKeepAttempt).
+	attempts *everyapiAttempts
+	problem  error
 	// notSaved is set while the last renewal of the key could not be kept (everyapi.SessionHooks.PersistFailed).
 	notSaved bool
 	// summary is what the account has, as EveryAPI last said; summaryLoading while it is asked, summaryErr why it could not be. summaryGen numbers the asks. pageOpen is whether Settings › AI 服务 showed at the last change, so opening it asks once (everyapiFollowPage). quotaSeen are the jobs whose out-of-credit failure asked already (everyapiAfterQuota).
@@ -84,8 +87,42 @@ type everyapiUI struct {
 }
 
 func newEveryapiUI() everyapiUI {
-	return everyapiUI{cfg: everyapi.Config{DeviceName: everyapiDeviceName()}, loaded: true, quotaSeen: map[string]bool{}}
+	return everyapiUI{cfg: everyapi.Config{DeviceName: everyapiDeviceName()}, loaded: true, quotaSeen: map[string]bool{}, attempts: &everyapiAttempts{}}
 }
+
+// everyapiAttempts is the sign-in attempt that is current (everyapiUI.signInGen), as the attempts' goroutines read it, and the lock their writes to where the sign-in is kept take, so an attempt that is no longer current, as one stopped while EveryAPI was already giving it tokens, never writes its tokens over those of the attempt after it, nor deletes them.
+type everyapiAttempts struct {
+	mu      sync.Mutex
+	current atomic.Int64
+}
+
+// errEveryapiStale is the tokens of a sign-in attempt that is no longer the current one, which are not kept.
+var errEveryapiStale = errors.New("everyapi: a later sign-in took the place of this one")
+
+// everyapiKeepAttempt keeps the tokens of attempt gen (everyapiKeep) only while it is the current one, under the attempts' lock; otherwise it keeps nothing and says errEveryapiStale.
+func everyapiKeepAttempt(attempts *everyapiAttempts, gen int, vault everyapiVault, t everyapi.Tokens) (plain bool, err error) {
+	attempts.mu.Lock()
+	defer attempts.mu.Unlock()
+	if attempts.current.Load() != int64(gen) {
+		return false, errEveryapiStale
+	}
+	return everyapiKeep(vault, t)
+}
+
+// everyapiForgetAttempt deletes the tokens of attempt gen from vault, which it kept while it was the current one, unless what vault keeps now is no longer them, as a later attempt wrote its own.
+func everyapiForgetAttempt(attempts *everyapiAttempts, gen int, vault everyapiVault, t everyapi.Tokens) {
+	attempts.mu.Lock()
+	defer attempts.mu.Unlock()
+	if attempts.current.Load() == int64(gen) {
+		return
+	}
+	if kept, _, err := vault.Get(everyapiAccountRefresh); err == nil && kept == t.Refresh {
+		_ = everyapiForgetStored(vault)
+	}
+}
+
+// everyapiLogin is the browser sign-in (everyapi.Login). Tests replace it.
+var everyapiLogin = everyapi.Login
 
 // everyapiDeviceName is how EveryAPI's list of keys names this computer: its host name, without the .local the Mac adds.
 func everyapiDeviceName() string {
@@ -420,6 +457,7 @@ func (a *app) everyapiUseCode() {
 func (a *app) everyapiCancelSignIn() {
 	e := &a.everyapi
 	e.signInGen++
+	e.attempts.current.Store(int64(e.signInGen))
 	if e.cancelSignIn != nil {
 		e.cancelSignIn()
 	}
@@ -429,7 +467,7 @@ func (a *app) everyapiCancelSignIn() {
 // errEveryapiNotOpened is the browser not opening EveryAPI's sign-in page, which falls back to the code.
 var errEveryapiNotOpened = errors.New("no app opened the sign-in page")
 
-// everyapiStartSignIn starts a sign-in, with a code when code is set and otherwise in the browser, falling back to the code when the browser does not open, in place of any under way. The tokens it gets are kept (everyapiKeep) before the pipeline uses them.
+// everyapiStartSignIn starts a sign-in, with a code when code is set and otherwise in the browser, falling back to the code when the browser does not open, in place of any under way. The tokens it gets are kept (everyapiKeepAttempt) before the pipeline uses them, and only while it is still the current attempt.
 func (a *app) everyapiStartSignIn(code bool) {
 	e := &a.everyapi
 	if e.cancelSignIn != nil {
@@ -437,6 +475,8 @@ func (a *app) everyapiStartSignIn(code bool) {
 	}
 	e.signInGen++
 	gen := e.signInGen
+	e.attempts.current.Store(int64(gen))
+	attempts := e.attempts
 	ctx, cancel := context.WithTimeout(a.privacyContext(), everyapiSignInWait)
 	e.signingIn, e.cancelSignIn, e.device, e.problem = true, cancel, nil, nil
 	cfg, update, language, vault := e.cfg, a.update, a.prefs.interfaceLanguage, a.everyapiStore()
@@ -445,7 +485,7 @@ func (a *app) everyapiStartSignIn(code bool) {
 		var tokens everyapi.Tokens
 		var err error
 		if !code {
-			tokens, err = everyapi.Login(ctx, cfg, everyapi.Browser{Open: open, Language: language})
+			tokens, err = everyapiLogin(ctx, cfg, everyapi.Browser{Open: open, Language: language})
 			code = errors.Is(err, errEveryapiNotOpened)
 		}
 		if code {
@@ -461,7 +501,7 @@ func (a *app) everyapiStartSignIn(code bool) {
 		}
 		plain := false
 		if err == nil {
-			plain, err = everyapiKeep(vault, tokens)
+			plain, err = everyapiKeepAttempt(attempts, gen, vault, tokens)
 		}
 		update(func() { a.everyapiSignedIn(gen, tokens, plain, err) })
 	}()
@@ -494,10 +534,14 @@ func (a *app) everyapiOpener(ctx context.Context) func(string) error {
 // everyapiSignedIn takes the answer of the sign-in gen: signed in, the pipeline uses the account from now on, settings.json says so, the areas that follow the AI service check it, and the page asks what the account has. A sign-in stopped meanwhile that got tokens anyway gives them back to EveryAPI.
 func (a *app) everyapiSignedIn(gen int, tokens everyapi.Tokens, plain bool, err error) {
 	e := &a.everyapi
-	if gen != e.signInGen {
-		// The store is cleared of them only while no other sign-in is held, which may have written its own over them since.
-		if err == nil {
-			a.everyapiRevoke(tokens, !plain && e.cred == nil && !e.signingIn)
+	if gen != e.signInGen || errors.Is(err, errEveryapiStale) {
+		// An attempt a later one took the place of, or one that was stopped, keeps nothing: tokens it got anyway go back to EveryAPI, and tokens it kept while it was still the current one are deleted unless a later attempt has written its own since.
+		if err == nil && !plain {
+			vault, attempts := a.everyapiStore(), e.attempts
+			go everyapiForgetAttempt(attempts, gen, vault, tokens)
+		}
+		if err == nil || errors.Is(err, errEveryapiStale) {
+			a.everyapiRevokeOnly(tokens)
 		}
 		return
 	}
@@ -577,15 +621,6 @@ func (a *app) everyapiSignOutWith(problem error, revoke bool) {
 			log.Printf("everyapi: revoking the sign-in failed: %v", err)
 		}
 	}()
-}
-
-// everyapiRevoke gives tokens back to EveryAPI off the engine's goroutine, and deletes them from the secure store when stored says they were written there.
-func (a *app) everyapiRevoke(tokens everyapi.Tokens, stored bool) {
-	vault := a.everyapiStore()
-	if stored {
-		go func() { _ = everyapiForgetStored(vault) }()
-	}
-	a.everyapiRevokeOnly(tokens)
 }
 
 // everyapiRevokeOnly gives tokens back to EveryAPI off the engine's goroutine; offline mode sends nothing.

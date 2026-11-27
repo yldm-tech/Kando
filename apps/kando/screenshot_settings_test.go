@@ -224,13 +224,13 @@ func shotPhoneSync(a *app) {
 	a.phoneSyncQR()
 }
 
-// shotEveryAPISignedIn shows Kando signed in to EveryAPI as Evan, with balance dollars left, as the account summary said, without asking any server: the sign-in's tokens are made up and nothing sends them.
+// shotEveryAPISignedIn shows Kando signed in to EveryAPI as Mika, with balance dollars left, as the account summary said, without asking any server: the sign-in's tokens are made up and nothing sends them.
 func shotEveryAPISignedIn(a *app, balance float64) {
 	e := &a.everyapi
 	cred := newEveryapiCred()
 	cred.ready(everyapi.NewSession(everyapi.Config{}, everyapi.Tokens{Key: "sk-everyapi-screenshot", Refresh: "screenshot"}, everyapi.SessionHooks{}), nil)
-	e.cred, e.signedIn, e.loaded, e.name = cred, true, true, "Evan"
-	e.summary, e.haveSummary = everyapi.Summary{Name: "Evan", Balance: balance, Currency: "USD"}, true
+	e.cred, e.signedIn, e.loaded, e.name = cred, true, true, "Mika"
+	e.summary, e.haveSummary = everyapi.Summary{Name: "Mika", Balance: balance, Currency: "USD"}, true
 	// Opening the page asks what the account has; the shot shows what it said, so it does not ask.
 	e.pageOpen = true
 	a.everyapiInstall()

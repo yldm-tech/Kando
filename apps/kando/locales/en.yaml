@@ -1069,24 +1069,24 @@ everyAPIAccountChecking:
   message: "{name} · Checking the balance…"
   description: "Under the EveryAPI account row's title once signed in, while Kando asks EveryAPI what the account has."
   placeholders:
-    name: { type: "String", example: "Evan" }
+    name: { type: "String", example: "Mika" }
 everyAPIAccountLine:
   message: "{name} · Balance {balance}"
   description: "Under the EveryAPI account row's title once signed in: the account's name and what it has left."
   placeholders:
-    name: { type: "String", example: "Evan" }
+    name: { type: "String", example: "Mika" }
     balance: { type: "String", example: "$12.40" }
 everyAPIAccountLow:
   message: "{name} · Balance {balance}, running low"
   description: "Under the EveryAPI account row's title once signed in, when little is left: the account's name and its balance; Top Up is beside it."
   placeholders:
-    name: { type: "String", example: "Evan" }
+    name: { type: "String", example: "Mika" }
     balance: { type: "String", example: "$0.40" }
 everyAPIBalanceFailed:
   message: "{name} · Couldn't check the balance"
   description: "Under the EveryAPI account row's title once signed in, when asking EveryAPI for the balance failed."
   placeholders:
-    name: { type: "String", example: "Evan" }
+    name: { type: "String", example: "Mika" }
 everyAPIBrowserFailed:
   message: "The EveryAPI sign-in didn't finish. Go back to Kando and try again."
   description: "The browser page EveryAPI's sign-in returns to when it was declined or failed."
