@@ -86,7 +86,7 @@ func (s Shell) phone(cx *core.Scope) core.Node {
 		}
 	}
 	// Android's bar takes its colors from the palette's tabBar roles (theme.Kando): TabInactive idle, M3NavActive on the accent at M3NavIndicator selected.
-	// TODO(nsgo): iOS's bar takes a tab's new title (Text, as the language changes) with setTitle: on the UITabBarItem it keeps (internal/platform/ios/tabbar.go:524-538) and sets no accessibilityLabel, so VoiceOver goes on reading the tabs in the language they were built in until the app launches again, though they show the new one; once NSGo gives the items the new title as their label too, nothing is left to do here.
+	// TODO(nsgo#2712): iOS's bar takes a tab's new title (Text, as the language changes) with setTitle: on the UITabBarItem it keeps (internal/platform/ios/tabbar.go:524-538) and sets no accessibilityLabel, so VoiceOver goes on reading the tabs in the language they were built in until the app launches again, though they show the new one; once NSGo gives the items the new title as their label too, nothing is left to do here. https://github.com/nsgo-dev/nsgo/issues/2712
 	return ui.TabShell{LabelFunc: func() string { return locales.AppName(cx) }, Selected: s.Selected, OnChange: s.OnChange, Tabs: tabs}
 }
 
