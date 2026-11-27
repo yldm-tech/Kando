@@ -18,8 +18,10 @@ const hiddenBlur = 7
 func card(cx *core.Scope, p *play, w *words) core.Node {
 	colors := ui.ColorsOf(cx)
 	i := func() int { return p.shown.Get() }
+	// The hint to tap a blurred line shows only while a line the card shows is blurred: a film its computer did not translate has no translation to blur, though the mode would hide one.
 	hint := func() string {
-		if p.hides(true) || p.hides(false) {
+		l := p.line(i())
+		if (p.hides(true) && l.Original != "") || (p.hides(false) && l.Translation != "") {
 			return locales.PlayerHintReveal(cx)
 		}
 		return locales.PlayerHintWords(cx)

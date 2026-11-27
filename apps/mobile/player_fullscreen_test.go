@@ -319,3 +319,38 @@ func TestThePlaybackSettingsSwipeAway(t *testing.T) {
 	p.app.Advance(600 * time.Millisecond)
 	p.app.WaitForGone("id:player-settings", wait)
 }
+
+// A film its computer did not translate has no translation for the card to blur, so the card's hint is the one about the words, not the one to tap a blurred line; with a translation hidden it is.
+func TestTheCardsHintFollowsWhatIsBlurred(t *testing.T) {
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	f.Film.Translation = ""
+	st := store.Open(dir)
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	own := make([]sync.Cue, len(talkCues))
+	for i, c := range talkCues {
+		own[i] = sync.Cue{StartMS: c.StartMS, EndMS: c.EndMS, Original: c.Original}
+	}
+	if err := st.SaveCues(f.Desktop, f.Film.ID, own); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-card-hint", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: videoSizes["16:9"]})
+	p.at(1500 * time.Millisecond)
+	if got := p.texts("id:player-card-hint"); got != msgs.PlayerHintWords() {
+		t.Fatalf("an untranslated film's hint reads %q", got)
+	}
+
+	q, _ := openPlayer(t)
+	q.at(1500 * time.Millisecond)
+	q.app.Press("id:player-mode")
+	q.app.Press("id:player-mode-original")
+	if got := q.texts("id:player-card-hint"); got != msgs.PlayerHintReveal() {
+		t.Fatalf("with the translation hidden the hint reads %q", got)
+	}
+}
