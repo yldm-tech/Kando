@@ -412,6 +412,17 @@ func StudyProblemOf(err error) StudyProblem {
 	return StudyUnreachable
 }
 
+// NoteStudy reports whether the user is still to be told, before the first lookup, explanation, follow-up question or recap the phone asks a computer for, that the lines it uses go to the AI service set up on that computer, and keeps that they were, so it says so once (store.Prefs.StudyNoted). Engine goroutine only.
+func (s *Session) NoteStudy() bool {
+	p := s.Prefs()
+	if p.StudyNoted {
+		return false
+	}
+	p.StudyNoted = true
+	s.SetPrefs(p)
+	return true
+}
+
 // errUnpaired is the error of a lookup or an explanation of a film whose desktop is not paired any more.
 var errUnpaired = errors.New("the film's desktop is not paired")
 

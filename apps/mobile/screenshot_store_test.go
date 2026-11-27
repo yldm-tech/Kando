@@ -130,6 +130,7 @@ func storePhone(t *testing.T, at time.Duration, opts ...nsgotest.Option) (*phone
 	d := storeDesktop(t)
 	dir := t.TempDir()
 	f := storeKeep(t, d, dir, at)
+	studyNoted(t, dir)
 	p := startPhone(t, dir, append([]nsgotest.Option{pairedWith(t, d, dir)}, opts...)...)
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	return p, d, f

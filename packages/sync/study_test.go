@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -239,5 +240,55 @@ func TestWordSourceOfAPlugin(t *testing.T) {
 	var e WordEntry
 	if err := json.Unmarshal(data, &e); err != nil || e.Source != (WordSource{Kind: SourcePlugin, Name: "River Words", Plugin: "Rivers", Desktop: "Studio"}) {
 		t.Fatalf("read back %+v, %v", e, err)
+	}
+}
+
+// failingStudy fails every call with err, as a desktop handing on what its AI service answered.
+type failingStudy struct{ err error }
+
+func (f failingStudy) LookUp(context.Context, Caller, WordLookup) (WordEntry, error) {
+	return WordEntry{}, f.err
+}
+
+func (f failingStudy) Explain(context.Context, Caller, LineExplain) (Explanation, error) {
+	return Explanation{}, f.err
+}
+
+func (f failingStudy) Ask(context.Context, Caller, ExplainAsk) (ExplainAnswer, error) {
+	return ExplainAnswer{}, f.err
+}
+
+func (f failingStudy) Recap(context.Context, Caller, FilmRecap) (Recap, error) {
+	return Recap{}, f.err
+}
+
+// What an AI service answered never reaches a phone: an error a StudyService gives without a code answers CodeFailed with the protocol's own phrase, whatever the error says; one with a code answers as given.
+func TestAStudyErrorWithoutACodeKeepsWhatTheServiceSaid(t *testing.T) {
+	body := `translation API returned 402 Payment Required: {"error":"Top up at https://pay.example.com/buy, 10 credits for $4.99"}`
+	d := &Desk{Service: &fakeService{}, Study: failingStudy{errors.New(body)}, Journal: NewJournal()}
+	calls := []struct {
+		op   string
+		args any
+	}{
+		{OpLookUp, WordLookup{Word: "river"}},
+		{OpExplain, LineExplain{Lines: []Cue{{Original: "a"}}}},
+		{OpExplainAsk, ExplainAsk{LineExplain: LineExplain{Lines: []Cue{{Original: "a"}}}, Question: "why?"}},
+		{OpRecap, FilmRecap{Lines: []Cue{{Original: "a"}}}},
+	}
+	for _, c := range calls {
+		reply := studyCall(t, d, c.op, c.args)
+		if reply.Error == nil || reply.Error.Code != CodeFailed || reply.Error.Message != studyFailed {
+			t.Fatalf("%s answered %+v, want failed with %q", c.op, reply.Error, studyFailed)
+		}
+		data, _ := json.Marshal(reply)
+		for _, leak := range []string{"https://", "$4.99", "Top up", "402"} {
+			if strings.Contains(string(data), leak) {
+				t.Fatalf("%s carries %q to the phone: %s", c.op, leak, data)
+			}
+		}
+	}
+	d.Study = failingStudy{Errorf(CodeNoAI, "the AI service set cannot answer now")}
+	if reply := studyCall(t, d, OpExplain, LineExplain{Lines: []Cue{{Original: "a"}}}); reply.Error == nil || reply.Error.Code != CodeNoAI || reply.Error.Message != "the AI service set cannot answer now" {
+		t.Fatalf("a coded error answered %+v", reply.Error)
 	}
 }

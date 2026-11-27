@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/lookup"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -217,5 +221,108 @@ func TestPhoneSyncReadOnlyPhoneLooksUpWithoutKeepingTheWord(t *testing.T) {
 	})
 	if err != nil || x.Text != "打招呼。" {
 		t.Fatalf("explain %+v, %v", x, err)
+	}
+}
+
+// phoneBillingBodies are what an AI service out of credit answers, in each of the interface's languages: a 402 whose body links to where credit is bought, prices it and tells the user to top up.
+var phoneBillingBodies = map[string]string{
+	"en":      `{"error":{"message":"Insufficient balance. Top up at https://pay.example.com/topup: 1,000 credits for $9.99."}}`,
+	"zh-Hans": `{"error":{"message":"余额不足，请前往 https://pay.example.com/topup 充值：¥68 购买 1000 点数。"}}`,
+	"zh-Hant": `{"error":{"message":"餘額不足，請至 https://pay.example.com/topup 儲值：NT$300 購買 1000 點數。"}}`,
+	"ja":      `{"error":{"message":"残高が不足しています。https://pay.example.com/topup でチャージしてください：¥1,200 で 1000 クレジット。"}}`,
+	"ko":      `{"error":{"message":"잔액이 부족합니다. https://pay.example.com/topup 에서 충전하세요: ₩12,000에 1000 크레딧."}}`,
+}
+
+// phoneBillingWords are what a phone must never be told of an AI service's billing: a link, a price, and topping up, buying or a balance in any of the interface's languages, the desktop's own words for an account out of credit among them (PrecheckTranslateQuota).
+var phoneBillingWords = []string{"http", "example.com", "$", "¥", "₩", "9.99", "1,200", "12,000", "top up", "top it up", "credit", "balance", "insufficient", "充值", "购买", "余额", "儲值", "購買", "餘額", "チャージ", "残高", "クレジット", "충전", "잔액", "크레딧"}
+
+// phoneWantNoBilling fails t when what, JSON sent to a phone, holds any of phoneBillingWords.
+func phoneWantNoBilling(t *testing.T, name string, what any) {
+	t.Helper()
+	data, err := json.Marshal(what)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.ToLower(string(data))
+	for _, w := range phoneBillingWords {
+		if strings.Contains(text, strings.ToLower(w)) {
+			t.Fatalf("%s tells the phone %q: %s", name, w, data)
+		}
+	}
+}
+
+// billingLLM is an AI service that answers every request 402 Payment Required with body.
+func billingLLM(t *testing.T, body string) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusPaymentRequired)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// Nothing of an AI service's billing reaches a phone, whatever the interface's language (yldm-tech/Kando's phone boundary): a job whose translation the service refused for an account out of credit, whose body links to where credit is bought and prices it, is told as FailAIUnavailable with no message, neither the body nor the desktop's own words to top the account up; a translation source over its quota alike; and a lookup, an explanation, a follow-up question and a recap the service refused so answer CodeNoAI with a phrase of the desktop's own.
+func TestPhoneSyncTellsAPhoneNothingOfTheAIServicesBilling(t *testing.T) {
+	for _, lang := range []string{"en", "zh-Hans", "zh-Hant", "ja", "ko"} {
+		t.Run(lang, func(t *testing.T) {
+			testlocale.Use(t, lang)
+			body := phoneBillingBodies[lang]
+			a, tt, updates, dir, _ := phoneSyncApp(t)
+			phoneSyncOn(t, a, tt, updates)
+			c := phoneClient(t, a, "")
+			if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {
+				t.Fatal(err)
+			}
+
+			link := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+			failed := []core.Job{
+				{ID: "quota", Source: link, Stage: core.StageFailed, Err: media.ReadStageError("translate: translation API returned 402 Payment Required: " + body)},
+				{ID: "source", Source: link, Stage: core.StageFailed, Err: &media.StageError{Stage: media.StageTranslate, Source: "DeepL", Err: errors.New("quota: " + body)}},
+				{ID: "other", Source: link, Stage: core.StageFailed, Err: media.ReadStageError("translate: translation API returned 400 Bad Request: " + body)},
+			}
+			for _, job := range failed {
+				var got psync.Job
+				onEngine(a, func() { got = a.phoneJobOf(job) })
+				// The job's own link is the video's, which the phone sent.
+				told := got
+				told.Link = ""
+				phoneWantNoBilling(t, "job "+job.ID, told)
+				if got.Failure == nil || got.Failure.Message != "" || got.Failure.Step != psync.StepTranslate {
+					t.Fatalf("job %s's failure %+v", job.ID, got.Failure)
+				}
+				if job.ID != "other" && (got.Failure.Code != psync.FailAIUnavailable || got.Failure.Remedy != psync.RemedyDesktop) {
+					t.Fatalf("job %s's failure %+v, want %s", job.ID, got.Failure, psync.FailAIUnavailable)
+				}
+			}
+
+			srv := billingLLM(t, body)
+			onEngine(a, func() {
+				a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+				a.prefs.language = "简体中文"
+			})
+			lib := phoneLibraryID(dir)
+			line := psync.LineExplain{Library: lib, Film: "yt", Index: 1, Lines: []psync.Cue{{StartMS: 0, Original: "Hi."}, {StartMS: 1000, Original: "Hello there"}}}
+			calls := map[string]func(ctx context.Context) (any, error){
+				"lookup": func(ctx context.Context) (any, error) {
+					return c.LookUp(ctx, psync.WordLookup{Library: lib, Film: "yt", Word: "Hello", Line: "Hello there"})
+				},
+				"explain": func(ctx context.Context) (any, error) { return c.Explain(ctx, line) },
+				"ask": func(ctx context.Context) (any, error) {
+					return c.Ask(ctx, psync.ExplainAsk{LineExplain: line, Question: "Why?"})
+				},
+				"recap": func(ctx context.Context) (any, error) {
+					return c.Recap(ctx, psync.FilmRecap{Library: lib, Film: "yt", Lines: line.Lines})
+				},
+			}
+			for name, call := range calls {
+				_, err := phoneCall(t, a, tt, updates, call)
+				phoneWantCode(t, err, http.StatusConflict, psync.CodeNoAI)
+				var e *psync.Error
+				errors.As(err, &e)
+				phoneWantNoBilling(t, name, e.ErrorBody)
+			}
+		})
 	}
 }

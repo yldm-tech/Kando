@@ -660,6 +660,7 @@ var Parameters = map[string][]string{
 	"PlayerSleepPillIn":              {"time_"},
 	"PlayerStudyFailed":              {"computer"},
 	"PlayerStudyNoAI":                {"computer"},
+	"PlayerStudyNote":                {"computer"},
 	"PlayerStudyUnreachable":         {"computer"},
 	"PlayerWordAppears":              {"count"},
 	"ReviewDoneSummary":              {"total", "again"},
@@ -911,6 +912,7 @@ type Translation struct {
 	PlayerSleepPillIn              func(time_ string) string
 	PlayerStudyFailed              func(computer string) string
 	PlayerStudyNoAI                func(computer string) string
+	PlayerStudyNote                func(computer string) string
 	PlayerStudyUnreachable         func(computer string) string
 	PlayerWordAppears              func(count int) string
 	ReviewDoneSummary              func(total int, again int) string
@@ -1135,6 +1137,7 @@ const (
 	textJobsCanceled
 	textJobsConnecting
 	textJobsDone
+	textJobsFailAIUnavailable
 	textJobsFailAge
 	textJobsFailBadLink
 	textJobsFailCookies
@@ -1782,6 +1785,7 @@ var keyOfText = [numTexts]string{
 	"jobsCanceled",
 	"jobsConnecting",
 	"jobsDone",
+	"jobsFailAIUnavailable",
 	"jobsFailAge",
 	"jobsFailBadLink",
 	"jobsFailCookies",
@@ -2427,6 +2431,7 @@ var textsEn = i18n.NewTexts(""+
 	"Canceled"+
 	"Connecting…"+
 	"Done"+
+	"The AI service on your computer isn't available right now"+
 	"This video is age-restricted"+
 	"This link isn't a video"+
 	"The computer can't read the browser's sign-in"+
@@ -3069,6 +3074,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		13,
 		4,
+		57,
 		28,
 		23,
 		45,
@@ -3714,6 +3720,7 @@ var textsJa = i18n.NewTexts(""+
 	"キャンセル済み"+
 	"接続中…"+
 	"完了"+
+	"パソコンの AI サービスは現在利用できません"+
 	"この動画は年齢制限があります"+
 	"このリンクは動画ではありません"+
 	"パソコンがブラウザのログイン情報を読み取れません"+
@@ -4356,6 +4363,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		12,
 		6,
+		61,
 		42,
 		45,
 		72,
@@ -5001,6 +5009,7 @@ var textsKo = i18n.NewTexts(""+
 	"취소됨"+
 	"연결 중…"+
 	"완료"+
+	"컴퓨터의 AI 서비스를 지금은 사용할 수 없습니다"+
 	"연령 제한이 있는 동영상입니다"+
 	"이 링크는 동영상이 아닙니다"+
 	"컴퓨터가 브라우저 로그인 정보를 읽을 수 없습니다"+
@@ -5643,6 +5652,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		13,
 		6,
+		65,
 		42,
 		39,
 		69,
@@ -6288,6 +6298,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已取消"+
 	"正在连接…"+
 	"已完成"+
+	"电脑上的 AI 服务暂不可用"+
 	"这个视频有年龄限制"+
 	"这个链接不是视频"+
 	"电脑读不到浏览器的登录信息"+
@@ -6930,6 +6941,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		15,
 		9,
+		34,
 		27,
 		24,
 		39,
@@ -7575,6 +7587,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已取消"+
 	"正在連線…"+
 	"已完成"+
+	"電腦上的 AI 服務暫時無法使用"+
 	"這部影片有年齡限制"+
 	"這個連結不是影片"+
 	"電腦讀不到瀏覽器的登入資訊"+
@@ -8217,6 +8230,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		15,
 		9,
+		40,
 		27,
 		24,
 		39,
@@ -9310,6 +9324,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerStudyNoAI != nil {
 		s.PlayerStudyNoAI = t.PlayerStudyNoAI
+	}
+	if t.PlayerStudyNote != nil {
+		s.PlayerStudyNote = t.PlayerStudyNote
 	}
 	if t.PlayerStudyUnreachable != nil {
 		s.PlayerStudyUnreachable = t.PlayerStudyUnreachable
@@ -14418,6 +14435,15 @@ func (msgs Messages) JobsDoneTitle(name string) string {
 	}
 }
 
+// JobsFailAIUnavailable says "The AI service on your computer isn't available right now"
+// in the language the app shows under cx.
+//
+// Why a job failed, when the AI service set up on the computer cannot be used for now. Never mentions payment, credit or prices.
+func JobsFailAIUnavailable(cx *core.Scope) string { return For(cx).JobsFailAIUnavailable() }
+
+// JobsFailAIUnavailable is the package's JobsFailAIUnavailable in the language of msgs.
+func (msgs Messages) JobsFailAIUnavailable() string { return msgs.text(textJobsFailAIUnavailable) }
+
 // JobsFailAge says "This video is age-restricted"
 // in the language the app shows under cx.
 //
@@ -19516,6 +19542,38 @@ func (msgs Messages) PlayerStudyNoAI(computer string) string {
 			return "在 " + computer + " 上的看懂设置里配好 AI 服务，就能查词和解释句子。"
 		case "zh-Hant":
 			return "在 " + computer + " 上的看懂設定裡設好 AI 服務，就能查詞和解釋句子。"
+		}
+	}
+}
+
+// PlayerStudyNote says "Lookups, explanations and recaps send the lines they use to the AI service set up on {computer}."
+// in the language the app shows under cx.
+//
+// Shown once, the first time the phone asks its computer to look a word up, explain a line or sum a film up: what is sent, and where.
+func PlayerStudyNote(cx *core.Scope, computer string) string {
+	return For(cx).PlayerStudyNote(computer)
+}
+
+// PlayerStudyNote is the package's PlayerStudyNote in the language of msgs.
+func (msgs Messages) PlayerStudyNote(computer string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlayerStudyNote(computer))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlayerStudyNote; f != nil {
+			return f(computer)
+		}
+		switch lang {
+		case "", "en":
+			return "Lookups, explanations and recaps send the lines they use to the AI service set up on " + msgs.arg(computer) + "."
+		case "ja":
+			return "単語の検索、文の解説、これまでのあらすじでは、使う字幕が " + computer + " で設定された AI サービスに送られます。"
+		case "ko":
+			return "단어 찾기, 문장 설명, 지난 이야기에는 사용하는 자막이 " + computer + "에 설정된 AI 서비스로 전송됩니다."
+		case "zh-Hans":
+			return "查词、讲解句子和前情提要会把用到的字幕发给 " + computer + " 上设置的 AI 服务。"
+		case "zh-Hant":
+			return "查詞、講解句子和前情提要會把用到的字幕傳給 " + computer + " 上設定的 AI 服務。"
 		}
 	}
 }

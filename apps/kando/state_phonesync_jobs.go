@@ -96,7 +96,7 @@ func (a *app) phoneJobList() []psync.Job {
 	return out
 }
 
-// phoneJobOf is job as protocol v2 tells it, its failure in English as the control socket says it. A job that was processing a done film again and failed or was stopped is on the shelf as the done film it was, and is told as it ended, as the control socket tells it (remoteJobOf). UI thread only.
+// phoneJobOf is job as protocol v2 tells it, its failure in English as the control socket says it, but for a failure of the AI service or a translation source, whose words stay here (jobfailure.AI, phonesync.JobFacts). A job that was processing a done film again and failed or was stopped is on the shelf as the done film it was, and is told as it ended, as the control socket tells it (remoteJobOf). UI thread only.
 func (a *app) phoneJobOf(job core.Job) psync.Job {
 	if ended, ok := a.queue.redoEnded[job.ID]; ok && job.Stage == core.StageComplete {
 		job = ended
@@ -107,6 +107,7 @@ func (a *app) phoneJobOf(job core.Job) psync.Job {
 		var section string
 		facts.Reason, section = jobfailure.Hint(m, statusText(m, job), jobfailure.Of(job))
 		facts.Setup = section != ""
+		facts.AI, facts.AIUnavailable = jobfailure.AI(job)
 	}
 	return phonesync.JobOf(job, facts)
 }

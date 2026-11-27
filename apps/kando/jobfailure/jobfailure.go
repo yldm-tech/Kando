@@ -32,6 +32,26 @@ func Stage(job core.Job) media.Stage {
 	return failed.Stage
 }
 
+// AI reports whether job failed in its AI service or in a translation source of its own (media.Tools.Engine, media.StageError.Source): in its translation, or with what an AI service answered anywhere else (media.AIAnswered). Such a failure's words, what the service said and the reason Hint gives of it, stay on this computer: what a service answers may hold its prices or a link to buy credit, and Hint's words for an account out of credit tell the user to top it up, neither of which a phone may show. Unavailable is the service refusing the account rather than the request, as one out of credit or over its quota (media.TranslateQuota, plugins.TranslateQuota), which neither a retry nor a setting mends.
+func AI(job core.Job) (ai, unavailable bool) {
+	if job.Stage != core.StageFailed || job.Err == nil {
+		return false, false
+	}
+	detail := job.Err.Error()
+	failed := Of(job)
+	if failed != nil {
+		detail = failed.Detail()
+		if failed.Source != "" {
+			code, _ := plugins.TranslateCode(strings.TrimSpace(detail))
+			return true, code == plugins.TranslateQuota
+		}
+	}
+	if media.AIAnswered(detail) {
+		return true, media.ClassifyTranslate(detail) == media.TranslateQuota
+	}
+	return failed != nil && failed.Stage == media.StageTranslate, false
+}
+
 // TranslationHint says, in the language of m, why a done film translated none of its lines, err being core.Job.TranslationErr and source core.Job.TranslationSource, as Hint says why a translation failed, and the settings section that fixes it: the film page and the card say it, and the control socket says it in English.
 func TranslationHint(m locales.Messages, err, source string) (reason, section string) {
 	failed := &media.StageError{Stage: media.StageTranslate, Source: source, Err: errors.New(err)}

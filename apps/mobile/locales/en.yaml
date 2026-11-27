@@ -983,6 +983,9 @@ jobsDoneTitle:
   description: "Title of the banner when a job finishes on a computer."
   placeholders:
     name: { type: "String", example: "Studio" }
+jobsFailAIUnavailable:
+  message: "The AI service on your computer isn't available right now"
+  description: "Why a job failed, when the AI service set up on the computer cannot be used for now. Never mentions payment, credit or prices."
 jobsFailAge:
   message: "This video is age-restricted"
   description: "Why a job failed."
@@ -2180,6 +2183,11 @@ playerStudyFailed:
 playerStudyNoAI:
   message: "Set up an AI service in Kando's settings on {computer} to look words up and explain lines."
   description: "In the word card or the explanation when the computer has no AI service."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+playerStudyNote:
+  message: "Lookups, explanations and recaps send the lines they use to the AI service set up on {computer}."
+  description: "Shown once, the first time the phone asks its computer to look a word up, explain a line or sum a film up: what is sent, and where."
   placeholders:
     computer: { type: "String", example: "Studio" }
 playerStudyUnpaired:

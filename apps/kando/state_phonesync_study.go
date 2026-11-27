@@ -24,7 +24,7 @@ import (
 type phoneStudy struct{ a *app }
 
 // phoneStudyNoAI is what a phone is told, in English for its logs, when no AI service can answer: it tells its user in its own words (psync.CodeNoAI).
-const phoneStudyNoAI = "no AI service set in Settings › AI Service can answer"
+const phoneStudyNoAI = phonesync.StudyNoAI
 
 // film is the film of library the call names, as the app files it, for its title and languages; a film the desktop does not serve, a locked library's among them, is none, and the call is asked without them.
 func (s phoneStudy) film(ctx context.Context, library, film string) films.Film {
@@ -86,7 +86,7 @@ func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.W
 			return psync.WordEntry{}, psync.Errorf(psync.CodeNoAI, "%s", phoneStudyNoAI)
 		}
 		if err != nil {
-			return psync.WordEntry{}, err
+			return psync.WordEntry{}, phonesync.StudyErr(err)
 		}
 		if source == "" && !caller.ReadOnly {
 			_, _ = remote.OnUI(ctx, a.update, func() (struct{}, error) {
@@ -149,7 +149,7 @@ func (s phoneStudy) Explain(ctx context.Context, _ psync.Caller, req psync.LineE
 		sections, err = explain.Parse(reply)
 	}
 	if err != nil {
-		return psync.Explanation{}, err
+		return psync.Explanation{}, phonesync.StudyErr(err)
 	}
 	out := psync.Explanation{Language: ask.language, Model: strings.TrimSpace(ask.t.Model), Local: ask.t.Local()}
 	var paragraphs []string
@@ -200,7 +200,7 @@ func (s phoneStudy) Ask(ctx context.Context, _ psync.Caller, req psync.ExplainAs
 		err = explain.ErrEmpty
 	}
 	if err != nil {
-		return psync.ExplainAnswer{}, err
+		return psync.ExplainAnswer{}, phonesync.StudyErr(err)
 	}
 	return psync.ExplainAnswer{Text: reply, Language: ask.language, Model: strings.TrimSpace(ask.t.Model), Local: ask.t.Local()}, nil
 }
@@ -226,7 +226,7 @@ func (s phoneStudy) Recap(ctx context.Context, _ psync.Caller, req psync.FilmRec
 		items, err = recap.Parse(reply, seen)
 	}
 	if err != nil {
-		return psync.Recap{}, err
+		return psync.Recap{}, phonesync.StudyErr(err)
 	}
 	out := psync.Recap{Language: ask.language, Model: strings.TrimSpace(ask.t.Model), Local: ask.t.Local()}
 	for _, it := range items {

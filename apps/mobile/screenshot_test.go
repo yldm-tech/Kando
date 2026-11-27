@@ -409,7 +409,9 @@ func TestScreenshotsPlayerRecap(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
 	d.SetRecap(sync.RecapItem{StartMS: 1000, Text: "两人在早上见面，互相问候。"}, sync.RecapItem{StartMS: 3000, Text: "一方问对方最近过得怎么样。"}, sync.RecapItem{StartMS: 5000, Text: "对方说一切都好，并道谢。"})
-	p := openStudyAt(t, d, 6*sec)
+	dir := t.TempDir()
+	studyNoted(t, dir)
+	p := openStudyAtIn(t, d, dir, 6*sec)
 	p.app.WaitFor("id:player-recap-note", wait)
 	shot(p, "player-recap")
 }
@@ -431,7 +433,9 @@ func TestScreenshotsPlayerStudy(t *testing.T) {
 		sync.ExplainSection{Kind: sync.ExplainTone, Text: "轻松、友好，熟人和陌生人之间都能用。"},
 	)
 	// Without reporting the video's progress, which a target cannot, the card shows the first line.
-	p, _ := openStudy(t, d)
+	dir := t.TempDir()
+	studyNoted(t, dir)
+	p, _ := openStudyIn(t, d, dir)
 	shot(p, "player-card")
 	p.app.Press("id:player-save")
 	p.app.Press("id:player-explain-line")
@@ -479,6 +483,21 @@ func TestScreenshotsPlayerStudy(t *testing.T) {
 	p.app.Press("id:player-panel-toggle")
 	p.app.WaitFor("id:player-lines-pane", wait)
 	shot(p, "player-landscape-panel")
+}
+
+// TestScreenshotsPlayerStudyNote renders the first word the phone looks up through its computer: the word's sheet, under the note, said once, that the lines go to the AI service set up on the computer.
+func TestScreenshotsPlayerStudyNote(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "/ˈmɔːnɪŋ/", Meaning: "n. 早晨；上午。这里和 good 连用，是早上见面时的问候。", Language: "简体中文", Source: sync.WordSource{Kind: sync.SourceAI, Desktop: "Studio"}})
+	p, _ := openStudy(t, d)
+	// A press in the middle of the line lands between its words on a target, so the press is on "morning", the line's second word.
+	p.app.PressAt("id:player-card-original", core.Point{X: 92, Y: 14})
+	p.app.WaitFor("id:player-word-meaning", wait)
+	p.app.WaitFor("id:player-toasts >> text:"+msgs.PlayerStudyNote("Studio"), wait)
+	// The sheet slides up over its transition.
+	p.app.Advance(600 * time.Millisecond)
+	shot(p, "player-study-note")
 }
 
 // TestScreenshotsPlayerGlossary renders the sheet that fixes the first line's translation with 同时加进术语表 on and the term filled in (player-fix), and the Info tab's glossary as the computer keeps it (player-terms).
