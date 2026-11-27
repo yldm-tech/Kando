@@ -24,7 +24,7 @@ import (
 // results are the films the list shows: the library the switcher shows, narrowed to the chip's source and to what the search finds.
 func (v *view) results() []catalog.Result {
 	lines, _ := v.lines.Get()
-	return catalog.Search(catalog.Filter(v.scoped(), nil, v.source.Get()), lines, v.query.Get())
+	return catalog.Search(catalog.Filter(v.scoped(), nil, v.source.Get()), lines, v.searched())
 }
 
 // rows are the list's rows: the results, the films of a work among them folded into one (catalog.Fold).
@@ -45,7 +45,7 @@ func (v *view) list(cx *core.Scope) core.Node {
 			return core.View{Style: core.Style{Gap: 10}, Children: []core.Node{
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{look.SectionTitle(cx, func() string {
-						if v.query.Get() != "" {
+						if v.searched() != "" {
 							return locales.FilmsResults(cx)
 						}
 						return locales.FilmsAll(cx)
@@ -69,12 +69,12 @@ func (v *view) list(cx *core.Scope) core.Node {
 			return !shown() && !v.waiting() && (hasFilms() || listed)
 		}, Then: func(cx *core.Scope) core.Node {
 			// A search or a source that finds nothing says so on a card; a library with no film at all says it on the page.
-			return core.Show{When: func() bool { return v.query.Get() != "" || v.source.Get() != "" },
+			return core.Show{When: func() bool { return v.searched() != "" || v.source.Get() != "" },
 				Then: func(cx *core.Scope) core.Node {
 					return core.View{TestID: "films-empty", Style: core.Style{Padding: core.Symmetric(32, 16), AlignItems: core.AlignCenter}, StyleFunc: func() core.Style { return look.Card(cx) },
 						Children: []core.Node{core.Text{ContentFunc: func() string {
-							if v.query.Get() != "" {
-								return locales.FilmsNoResults(cx, v.query.Get())
+							if q := v.searched(); q != "" {
+								return locales.FilmsNoResults(cx, q)
 							}
 							return locales.FilmsNoSource(cx)
 						}, Style: core.Style{FontSize: 14, LineHeight: 19, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)}}}

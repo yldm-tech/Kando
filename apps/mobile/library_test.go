@@ -197,6 +197,26 @@ func TestSearchFindsTheLinesOnThePhone(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 3000 })
 }
 
+// A search of spaces alone, as one left after clearing the field, searches for nothing: the Library stays as it was, headed as every film. Spaces around a search are not part of it.
+func TestASearchOfSpacesSearchesForNothing(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.app.Type("id:films-search", "  ")
+	if got := p.texts("id:films-list"); !strings.HasPrefix(got, msgs.FilmsAll()+"\n") {
+		t.Fatalf("under a search of spaces the list reads %q, want it headed %q", got, msgs.FilmsAll())
+	}
+	if p.app.Exists("id:films-empty") || !p.app.Exists(talkRow("gonedesk")) {
+		t.Fatal("a search of spaces narrows the list")
+	}
+	p.app.Type("id:films-search", "tide ")
+	p.app.WaitFor("id:films-empty", wait)
+	if got, want := p.texts("id:films-empty"), msgs.FilmsNoResults("tide"); got != want {
+		t.Fatalf("a search with spaces around it says %q, want %q", got, want)
+	}
+}
+
 // A film's options download it and, once it is on the phone, play it or delete it from the phone after asking.
 func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	d := newDesktop(t)
