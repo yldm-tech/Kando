@@ -35,6 +35,8 @@ type Actions struct {
 	// Play plays the film kept on the phone under key, from where it was left on the phone, and PlayAt from at.
 	Play   func(key string)
 	PlayAt func(key string, at time.Duration)
+	// Feed gives the player the films of the list a film is played from, in the list's order as it shows them, read when a swipe asks for the next or the one before (player.Layer.SetFeed); nil for none.
+	Feed func(keys func() []string)
 	// Add opens the Add sheet.
 	Add func()
 	// OpenJobs opens the Jobs tab, as the card of the jobs under way does.
@@ -67,6 +69,8 @@ type view struct {
 	field *core.Ref
 	// sheet is the film whose options show (options).
 	sheet *core.Signal[optionsSheet]
+	// keys are the films of the page's list in its order, which a film played from it goes on to by a swipe (Actions.Feed): the Library's rows as filtered, searched and scoped, or a work's films.
+	keys func() []string
 }
 
 // searched is what the user searched for, without the spaces around it: "" while the field is empty or holds only spaces, as one left after clearing it does, which searches for nothing.
@@ -85,7 +89,30 @@ func newView(cx *core.Scope, s *session.Session, act Actions) *view {
 	if v.library == nil {
 		v.library = core.NewSignal(cx, catalog.Scope{})
 	}
+	v.keys = func() []string {
+		var keys []string
+		for _, r := range v.rows() {
+			keys = append(keys, r.Result.Key())
+		}
+		return keys
+	}
 	return v
+}
+
+// feed tells the player the films of the list a film is about to be played from (Actions.Feed).
+func (v *view) feed(keys func() []string) {
+	if v.act.Feed != nil {
+		v.act.Feed(keys)
+	}
+}
+
+// continueKeys are Continue Watching's films in its order.
+func (v *view) continueKeys() []string {
+	var keys []string
+	for _, e := range v.resumable() {
+		keys = append(keys, e.Key())
+	}
+	return keys
 }
 
 // Page is the tab's root page.

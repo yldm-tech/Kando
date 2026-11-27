@@ -108,7 +108,10 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 	id := e().Desktop + "-" + e().Film.ID
 	shadow := core.Style{TextShadowColor: core.RGBA(0x000000, 0.8), TextShadowOffset: core.Point{Y: 1}, TextShadowRadius: 3}
 	return core.View{TestID: "films-continue-" + id, Role: core.RoleButton, LabelFunc: func() string { return e().Film.Title + ", " + meta() },
-		OnPress: func(core.PressEvent) { v.resume(e()) },
+		OnPress: func(core.PressEvent) {
+			v.feed(v.continueKeys)
+			v.resume(e())
+		},
 		Style: core.Style{Width: core.Pt(width), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous, Background: theme.ContinueCard,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 26, Color: core.RGBA(0x000000, 0.14)}}, Active: &core.Style{Opacity: core.Alpha(0.8)}},
 		Children: []core.Node{

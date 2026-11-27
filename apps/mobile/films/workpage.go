@@ -37,6 +37,13 @@ func WorkPage(cx *core.Scope, s *session.Session, act Actions, desktop, id strin
 		}
 		return locales.FilmsWorkContinue(cx, e.Film.WorkIndex)
 	}
+	v.keys = func() []string {
+		var keys []string
+		for _, e := range work.Get().Films {
+			keys = append(keys, e.Key())
+		}
+		return keys
+	}
 	films := func() []catalog.Result {
 		var out []catalog.Result
 		for _, e := range work.Get().Films {
@@ -71,7 +78,10 @@ func WorkPage(cx *core.Scope, s *session.Session, act Actions, desktop, id strin
 						return locales.FilmsWorkWatched(cx, len(w.Films), len(w.Films)-catalog.Unwatched(w))
 					}, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
 				}},
-				look.Button{Kind: look.Primary, Text: button, TestID: "work-go-on", OnPress: func() { workGoOn(s, act, goOn) }},
+				look.Button{Kind: look.Primary, Text: button, TestID: "work-go-on", OnPress: func() {
+					v.feed(v.keys)
+					workGoOn(s, act, goOn)
+				}},
 				list,
 			}},
 		}},

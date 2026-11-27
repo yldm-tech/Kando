@@ -280,7 +280,10 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		{Color: core.RGBA(0x000000, 0.55), At: core.Pct(0)}, {Color: core.RGBA(0x000000, 0), At: core.Pct(22)},
 		{Color: core.RGBA(0x000000, 0), At: core.Pct(55)}, {Color: core.RGBA(0x000000, 0.7), At: core.Pct(100)},
 	}}}})}
-	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden},
+	sw := newSwiper(cx, l, p, key, func() bool { return narrow() && shown() && !panelOn.Get() })
+	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden, Animated: &core.AnimatedStyle{TranslateY: sw.drag}},
+		OnPan: sw.pan, PanActivation: core.PanActivation{ActiveOffsetY: 14, FailOffsetX: 14},
+		AccessibilityActionsFunc: sw.actions, OnAccessibilityAction: sw.act,
 		StyleFunc: func() core.Style {
 			if shape.Get() == full {
 				return core.Style{FlexGrow: 1, FlexShrink: 1}
@@ -321,7 +324,12 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			return topBar(cx, title, l.Minimize, func() { settingsOpen.Set(true) })
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return landscapeTop(cx, p, title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn, func() bool { return fullOn() && shape.Get() == full }, leaveFull, narrow)
+			return landscapeTop(cx, p, title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn, func() bool { return fullOn() && shape.Get() == full }, leaveFull, func() string {
+				if tall() && !forced.Get() {
+					return locales.PlayerStackedLayout(cx)
+				}
+				return locales.PlayerExitFullScreen(cx)
+			}, narrow)
 		}}
 	controlsNode := core.Show{When: notFull,
 		Then: func(cx *core.Scope) core.Node { return transport(cx, p) },
@@ -440,7 +448,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			}
 			return st
 		},
-		Children: []core.Node{backdrop(cx, p, func() bool { return shown() && shape.Get() != full }), main, list,
+		Children: []core.Node{backdrop(cx, p, func() bool { return shown() && shape.Get() != full }), sw.neighbors(cx), main, list,
 			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
 			explainSheet(cx, p, w, fx),
@@ -494,8 +502,8 @@ func roundButton(id string, icon func() *core.SVG, size, glyph core.Points, labe
 		Children:  []core.Node{ui.IconOf(icon, glyph, func() core.Color { return theme.PlayerInk })}}
 }
 
-// landscapeTop is a phone on its side's row over the picture: the button that minimizes the player and the film's title at the left; at the right the subtitle mode, a tap on which goes on to the next, the button that slides the list of lines in, or up on an upright full screen (narrow), the button that leaves full screen while it is on (inFull, leave), and the playback settings.
-func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func(), panelOn *core.Signal[bool], inFull func() bool, leave func(), narrow func() bool) core.Node {
+// landscapeTop is a phone on its side's row over the picture: the button that minimizes the player and the film's title at the left; at the right the subtitle mode, a tap on which goes on to the next, the button that slides the list of lines in, or up on an upright full screen (narrow), the button that leaves full screen while it is on (inFull, leave, named by leaveLabel), and the playback settings. On an upright full screen the subtitle mode sits under the title, which keeps the row's width.
+func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func(), panelOn *core.Signal[bool], inFull func() bool, leave func(), leaveLabel func() string, narrow func() bool) core.Node {
 	glass := func() core.Color { return theme.PlayerInk.Faded(0.14) }
 	panelToggle := func(cx *core.Scope, icon func() *core.SVG) core.Node {
 		return roundButton("player-panel-toggle", icon, 40, 20, func() string { return locales.PlayerLines(cx) }, func() core.Color {
@@ -505,19 +513,24 @@ func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func
 			return glass()
 		}, panelOn.Get, func() { panelOn.Update(func(on bool) bool { return !on }) })
 	}
+	modePill := func(cx *core.Scope, height core.Points) core.Node {
+		return base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
+			Style: core.Style{Height: core.Pt(height), Padding: core.Symmetric(0, height*7/16), CornerRadius: height / 2, JustifyContent: core.JustifyCenter, AlignSelf: core.AlignStart, Background: theme.PlayerInk.Faded(0.16),
+				BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, MaxLines: 1,
+				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}}
+	}
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 		ui.IconButton{TestID: "player-minimize", Icon: lucide.ChevronLeft, LabelFunc: func() string { return locales.PlayerMinimize(cx) }, Variant: ui.IconButtonGhost, Size: 40, IconSize: 26,
 			Tint: func() core.Color { return theme.PlayerInk }, OnPress: minimize},
-		core.Text{Content: title, Role: core.RoleHeader, MaxLines: 1, Style: overPicture.Merge(core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold, FlexShrink: 1, MinWidth: core.Pt(0)})},
-		core.View{Style: core.Style{FlexGrow: 1}},
-		base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
-			Style: core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, JustifyContent: core.JustifyCenter, Background: theme.PlayerInk.Faded(0.16),
-				BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, MaxLines: 1,
-				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 4}, Children: []core.Node{
+			core.Text{TestID: "player-title", Content: title, Role: core.RoleHeader, MaxLines: 1, Style: overPicture.Merge(core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold})},
+			core.Show{When: narrow, Then: func(cx *core.Scope) core.Node { return modePill(cx, 28) }},
+		}},
+		core.Show{When: func() bool { return !narrow() }, Then: func(cx *core.Scope) core.Node { return modePill(cx, 32) }},
 		core.Show{When: narrow, Then: func(cx *core.Scope) core.Node { return panelToggle(cx, lucide.PanelBottom) }, Else: func(cx *core.Scope) core.Node { return panelToggle(cx, lucide.PanelRight) }},
 		core.Show{When: inFull, Then: func(cx *core.Scope) core.Node {
-			return roundButton("player-fullscreen-exit", lucide.Minimize, 40, 20, func() string { return locales.PlayerExitFullScreen(cx) }, glass, nil, leave)
+			return roundButton("player-fullscreen-exit", lucide.Minimize, 40, 20, leaveLabel, glass, nil, leave)
 		}},
 		roundButton("player-more", lucide.Ellipsis, 40, 20, func() string { return locales.PlayerSettings(cx) }, glass, nil, settings),
 	}}

@@ -1521,6 +1521,9 @@ const (
 	textPlayerMinimize
 	textPlayerFullScreen
 	textPlayerExitFullScreen
+	textPlayerStackedLayout
+	textPlayerNextFilm
+	textPlayerPrevFilm
 	textPlayerTabWords
 	textPlayerWordAdd
 	textPlayerWordInVocabulary
@@ -2175,6 +2178,9 @@ var keyOfText = [numTexts]string{
 	"playerMinimize",
 	"playerFullScreen",
 	"playerExitFullScreen",
+	"playerStackedLayout",
+	"playerNextFilm",
+	"playerPrevFilm",
 	"playerTabWords",
 	"playerWordAdd",
 	"playerWordInVocabulary",
@@ -2827,6 +2833,9 @@ var textsEn = i18n.NewTexts(""+
 	"Minimize Player"+
 	"Full Screen"+
 	"Exit Full Screen"+
+	"Switch to Stacked Layout"+
+	"Next Film"+
+	"Previous Film"+
 	"New Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
@@ -3476,6 +3485,9 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		11,
 		16,
+		24,
+		9,
+		13,
 		9,
 		17,
 		23,
@@ -4128,6 +4140,9 @@ var textsJa = i18n.NewTexts(""+
 	"プレーヤーをしまう"+
 	"フルスクリーン"+
 	"フルスクリーンを解除"+
+	"上下レイアウトに切り替え"+
+	"次の作品"+
+	"前の作品"+
 	"単語"+
 	"単語帳に追加"+
 	"単語帳にあります · 削除"+
@@ -4777,6 +4792,9 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		21,
 		30,
+		36,
+		12,
+		12,
 		6,
 		18,
 		34,
@@ -5429,6 +5447,9 @@ var textsKo = i18n.NewTexts(""+
 	"플레이어 최소화"+
 	"전체 화면"+
 	"전체 화면 종료"+
+	"위아래 레이아웃으로 전환"+
+	"다음 작품"+
+	"이전 작품"+
 	"단어"+
 	"단어장에 추가"+
 	"단어장에 있음 · 삭제"+
@@ -6078,6 +6099,9 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		13,
 		20,
+		35,
+		13,
+		13,
 		6,
 		19,
 		29,
@@ -6730,6 +6754,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"收起播放器"+
 	"全屏"+
 	"退出全屏"+
+	"切换到上下布局"+
+	"下一部"+
+	"上一部"+
 	"生词"+
 	"加入生词本"+
 	"已在生词本 · 移除"+
@@ -7379,6 +7406,9 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		6,
 		12,
+		21,
+		9,
+		9,
 		6,
 		15,
 		25,
@@ -8031,6 +8061,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"收起播放器"+
 	"全螢幕"+
 	"結束全螢幕"+
+	"切換到上下佈局"+
+	"下一部"+
+	"上一部"+
 	"生詞"+
 	"加入生詞本"+
 	"已在生詞本 · 移除"+
@@ -8680,6 +8713,9 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		9,
 		15,
+		21,
+		9,
+		9,
 		6,
 		15,
 		25,
@@ -22279,6 +22315,33 @@ func PlayerExitFullScreen(cx *core.Scope) string { return For(cx).PlayerExitFull
 
 // PlayerExitFullScreen is the package's PlayerExitFullScreen in the language of msgs.
 func (msgs Messages) PlayerExitFullScreen() string { return msgs.text(textPlayerExitFullScreen) }
+
+// PlayerStackedLayout says "Switch to Stacked Layout"
+// in the language the app shows under cx.
+//
+// Spoken name of the button over an upright video that fills a phone's screen: it puts the picture back over the line's card, the controls and the list of lines.
+func PlayerStackedLayout(cx *core.Scope) string { return For(cx).PlayerStackedLayout() }
+
+// PlayerStackedLayout is the package's PlayerStackedLayout in the language of msgs.
+func (msgs Messages) PlayerStackedLayout() string { return msgs.text(textPlayerStackedLayout) }
+
+// PlayerNextFilm says "Next Film"
+// in the language the app shows under cx.
+//
+// Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe up does: plays the next film of the list it was opened from.
+func PlayerNextFilm(cx *core.Scope) string { return For(cx).PlayerNextFilm() }
+
+// PlayerNextFilm is the package's PlayerNextFilm in the language of msgs.
+func (msgs Messages) PlayerNextFilm() string { return msgs.text(textPlayerNextFilm) }
+
+// PlayerPrevFilm says "Previous Film"
+// in the language the app shows under cx.
+//
+// Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe down does: plays the film before it in the list it was opened from.
+func PlayerPrevFilm(cx *core.Scope) string { return For(cx).PlayerPrevFilm() }
+
+// PlayerPrevFilm is the package's PlayerPrevFilm in the language of msgs.
+func (msgs Messages) PlayerPrevFilm() string { return msgs.text(textPlayerPrevFilm) }
 
 // PlayerTabWords says "New Words"
 // in the language the app shows under cx.

@@ -22,6 +22,8 @@ type Layer struct {
 	carried carried
 	// OpenStyle opens Settings › Subtitle Style, as the playback settings' row does; nil leaves the row out.
 	OpenStyle func()
+	// feed is the films of the list the film playing was opened from, in the list's order, which a vertical swipe goes on through (neighbor), nil for none; asked is the one SetFeed gave for the film opened next.
+	feed, asked func() []string
 }
 
 // NewLayer is the app's player, with nothing playing yet.
@@ -47,14 +49,51 @@ func (l *Layer) Play(key string) { l.open(key, false) }
 // PlayHeld shows the player of the film kept under key over the app held where the film was left, with the recap of the part watched, as from the film's page; the one minimized when it plays that film shows as it is.
 func (l *Layer) PlayHeld(key string) { l.open(key, true) }
 
-// open shows the player of the film kept under key over the app, a new one opened held (held) unless it is the one minimized. A computer's film matched to a film of a source plays as that film, which plays either video and holds where both were left (session.PlayKey).
+// open shows the player of the film kept under key over the app, a new one opened held (held) unless it is the one minimized. A computer's film matched to a film of a source plays as that film, which plays either video and holds where both were left (session.PlayKey). It takes the list SetFeed gave for it; a film opened from elsewhere, as its page or a widget, has none.
 func (l *Layer) open(key string, held bool) {
 	key = l.s.PlayKey(key)
 	if l.key.GetUntracked() != key {
 		l.held = held
+		l.feed = l.asked
 		l.key.Set(key)
+	} else if l.asked != nil {
+		l.feed = l.asked
 	}
+	l.asked = nil
 	l.full.Set(true)
+}
+
+// SetFeed gives the player the films of the list the film about to be opened is played from, in the list's order as the list shows them, read when a swipe asks for the next or the one before: the Library's rows as filtered, searched and scoped, Continue Watching, a work's films or a folder of a NAS.
+func (l *Layer) SetFeed(keys func() []string) { l.asked = keys }
+
+// neighbor is the film a swipe from the film under key goes on to, after it (step 1) or before it (step -1) in the list it was opened from, skipping those that cannot play now; "" for none, at either end or without a list.
+func (l *Layer) neighbor(key string, step int) string {
+	if l.feed == nil {
+		return ""
+	}
+	keys := l.feed()
+	at := -1
+	for i, k := range keys {
+		if l.s.PlayKey(k) == key {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return ""
+	}
+	for i := at + step; i >= 0 && i < len(keys); i += step {
+		if k := l.s.PlayKey(keys[i]); k != key && l.playable(k) {
+			return k
+		}
+	}
+	return ""
+}
+
+// playable reports whether the film under key can play now, as a row of the Library opens it in the player: its video on the phone, a film of a NAS, one kept to stream whose computer or storage answers, or a computer's film matched to one.
+func (l *Layer) playable(key string) bool {
+	k, ok := l.s.Film(key)
+	return ok && (k.Done() && k.HasVideo() || k.FromSource() || (k.Streamed && l.s.StreamLink(key) != "")) || l.s.Matched(key)
 }
 
 // PlayAt shows the player of the film kept under key over the app, playing from at.
