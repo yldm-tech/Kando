@@ -47,7 +47,7 @@ func settle(p *phone) {
 		return
 	}
 	since := time.Now()
-	p.app.WaitUntil(time.Minute, func() bool { return time.Since(since) > 2*time.Second })
+	p.app.WaitUntil(time.Minute, func() bool { return time.Since(since) > 4*time.Second })
 	// The layout's transitions run on the test's clock.
 	p.app.Advance(time.Second)
 }
@@ -58,15 +58,44 @@ func TestScreenshotsPlayerUprightWide(t *testing.T) {
 	shot(p, "player-upright-small-16x9")
 }
 
+// iPhone17 is an iPhone 17's screen upright, 402 by 874, 62 over and 34 under its safe area.
+func iPhone17() []nsgotest.Option {
+	return []nsgotest.Option{nsgotest.Size(402, 874), nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Top: 62, Bottom: 34}})}
+}
+
+// An upright video on a phone held upright plays immersive: the picture fills the screen, the controls over it.
 func TestScreenshotsPlayerUprightIPhone17(t *testing.T) {
 	shot := screenshots(t)
-	p := playerScene(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640}, nsgotest.Size(402, 874), nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Top: 62, Bottom: 34}}))
+	p := playerScene(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640}, iPhone17()...)
+	p.app.WaitFor("id:player-fullscreen-exit", wait)
 	shot(p, "player-upright-iphone17-9x16")
 }
 
+// Immersive, the list of lines slid up from the foot with the card and its actions over the panel's tabs.
+func TestScreenshotsPlayerImmersiveLines(t *testing.T) {
+	shot := screenshots(t)
+	p := playerScene(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640}, iPhone17()...)
+	p.app.Press("id:player-panel-toggle")
+	p.app.WaitFor("id:player-card", wait)
+	settle(p)
+	shot(p, "player-immersive-iphone17-lines")
+}
+
+// The stacked layout its button gives: the picture over the card, the transport and the list of lines.
+func TestScreenshotsPlayerStackedIPhone17(t *testing.T) {
+	shot := screenshots(t)
+	p := playerScene(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640}, iPhone17()...)
+	p.app.Press("id:player-fullscreen-exit")
+	p.app.WaitFor("id:player-card", wait)
+	settle(p)
+	shot(p, "player-stacked-iphone17-9x16")
+}
+
+// On a small phone the upright talk plays immersive too.
 func TestScreenshotsPlayerUprightTall(t *testing.T) {
 	shot := screenshots(t)
 	p := playerSmallPhone(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640})
+	p.app.WaitFor("id:player-fullscreen-exit", wait)
 	shot(p, "player-upright-small-9x16")
 }
 
@@ -82,14 +111,4 @@ func TestScreenshotsPlayerFullScreenWide(t *testing.T) {
 	p.app.WaitFor("id:player-fullscreen-exit", wait)
 	settle(p)
 	shot(p, "player-fullscreen-small-16x9")
-}
-
-// Full screen of the upright talk stays upright: the picture fills the screen, the capsule's times and slider over its buttons.
-func TestScreenshotsPlayerFullScreenTall(t *testing.T) {
-	shot := screenshots(t)
-	p := playerSmallPhone(t, "talk-portrait.mp4", core.Size{Width: 360, Height: 640})
-	p.app.Press("id:player-fullscreen")
-	p.app.WaitFor("id:player-fullscreen-exit", wait)
-	settle(p)
-	shot(p, "player-fullscreen-small-9x16")
 }

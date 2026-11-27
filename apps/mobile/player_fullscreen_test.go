@@ -3,8 +3,12 @@ package main
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 	"time"
+
+	"kando/apps/mobile/store"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -39,12 +43,23 @@ func within(t *testing.T, p *phone, selector string, width, height core.Points) 
 
 func near(a, b core.Points) bool { return math.Abs(float64(a-b)) < 1 }
 
+// stacked leaves the immersive layout an upright video plays in on a phone for the stacked one: the picture over the card, the transport and the panel.
+func (p *phone) stacked() {
+	p.t.Helper()
+	p.app.WaitFor("id:player-fullscreen-exit", wait)
+	p.app.Press("id:player-fullscreen-exit")
+	p.app.WaitFor("id:player-card-scroll", wait)
+}
+
 // Upright, on a small phone, a large one and a tablet, whatever the video's ratio, the picture, the card, the transport and the list of lines all fit the window: the picture is as wide as the window, or set in on a tablet, at most 30% of its height, and as narrow as its ratio where that caps it, centered; the list keeps room for its lines and scrolls them.
 func TestTheUprightPlayerFitsTheWindow(t *testing.T) {
 	for _, screen := range []core.Size{{Width: 375, Height: 667}, {Width: 430, Height: 932}, {Width: 820, Height: 1180}} {
 		for name, size := range videoSizes {
 			t.Run(fmt.Sprintf("%vx%v %s", screen.Width, screen.Height, name), func(t *testing.T) {
 				p := openPlayerOf(t, screen.Width, screen.Height, size)
+				if size.Width < size.Height && screen.Width < 700 {
+					p.stacked()
+				}
 				stage := within(t, p, "id:player-stage", screen.Width, screen.Height)
 				room := screen.Width
 				if screen.Width >= 700 {
@@ -129,40 +144,90 @@ func TestFullScreenTurnsAWideVideoSideways(t *testing.T) {
 	}
 }
 
-// Full screen of an upright video stays upright: the picture fills the screen, the capsule takes two rows and the list of lines does not slide in.
-func TestFullScreenOfAnUprightVideoStaysUpright(t *testing.T) {
-	p := openPlayerOf(t, 390, 844, videoSizes["9:16"])
-	p.app.Press("id:player-fullscreen")
-	if p.app.Orientation != core.OrientationPortrait {
-		t.Fatalf("full screen of an upright video asks for %v", p.app.Orientation)
-	}
+// On a phone held upright an upright video plays immersive by default, as full screen: the picture fills the screen, a tap shows and hides the controls, whose capsule takes two rows, and the list of lines slides up from the foot with the card and its actions over the panel's tabs. Its button stacks the picture over the card and the transport, which the player remembers, and the picture's button goes back; the video is the same throughout, and the screen is not asked to turn.
+func TestAnUprightVideoPlaysImmersiveOnAPhone(t *testing.T) {
+	p := openPlayerOf(t, 402, 874, videoSizes["9:16"])
+	video := p.app.Find("id:player-video").ID
 	p.app.WaitFor("id:player-mode-pill", wait)
-	if b := p.app.Find("id:player-stage").Bounds(); !near(b.Size.Width, 390) || !near(b.Size.Height, 844) {
-		t.Fatalf("the picture is %+v in full screen", b.Size)
+	if p.app.Orientation != 0 {
+		t.Fatalf("the immersive layout asks for %v", p.app.Orientation)
 	}
-	capsule := within(t, p, "id:player-transport", 390, 844)
+	if b := p.app.Find("id:player-stage").Bounds(); !near(b.Size.Width, 402) || !near(b.Size.Height, 874) {
+		t.Fatalf("the picture is %+v immersive", b.Size)
+	}
+	if p.app.Exists("id:player-card") {
+		t.Fatal("the card shows under an immersive picture")
+	}
+	capsule := within(t, p, "id:player-transport", 402, 874)
 	if !near(capsule.Size.Height, 88) {
 		t.Fatalf("the capsule is %v tall upright", capsule.Size.Height)
 	}
-	for _, id := range []string{"player-play", "player-prev", "player-next", "player-loop", "player-speed", "player-position", "player-at", "player-left", "player-fullscreen-exit", "player-more"} {
-		within(t, p, "id:"+id, 390, 844)
+	for _, id := range []string{"player-play", "player-prev", "player-next", "player-loop", "player-speed", "player-position", "player-fullscreen-exit", "player-panel-toggle", "player-more"} {
+		within(t, p, "id:"+id, 402, 874)
 	}
-	if p.app.Exists("id:player-panel-toggle") {
-		t.Fatal("an upright full screen offers the list of lines at its side")
-	}
-	// Turned sideways the phone shows it as on its side; back upright, still in full screen.
-	p.app.Resize(844, 390)
-	p.app.WaitFor("id:player-panel-toggle", wait)
-	p.app.Resize(390, 844)
-	p.app.WaitForGone("id:player-panel-toggle", wait)
-	if p.app.Exists("id:player-card") {
-		t.Fatal("turned back upright the player left full screen")
-	}
-	p.app.Press("id:player-fullscreen-exit")
+	// A tap on the picture hides the controls, another shows them.
+	p.app.Press("id:player-video")
+	p.app.WaitForGone("id:player-transport", wait)
+	p.app.Press("id:player-video")
+	p.app.WaitFor("id:player-transport", wait)
+
+	// The list slides up with the card, whose actions are in reach, and its lines scroll.
+	p.app.Press("id:player-panel-toggle")
 	p.app.WaitFor("id:player-card", wait)
-	if p.app.Orientation != 0 {
-		t.Fatalf("leaving full screen still asks for %v", p.app.Orientation)
+	pane := within(t, p, "id:player-lines-pane", 402, 874)
+	if pane.Origin.Y < 874*0.3 {
+		t.Fatalf("the list slid up to %v", pane.Origin.Y)
 	}
+	for _, id := range []string{"player-card", "player-replay", "player-card-loop", "player-save", "player-explain-line", "player-tabs", "player-lines"} {
+		within(t, p, "id:"+id, 402, 874)
+	}
+	if p.app.Exists("id:player-transport") {
+		t.Fatal("the capsule shows over the list slid up")
+	}
+	list := p.app.Find("id:player-lines")
+	if list.Frame.Size.Height < 56 {
+		t.Fatalf("the slid-up list is %v tall", list.Frame.Size.Height)
+	}
+	p.app.Press("id:player-card-loop")
+	if !p.app.Exists("id:player-pill-loop") {
+		t.Fatal("the card's loop in the slid-up list did not loop the line")
+	}
+	// Back puts the list away before it minimizes.
+	p.app.Back()
+	p.app.WaitForGone("id:player-lines-pane", wait)
+	if p.app.Exists("id:player-mini") {
+		t.Fatal("Back minimized the player with the list up")
+	}
+
+	p.stacked()
+	if p.app.Exists("id:player-mode-pill") {
+		t.Fatal("the stacked layout keeps the row over the picture")
+	}
+	if b := p.app.Find("id:player-stage").Bounds(); !near(b.Size.Height, 874*0.3) {
+		t.Fatalf("the stacked picture is %+v", b.Size)
+	}
+	// Minimized and opened again, the player stays stacked.
+	p.app.Press("id:player-minimize")
+	p.app.WaitFor("id:player-mini", wait)
+	p.app.Press("id:player-mini-open")
+	p.app.WaitFor("id:player-card", wait)
+	if p.app.Exists("id:player-mode-pill") {
+		t.Fatal("opened again the player left the stacked layout")
+	}
+	p.app.Press("id:player-fullscreen")
+	p.app.WaitFor("id:player-mode-pill", wait)
+	if p.app.Orientation != 0 {
+		t.Fatalf("going immersive asks for %v", p.app.Orientation)
+	}
+	if v := p.app.Find("id:player-video"); v.ID != video {
+		t.Fatal("switching layouts made the video anew")
+	}
+	// Turned sideways the video stays full; a wide video upright stays stacked.
+	p.app.Resize(874, 402)
+	p.app.WaitFor("id:player-mode-pill", wait)
+	p.app.Resize(402, 874)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: videoSizes["16:9"]})
+	p.app.WaitFor("id:player-card", wait)
 }
 
 // Back leaves full screen before it minimizes the player, and minimizing ends full screen and its request.
@@ -198,10 +263,11 @@ func TestOnATabletOnItsSideAnUprightVideoFits(t *testing.T) {
 	within(t, p, "id:player-lines", 1180, 820)
 }
 
-// On an iPhone 17 upright (402 by 874, its safe area 62 over and 34 under) an upright 9:16 video's picture is 30% of the height inside the safe area at its ratio, and the list of lines under the transport keeps room for two lines.
+// On an iPhone 17 upright (402 by 874, its safe area 62 over and 34 under), stacked, an upright 9:16 video's picture is 30% of the height inside the safe area at its ratio, and the list of lines under the transport keeps room for two lines.
 func TestOnAnIPhone17AnUprightVideoLeavesTheListRoom(t *testing.T) {
 	p, _ := openPlayer(t, nsgotest.Size(402, 874), nsgotest.Environment(core.Environment{Locale: lang, SafeArea: core.Edges{Top: 62, Bottom: 34}}))
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: videoSizes["9:16"]})
+	p.stacked()
 	stage := within(t, p, "id:player-stage", 402, 874)
 	if h := (874 - 62 - 34) * core.Points(0.3); !near(stage.Size.Height, h) || !near(stage.Size.Width, h*9/16) {
 		t.Fatalf("the picture is %+v", stage.Size)
@@ -216,4 +282,40 @@ func TestOnAnIPhone17AnUprightVideoLeavesTheListRoom(t *testing.T) {
 		t.Fatalf("the list of lines is %v tall", lines.Size.Height)
 	}
 	t.Logf("stage %+v, card %v, lines %+v", stage, card.Frame.Size.Height, lines)
+}
+
+// The card's place keeps to one line next to its hint at an iPhone 17's width, however many lines the film has; the hint is cut short.
+func TestTheCardsPlaceKeepsToOneLine(t *testing.T) {
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	many := make([]sync.Cue, 1236)
+	for i := range many {
+		many[i] = sync.Cue{StartMS: int64(i) * 3000, EndMS: int64(i)*3000 + 2500, Original: "Good morning.", Translation: "早上好。"}
+	}
+	if err := store.Open(dir).SaveCues(f.Desktop, f.Film.ID, many); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, nsgotest.Size(402, 874))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-card-place", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: time.Hour, Size: videoSizes["16:9"]})
+	p.app.Progress("id:player-video", 54*time.Second, time.Hour)
+	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:player-card-place"), "1,236") })
+	for _, id := range []string{"player-card-place", "player-card-hint"} {
+		if h := p.app.Find("id:" + id).Frame.Size.Height; h > 17 {
+			t.Fatalf("%s wraps to %v at 402 wide: %q", id, h, p.texts("id:"+id))
+		}
+	}
+}
+
+// A drag down on the playback settings' sheet swipes it away.
+func TestThePlaybackSettingsSwipeAway(t *testing.T) {
+	p, _ := openPlayer(t)
+	p.app.Press("id:player-more")
+	p.app.WaitFor("id:player-settings", wait)
+	p.app.Advance(600 * time.Millisecond)
+	p.app.Pan("id:player-settings-sheet", core.Point{Y: 120}, core.Point{Y: 420})
+	p.app.Advance(600 * time.Millisecond)
+	p.app.WaitForGone("id:player-settings", wait)
 }

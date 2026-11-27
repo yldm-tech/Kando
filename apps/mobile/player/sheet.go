@@ -24,7 +24,10 @@ func (s appSheet) Render(cx *core.Scope) core.Node {
 	}
 	colors := ui.ColorsOf(cx)
 	env := cx.Env()
-	grabber := core.View{Style: core.Style{Width: core.Pt(36), Height: core.Pt(5), CornerRadius: 3, AlignSelf: core.AlignCenter}, StyleFunc: ui.Filled(colors.Border)}
+	// The grabber's bar sits in a band as wide as the sheet and taller than it, over the gap around it, so a finger finds it to swipe the sheet down.
+	grabber := core.View{Style: core.Style{AlignSelf: core.AlignStretch, AlignItems: core.AlignCenter, Padding: core.Symmetric(10, 0), Margin: core.Edges{Top: -10, Bottom: -10}}, Children: []core.Node{
+		core.View{Style: core.Style{Width: core.Pt(36), Height: core.Pt(5), CornerRadius: 3}, StyleFunc: ui.Filled(colors.Border)},
+	}}
 	return base.Sheet{TestID: s.TestID, Open: s.Open, LabelFunc: s.Label, CloseOnSwipe: true,
 		OnOpenChange: func(open bool, _ base.Reason) {
 			if !open {
