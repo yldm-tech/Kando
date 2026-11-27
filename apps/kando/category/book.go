@@ -109,6 +109,9 @@ func (b *Book) load(stored storedBook) {
 // Apart reports whether the user showed the work keyed work a card a film each.
 func (b Book) Apart(work string) bool { return slices.Contains(b.apart, work) }
 
+// ApartKeys is a copy of the keys of the works the user showed a card a film each (Apart), safe to read off the UI thread.
+func (b Book) ApartKeys() []string { return slices.Clone(b.apart) }
+
 // SetApart shows the work keyed work a card a film each, or one card again, and reports whether that changed anything.
 func (b *Book) SetApart(work string, apart bool) bool {
 	if work == "" || b.Apart(work) == apart {

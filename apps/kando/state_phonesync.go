@@ -136,6 +136,18 @@ func (a *app) phoneSyncPublishWatched() {
 	if srv == nil {
 		return
 	}
+	sign := a.phoneWatchedSign()
+	if sign == a.phone.watchedSign {
+		return
+	}
+	a.phone.watchedSign = sign
+	if dir := a.snap().LibraryDir; dir != "" && !a.lockShut() && !a.lockFilesAway(dir) {
+		srv.PublishFilms(phoneLibraryID(dir))
+	}
+}
+
+// phoneWatchedSign sums up which videos are currently watched to their end, independent of map order.
+func (a *app) phoneWatchedSign() uint64 {
 	var sign uint64
 	for path := range a.palette.furthest {
 		if films.WatchState(a, films.Film{VideoPath: path}) == sidebar.WatchWatched {
@@ -145,13 +157,7 @@ func (a *app) phoneSyncPublishWatched() {
 			sign += h.Sum64()
 		}
 	}
-	if sign == a.phone.watchedSign {
-		return
-	}
-	a.phone.watchedSign = sign
-	if dir := a.snap().LibraryDir; dir != "" && !a.lockShut() && !a.lockFilesAway(dir) {
-		srv.PublishFilms(phoneLibraryID(dir))
-	}
+	return sign
 }
 
 // libraryLocked reports whether the library at dir is locked (LibraryLocked, state_lock.go), which Phone Sync never serves, nor lists.
@@ -223,6 +229,7 @@ func (a *app) phoneSyncStart() {
 				return
 			}
 			a.phone.server, a.phone.running, a.phone.fingerprint, a.phone.name = srv, true, srv.Fingerprint(), name
+			a.phone.watchedSign = a.phoneWatchedSign()
 			if port := srv.Port(); port != 0 && port != a.phone.port {
 				a.phone.port = port
 				a.Save()
@@ -244,7 +251,7 @@ func (a *app) phoneSyncStop() {
 		}
 	}
 	a.phoneStateKeepAll()
-	a.phone.running, a.phone.fingerprint, a.phone.shown = false, nil, false
+	a.phone.running, a.phone.fingerprint, a.phone.shown, a.phone.watchedSign = false, nil, false, 0
 	a.phone.offer, a.phone.addrs, a.phone.devices, a.phone.revokeErr = phonesync.Offer{}, nil, nil, ""
 	a.phone.readOnlyErr, a.phone.resolveErr = "", ""
 	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = "", false, nil
@@ -410,9 +417,9 @@ type phoneShelf struct {
 	nexts map[string]films.Film
 	// redo is the jobs that process or translate a done film again (core.Job.Redo), by ID.
 	redo map[string]bool
-	// works is the library's works (films.Works), worked out only as its films are listed (phoneSource.Films), and apart its categories, which keep the works the user split apart (category.Book.Apart): the open library's as the app holds them when apartRead, else read from its folder as the films are listed.
+	// works is the library's works (films.Works), worked out only as its films are listed (phoneSource.Films), and apart the keys of the works the user split apart (category.Book.ApartKeys): the open library's as the app holds them when apartRead, else read from its folder as the films are listed.
 	works     films.WorkIndex
-	apart     category.Book
+	apart     []string
 	apartRead bool
 }
 
@@ -449,7 +456,8 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 	shelf.works = films.Works(all, lib.Dir, shelf.tag)
 	if !shelf.apartRead {
 		// Categories that cannot be read split no work apart, rather than keep the library from the phones.
-		shelf.apart, _ = category.Load(lib.Dir)
+		book, _ := category.Load(lib.Dir)
+		shelf.apart = book.ApartKeys()
 	}
 	items := phoneDoneOf(all, shelf)
 	var out []phonesync.Film
@@ -460,7 +468,7 @@ func (s phoneSource) Films(ctx context.Context, lib phonesync.Library) ([]phones
 			f.Next = phoneFilmID(next)
 		}
 		// The work the library page folds it into, as the control socket names it (remoteFilmOf), so a phone folds the same films; one the user split apart is none.
-		if w, ok := shelf.works.Of(item.Key); ok && !shelf.apart.Apart(w.ApartKey(lib.Dir)) {
+		if w, ok := shelf.works.Of(item.Key); ok && !slices.Contains(shelf.apart, w.ApartKey(lib.Dir)) {
 			f.Work, f.WorkTitle, f.WorkIndex = w.ID(lib.Dir), w.Name, slices.Index(w.Films, item.Key)+1
 		}
 		out = append(out, f)
@@ -549,10 +557,11 @@ func (s phoneSource) listed(ctx context.Context, lib phonesync.Library) ([]films
 		if a.libraryLocked(lib.Dir) {
 			return phoneShelf{}, phonesync.ErrNotFound
 		}
-		// The open library's categories as the app holds them, which a save that failed may leave apart from its file; another's are read from its file below.
-		apart, open := category.Book{}, a.cats.book.Dir() == lib.Dir
+		// The open library's split works as the app holds them, which a save that failed may leave apart from its file; another's are read from its file below.
+		var apart []string
+		open := a.cats.book.Dir() == lib.Dir
 		if open {
-			apart = a.cats.book
+			apart = a.cats.book.ApartKeys()
 		}
 		return phoneShelf{apart: apart, apartRead: open, jobs: slices.Clone(a.library.Jobs), added: maps.Clone(a.library.AddedIn(lib.Dir)), names: maps.Clone(a.library.Names), durations: maps.Clone(a.lib.durations), posterDir: a.lib.posterDir,
 			furthest: maps.Clone(a.palette.furthest), played: maps.Clone(a.player.played),

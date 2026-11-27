@@ -177,4 +177,21 @@ func TestPhonesHearWhenTheLibrarysWorksChange(t *testing.T) {
 	if !heard("watched", func() { a.palette.furthest = map[string]time.Duration{river[0]: time.Minute} }) {
 		t.Error("a film watched to its end was not heard")
 	}
+	// Starting the server with a film already watched does not emit a spurious films event on startup or the next change.
+	apply(tt, a, func() { a.phoneSyncStop() })
+	apply(tt, a, func() { a.phoneSyncStart() })
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil })
+	list, err := phoneAsk(t, p, c.Jobs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev, err := phoneAsk(t, p, func(ctx context.Context) (psync.Events, error) {
+		return c.Events(ctx, list.Epoch, 0, 50*time.Millisecond)
+	})
+	if err != nil {
+		t.Fatalf("after restart: %v", err)
+	}
+	if slices.ContainsFunc(ev.Events, func(e psync.Event) bool { return e.Kind == psync.EventFilms && e.ID == lib }) {
+		t.Error("restarting Phone Sync with an already-watched film emitted a spurious films event")
+	}
 }
