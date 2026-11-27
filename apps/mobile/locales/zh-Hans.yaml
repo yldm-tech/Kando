@@ -10,6 +10,7 @@ addNoteOffline: "{name} 离线。链接先存在这台手机上，电脑上线�
 addNoteOfflineRelay: "{name} 离线。链接先存在你的存储里，电脑上线后自动开始。"
 addNoteRelay: "不在同一网络，链接经你的存储送到 {name}，几十秒到几分钟后开始处理。"
 addPaste: "粘贴"
+addSharedFile: "看懂只接收视频链接，请改为分享视频的链接。"
 addQuality: "保存"
 addQuality720: "720P"
 addQualityBest: "最高画质"

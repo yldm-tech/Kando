@@ -19,11 +19,9 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Sheet is the Add sheet while open reports true, headed by the design's bar of Cancel and Send; close closes it, and sent follows a link sent.
-// TODO(nsgo#655): take the links other apps share to Kando (an iOS share extension, Android's SEND intent) into this sheet; NSGo apps cannot receive a share yet, so a link comes by paste alone https://github.com/nsgo-dev/nsgo/issues/655
-func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), sent func()) core.Node {
+// Sheet is the Add sheet while open reports true, headed by the design's bar of Cancel and Send; close closes it, and sent follows a link sent. text is what is in its link field, which the caller holds so that a link another app shares to Kando (Shared) comes into the field as one pasted does.
+func Sheet(cx *core.Scope, s *session.Session, text *core.Signal[string], open func() bool, close func(), sent func()) core.Node {
 	colors := ui.ColorsOf(cx)
-	text := core.NewSignal(cx, "")
 	// chosen is the computer the user picked in the sheet, "" for the one that processes new links (session.Session.SendTo).
 	chosen := core.NewSignal(cx, "")
 	// quality and subtitles are the job options the user picked (sync.JobOptions), "" for the computer's own setting.
@@ -261,9 +259,30 @@ func mark(l kcore.Link) core.Color {
 // firstLink is the first link to a video on the web in text, as a share sheet's text that holds a title before its link; text trimmed when it holds none.
 func firstLink(text string) string {
 	for _, field := range strings.Fields(text) {
-		if l, ok := kcore.ParseLink(field); ok && l.Platform != kcore.PlatformLocal && strings.Contains(field, ".") {
+		if webLink(field) {
 			return field
 		}
 	}
 	return strings.TrimSpace(text)
+}
+
+// webLink reports whether field is a link to a video on the web: one ParseLink takes for a link not to a file on the phone, with a dot in it, as a host name has.
+func webLink(field string) bool {
+	l, ok := kcore.ParseLink(field)
+	return ok && l.Platform != kcore.PlatformLocal && strings.Contains(field, ".")
+}
+
+// Shared is what the Add sheet's field takes from the texts another app shares to Kando: the first link to a video on the web among them, as the share sheets of YouTube and Bilibili put a title before the link, or the first that is not blank when none holds one, which the sheet then says is not a link; "" when all are blank.
+func Shared(texts []string) string {
+	first := ""
+	for _, t := range texts {
+		l := firstLink(t)
+		if webLink(l) {
+			return l
+		}
+		if first == "" {
+			first = l
+		}
+	}
+	return first
 }

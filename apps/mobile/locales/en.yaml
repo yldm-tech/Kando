@@ -46,6 +46,9 @@ addNoteRelay:
 addPaste:
   message: "Paste"
   description: "Add sheet: button that puts the clipboard's link in the field."
+addSharedFile:
+  message: "Kando takes links to videos. Share the video's link instead."
+  description: "Toast when another app shares only a file, such as a picture or a video file, to the app, which takes links alone."
 addQuality:
   message: "Save"
   description: "Add sheet: label over the choices of the picture the computer downloads."

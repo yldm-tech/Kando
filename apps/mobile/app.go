@@ -109,6 +109,10 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	selected := core.NewSignal(cx, filmsTab)
 	adding := core.NewSignal(cx, false)
 	openAdd := func() { adding.Set(true) }
+	// addText is the Add sheet's link field, which a link another app shares to Kando fills (sharedLinks).
+	addText := core.NewSignal(cx, "")
+	// shareWaiting is set while a link shared with no computer paired waits in the Add sheet's field for the pairing the share opened; paired, the sheet opens with it.
+	shareWaiting := false
 	// subscription is the subscription whose sheet shows over the app, by its key, "" for none: the Library's row and a tablet's sidebar open it.
 	subscription := core.NewSignal(cx, "")
 	// searches counts the times the user asked for the Library's search from the keyboard (shortcuts.Search), which the Library's page focuses each time.
@@ -136,6 +140,10 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		selected.Set(filmsTab)
 		navs[filmsTab].PopToRoot()
 		outer.Pop(1)
+		if shareWaiting {
+			shareWaiting = false
+			adding.Set(true)
+		}
 	}
 	// Unpaired, a computer's films not on the phone go from the Library's stack, and from Jobs', with the pages opened from them: with no client left they could not be downloaded. A film's page of one on the phone stays. The computer page in Settings goes with the last computer.
 	unpaired := func(id string) {
@@ -213,6 +221,24 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 				navs[filmsTab].Push(route{page: filmPage, desktop: e.Desktop, library: e.Library, film: e.Film})
 			}
 		}}, entries[i])
+	})
+	// A link shared from another app, as YouTube's, Safari's or Bilibili's share sheet sends it, opens the Add sheet with it in the field, over the tabs once the user has been through the introduction: pairing, the introduction, a computer that no longer takes the phone and the review keep it until they close. With no computer paired the pairing page opens first, as the Library's Add does, and the sheet once it paired. A file shared alone is not the phone's to take, and a toast says so.
+	sharedLinks(cx, func() bool {
+		routes := outer.Routes()
+		return s.Loaded() && s.Prefs().Onboarded && routes[len(routes)-1].page == rootPage
+	}, func(text string) {
+		layer.Minimize()
+		subscription.Set("")
+		picking.Set(false)
+		addText.Set(text)
+		if len(s.Desktops()) == 0 {
+			shareWaiting = true
+			openPair()
+			return
+		}
+		adding.Set(true)
+	}, func() {
+		toaster.Show(ui.ToastContent{Type: ui.ToastInfo, Title: locales.AddSharedFile(cx)})
 	})
 	// A computer that no longer takes the phone shows the page that says so over everything, one computer at a time; revoked is the one it shows.
 	revoked := ""
@@ -367,7 +393,10 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 	return outer.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, r route, _ func() int) base.NavPage {
 		switch r.page {
 		case pairPage:
-			return pair.Page(cx, s, paired, func() { outer.Pop(1) })
+			return pair.Page(cx, s, paired, func() {
+				shareWaiting = false
+				outer.Pop(1)
+			})
 		case introductionPage:
 			return base.NavPage{TestID: "introduction", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), Children: []core.Node{
 				onboarding.Page(cx, s, func() { outer.Pop(1) }),
@@ -383,7 +412,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 		return base.NavPage{TestID: "root", HeaderHidden: true, StyleFunc: ui.Filled(colors.Background), StatusBarFunc: layer.StatusBar, Children: []core.Node{
 			// Under the player, the tabs are out of assistive technology's reach.
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, AccessibilityElementsHidden: layer.Full, Children: []core.Node{root}},
-			add.Sheet(cx, s, adding.Get, func() { adding.Set(false) }, openJobs),
+			add.Sheet(cx, s, addText, adding.Get, func() { adding.Set(false) }, openJobs),
 			films.SubscriptionSheet(cx, s, subscription),
 			films.LibrarySheet(cx, s, library, picking),
 			ui.Toasts{Toaster: toaster, TestID: "toasts"},

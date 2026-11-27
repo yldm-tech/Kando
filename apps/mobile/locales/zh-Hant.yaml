@@ -11,6 +11,7 @@ addNoteOffline: "{name} 離線。連結先存在這支手機上，電腦上線�
 addNoteOfflineRelay: "{name} 離線。連結先存在你的儲存空間裡，電腦上線後自動開始。"
 addNoteRelay: "不在同一網路，連結經你的儲存空間送到 {name}，幾十秒到幾分鐘後開始處理。"
 addPaste: "貼上"
+addSharedFile: "看懂只接收影片連結，請改為分享影片的連結。"
 addQuality: "儲存"
 addQuality720: "720P"
 addQualityBest: "最高畫質"
