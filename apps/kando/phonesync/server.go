@@ -127,6 +127,9 @@ type Config struct {
 	// Relay is the user's bucket the storage relay runs in (relay.go), nil while the relay is off. RelayHealth, when set, is told on a goroutine of the relay's after each of its turns what failed of it, nil for a turn that went through (psync.Relay.Health).
 	Relay       Bucket
 	RelayHealth func(err error)
+	// RelayEvery is how often the relay polls the inboxes, 0 for sync.RelayPoll, as a hosted bucket whose every listing costs polls less often (relayhost.Poll). RelayLinksUntil, when set, is when the links the relay signs now must lapse by, as a bucket whose key is short-lived needs (psync.Relay.LinksUntil).
+	RelayEvery      time.Duration
+	RelayLinksUntil func(ctx context.Context) (time.Time, error)
 	// Films, with the relay on, shares the films with the phones through the bucket (films.go); nil shares none.
 	Films *FilmsConfig
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.

@@ -787,3 +787,54 @@ func TestRelayPhoneTellsWhyTheStoreFailed(t *testing.T) {
 		t.Fatalf("a store that does not answer read as failure %d (%v)", got, err)
 	}
 }
+
+// A bucket whose key is short-lived signs links that lapse with it: a grant expires then, and is minted anew once half its life is spent, a day or not; a key about to lapse signs none.
+func TestRelayLinksLapseWithAShortLivedKey(t *testing.T) {
+	g := newRelayRig(t)
+	ctx := context.Background()
+	until := g.clock.Add(12 * time.Hour)
+	g.relay.LinksUntil = func(context.Context) (time.Time, error) { return until, nil }
+	grant, err := g.relay.NewGrant(ctx, "D1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !grant.Expires.Equal(until) {
+		t.Fatalf("expires %v, want %v", grant.Expires, until)
+	}
+	g.clock = g.clock.Add(5 * time.Hour)
+	if same, _ := g.relay.Grant(ctx, "D1"); !same.Minted.Equal(grant.Minted) {
+		t.Fatal("a grant renewed before half its life")
+	}
+	until = g.clock.Add(12 * time.Hour)
+	g.clock = g.clock.Add(time.Hour)
+	renewed, err := g.relay.Grant(ctx, "D1")
+	if err != nil || !renewed.Minted.After(grant.Minted) || !renewed.Expires.Equal(until) {
+		t.Fatalf("renewed %v–%v, %v", renewed.Minted, renewed.Expires, err)
+	}
+	// The phone's links of the renewed grant are good until the key lapses, and no longer.
+	g.phone.Grant = renewed
+	if err := g.relay.Publish(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := g.phone.State(ctx); err != nil {
+		t.Fatal(err)
+	}
+	g.clock = until
+	if _, err := g.phone.State(ctx); !errors.Is(err, ErrRelayLapsed) {
+		t.Fatalf("a link past the key's life: %v", err)
+	}
+	until = g.clock.Add(30 * time.Second)
+	if _, err := g.relay.NewGrant(ctx, "D1"); !errors.Is(err, ErrRelayKeyLapsing) {
+		t.Fatalf("a grant signed with a key about to lapse: %v", err)
+	}
+}
+
+// Without LinksUntil a grant's links live RelayURLLifetime and are renewed after RelayRegrant, as before.
+func TestRelayLinksUntilZeroIsAWeek(t *testing.T) {
+	g := newRelayRig(t)
+	g.relay.LinksUntil = func(context.Context) (time.Time, error) { return time.Time{}, nil }
+	grant, err := g.relay.NewGrant(context.Background(), "D1")
+	if err != nil || !grant.Expires.Equal(grant.Minted.Add(RelayURLLifetime)) {
+		t.Fatalf("expires %v, %v", grant.Expires, err)
+	}
+}

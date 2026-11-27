@@ -9,13 +9,14 @@ import (
 
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/phonesync"
+	"kando/apps/kando/relayhost"
 	"kando/apps/kando/settings"
 	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), the pairing code with the storage relay on, its QR code carrying the code's pairing mailbox (settings-phone-pair-away), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay), with what the films take there, a video going up, two watched ones to clean up and an S3 bucket to move to (settings-phone-storage). No server starts: the scenes set what a running server and the ledger of the open library would hold.
+// TestScreenshotsPhoneSync renders what the desktop shows of the paired phones (screenshot_helpers_test.go): the library offering to continue The Tide Pools of Monterey (j8) where an iPhone left it at 2:05 ten minutes ago, the hero naming the iPhone (phone-handoff); Ocean Currents Explained (j6) paused on the iPhone, with 在这台电脑上继续 (queue-paused-on-phone); and Settings › 手机同步 with an iPhone online, and an iPad made read-only (settings-phone-devices), the pairing code with the storage relay on, its QR code carrying the code's pairing mailbox (settings-phone-pair-away), and further down the learning records synced, a translation and a note in conflict, and what the phones did (settings-phone-conflicts); and the storage relay on through an R2 bucket that answers (settings-phone-relay), 看懂托管 offered without Kando Plus (settings-phone-relay-hosted-noplus) and in use with it (settings-phone-relay-hosted), with what the films take there, a video going up, two watched ones to clean up and an S3 bucket to move to (settings-phone-storage). No server starts: the scenes set what a running server and the ledger of the open library would hold.
 func TestScreenshotsPhoneSync(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "phone-handoff", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
@@ -49,6 +50,7 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 		a.phone.relay, a.phone.relayOK = true, true
 		box := "https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com/kando-films/kando-relay/5c1e0a77d2b3f4e1/pair/9f2b6c0d4e8a1b3c5d7e9f0a2b4c6d8e/box?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=0123456789abcdef0123456789abcdef%2F20261125%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20261125T094100Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&x-id=GetObject&X-Amz-Signature=71e19abd75a8a05c71e9c630d2dc14b70100453847a8f2b1d313fe2956e1ed43"
 		a.phone.offer.Relay = &psync.PairRelay{Box: box, Key: bytes.Repeat([]byte{7}, psync.RelayKeySize)}
+		shotHostChecked(a, false)
 		a.phoneSyncQR()
 	})
 	// 不在同一网络时 with the storage relay on, through an R2 bucket whose last turn went through.
@@ -58,6 +60,24 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 		a.cloud.r2Endpoint, a.cloud.r2Bucket = "https://0123456789abcdef.r2.cloudflarestorage.com", "kando-films"
 		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
 		a.phone.relay, a.phone.relayOK = true, true
+		shotHostChecked(a, false)
+	})
+	// 看懂托管 under the switch while the account has no Kando Plus: it cannot be turned on, and 订阅… opens EveryAPI's page.
+	shootSettingsPressed(t, f, settings.SectionPhone, "settings-phone-relay-hosted-noplus", shown, models, turbo, []string{"scroll-to:id:settings-phone-relay", "exists:id:settings-phone-relay-hosted-subscribe"}, func(a *app) {
+		shotPhoneSync(a)
+		a.cloud.storage = cloud.KindR2
+		a.cloud.r2Endpoint, a.cloud.r2Bucket = "https://0123456789abcdef.r2.cloudflarestorage.com", "kando-films"
+		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
+		a.phone.relay, a.phone.relayOK = true, true
+		shotHostChecked(a, false)
+	})
+	// With Kando Plus, 看懂托管 on: the relay goes through the hosted storage, 1.2 GB of whose 50 GB the account uses, and its last turn went through; the storage of 账号与上传 is not shown.
+	shootSettingsPressed(t, f, settings.SectionPhone, "settings-phone-relay-hosted", shown, models, turbo, []string{"scroll-to:id:settings-phone-relay", "exists:id:settings-phone-relay-hosted"}, func(a *app) {
+		shotPhoneSync(a)
+		a.phone.relay, a.phone.relayOK = true, true
+		shotHostChecked(a, true)
+		a.phone.host.on = true
+		a.phone.host.state, a.phone.host.stateKnown = relayhost.State{Quota: 50 << 30, Used: 1200 << 20, Writes: true}, true
 	})
 	// 存储用量 under it: the films in the bucket, one video going up, two watched films to clean up after a month, and an S3 bucket set up to move to.
 	shootSettingsScrolled(t, f, settings.SectionPhone, "settings-phone-storage", shown, models, turbo, func(a *app) {
@@ -67,6 +87,7 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 		a.cloud.r2AccessKey, a.cloud.r2Secret = "access-key", "secret"
 		a.cloud.s3Region, a.cloud.s3Bucket, a.cloud.s3AccessKey, a.cloud.s3Secret = "ap-northeast-1", "kando-films", "access-key", "secret"
 		a.phone.relay, a.phone.relayOK = true, true
+		shotHostChecked(a, false)
 		now := time.Now()
 		a.phone.films.cleanDays = 30
 		a.phone.films.status = phonesync.FilmsStatus{Measured: true, Videos: 6890 << 20, Lines: 3400 << 10, Mail: 20 << 10, Films: 14, WithVideo: 9,
@@ -76,6 +97,15 @@ func TestScreenshotsPhoneSync(t *testing.T) {
 				{Library: "lib", ID: "j8", Title: "The Tide Pools of Monterey", Size: 286 << 20, At: now.Add(-33 * 24 * time.Hour)},
 			}}
 	})
+}
+
+// shotHostChecked has the 手机同步 page show 看懂托管 as EveryAPI answered the page's check: with Kando Plus and 50 GB of hosted storage, 1.2 GB of it used, or without Plus. The page does not check again, so the scene asks nothing of the network.
+func shotHostChecked(a *app, plus bool) {
+	a.phone.host.plusKnown, a.phone.host.shown = true, true
+	a.phone.host.plus = relayhost.Plus{}
+	if plus {
+		a.phone.host.plus = relayhost.Plus{Active: true, PlanName: "Kando Plus", Relay: relayhost.Usage{QuotaBytes: 50 << 30, UsedBytes: 1200 << 20}}
+	}
 }
 
 // shotPhoneLinked shows Phone Sync running with an iPhone 15 seen two minutes ago and an iPad Air, read-only, seen yesterday, and the open library's ledger as phones were told it: where the iPhone left the film whose video is at video ten minutes ago (none for ""), with the player resuming it there, a word, two saved lines, a translation the iPhone and this computer both changed and a note of a word the iPad and this computer both changed, as conflicts; and what the phones did lately.

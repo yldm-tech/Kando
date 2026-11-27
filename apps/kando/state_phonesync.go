@@ -86,6 +86,8 @@ type phoneUI struct {
 	clockStop func() bool
 	// films is the films shared through the storage relay (state_phonesync_films.go).
 	films phoneFilms
+	// host is 看懂托管, the relay through Kando Plus's hosted storage (state_phonesync_relay_host.go).
+	host phoneHost
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -197,27 +199,30 @@ func (a *app) phoneSyncStart() {
 	gen, update := a.phone.gen, a.update
 	name := phoneSyncName()
 	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = a.phoneRelaySig(), false, nil
+	relay, relayEvery, relayUntil := a.phoneRelayBucket(gen)
 	cfg := phonesync.Config{
-		Dir:           a.phoneSyncDir(),
-		Name:          name,
-		Port:          a.phone.port,
-		Source:        phoneSource{a},
-		Jobs:          phoneJobs{a},
-		State:         phoneState{a},
-		Settings:      phoneSettings{a},
-		Study:         phoneStudy{a},
-		Subscriptions: phoneSubscriptions{a},
-		Glossary:      phoneGlossary{a},
-		FilmOps:       phoneFilmOps{a},
-		Marks:         phoneMarks{a},
-		Watched:       a.phoneWatched,
-		Libraries:     phoneLibraries{a},
-		Relay:         a.phoneRelayBucket(),
-		RelayHealth:   a.phoneRelayHealth(gen),
-		Films:         a.phoneFilmsConfig(gen, a.currentStore()),
-		Addrs:         a.phone.listen,
-		Changed:       func() { update(a.phoneSyncPull) },
-		Now:           a.phone.now,
+		Dir:             a.phoneSyncDir(),
+		Name:            name,
+		Port:            a.phone.port,
+		Source:          phoneSource{a},
+		Jobs:            phoneJobs{a},
+		State:           phoneState{a},
+		Settings:        phoneSettings{a},
+		Study:           phoneStudy{a},
+		Subscriptions:   phoneSubscriptions{a},
+		Glossary:        phoneGlossary{a},
+		FilmOps:         phoneFilmOps{a},
+		Marks:           phoneMarks{a},
+		Watched:         a.phoneWatched,
+		Libraries:       phoneLibraries{a},
+		Relay:           relay,
+		RelayEvery:      relayEvery,
+		RelayLinksUntil: relayUntil,
+		RelayHealth:     a.phoneRelayHealth(gen),
+		Films:           a.phoneFilmsConfig(gen, a.currentStore()),
+		Addrs:           a.phone.listen,
+		Changed:         func() { update(a.phoneSyncPull) },
+		Now:             a.phone.now,
 	}
 	go func() {
 		srv, err := phonesync.Start(cfg)

@@ -15,7 +15,7 @@ import (
 //
 // Layout. Under RelayPrefix, each film has a folder of a random name below RelayFilmsFolder: its video as "video" with the file's extension, its lines as RelaySubtitlesFile (a Subtitles, as PathSubtitles answers them) and its poster as "poster" with the image's extension. A film the desktop shares the lines of alone has no video there: one whose video the user keeps off the bucket to save room, one cleaned up after it was watched, or one that keeps no video at all; a phone shows and studies its lines and says the video is on the computer. The objects are not sealed, so the system player streams the video from its link; their names are random, and only the links in a phone's state.json reach them.
 //
-// Links. The desktop presigns a GET link for each file, good for RelayURLLifetime, and signs it anew once it is RelayRegrant old, as it does a grant, so a phone that reads its state.json holds links that are good for days; between two signings a state.json lists the same links and is not written again for them. A link reaches its file whoever holds it, so every phone is given the same.
+// Links. The desktop presigns a GET link for each file, good for RelayURLLifetime (or until the bucket's short-lived key lapses, Relay.LinksUntil), and signs it anew once it is RelayRegrant old or half its life is spent, as it does a grant, so a phone that reads its state.json holds links that are good for days; between two signings a state.json lists the same links and is not written again for them. A link reaches its file whoever holds it, so every phone is given the same.
 //
 // The phone. RelayFilms reads a film's lines, poster and video by these links as Client reads them on the local network, the video by ranges, so a download that stopped goes on from where it stopped.
 
@@ -57,10 +57,10 @@ type RelayFilmFiles struct {
 	Video, Subtitles, Poster string
 }
 
-// filmLink is a presigned link to a film's file, and when it was signed.
+// filmLink is a presigned link to a film's file, when it was signed and when it lapses.
 type filmLink struct {
-	url    string
-	minted time.Time
+	url             string
+	minted, expires time.Time
 }
 
 // shelf is what Films gives, as the phones' state.json lists it, nil when it gives nothing: the links of the files, each signed anew once it is RelayRegrant old. It is called on Run's goroutine.
@@ -77,6 +77,8 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 	signed := r.filmLinks
 	r.mu.Unlock()
 	kept := map[string]filmLink{}
+	// life is how long a link signed in this turn stays good, asked once, at the first link signed (linkLife).
+	var life time.Duration
 	link := func(name string) (string, error) {
 		if name == "" {
 			return "", nil
@@ -84,15 +86,21 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 		if l, ok := kept[name]; ok {
 			return l.url, nil
 		}
-		if l, ok := signed[name]; ok && now.Sub(l.minted) < RelayRegrant {
+		if l, ok := signed[name]; ok && now.Sub(l.minted) < RelayRegrant && !halfSpent(l.minted, l.expires, now) {
 			kept[name] = l
 			return l.url, nil
 		}
-		u, err := r.Bucket.PresignGet(ctx, r.Prefix+name, RelayURLLifetime)
+		if life == 0 {
+			var err error
+			if life, err = r.linkLife(ctx, now); err != nil {
+				return "", err
+			}
+		}
+		u, err := r.Bucket.PresignGet(ctx, r.Prefix+name, life)
 		if err != nil {
 			return "", err
 		}
-		kept[name] = filmLink{url: u, minted: now}
+		kept[name] = filmLink{url: u, minted: now, expires: now.Add(life)}
 		return u, nil
 	}
 	out := &RelayShelf{Libraries: append([]Library{}, files.Libraries...), Films: []RelayFilm{}}
@@ -130,8 +138,8 @@ func (r *Relay) shelf(ctx context.Context) (*RelayShelf, error) {
 	return out, nil
 }
 
-// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. Once it went through, this relay writes no state.json any more, so a turn of Run does not take the phones back; it still answers what they left here before they moved. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete. A handoff that fails partway takes the phones back: each is given a newer grant of links here, in its state.json here and in to, wherever it reads it now.
-func (r *Relay) Handoff(ctx context.Context, to RelayBucket) error {
+// Handoff hands the phones over to the bucket to, as the desktop moves its relay there (换一个存储): it answers what waits in the inboxes here, then writes each phone's state.json here once more with a grant of links to to, which the phone takes as its newest (RelayPhone.State), so from then on it reads its state.json and leaves its messages in to without joining again. Once it went through, this relay writes no state.json any more, so a turn of Run does not take the phones back; it still answers what they left here before they moved. linksUntil is to's LinksUntil, nil for a bucket whose key does not lapse. The caller then stops this relay and starts one in to under the same Prefix, whose first grants are newer still; the objects left here are the user's to delete. A handoff that fails partway takes the phones back: each is given a newer grant of links here, in its state.json here and in to, wherever it reads it now.
+func (r *Relay) Handoff(ctx context.Context, to RelayBucket, linksUntil func(context.Context) (time.Time, error)) error {
 	if _, err := r.Poll(ctx); err != nil {
 		r.logf("relay: handoff: inbox: %v", err)
 	}
@@ -140,7 +148,7 @@ func (r *Relay) Handoff(ctx context.Context, to RelayBucket) error {
 	if r.handedOff {
 		return errors.New("kando sync: the relay was handed over already")
 	}
-	next := &Relay{Bucket: to, Prefix: r.Prefix, Desk: r.Desk, Devices: r.Devices, Now: r.Now, Logf: r.Logf}
+	next := &Relay{Bucket: to, Prefix: r.Prefix, Desk: r.Desk, Devices: r.Devices, Now: r.Now, Logf: r.Logf, LinksUntil: linksUntil}
 	shelf, err := r.shelf(ctx)
 	if err != nil {
 		return err

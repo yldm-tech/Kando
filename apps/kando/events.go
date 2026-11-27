@@ -97,6 +97,7 @@ func (a *app) areas() []areaHooks {
 		a.signinHooks(),
 		a.phoneSyncHooks(),
 		a.phoneFilmsHooks(),
+		a.phoneHostHooks(),
 		a.trayHooks(),
 		a.privacyHooks(),
 		a.subscribeHooks(),

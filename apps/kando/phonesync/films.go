@@ -625,10 +625,10 @@ func (s *Server) SetFilms(videos bool, cleanAfter time.Duration) {
 	f.Wake()
 }
 
-// Handoff hands the paired phones over to the bucket to as the relay moves there (psync.Relay.Handoff): their state.json here carries links to it from then on. The caller then starts the server again with the relay in to, which puts the films there anew.
-func (s *Server) Handoff(ctx context.Context, to Bucket) error {
+// Handoff hands the paired phones over to the bucket to as the relay moves there (psync.Relay.Handoff): their state.json here carries links to it from then on, which lapse by linksUntil when to's key is short-lived (nil when it is not). The caller then starts the server again with the relay in to, which puts the films there anew.
+func (s *Server) Handoff(ctx context.Context, to Bucket, linksUntil func(context.Context) (time.Time, error)) error {
 	if s.relay == nil {
 		return errors.New("the relay is off")
 	}
-	return s.relay.Handoff(ctx, to)
+	return s.relay.Handoff(ctx, to, linksUntil)
 }

@@ -7977,11 +7977,11 @@ settingsPhoneAway:
   message: "Away From This Network"
   description: "Heading of the card on the Phone Sync settings page about syncing with phones that are not on the computer's network."
 settingsPhoneRelay:
-  message: "Sync through your storage"
-  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through the object storage set up in Account & Upload."
+  message: "Sync through cloud storage"
+  description: "Switch on the Phone Sync settings page that turns the storage relay on: phones away from the local network reach the computer through object storage, either the user's own set up in Account & Upload or Kando Hosted."
 settingsPhoneRelayHint:
-  message: "When a phone is away from this network, its links, jobs and progress go through the storage in Account & Upload, encrypted with its pairing key. Each exchange takes from a few seconds to a couple of minutes."
-  description: "Subtitle of the storage relay switch on the Phone Sync settings page."
+  message: "Links, jobs and progress go through cloud storage, encrypted with the phone's pairing key. Each exchange takes from a few seconds to a couple of minutes."
+  description: "Subtitle of the storage relay switch on the Phone Sync settings page. It sits under the heading Away From This Network, and the rows below name the storage used."
 settingsPhoneRelayStore:
   message: "Storage"
   description: "Row title on the Phone Sync settings page naming the object storage the relay goes through."
@@ -7997,6 +7997,33 @@ settingsPhoneRelayNoStore:
 settingsPhoneRelaySetUp:
   message: "Set Up…"
   description: "Button in the Storage row of the Phone Sync settings page that opens Settings › Account & Upload."
+settingsPhoneRelayHosted:
+  message: "Kando Hosted"
+  description: "Row title on the Phone Sync settings page with a switch that has the storage relay go through Kando Plus's hosted storage instead of the user's own storage. Kando is the app's name."
+settingsPhoneRelayHostedNeedsPlus:
+  message: "Included with Kando Plus"
+  description: "Subtitle of the Kando Hosted row while the account has no Kando Plus, so the switch cannot be turned on. Kando Plus is the name of the subscription."
+settingsPhoneRelayHostedSubscribe:
+  message: "Subscribe…"
+  description: "Button in the Kando Hosted row that opens EveryAPI's subscription page in the browser, shown while the account has no Kando Plus."
+settingsPhoneRelayHostedUsage:
+  message: "{used} of {total} used"
+  description: "Subtitle of the Kando Hosted row: how much of the hosted storage the account uses, as sizes such as 1.2 GB."
+  placeholders:
+    used: { type: "String", example: "1.2 GB" }
+    total: { type: "String", example: "50 GB" }
+settingsPhoneRelayHostedLapsed:
+  message: "Kando Plus has ended, so nothing more is written there"
+  description: "Subtitle of the Kando Hosted row once the account's Kando Plus and its grace period ended: the relay went back to the local network or the user's own storage; what is in the hosted storage stays."
+settingsPhoneRelayHostedFull:
+  message: "Hosted storage is full, so only subtitles sync"
+  description: "Status of the storage relay through Kando Hosted when the account's hosted storage is full: videos are no longer uploaded, only subtitles and posters."
+settingsPhoneRelayHostedSignIn:
+  message: "Sign in to EveryAPI in AI Service first"
+  description: "Status of the storage relay through Kando Hosted when Kando has no EveryAPI key, or EveryAPI refuses it. AI Service is a settings page."
+settingsPhoneRelayHostedUnavailable:
+  message: "Kando Hosted is unavailable right now"
+  description: "Status of the storage relay through Kando Hosted when EveryAPI turned the hosted relay off or it does not answer as expected."
 settingsPhoneRelayStatus:
   message: "Status"
   description: "Row title on the Phone Sync settings page for whether the storage relay works."

@@ -156,3 +156,31 @@ func TestAnOldMailboxPairsNothing(t *testing.T) {
 		t.Fatalf("a server without the relay offers a mailbox: %+v", o.Relay)
 	}
 }
+
+// slowSigning is a linkedBucket whose links take until the caller gives up to sign, as a bucket whose short-lived key is asked for from a service that does not answer.
+type slowSigning struct{ *linkedBucket }
+
+func (b slowSigning) PresignGet(ctx context.Context, _ string, _ time.Duration) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+// A code is offered on the UI thread with the server's lock held: a bucket slow to sign the mailbox's links holds it up for relayPairSignFor at most, and the code is then offered for the local network alone.
+func TestACodeDoesNotWaitForASlowBucket(t *testing.T) {
+	signFor := relayPairSignFor
+	relayPairSignFor = 50 * time.Millisecond
+	t.Cleanup(func() { relayPairSignFor = signFor })
+	srv, err := Start(Config{Dir: t.TempDir(), Name: "Test Mac", Source: fakeSource{dir: t.TempDir()}, Relay: slowSigning{newLinkedBucket(t)}, Addrs: loopback, Logf: testLogf(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { srv.Close() })
+	start := time.Now()
+	offer := srv.NewOffer()
+	if took := time.Since(start); took > 5*time.Second {
+		t.Fatalf("the code waited %v", took)
+	}
+	if offer.Code == "" || offer.Relay != nil {
+		t.Fatalf("offer %+v", offer)
+	}
+}

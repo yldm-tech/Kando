@@ -73,10 +73,15 @@ func (a *app) phoneFilmsConfig(gen int, cfg cloud.Store) *phonesync.FilmsConfig 
 		a.phone.films.moveGen = gen
 	}
 	update := a.update
+	store := phoneFilmsStoreID(cfg)
+	if a.phoneHostInUse() {
+		// 看懂托管 is one bucket whatever key EveryAPI gives.
+		store = "hosted"
+	}
 	return &phonesync.FilmsConfig{
-		Videos:     !a.phone.films.subtitlesOnly,
+		Videos:     a.phoneFilmsVideos(),
 		CleanAfter: a.phoneFilmsCleanAfter(),
-		Store:      phoneFilmsStoreID(cfg),
+		Store:      store,
 		Status: func(st phonesync.FilmsStatus) {
 			update(func() {
 				if gen != a.phone.gen {
@@ -99,12 +104,15 @@ func phoneFilmsStoreID(cfg cloud.Store) string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// phoneFilmsVideos reports whether the films go to the storage with their videos: not with 只同步字幕 on, nor while 看懂托管's storage is full (phoneHostFull).
+func (a *app) phoneFilmsVideos() bool { return !a.phone.films.subtitlesOnly && !a.phoneHostFull() }
+
 // phoneFilmsSetSubtitlesOnly turns 只同步字幕 on or off, saves it, and has a running relay take it up.
 func (a *app) phoneFilmsSetSubtitlesOnly(on bool) {
 	a.phone.films.subtitlesOnly = on
 	a.Save()
 	if srv := a.phone.server; srv != nil {
-		srv.SetFilms(!on, a.phoneFilmsCleanAfter())
+		srv.SetFilms(a.phoneFilmsVideos(), a.phoneFilmsCleanAfter())
 	}
 }
 
@@ -116,7 +124,7 @@ func (a *app) phoneFilmsSetClean(days int) {
 	a.phone.films.cleanDays = days
 	a.Save()
 	if srv := a.phone.server; srv != nil {
-		srv.SetFilms(!a.phone.films.subtitlesOnly, a.phoneFilmsCleanAfter())
+		srv.SetFilms(a.phoneFilmsVideos(), a.phoneFilmsCleanAfter())
 	}
 }
 
@@ -145,8 +153,11 @@ func (a *app) phoneFilmsClean(watched []settings.PhoneWatched) {
 	})
 }
 
-// phoneFilmsTargets are the kinds of store set up in 账号与上传 other than the one in use, which the relay can move to.
+// phoneFilmsTargets are the kinds of store set up in 账号与上传 other than the one in use, which the relay can move to; none while it goes through 看懂托管, which the page's switch leaves.
 func (a *app) phoneFilmsTargets() []string {
+	if a.phoneHostInUse() {
+		return nil
+	}
 	var out []string
 	for _, kind := range []string{cloud.KindR2, cloud.KindS3, cloud.KindOSS, cloud.KindCOS, cloud.KindCompat} {
 		if kind != a.storageKind() && storeReady(a.storeFor(kind)) {
@@ -156,18 +167,28 @@ func (a *app) phoneFilmsTargets() []string {
 	return out
 }
 
-// phoneFilmsMove moves the relay and the films to the store of kind: the running server hands the phones over to it (phonesync.Server.Handoff), off the UI thread; then that store becomes the one in use in 账号与上传, and Phone Sync starts again with the relay there, which puts the films there anew. What is in the old store stays, for the user to delete.
+// phoneFilmsMove moves the relay and the films to the store of kind (phoneRelayMove), which then becomes the one in use in 账号与上传.
 func (a *app) phoneFilmsMove(kind string) {
-	f := &a.phone.films
-	srv := a.phone.server
-	if f.moving || srv == nil || a.phone.relaySig == "" || !slices.Contains(a.phoneFilmsTargets(), kind) {
+	if !slices.Contains(a.phoneFilmsTargets(), kind) {
 		return
 	}
-	to := a.storeFor(kind)
-	f.moved, f.moveErr, f.moveTo, f.moveFrom, f.moveGen = false, nil, kind, a.storageKind(), 0
-	bucket, err := cloud.OpenBucket(to)
-	if err != nil {
-		f.moveErr = err
+	bucket, err := cloud.OpenBucket(a.storeFor(kind))
+	a.phoneRelayMove(kind, a.storageKind(), phonesync.RelayBucket(bucket), nil, err, func() { a.cloud.storage = kind })
+}
+
+// phoneHostKind names 看懂托管 where a move names the store it goes to or comes from (phoneFilms.moveTo, moveFrom), beside the kinds of 账号与上传.
+const phoneHostKind = "hosted"
+
+// phoneRelayMove moves the relay and the films from the store named from to the bucket to, of the store named kind: the running server hands the phones over to it (phonesync.Server.Handoff), off the UI thread, with linksUntil when to's key is short-lived; then use makes it the store the relay runs in, and Phone Sync starts again with the relay there, which puts the films there anew. So phones away from this network follow without coming back to it: as 换一个存储 moves between the stores of 账号与上传, and as 看懂托管 is turned on or off (phoneHostSet). openErr is why to could not be opened, which ends the move before it starts. What is in the old store stays, for the user to delete.
+func (a *app) phoneRelayMove(kind, from string, to phonesync.Bucket, linksUntil func(context.Context) (time.Time, error), openErr error, use func()) {
+	f := &a.phone.films
+	srv := a.phone.server
+	if f.moving || srv == nil || a.phone.relaySig == "" {
+		return
+	}
+	f.moved, f.moveErr, f.moveTo, f.moveFrom, f.moveGen = false, nil, kind, from, 0
+	if openErr != nil {
+		f.moveErr = openErr
 		return
 	}
 	f.moving = true
@@ -175,7 +196,7 @@ func (a *app) phoneFilmsMove(kind string) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), phoneFilmsHandoffFor)
 		defer cancel()
-		err := srv.Handoff(ctx, phonesync.RelayBucket(bucket))
+		err := srv.Handoff(ctx, to, linksUntil)
 		update(func() {
 			if gen != a.phone.gen {
 				// Phone Sync stopped or started again meanwhile: the move is not done.
@@ -183,17 +204,28 @@ func (a *app) phoneFilmsMove(kind string) {
 				return
 			}
 			if err != nil {
-				log.Printf("phonesync: move the relay to %s: %v", storeKind(kind), err)
+				log.Printf("phonesync: move the relay to %s: %v", kind, err)
 				a.phone.films.moving, a.phone.films.moveErr = false, err
 				return
 			}
-			a.cloud.storage = kind
+			use()
 			a.Save()
 			a.phoneRelayRestart()
 			// The move goes on until the films are all in the new store, as the new start tells.
 			a.phone.films.moving, a.phone.films.moveGen = true, a.phone.gen
 		})
 	}()
+}
+
+// phoneRelayStoreName names the store of kind as a move shows it: 看懂托管, or a store of 账号与上传 with its bucket.
+func (a *app) phoneRelayStoreName(m locales.Messages, kind string, bucket bool) string {
+	if kind == phoneHostKind {
+		return m.SettingsPhoneRelayHosted()
+	}
+	if bucket {
+		return m.SettingsPhoneRelayStoreName(uploadStoreName(m, kind), a.storeFor(kind).Bucket)
+	}
+	return uploadStoreName(m, kind)
 }
 
 // phoneFilmsStorage is the 存储用量 card as the page shows it, in m's language.
@@ -206,11 +238,17 @@ func (a *app) phoneFilmsStorage(m locales.Messages) settings.PhoneStorage {
 		out.Percent = int(st.Sent * 100 / st.Size)
 	}
 	cfg := a.currentStore()
+	failure := func(err error) string {
+		if a.phoneHostInUse() {
+			return phoneHostFailure(m, err)
+		}
+		return uploadFailure(m, err, cfg)
+	}
 	if st.Err != nil {
-		out.Err = uploadFailure(m, st.Err, cfg)
+		out.Err = failure(st.Err)
 	}
 	if f.cleanErr != nil {
-		out.CleanErr = uploadFailure(m, f.cleanErr, cfg)
+		out.CleanErr = failure(f.cleanErr)
 	}
 	for _, w := range st.Watched {
 		out.Watched = append(out.Watched, settings.PhoneWatched{Library: w.Library, ID: w.ID, Title: w.Title, Size: w.Size, At: w.At})
@@ -219,10 +257,14 @@ func (a *app) phoneFilmsStorage(m locales.Messages) settings.PhoneStorage {
 		out.Targets = append(out.Targets, settings.PhoneStore{Kind: kind, Name: uploadStoreName(m, kind)})
 	}
 	if f.moving || f.moved || f.moveErr != nil {
-		out.MoveTo = uploadStoreName(m, f.moveTo)
-		out.MoveFrom = m.SettingsPhoneRelayStoreName(uploadStoreName(m, f.moveFrom), a.storeFor(f.moveFrom).Bucket)
+		out.MoveTo = a.phoneRelayStoreName(m, f.moveTo, false)
+		out.MoveFrom = a.phoneRelayStoreName(m, f.moveFrom, true)
 		out.Done, out.Total = st.WithVideo, st.WithVideo+st.Waiting
-		if f.moveErr != nil {
+		switch {
+		case f.moveErr == nil:
+		case f.moveTo == phoneHostKind:
+			out.MoveErr = phoneHostFailure(m, f.moveErr)
+		default:
 			out.MoveErr = uploadFailure(m, f.moveErr, a.storeFor(f.moveTo))
 		}
 	}

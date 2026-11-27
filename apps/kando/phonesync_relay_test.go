@@ -116,7 +116,7 @@ func relayJoinable(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), 
 	return slices.Contains(h.Ops, psync.OpRelayJoin)
 }
 
-// 经你的存储同步 on the 手机同步 page turns the relay on and off at once, and the page says why the storage does not answer; Phone Sync takes up the store's new settings once they settle, and stops the relay under 离线模式.
+// 经云存储同步 on the 手机同步 page turns the relay on and off at once, and the page says why the storage does not answer; Phone Sync takes up the store's new settings once they settle, and stops the relay under 离线模式.
 func TestPhoneRelayFollowsTheSwitchAndTheStore(t *testing.T) {
 	a, tt, updates, _, _ := phoneSyncApp(t)
 	phoneRelayRefusingStore(t, a)
