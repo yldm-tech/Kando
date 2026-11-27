@@ -36,16 +36,18 @@ type fakeEveryAPI struct {
 	next      int
 	refreshes map[string]bool
 	keys      map[string]bool
-	revoked   bool
-	// revokedTokens are the refresh tokens /revoke was given.
+	// revoked is the whole sign-in ended, as reuse detection does; /revoke ends only the sign-in of the token it was given, as EveryAPI revokes one refresh family, so a stopped sign-in given back does not end the one after it.
+	revoked bool
+	// revokedTokens are the refresh tokens /revoke was given; keyOf is the key each refresh token came with.
 	revokedTokens map[string]bool
+	keyOf         map[string]string
 	refreshed     atomic.Int32
 	requests      atomic.Int32
 	quota         int64
 }
 
 func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
-	f := &fakeEveryAPI{refreshes: map[string]bool{}, keys: map[string]bool{}, revokedTokens: map[string]bool{}, quota: 6_200_000}
+	f := &fakeEveryAPI{refreshes: map[string]bool{}, keys: map[string]bool{}, revokedTokens: map[string]bool{}, keyOf: map[string]string{}, quota: 6_200_000}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -59,9 +61,9 @@ func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
 	mux.HandleFunc("/api/oauth2/token", f.token)
 	mux.HandleFunc("/api/oauth2/revoke", func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
-		if _, ok := f.refreshes[r.PostFormValue("token")]; ok {
-			f.revoked = true
-			f.revokedTokens[r.PostFormValue("token")] = true
+		if token := r.PostFormValue("token"); f.keyOf[token] != "" {
+			f.revokedTokens[token] = true
+			f.refreshes[token], f.keys[f.keyOf[token]] = false, false
 		}
 		f.mu.Unlock()
 		fmt.Fprint(w, `{}`)
@@ -88,7 +90,7 @@ func newFakeEveryAPI(t *testing.T) *fakeEveryAPI {
 func (f *fakeEveryAPI) mint() everyapi.Tokens {
 	f.next++
 	t := everyapi.Tokens{Key: fmt.Sprintf("sk-everyapi-%02d0123456789abcdef", f.next), Refresh: fmt.Sprintf("rt%02dsecretrefreshtoken0123456789", f.next)}
-	f.keys[t.Key], f.refreshes[t.Refresh] = true, true
+	f.keys[t.Key], f.refreshes[t.Refresh], f.keyOf[t.Refresh] = true, true, t.Key
 	return t
 }
 
@@ -252,7 +254,7 @@ func TestEveryAPISignInAndOut(t *testing.T) {
 		t.Fatalf("signed out: source %v, signed in %v", tr.CredentialSource, a.everyapi.signedIn)
 	}
 	deadline := time.Now().Add(5 * time.Second)
-	for !(func() bool { f.mu.Lock(); defer f.mu.Unlock(); return f.revoked }()) || vault.get(everyapiAccountRefresh) != "" {
+	for !(func() bool { f.mu.Lock(); defer f.mu.Unlock(); return len(f.revokedTokens) > 0 }()) || vault.get(everyapiAccountRefresh) != "" {
 		if time.Now().After(deadline) {
 			t.Fatalf("signing out did not revoke the sign-in or delete it: vault %v", vault.items)
 		}
