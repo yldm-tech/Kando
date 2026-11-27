@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/catalog"
+	"kando/apps/mobile/store"
 	"kando/packages/sync"
 )
 
@@ -138,6 +139,36 @@ func (s *Session) Computers() []catalog.Computer {
 
 // Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge).
 func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.films.Get()) }
+
+// Position is where the film kept under key was left last on any device, which the player opens it at: the place the Library shows for it (Entries, catalog.Merge: the computer's and the phone's, the newer of them), or, where the computer's learning state the phone last synced (study.go) holds a newer place than that, as for a film whose computer is out of reach and lists nothing now, that place. A film of a source matched to a computer's film is left where that film was (store.Film.LinesFilm). The zero Position for a film the phone does not keep.
+func (s *Session) Position(key string) catalog.Position {
+	f, ok := s.Film(key)
+	if !ok {
+		return catalog.Position{}
+	}
+	lf := f.LinesFilm()
+	listed := store.Key(lf.Desktop, lf.Film.ID)
+	var out catalog.Position
+	for _, e := range s.Entries() {
+		if e.Key() == listed {
+			out = e.Position
+			break
+		}
+	}
+	if lf.LibraryID == "" {
+		return out
+	}
+	l, ok := s.studies.Get()[studyKey(lf.Desktop, lf.LibraryID)]
+	if !ok {
+		return out
+	}
+	d, _ := s.Desktop(lf.Desktop)
+	// The rule is catalog.Merge's: a place kept with a time, even the beginning, stands until a later one.
+	if c, ok := catalog.Positions(sync.StateChanges{Records: l.Records, Devices: l.Devices}, d.DeviceID)[lf.Film.ID]; ok && (out.When.IsZero() && out.At <= 0 || c.When.After(out.When)) {
+		out = c
+	}
+	return out
+}
 
 // LinesKey names the lines kept on the phone as they stand: the films whose videos are whole, each as of its desktop's last change, which a search reads its lines again on, and for a film of a source that took a computer's film's lines, streamed or downloaded, that film's key, whose folder they are in (store.Film.LinesFilm) and which the Library lists it under (catalog.Merge).
 func (s *Session) LinesKey() string {
