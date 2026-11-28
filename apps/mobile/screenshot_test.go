@@ -294,6 +294,10 @@ func TestScreenshotsLibrary(t *testing.T) {
 	p.app.WaitFor("id:films-continue-"+id+"-f1", wait)
 	p.app.WaitFor(filmRow(id, "f2"), wait)
 	shot(p, "films-continue")
+	// The films' rows, the one of the Movies library with no poster.
+	p.app.Scroll("id:films-scroll", 5000)
+	shot(p, "films-rows")
+	p.app.Scroll("id:films-scroll", -5000)
 	p.app.Type("id:films-search", "how")
 	p.app.WaitFor("id:films-hit-"+id+"-f1", wait)
 	shot(p, "films-search")

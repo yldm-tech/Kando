@@ -168,6 +168,29 @@ func TestContinueWatchingWhereTheComputerLeftOff(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 6000 })
 }
 
+// A film with no poster, as one of a NAS or one its computer kept none of, shows a film's mark in its card and its row rather than an empty picture; a film with one does not.
+func TestAFilmWithNoPosterShowsAMark(t *testing.T) {
+	d := newDesktopWithMovies(t)
+	for _, f := range []struct{ lib, id string }{{"lib", "f1"}, {"movies", "f2"}} {
+		d.SetState(f.lib, now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: f.id, Film: f.id,
+			Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	}
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	p.app.WaitFor("id:films-continue-"+id+"-f2", wait)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	for _, mark := range []string{"id:films-continue-mark-" + id + "-f2", "id:films-poster-mark-" + id + "-f2"} {
+		if len(p.app.QueryMounted(mark)) != 1 {
+			t.Errorf("%s does not show for the film with no poster", mark)
+		}
+	}
+	p.app.WaitUntil(wait, func() bool { return len(p.app.QueryMounted("id:films-continue-mark-"+id+"-f1")) == 0 })
+	if len(p.app.QueryMounted("id:films-poster-mark-"+id+"-f1")) != 0 {
+		t.Error("the film with a poster shows the mark in its row")
+	}
+}
+
 // A search finds the lines of the films on the phone, saying the line it found; pressed, the film plays from it. A search that finds nothing says so.
 func TestSearchFindsTheLinesOnThePhone(t *testing.T) {
 	dir := t.TempDir()

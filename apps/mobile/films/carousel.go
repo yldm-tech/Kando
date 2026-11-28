@@ -106,6 +106,7 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 		return cue(cues, e().Position.At)
 	}
 	id := e().Desktop + "-" + e().Film.ID
+	picture, blank, failed := posterOf(cx, v.s, e)
 	shadow := core.Style{TextShadowColor: core.RGBA(0x000000, 0.8), TextShadowOffset: core.Point{Y: 1}, TextShadowRadius: 3}
 	return core.View{TestID: "films-continue-" + id, Role: core.RoleButton, LabelFunc: func() string { return e().Film.Title + ", " + meta() },
 		OnPress: func(core.PressEvent) {
@@ -115,12 +116,19 @@ func (v *view) card(cx *core.Scope, e func() catalog.Entry) core.Node {
 		Style: core.Style{Width: core.Pt(width), CornerRadius: 18, BorderCurve: core.BorderCurveContinuous, Background: theme.ContinueCard,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 26, Color: core.RGBA(0x000000, 0.14)}}, Active: &core.Style{Opacity: core.Alpha(0.8)}},
 		Children: []core.Node{
-			core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pt(image), CornerRadii: core.Corners{TopLeft: 18, TopRight: 18}, Overflow: core.Hidden, Background: core.RGB(0x2C2C2E)},
+			core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pt(image), CornerRadii: core.Corners{TopLeft: 18, TopRight: 18}, Overflow: core.Hidden, Background: core.RGB(0x2C2C2E),
+				AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 				Children: []core.Node{
-					core.Image{SourceFunc: poster(cx, v.s, e), ResizeMode: core.Cover, ElementsHidden: true,
+					// A film with no poster shows a film's mark on the card's grey, which the scrim, there to set the line apart from a picture, leaves alone.
+					core.Show{When: blank, Then: func(cx *core.Scope) core.Node {
+						return core.View{TestID: "films-continue-mark-" + id, Children: []core.Node{ui.Icon(lucide.Film, 36, white(0.3))}}
+					}},
+					core.Image{SourceFunc: picture, ResizeMode: core.Cover, ElementsHidden: true, OnError: failed,
 						Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
-					core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0),
-						Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 180, Stops: []core.ColorStop{{Color: core.RGBA(0x000000, 0), At: core.Pct(40)}, {Color: core.RGBA(0x000000, 0.7), At: core.Pct(100)}}}}}},
+					core.Show{When: func() bool { return !blank() }, Then: func(cx *core.Scope) core.Node {
+						return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0),
+							Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 180, Stops: []core.ColorStop{{Color: core.RGBA(0x000000, 0), At: core.Pct(40)}, {Color: core.RGBA(0x000000, 0.7), At: core.Pct(100)}}}}}}
+					}},
 					core.Show{When: elsewhere, Then: func(cx *core.Scope) core.Node {
 						// The pill is on the picture, so it keeps the dark of a scrim in either appearance, frosting the picture behind it.
 						return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(12), Top: core.Pt(12), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 5,

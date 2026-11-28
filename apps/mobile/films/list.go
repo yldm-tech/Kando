@@ -241,13 +241,21 @@ func (v *view) poster(cx *core.Scope, e func() catalog.Entry, width core.Points,
 		return min(float32(e().Position.At)/float32(length()), 1)
 	}
 	size := core.Style{Width: core.Pt(width), AspectRatio: 16.0 / 9}
+	mark := core.Points(20)
 	if width == 0 {
 		size = core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9}
+		mark = 32
 	}
-	return core.View{AccessibilityElementsHidden: func() bool { return true }, Style: size.Merge(core.Style{CornerRadius: radius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0}),
+	src, blank, failed := posterOf(cx, v.s, e)
+	return core.View{AccessibilityElementsHidden: func() bool { return true }, Style: size.Merge(core.Style{CornerRadius: radius, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, FlexShrink: 0,
+		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}),
 		StyleFunc: ui.Filled(colors.Inset),
 		Children: []core.Node{
-			core.Image{SourceFunc: poster(cx, v.s, e), ResizeMode: core.Cover, ElementsHidden: true,
+			// A film with no poster, or one the platform could not draw, shows a film's mark on the fill, as a job's thumbnail does.
+			core.Show{When: blank, Then: func(cx *core.Scope) core.Node {
+				return core.View{TestID: "films-poster-mark-" + e().Desktop + "-" + e().Film.ID, Children: []core.Node{ui.Icon(lucide.Film, mark, colors.Faint)}}
+			}},
+			core.Image{SourceFunc: src, ResizeMode: core.Cover, ElementsHidden: true, OnError: failed,
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
 			core.Show{When: func() bool { return withLength && length() > 0 }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Position: core.Absolute, Right: core.Pt(4), Bottom: core.Pt(4), Height: core.Pt(16), Padding: core.Symmetric(0, 5), CornerRadius: 5, JustifyContent: core.JustifyCenter,
@@ -445,4 +453,16 @@ func poster(cx *core.Scope, s *session.Session, e func() catalog.Entry) func() c
 		}
 		return core.ImageSource{}
 	}
+}
+
+// posterOf is poster with what tells a film with no poster to show: blank reports that it has none, or that the platform could not draw the one it has, which failed, an Image's OnError, records. A new source is drawn again.
+func posterOf(cx *core.Scope, s *session.Session, e func() catalog.Entry) (src func() core.ImageSource, blank func() bool, failed func(error)) {
+	src = poster(cx, s, e)
+	broken := core.NewSignalFunc(cx, core.ImageSource{}, nil)
+	blank = func() bool {
+		got := src()
+		return got.Empty() || broken.Get().Same(got)
+	}
+	failed = func(error) { broken.Set(core.Untracked(cx, src)) }
+	return src, blank, failed
 }
