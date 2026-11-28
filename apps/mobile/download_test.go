@@ -101,6 +101,49 @@ func TestADownloadOfAFilmWithoutAnETagResumes(t *testing.T) {
 	}
 }
 
+// A download paused at once, before the desktop answers with its first byte, and resumed goes on to the whole film; so does one paused and resumed again and again in quick taps.
+func TestADownloadPausedBeforeItsFirstByteResumes(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	dir := p.openTalk(d)
+	release := d.HoldVideos()
+	defer release()
+	p.app.Press("id:film-download")
+	p.app.WaitUntil(wait, func() bool { return len(d.Ranges()) == 1 })
+	p.app.Press("id:film-pause")
+	p.app.WaitFor("text:"+msgs.FilmPaused(0), wait)
+	p.app.Press("id:film-resume")
+	p.app.WaitFor("text:"+msgs.FilmDownloading(0), wait)
+	release()
+	p.app.WaitFor("id:film-play", wait)
+	data, err := os.ReadFile(filepath.Join(p.dir, dir, "video.mp4"))
+	if err != nil || !bytes.Equal(data, talkVideo) {
+		t.Fatalf("the video kept is %d bytes, %v; want the desktop's %d", len(data), err, len(talkVideo))
+	}
+}
+
+// Pause and resume tapped again and again in quick turns, while the desktop has not answered yet, leave one download, which goes on to the whole film once the desktop answers.
+func TestQuickPausesAndResumesLeaveOneDownload(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	dir := p.openTalk(d)
+	release := d.HoldVideos()
+	defer release()
+	p.app.Press("id:film-download")
+	for range 6 {
+		p.app.WaitFor("id:film-pause", wait)
+		p.app.Press("id:film-pause")
+		p.app.WaitFor("id:film-resume", wait)
+		p.app.Press("id:film-resume")
+	}
+	release()
+	p.app.WaitFor("id:film-play", wait)
+	data, err := os.ReadFile(filepath.Join(p.dir, dir, "video.mp4"))
+	if err != nil || !bytes.Equal(data, talkVideo) {
+		t.Fatalf("the video kept is %d bytes, %v; want the desktop's %d", len(data), err, len(talkVideo))
+	}
+}
+
 // Cancelling a download under way deletes what it downloaded, and the film can be downloaded again.
 func TestCancellingADownloadDeletesIt(t *testing.T) {
 	d := newDesktop(t)

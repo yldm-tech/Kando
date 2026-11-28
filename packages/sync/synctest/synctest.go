@@ -90,7 +90,9 @@ type Desktop struct {
 	libs  []sync.Library
 	films []Film
 	stall int64
-	held  chan struct{}
+	// videoHeld holds the video answers before their first byte (HoldVideos).
+	videoHeld chan struct{}
+	held      chan struct{}
 	// holding counts the libraries answers waiting on held (HeldLibraries).
 	holding int
 	// pairHeld holds the pairing answers (HoldPairing).
@@ -241,6 +243,25 @@ func (d *Desktop) Stall(after int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.stall = after
+}
+
+// HoldVideos makes each video answer begun from now on wait before it sends anything, its headers too, until release is called or the phone gives up on it, as a desktop slow to start serving a large file does.
+func (d *Desktop) HoldVideos() (release func()) {
+	held := make(chan struct{})
+	d.mu.Lock()
+	d.videoHeld = held
+	d.mu.Unlock()
+	var once gosync.Once
+	return func() {
+		once.Do(func() {
+			d.mu.Lock()
+			if d.videoHeld == held {
+				d.videoHeld = nil
+			}
+			d.mu.Unlock()
+			close(held)
+		})
+	}
 }
 
 // Hold makes each libraries answer begun from now on wait until release is called or the phone gives up on it, as a desktop slow to answer does.
@@ -514,8 +535,15 @@ func (d *Desktop) video(w http.ResponseWriter, r *http.Request) {
 		rec += " " + ir
 	}
 	d.ranges = append(d.ranges, rec)
-	stall, mod := d.stall, d.modTime
+	stall, mod, held := d.stall, d.modTime, d.videoHeld
 	d.mu.Unlock()
+	if held != nil {
+		select {
+		case <-held:
+		case <-r.Context().Done():
+			return
+		}
+	}
 	if !f.NoETag {
 		sum := sha256.Sum256(f.Video)
 		w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
