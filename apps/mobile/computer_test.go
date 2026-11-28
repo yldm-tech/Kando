@@ -188,6 +188,12 @@ func TestAPairedComputerTakesTheNameItsHelloGives(t *testing.T) {
 	}
 
 	d.SetOff(false)
-	p.app.WaitUntil(reconnect, func() bool { got := p.texts(card); return strings.Contains(got, "Studio") && !strings.Contains(got, "842f574b78da") })
-	p.app.WaitUntil(wait, func() bool { desks, err := store.Open(dir).Desktops(); return err == nil && len(desks) == 1 && desks[0].Name == "Studio" })
+	p.app.WaitUntil(reconnect, func() bool {
+		got := p.texts(card)
+		return strings.Contains(got, "Studio") && !strings.Contains(got, "842f574b78da")
+	})
+	p.app.WaitUntil(wait, func() bool {
+		desks, err := store.Open(dir).Desktops()
+		return err == nil && len(desks) == 1 && desks[0].Name == "Studio"
+	})
 }
