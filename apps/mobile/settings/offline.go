@@ -85,7 +85,7 @@ func offlineGroups(s *session.Session) (unfinished, saved []store.Film) {
 	return largest(u), largest(w)
 }
 
-// offlineTaken is how many bytes of video the film under key takes on the phone, of the copy that stands for it (session.Copy), and whether its download is unfinished: the part downloaded so far of one under way, paused or stopped; the whole video of one saved; none for a film kept by its lines alone or to stream. Read it in a binding.
+// offlineTaken is how many bytes of video the film under key takes on the phone, of the copy that stands for it (session.Copy), and whether its download is unfinished: the part downloaded so far of one under way, paused or stopped; the whole video of one saved; none for a film kept by its lines alone or to stream, which session.Offline leaves out. Read it in a binding.
 func offlineTaken(s *session.Session, key string) (bytes int64, unfinished bool) {
 	key = s.Copy(key)
 	if t, ok := s.Transfer(key); ok {
@@ -109,8 +109,8 @@ func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func
 		if n, _ := offlineTaken(s, key); n > 0 {
 			parts = append(parts, look.Size(n))
 		}
-		// The group says a film is saved; a download not finished says where it stands, and a film kept without its video that its lines are.
-		if _, partial := transfer(); partial || len(parts) == 0 {
+		// The group says a film is saved; a download not finished says where it stands.
+		if _, partial := transfer(); partial {
 			if st := look.Status(cx, s, key); st != "" {
 				parts = append(parts, st)
 			}

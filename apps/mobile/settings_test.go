@@ -235,6 +235,50 @@ func TestOfflineFilmsDeleteAPausedDownload(t *testing.T) {
 	}
 }
 
+// Settings › Offline Films lists, and Settings counts, only the films with video on the phone: a film kept to stream and one kept by its lines alone hold none, so they are on neither; a download started and paused before any of its video came is.
+func TestOfflineFilmsLeaveOutFilmsWithoutVideo(t *testing.T) {
+	dir := t.TempDir()
+	talk := keepTalk(t, dir)
+	st := store.Open(dir)
+	record := func(id, title string) store.Film {
+		return store.Film{Desktop: "gonedesk", Library: "Japanese Class", Added: now(),
+			Film: sync.Film{ID: id, Title: title, DurationMS: 20 * 60_000, VideoSize: 700 << 20}}
+	}
+	streamed := record("streamed", "Your Name.")
+	streamed.Streamed = true
+	lines := record("lines", "Thunderbolt Fantasy")
+	lines.LinesOnly = true
+	for _, f := range []store.Film{streamed, lines} {
+		if err := st.SaveFilm(f); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SaveCues(f.Desktop, f.Film.ID, talkCues); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A download asked for and paused before its first byte leaves an empty part.
+	begun := keepOffline(t, dir, record("begun", "Kiki's Delivery Service"), 0, "")
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	if got, want := p.texts("id:settings-offline"), msgs.SettingsOffline()+"\n"+msgs.SettingsOfflineCount(2); got != want {
+		t.Fatalf("the Offline Films row reads %q, want %q", got, want)
+	}
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-film-"+talk.Key(), wait)
+	if !p.app.Exists("id:offline-film-" + begun.Key()) {
+		t.Error("the download paused before its first byte is not listed")
+	}
+	if got := p.texts("id:offline-unfinished"); !strings.Contains(got, begun.Film.Title) {
+		t.Errorf("the unfinished downloads read %q, without %q", got, begun.Film.Title)
+	}
+	for _, f := range []store.Film{streamed, lines} {
+		if p.app.Exists("id:offline-film-" + f.Key()) {
+			t.Errorf("%q, which keeps no video on the phone, is listed", f.Film.Title)
+		}
+	}
+}
+
 // Settings › Offline Films shows the films' share of the device on a bar, beside what the rest of the device holds, and about how much of it is free, as the system says.
 func TestOfflineFilmsShowTheirShareOfTheDevice(t *testing.T) {
 	dir := t.TempDir()
