@@ -9,11 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 // Client talks to Kando on a desktop at one address, trusting only the certificate whose SHA-256 is Fingerprint. Token is the device token the desktop gave at pairing, which Pair sets.
@@ -21,7 +24,8 @@ type Client struct {
 	Addr        netip.AddrPort
 	Fingerprint []byte
 	Token       string
-	http        *http.Client
+	// http is swapped for a new one by Reconnect, from any goroutine.
+	http atomic.Pointer[http.Client]
 }
 
 // ErrFingerprint is the error of a request to a desktop whose certificate is not the one the client pins.
@@ -43,7 +47,26 @@ func (e *Error) Error() string {
 // NewClient is a client of the desktop at addr whose certificate's fingerprint is fingerprint, with the device token token, "" before pairing.
 func NewClient(addr netip.AddrPort, fingerprint []byte, token string) *Client {
 	pinned := append([]byte(nil), fingerprint...)
+	c := &Client{Addr: addr, Fingerprint: pinned, Token: token}
+	c.http.Store(newHTTPClient(pinned))
+	return c
+}
+
+// The bounds of the client's connections. A desktop on the phone's network answers in milliseconds, so a connection that takes longer to open, or that answers no ping, is one to a desktop that is gone: off the network, or quit and started again while the phone slept, which leaves the phone's connection half-open, taking requests that no one answers. None of them bounds a request itself, so an event wait (MaxEventWait) or a long video stays open as long as the desktop answers: the caller's context bounds that.
+var (
+	dialFor      = 10 * time.Second
+	handshakeFor = 10 * time.Second
+	// pingAfter is how long an HTTP/2 connection may stay silent before the client pings the desktop over it, and pingFor how long the desktop has to answer before the client closes it, failing the requests on it.
+	pingAfter = 10 * time.Second
+	pingFor   = 5 * time.Second
+	// idleFor is how long a connection may stay unused before the client closes it. It counts by the wall clock, so a connection left over the phone's sleep is not used again after it.
+	idleFor = 90 * time.Second
+)
+
+// newHTTPClient is an HTTP client that trusts only the certificate whose SHA-256 is pinned.
+func newHTTPClient(pinned []byte) *http.Client {
 	transport := &http.Transport{
+		DialContext: (&net.Dialer{Timeout: dialFor, KeepAlive: 15 * time.Second}).DialContext,
 		TLSClientConfig: &tls.Config{
 			// The desktop's certificate is self-signed: no authority vouches for it, so the client checks it is the one pinned instead (VerifyConnection), which tls runs whatever InsecureSkipVerify says.
 			InsecureSkipVerify: true,
@@ -55,9 +78,12 @@ func NewClient(addr netip.AddrPort, fingerprint []byte, token string) *Client {
 				return nil
 			},
 		},
-		ForceAttemptHTTP2: true,
+		TLSHandshakeTimeout: handshakeFor,
+		IdleConnTimeout:     idleFor,
+		ForceAttemptHTTP2:   true,
+		HTTP2:               &http.HTTP2Config{SendPingTimeout: pingAfter, PingTimeout: pingFor},
 	}
-	return &Client{Addr: addr, Fingerprint: pinned, Token: token, http: &http.Client{Transport: transport}}
+	return &http.Client{Transport: transport}
 }
 
 // FetchFingerprint connects to the desktop at addr without pinning its certificate and returns the certificate's fingerprint, for a phone paired by hand to show its short form (ShortFingerprint) before it trusts it.
@@ -76,7 +102,12 @@ func FetchFingerprint(ctx context.Context, addr netip.AddrPort) ([]byte, error) 
 }
 
 // Close closes the connections the client keeps open.
-func (c *Client) Close() { c.http.CloseIdleConnections() }
+func (c *Client) Close() { c.http.Load().CloseIdleConnections() }
+
+// Reconnect has the requests sent from now on go over new connections, leaving the requests under way where they are: a connection kept from before, which the desktop may no longer answer on, takes no more of them. The phone calls it as the app comes back from the background, when a connection may have been left half-open while it slept.
+func (c *Client) Reconnect() {
+	c.http.Swap(newHTTPClient(c.Fingerprint)).CloseIdleConnections()
+}
 
 // Pair pairs the phone with the desktop with the code it shows, and keeps the device token it answers in Token.
 func (c *Client) Pair(ctx context.Context, req PairRequest) (PairResponse, error) {
@@ -248,5 +279,5 @@ func (c *Client) request(ctx context.Context, method, path string, body []byte, 
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
-	return c.http.Do(req)
+	return c.http.Load().Do(req)
 }

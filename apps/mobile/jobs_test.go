@@ -805,3 +805,30 @@ func TestAComputerOutOfReachSaysWhenItLastAnswered(t *testing.T) {
 		t.Fatalf("the job with no site says %q, want %q", got, want)
 	}
 }
+
+// A computer quit and started again while the app was in the background, or gone off the network without hanging up, leaves the phone's connection to it half-open, taking requests no one answers. As the app shows again, and as the user pulls the films down to refresh them, the phone asks the computer at once over a new connection rather than wait on that one: the Jobs page says it is offline while it does not answer, and online again once it does, without the app being started again.
+func TestTheQueueComesBackFromAComputerThatWentSilent(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	online := func() bool { return p.app.Find("id:jobs-summary-"+id).Text == msgs.JobsIdle() }
+	offline := func() bool { return p.reach(id) == msgs.JobsOffline() }
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitUntil(wait, online)
+
+	p.app.SetEnvironment(core.Environment{Locale: lang, Lifecycle: core.LifecycleBackground})
+	d.SetSilent(true)
+	p.app.SetEnvironment(core.Environment{Locale: lang, Lifecycle: core.LifecycleActive})
+	p.app.WaitUntil(reconnect, offline)
+	d.SetSilent(false)
+	p.app.WaitUntil(reconnect, online)
+
+	d.SetSilent(true)
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.PullToRefresh("id:films-scroll")
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitUntil(reconnect, offline)
+	d.SetSilent(false)
+	p.app.WaitUntil(reconnect, online)
+}

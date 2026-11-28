@@ -131,6 +131,8 @@ const (
 	eventsSlack = 15 * time.Second
 	// actFor is how long an action on a job waits for its computer.
 	actFor = 20 * time.Second
+	// helloFor is how long the phone waits for a computer's hello on its network, or for its jobs, before it takes the computer as out of reach and tries again (lanTry for the hello when the phone can follow it through its storage instead): a computer gone without hanging up, as one quit and started again while the phone slept, would otherwise keep a request waiting for ever.
+	helloFor = 10 * time.Second
 	// resendAfter is the wait before a link is sent again that did not reach a computer that answers otherwise, as when one call dropped or timed out while its events kept coming.
 	resendAfter = 5 * time.Second
 )
@@ -335,18 +337,53 @@ func (s *Session) loadLinks(links []store.Link) {
 
 // follow starts following the queue of desktop id, again from the start for one followed already, as when it was paired again.
 func (s *Session) follow(id string) {
+	if s.followAgain(id) {
+		s.setQueue(id, func(q Queue) Queue { q.Reach = Reaching; return q })
+	}
+}
+
+// followAgain starts following the queue of desktop id as follow does, but leaves the queue as it stands until the computer answers or not; false for a computer not paired.
+func (s *Session) followAgain(id string) bool {
 	s.unfollow(id)
 	c := s.Client(id)
 	if c == nil {
-		return
+		return false
 	}
 	ctx, cancel := context.WithCancel(s.remote.ctx)
 	f := &follower{cancel: cancel}
 	s.remote.follows[id] = f
-	s.setQueue(id, func(q Queue) Queue { q.Reach = Reaching; return q })
 	d, _ := s.Desktop(id)
 	rl := s.relayOf(id)
 	s.work.Go(func() { s.followQueue(ctx, id, d.DeviceID, c, rl, f) })
+	return true
+}
+
+// Reconnect asks every paired computer again at once, over new connections, without waiting for the next try: as the app shows again after it was in the background, or the user pulls the films down to refresh them. A connection kept from before may be one the computer no longer answers on, as when it was quit and started again while the phone slept, which would hold the requests sent on it.
+func (s *Session) Reconnect() {
+	for _, d := range s.desktops.GetUntracked() {
+		if c, ok := s.clients[d.ID]; ok {
+			c.Reconnect()
+		}
+		if _, ok := s.remote.follows[d.ID]; ok {
+			s.followAgain(d.ID)
+		}
+	}
+}
+
+// reconnectOnShow has the phone ask its computers again (Reconnect) each time the app shows after it was in the background.
+func (s *Session) reconnectOnShow() {
+	shown := core.NewMemo(s.cx, func() bool { return s.cx.Env().Lifecycle() != core.LifecycleBackground })
+	hidden := false
+	s.cx.Effect(func() {
+		if !shown.Get() {
+			hidden = true
+			return
+		}
+		if hidden {
+			hidden = false
+			s.cx.Post(s.Reconnect)
+		}
+	})
 }
 
 // unfollow stops following the queue of desktop id.
@@ -417,10 +454,11 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 		return ok
 	}
 	for ctx.Err() == nil {
-		hctx, hcancel := ctx, context.CancelFunc(func() {})
+		helloWait := helloFor
 		if rl.joined(s, id, device) {
-			hctx, hcancel = context.WithTimeout(ctx, lanTry)
+			helloWait = lanTry
 		}
+		hctx, hcancel := context.WithTimeout(ctx, helloWait)
 		hello, err := c.Hello(hctx)
 		hcancel()
 		if ctx.Err() != nil {
@@ -437,6 +475,10 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 			continue
 		}
 		if err != nil {
+			if ProblemOf(err) == Unreachable {
+				// The next try goes over a new connection, not over one the computer may no longer answer on.
+				c.Reconnect()
+			}
 			if ProblemOf(err) != Unpaired && s.followRelay(ctx, id, device, rl, post) {
 				wait = reachFirst
 				if !pause(s.relayEvery()) {
@@ -455,7 +497,9 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 		if ctx.Err() != nil {
 			return
 		}
-		list, err := c.Jobs(ctx)
+		lctx, lcancel := context.WithTimeout(ctx, helloFor)
+		list, err := c.Jobs(lctx)
+		lcancel()
 		if ctx.Err() != nil {
 			return
 		}

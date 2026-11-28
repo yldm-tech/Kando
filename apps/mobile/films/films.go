@@ -147,7 +147,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	}
 	blocks = append(blocks, v.list(cx))
 	body := core.Scroll{TestID: "films-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1},
-		OnRefresh:  func() { pulled.Set(true); s.Refresh() },
+		OnRefresh:  func() { pulled.Set(true); s.Reconnect(); s.Refresh() },
 		Refreshing: pulled.Get,
 		Behavior:   core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
 		Children:   []core.Node{core.View{StyleFunc: column(cx), Children: blocks}}}

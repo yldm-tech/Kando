@@ -242,6 +242,8 @@ func New(cx *core.Scope, cfg Config) *Session {
 		lookups: map[string]store.Lookup{}, lookupRev: core.NewSignal(cx, 0),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
+	// Before the learning state catches up as the app shows again (newLearn), so that it goes over the new connections.
+	s.reconnectOnShow()
 	s.learn = newLearn(s)
 	s.settle = newSettle(cx)
 	s.followSpace()
