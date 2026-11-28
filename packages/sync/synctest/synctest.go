@@ -40,6 +40,8 @@ type Film struct {
 	Cues   []sync.Cue
 	// Plays is what Video is of a film being made (sync.Film.Making, sync.FilmWatching.Plays): its video, a link's sound, or "" while nothing of it plays yet, when the video's address answers not found.
 	Plays string
+	// NoETag serves the video named by its Last-Modified date alone, with no ETag, as a desktop serves a film it keeps on a NAS or a storage location over SMB or SFTP (remotefs.Handler).
+	NoETag bool
 }
 
 // Desktop is the stand-in server. Its methods may be called from any goroutine.
@@ -514,8 +516,10 @@ func (d *Desktop) video(w http.ResponseWriter, r *http.Request) {
 	d.ranges = append(d.ranges, rec)
 	stall, mod := d.stall, d.modTime
 	d.mu.Unlock()
-	sum := sha256.Sum256(f.Video)
-	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	if !f.NoETag {
+		sum := sha256.Sum256(f.Video)
+		w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	}
 	w.Header().Set("Content-Type", f.ContentType)
 	content := &stallReader{Reader: bytes.NewReader(f.Video), left: stall, ctx: r.Context()}
 	http.ServeContent(flushWriter{w}, r, "", mod, content)

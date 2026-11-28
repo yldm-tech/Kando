@@ -23,7 +23,7 @@ const (
 	PathSubtitles = "/v1/films/{id}/subtitles"
 	// PathPoster is "/v1/films/{id}/poster", the film's poster as an image file.
 	PathPoster = "/v1/films/{id}/poster"
-	// PathVideo is "/v1/films/{id}/video", the film's video file, which answers Range requests and carries an ETag.
+	// PathVideo is "/v1/films/{id}/video", the film's video file, which answers Range requests and names the file by an ETag, or, for a film the desktop serves from a NAS or a storage location that keeps no ETag (SMB, SFTP), by its Last-Modified date alone, either of which If-Range takes.
 	PathVideo = "/v1/films/{id}/video"
 )
 

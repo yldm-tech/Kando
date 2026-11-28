@@ -46,7 +46,7 @@ type Film struct {
 	// LibraryID is the ID of the library on the desktop, which its learning state goes by, "" until the phone has asked for it (films downloaded before the phone kept it).
 	LibraryID string    `json:"library_id,omitempty"`
 	Film      sync.Film `json:"film"`
-	// ETag names the video as the part being downloaded was asked for, so a resumed download goes on from it only if the file has not changed on the desktop.
+	// ETag names the video as the part being downloaded was asked for (sync.Validator: its ETag, or its Last-Modified date where the desktop sends no ETag), so a resumed download goes on from it only if the file has not changed on the desktop.
 	ETag string `json:"etag"`
 	// Video is the name of the video file in the film's folder once it is whole, "" until then; Poster the poster's, "" for none.
 	Video  string `json:"video"`

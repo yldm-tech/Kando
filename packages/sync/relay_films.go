@@ -347,7 +347,7 @@ func (r RelayFilms) video(ctx context.Context, link string, from, to int64) (*Pa
 	if err != nil {
 		return nil, err
 	}
-	part := &Part{Body: resp.Body, ETag: resp.Header.Get("ETag"), ContentType: resp.Header.Get("Content-Type")}
+	part := &Part{Body: resp.Body, ETag: Validator(resp.Header), ContentType: resp.Header.Get("Content-Type")}
 	if resp.StatusCode == http.StatusPartialContent {
 		if _, err := fmt.Sscanf(resp.Header.Get("Content-Range"), "bytes %d-%d/%d", &part.Start, &part.End, &part.Total); err != nil {
 			resp.Body.Close()
