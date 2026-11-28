@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+
+	"kando/packages/core"
 )
 
 // LoginTrouble is why yt-dlp could not borrow a browser's sign-in (--cookies-from-browser), as ReadLoginTrouble reads it from what yt-dlp printed; "" when nothing was wrong.
@@ -55,6 +59,40 @@ func withClosedBrowserData(err error, browser string) error {
 	home, _ := os.UserHomeDir()
 	if closed := closedBrowserData(browserDataOS, home, os.Getenv, browser); closed != nil {
 		return fmt.Errorf("%w (%s: %w)", err, browserDataClosed, closed)
+	}
+	return err
+}
+
+// loginUnread are the troubles of a browser's sign-in that yt-dlp stops at before it reads the link, as yt-dlp 2026.08.19 does: it reads the browser's cookies when it first opens the link, and an exception there (FileNotFoundError for no cookies database, PermissionError for a file macOS keeps closed, DownloadError for a Chromium browser on Windows that holds its cookies or encrypts them for itself) becomes CookieLoadError (cookies.py load_cookies), which YoutubeDL lets end the run with exit 1, so nothing of the link was downloaded or read. LoginNoKey is not one: yt-dlp only warns of it and goes on signed out. LoginUnreadable is not one either, though yt-dlp stops for the other exceptions of reading cookies too: ReadLoginTrouble returns it for any ERROR line, as an unavailable video's, which a second run would not mend.
+var loginUnread = []LoginTrouble{LoginNoAccess, LoginNotFound, LoginInUse, LoginEncrypted}
+
+// signedOutFails are why a run without the browser's sign-in can fail that the sign-in would not have changed: the network, a link yt-dlp cannot read, DRM, a region the site keeps the video from. Every other failure, as a private, members-only or age-restricted video, a login YouTube asks for to prove the viewer is not a bot, or one yt-dlp does not recognize, may be the sign-in's.
+var signedOutFails = []core.FailKind{core.FailNetwork, core.FailHost, core.FailUnsupported, core.FailBadLink, core.FailDRM, core.FailRegion}
+
+// goneSigns are how yt-dlp says the page or file of a link is not there, an HTTP 404 or 410, which ClassifyDownload counts with the private videos (core.FailPrivate) but a sign-in does not bring back: a run without the sign-in that fails so returns its own error, so a dead link is not reported as the browser's sign-in.
+var goneSigns = []string{"HTTP Error 404", "HTTP Error 410"}
+
+// withoutUnreadLogin runs yt-dlp with args through run, and when they borrow a browser's sign-in (--cookies-from-browser) that yt-dlp could not read and stopped at (loginUnread), once more with the same args without it, so a video that needs no sign-in, as most do, is still downloaded or read signed out. When that second run fails too, the first run's error is returned, which tells the user to mend the browser's sign-in, as a video that needs it fails for that most likely; only a failure the sign-in would not have changed (signedOutFails, or a link that is gone, goneSigns) returns the second run's error, which is then the more telling one: a sign-in that is read again would fail as well. A run that ctx ended is not run again, and its error is returned.
+func withoutUnreadLogin(ctx context.Context, args []string, run func(args []string) error) error {
+	err := run(args)
+	if err == nil || ctx.Err() != nil {
+		return err
+	}
+	at := slices.Index(args, "--cookies-from-browser")
+	if end := slices.Index(args, "--"); at < 0 || at+1 >= len(args) || end >= 0 && at > end {
+		return err
+	}
+	trouble := ReadLoginTrouble(err.Error())
+	if !slices.Contains(loginUnread, trouble) {
+		return err
+	}
+	log.Printf("yt-dlp could not read the sign-in of %s (%s); trying once without it", args[at+1], trouble)
+	retryErr := run(slices.Delete(slices.Clone(args), at, at+2))
+	if retryErr == nil {
+		return nil
+	}
+	if ctx.Err() != nil || slices.Contains(signedOutFails, ClassifyDownload(retryErr.Error())) || slices.ContainsFunc(goneSigns, func(sign string) bool { return strings.Contains(retryErr.Error(), sign) }) {
+		return retryErr
 	}
 	return err
 }

@@ -451,11 +451,20 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 			args = append(args, "--user-agent", userAgent)
 		}
 	}
-	if _, stderr, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) || exit.ExitCode() != ytdlpMaxDownloadsExit || reader.path == "" {
-			return "", withNoJSRuntime(withClosedBrowserData(err, t.Cookies), stderr, t.Deno)
+	// A run that could not read the browser's sign-in stopped before it opened the link, so it left nothing in temp nor reported anything to reader, and the run without the sign-in starts as the first did: in the same temp, resuming what earlier downloads of source left there.
+	err := withoutUnreadLogin(ctx, append(args, "--", source), func(args []string) error {
+		_, stderr, err := runFollowing(ctx, false, reader.line, t.YTDLP, args...)
+		if err == nil {
+			return nil
 		}
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == ytdlpMaxDownloadsExit && reader.path != "" {
+			return nil
+		}
+		return withNoJSRuntime(withClosedBrowserData(err, t.Cookies), stderr, t.Deno)
+	})
+	if err != nil {
+		return "", err
 	}
 	if reader.path == "" {
 		return "", errors.New("yt-dlp did not report the downloaded file")
