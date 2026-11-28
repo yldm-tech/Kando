@@ -4,6 +4,7 @@ package session
 import (
 	"context"
 	"errors"
+	"log"
 	"maps"
 	"net/http"
 	"os"
@@ -936,7 +937,9 @@ func (s *Session) remove(key string) {
 
 // deleteFilm removes f's folder, off the engine's goroutine.
 func (s *Session) deleteFilm(f store.Film) {
-	_ = s.st.DeleteFilm(f.Desktop, f.Film.ID)
+	if err := s.st.DeleteFilm(f.Desktop, f.Film.ID); err != nil {
+		log.Printf("session: remove the folder of film %s: %v", f.Film.ID, err)
+	}
 	used, _ := s.st.Used()
 	s.cx.Post(func() { s.used.Set(used) })
 }
