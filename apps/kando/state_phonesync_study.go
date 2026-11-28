@@ -71,7 +71,7 @@ func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.W
 	resolved, err := remote.OnUI(ctx, a.update, func() (phoneLookup, error) {
 		// The same query as the picture's lookup of the word (vocabQuery), so a word looked up on either answers again at once on both.
 		ask := a.vocabResolve(vocabQuery(f, a.prefs.language, word, line), remoteFilmTitle(f))
-		return phoneLookup{ask: ask, sources: a.phoneWordSources(ask.ask)}, nil
+		return phoneLookup{ask: ask, sources: a.phoneWordSources(ask.ask), desktop: a.phoneSyncName()}, nil
 	})
 	if err != nil {
 		return psync.WordEntry{}, err
@@ -100,14 +100,15 @@ func (s phoneStudy) LookUp(ctx context.Context, caller psync.Caller, req psync.W
 	if source != "" {
 		from = resolved.sources[source]
 	}
-	from.Desktop = phoneSyncName()
+	from.Desktop = resolved.desktop
 	return psync.WordEntry{Word: cmp.Or(entry.Word, word), Reading: entry.Reading, Meaning: entry.Meaning, Language: ask.ask.Query.Language, Source: from}, nil
 }
 
-// phoneLookup is a phone's lookup as the engine's goroutine resolved it (vocabResolve), with the source of an answer from each dictionary it may ask (phoneWordSources).
+// phoneLookup is a phone's lookup as the engine's goroutine resolved it (vocabResolve), with the source of an answer from each dictionary it may ask (phoneWordSources), and the computer's name (phoneSyncName), read there too.
 type phoneLookup struct {
 	ask     vocabAsk
 	sources map[string]psync.WordSource
+	desktop string
 }
 
 // phoneWordSources is where an answer from each dictionary ask may ask came from, by the dictionary's id, as the picture's card names it (vocabSourceText): the pack's name and the credit its license asks for, in the interface's language, which the phone shows under the meaning. It reads the packs, so it runs on the engine's goroutine, before the dictionaries are asked off it.

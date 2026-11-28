@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/everyapi"
 	"kando/apps/kando/films"
 	"kando/apps/kando/jobfailure"
@@ -87,7 +87,7 @@ type everyapiUI struct {
 }
 
 func newEveryapiUI() everyapiUI {
-	return everyapiUI{cfg: everyapi.Config{DeviceName: everyapiDeviceName()}, loaded: true, quotaSeen: map[string]bool{}, attempts: &everyapiAttempts{}}
+	return everyapiUI{loaded: true, quotaSeen: map[string]bool{}, attempts: &everyapiAttempts{}}
 }
 
 // everyapiAttempts is the sign-in attempt that is current (everyapiUI.signInGen), as the attempts' goroutines read it, and the lock their writes to where the sign-in is kept take, so an attempt that is no longer current, as one stopped while EveryAPI was already giving it tokens, never writes its tokens over those of the attempt after it, nor deletes them.
@@ -124,14 +124,8 @@ func everyapiForgetAttempt(attempts *everyapiAttempts, gen int, vault everyapiVa
 // everyapiLogin is the browser sign-in (everyapi.Login). Tests replace it.
 var everyapiLogin = everyapi.Login
 
-// everyapiDeviceName is how EveryAPI's list of keys names this computer: its host name, without the .local the Mac adds.
-func everyapiDeviceName() string {
-	name, err := os.Hostname()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSuffix(name, ".local")
-}
+// everyapiDeviceName is how EveryAPI's list of keys names this computer: the name the user gave it (desktop.Name), as "Ada's MacBook Pro", else its host name. A sign-in reads it as it starts, so it names the computer as it is called then. UI thread only.
+func (a *app) everyapiDeviceName() string { return desktop.Name(a.cx) }
 
 // savedEveryAPI is the sign-in's part of settings.json: whether Kando is signed in, the account's name as the page shows it, and the EveryAPI API it signed in at when it is not EveryAPI's own. The key and the refresh token are only here where the system has no secure store (EveryAPIFallbackKey, EveryAPIFallbackRefresh).
 type savedEveryAPI struct {
@@ -480,6 +474,7 @@ func (a *app) everyapiStartSignIn(code bool) {
 	ctx, cancel := context.WithTimeout(a.privacyContext(), everyapiSignInWait)
 	e.signingIn, e.cancelSignIn, e.device, e.problem = true, cancel, nil, nil
 	cfg, update, language, vault := e.cfg, a.update, a.prefs.interfaceLanguage, a.everyapiStore()
+	cfg.DeviceName = a.everyapiDeviceName()
 	open := a.everyapiOpener(ctx)
 	go func() {
 		var tokens everyapi.Tokens

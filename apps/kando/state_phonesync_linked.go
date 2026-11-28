@@ -278,7 +278,7 @@ func (a *app) phoneSyncResolve(id string, keep settings.PhoneKeep) {
 	}
 	a.phone.resolveErr = ""
 	req := psync.ConflictResolve{Library: phoneLibraryID(a.snap().LibraryDir), ID: id, Value: value}
-	caller := psync.Caller{DeviceID: a.saved.device, Name: phoneSyncName()}
+	caller := psync.Caller{DeviceID: a.saved.device, Name: a.phoneSyncName()}
 	update := a.update
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

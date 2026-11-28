@@ -449,7 +449,7 @@ func (a *app) phoneStateSettle(st *phoneStateLib) {
 func (a *app) phoneStateDevices(caller psync.Caller) map[string]string {
 	out := map[string]string{}
 	if a.saved.device != "" {
-		out[a.saved.device] = phoneSyncName()
+		out[a.saved.device] = a.phoneSyncName()
 	}
 	for _, d := range a.phone.devices {
 		out[d.ID] = d.Name
