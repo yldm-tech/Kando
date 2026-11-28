@@ -184,9 +184,8 @@ func TestAFilmItsComputerLostOffersNoDownload(t *testing.T) {
 			t.Fatalf("the page shows %s for a film the phone keeps nothing of", id)
 		}
 	}
-	if films, _ := store.Open(p.dir).Films(); len(films) != 0 {
-		t.Fatalf("the phone keeps %+v", films)
-	}
+	// The folder goes off the engine's goroutine (Session.remove), a moment after the page says so, longer on Windows.
+	p.app.WaitUntil(wait, func() bool { films, _ := store.Open(p.dir).Films(); return len(films) == 0 })
 	p.waitFile(dir, -1)
 
 	p.app.HeaderBack("id:film-page")
