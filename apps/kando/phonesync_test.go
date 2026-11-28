@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"io"
@@ -363,6 +364,45 @@ func TestPhoneSyncOffListensNowhere(t *testing.T) {
 	data, err = os.ReadFile(a.settingsPath)
 	if err != nil || strings.Contains(string(data), `"phoneSync"`) {
 		t.Fatalf("settings.json once off: %s, %v", data, err)
+	}
+}
+
+// The phones see the computer by the name its user gave it (core.Env.DeviceName), in the pairing's answer and in Hello, and by its new name once it is renamed while Phone Sync runs.
+func TestPhoneSyncNamesTheComputerByTheNameItsUserGaveIt(t *testing.T) {
+	a, tt, updates, _, _ := phoneSyncApp(t)
+	onEngine(a, a.phoneSyncWatchName)
+	phoneSyncOn(t, a, tt, updates)
+	paired, err := phonePair(t, a, tt, updates, phoneClient(t, a, ""), a.phone.offer.Code)
+	if err != nil || paired.Desktop != testDeviceName {
+		t.Fatalf("pairing answered %+v, %v, want the desktop named %q", paired, err, testDeviceName)
+	}
+	if h, err := phoneCall(t, a, tt, updates, phoneClient(t, a, paired.Token).Hello); err != nil || h.Desktop != testDeviceName {
+		t.Fatalf("hello %+v, %v, want the desktop named %q", h, err, testDeviceName)
+	}
+
+	env := testEnvironment()
+	env.DeviceName = "Renamed Mac"
+	tt.SetEnvironment(env)
+	waitUntil(t, tt, a, updates, func() bool { return a.phone.server != nil && a.phone.name == "Renamed Mac" })
+	if h, err := phoneCall(t, a, tt, updates, phoneClient(t, a, paired.Token).Hello); err != nil || h.Desktop != "Renamed Mac" {
+		t.Fatalf("hello after renaming %+v, %v, want the new name", h, err)
+	}
+}
+
+// Where the system tells no name the user gave the computer, the phones and EveryAPI see its host name, without the .local the Mac adds.
+func TestDeviceNameFallsBackToTheHostName(t *testing.T) {
+	env := testEnvironment()
+	env.DeviceName = ""
+	a, _, _ := newTestApp(t, &fakePipeline{}, nsgotest.Environment(env))
+	host, err := os.Hostname()
+	if err != nil {
+		host = ""
+	}
+	host = strings.TrimSuffix(host, ".local")
+	var phone, everyapi string
+	onEngine(a, func() { phone, everyapi = a.phoneSyncName(), a.everyapiDeviceName() })
+	if phone != cmp.Or(host, "Kando") || everyapi != host {
+		t.Fatalf("phones see %q and EveryAPI %q, want the host name %q", phone, everyapi, host)
 	}
 }
 

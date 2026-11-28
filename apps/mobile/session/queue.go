@@ -469,6 +469,7 @@ func (s *Session) followQueue(ctx context.Context, id, device string, c *sync.Cl
 		seen = s.cfg.Now()
 		listed := seen
 		post(func() {
+			s.renameDesktop(id, hello.Desktop)
 			was := s.remote.queues.GetUntracked()[id].Relayed
 			s.setQueue(id, func(Queue) Queue {
 				return Queue{Reach: Online, Ops: hello.Ops, Options: hello.Options, Receive: hello.Receive, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: listed}

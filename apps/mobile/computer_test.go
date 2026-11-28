@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"kando/apps/mobile/store"
@@ -160,4 +161,39 @@ func TestTheComputerPageShowsItsStorageWhileReachedDirectly(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return d.RelayJoins() == 1 })
 	p.openComputers()
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:computer-storage-value") == msgs.ComputerStorageOK() })
+}
+
+// A computer named otherwise since the phone paired with it, as one that named itself by its host name then and by the name its user gave it now, is named as Hello names it once it answers: the phone keeps the new name and shows it, without pairing again.
+func TestAPairedComputerTakesTheNameItsHelloGives(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	st := store.Open(dir)
+	desks, err := st.Desktops()
+	if err != nil || len(desks) != 1 || desks[0].Name != "Studio" {
+		t.Fatalf("paired %+v, %v", desks, err)
+	}
+	desks[0].Name = "842f574b78da"
+	if err := st.SaveDesktops(desks); err != nil {
+		t.Fatal(err)
+	}
+	d.SetOff(true)
+	p := startPhone(t, dir, secrets)
+	id := store.DesktopID(d.Fingerprint)
+	p.openTab(jobsTab, msgs.JobsTitle())
+	card := "id:jobs-computer-" + id
+	p.app.WaitFor(card, wait)
+	if got := p.texts(card); !strings.Contains(got, "842f574b78da") {
+		t.Fatalf("the computer's card says %q before it answers, want the name kept at pairing", got)
+	}
+
+	d.SetOff(false)
+	p.app.WaitUntil(reconnect, func() bool {
+		got := p.texts(card)
+		return strings.Contains(got, "Studio") && !strings.Contains(got, "842f574b78da")
+	})
+	p.app.WaitUntil(wait, func() bool {
+		desks, err := store.Open(dir).Desktops()
+		return err == nil && len(desks) == 1 && desks[0].Name == "Studio"
+	})
 }

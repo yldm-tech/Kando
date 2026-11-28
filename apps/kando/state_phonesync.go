@@ -13,11 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"kando/apps/kando/category"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/mediasource"
 	"kando/apps/kando/phonesync"
@@ -123,6 +123,7 @@ func (a *app) phoneSyncHooks() areaHooks {
 			if a.phone.on {
 				a.phoneSyncStart()
 			}
+			a.phoneSyncWatchName()
 		},
 		afterChange: func() bool {
 			a.phoneSyncPublish()
@@ -197,7 +198,7 @@ func (a *app) phoneSyncStart() {
 	a.phone.gen++
 	a.phone.starting, a.phone.err = true, ""
 	gen, update := a.phone.gen, a.update
-	name := phoneSyncName()
+	name := a.phoneSyncName()
 	a.phone.relaySig, a.phone.relayOK, a.phone.relayErr = a.phoneRelaySig(), false, nil
 	relay, relayEvery, relayUntil := a.phoneRelayBucket(gen)
 	cfg := phonesync.Config{
@@ -380,13 +381,22 @@ func (a *app) phoneSyncStatus() settings.PhoneSync {
 	return st
 }
 
-// phoneSyncName is the computer's name as a phone lists the desktop: its host name, without the .local macOS gives it.
-func phoneSyncName() string {
-	name, err := os.Hostname()
-	if err != nil {
-		return "Kando"
-	}
-	return strings.TrimSuffix(name, ".local")
+// phoneSyncName is the computer's name as a phone lists the desktop: the name the user gave it (desktop.Name), as "Ada's MacBook Pro", else its host name, else "Kando". UI thread only; an effect that reads it follows the computer being renamed (phoneSyncWatchName).
+func (a *app) phoneSyncName() string { return cmp.Or(desktop.Name(a.cx), "Kando") }
+
+// phoneSyncWatchName starts a running Phone Sync again when the computer is renamed while Kando runs, so the pairing's answer, the pairing URL and Hello name it as it is called now; the phones' connections drop and are made again at their next try. It runs once, from ready.
+func (a *app) phoneSyncWatchName() {
+	name := a.phoneSyncName()
+	a.cx.Effect(func() {
+		now := a.phoneSyncName()
+		if now == name {
+			return
+		}
+		name = now
+		// Under the app's scope (core.Scope.Run), untracked, as the start reads much the effect must not follow.
+		a.cx.Run(a.phoneRelayRestart)
+		a.Changed()
+	})
 }
 
 // phoneLibraryID is the protocol's ID of the library at dir.

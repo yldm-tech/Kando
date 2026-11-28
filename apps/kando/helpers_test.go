@@ -102,9 +102,12 @@ func platformName() string {
 	return "macOS"
 }
 
-// testEnvironment is the environment the tests' app starts in: a desktop of testOS, in testlocale's language, with the Mac's keyboard on a Mac.
+// testDeviceName is the name the user gave the computer in the tests' environment (core.Env.DeviceName), which the app names it by rather than the host name of the machine the tests run on.
+const testDeviceName = "Test Mac"
+
+// testEnvironment is the environment the tests' app starts in: a desktop of testOS named testDeviceName, in testlocale's language, with the Mac's keyboard on a Mac.
 func testEnvironment() ns.Environment {
-	return testlocale.Environment(ns.Environment{OS: testOS, Idiom: ns.IdiomDesktop, AppleKeyboard: testOS == ns.OSMacOS, PixelRatio: 2})
+	return testlocale.Environment(ns.Environment{OS: testOS, Idiom: ns.IdiomDesktop, AppleKeyboard: testOS == ns.OSMacOS, PixelRatio: 2, DeviceName: testDeviceName})
 }
 
 // fakePipeline finishes every stage at once unless block is set, in which case Download waits for cancellation. A link downloads into the test's folder as talk.mp4 (testFolder), a film whose one line, "hello", is said in its first second (hearsHello).
