@@ -21973,7 +21973,7 @@ func (msgs Messages) WidgetContinueName() string { return msgs.text(textWidgetCo
 // WidgetContinuePercent says "Continue · {percent}%"
 // in the language the app shows under cx.
 //
-// Over the film of the wide Continue widget: how far it was watched.
+// Over the film of the wide Continue widget: how far it was watched, from 1%; a film watched less says widgetContinue alone.
 func WidgetContinuePercent(cx *core.Scope, percent int) string {
 	return For(cx).WidgetContinuePercent(percent)
 }
@@ -22234,7 +22234,7 @@ func (msgs Messages) WidgetStudyName() string { return msgs.text(textWidgetStudy
 // WidgetTapToReview says "Tap to review"
 // in the language the app shows under cx.
 //
-// Foot of the streak widget.
+// Foot of the streak widget while words or lines are due.
 func WidgetTapToReview(cx *core.Scope) string { return For(cx).WidgetTapToReview() }
 
 // WidgetTapToReview is the package's WidgetTapToReview in the language of msgs.

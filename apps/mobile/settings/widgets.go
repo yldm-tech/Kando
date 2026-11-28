@@ -84,7 +84,7 @@ func posterSource(w widgets.Shown) core.ImageSource {
 	return core.ImageSource{}
 }
 
-// streakPreview is the study widget: the streak under its flame, and what is due.
+// streakPreview is the study widget: the streak under its flame, and what is due, with a tap to review while something is.
 func streakPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	colors := ui.ColorsOf(cx)
 	today := func() widgets.Day { return w().Days[0] }
@@ -105,11 +105,13 @@ func streakPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 		core.View{Style: core.Style{FlexGrow: 1}},
 		core.Text{TestID: "settings-widget-streak-due", ContentFunc: func() string { return locales.WidgetDue(cx, today().Due) }, MaxLines: 1,
 			Style: look.Caption.Merge(core.Style{FontWeight: core.FontWeightSemibold}), StyleFunc: ui.Colored(colors.Text)},
-		core.Text{ContentFunc: func() string { return locales.WidgetTapToReview(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14}, StyleFunc: ui.Colored(colors.Muted)},
+		core.Show{When: func() bool { return today().Due > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "settings-widget-streak-tap", ContentFunc: func() string { return locales.WidgetTapToReview(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14}, StyleFunc: ui.Colored(colors.Muted)}
+		}},
 	)
 }
 
-// filmPreview is the small Continue widget: the film's poster with the line it was left on, else its title, and how far it played on a scrim, or that no film was left partway.
+// filmPreview is the small Continue widget: the film's poster with the line it was left on, else its title, and how far it played on a scrim, or the same under a film's mark for a film with no poster, or that no film was left partway.
 func filmPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	colors := ui.ColorsOf(cx)
 	has := func() bool { return w().Film.Key != "" }
@@ -123,49 +125,66 @@ func filmPreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 		if !has() {
 			return locales.WidgetNoFilm(cx)
 		}
-		return locales.WidgetContinuePercent(cx, w().Film.Percent()) + ", " + w().Film.Title
+		return widgets.ContinueLabel(locales.For(cx), w().Film) + ", " + w().Film.Title
 	}
 	white := core.RGB(0xFFFFFF)
-	return tile(cx, "settings-widget-film", widgetSize, label, core.Show{When: has,
+	pictured := func() bool { return !posterSource(w()).Empty() }
+	return tile(cx, "settings-widget-film", widgetSize, label, core.Show{When: func() bool { return has() && !pictured() },
+		// A film with no poster: its mark over the widget's background, the texts in the ink, as the widget draws it.
 		Then: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyEnd},
-				StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
-				Children: []core.Node{
-					core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
-						Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
-					// A scrim darkens the poster from 30% of the way down to its foot, where the line is written, as the widget's does.
-					core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Gradients: []core.Gradient{scrim()}}},
-					core.View{Style: core.Style{Gap: 4, Padding: core.All(14)}, Children: []core.Node{
-						core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: white.Faded(0.85)}},
-						core.Text{TestID: "settings-widget-film-text", ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 17, FontWeight: core.FontWeightBold, Color: white}},
-						progress(func() float32 { return float32(w().Film.Percent()) / 100 }, white),
-					}},
-				}}
+			return core.View{Style: core.Style{FlexGrow: 1, Gap: 4}, Children: []core.Node{
+				core.View{TestID: "settings-widget-film-mark", Children: []core.Node{ui.Icon(lucide.Film, 22, colors.Muted)}},
+				core.View{Style: core.Style{FlexGrow: 1}},
+				core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Muted)},
+				core.Text{TestID: "settings-widget-film-text", ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 17, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
+				progress(func() float32 { return float32(w().Film.Percent()) / 100 }, theme.Accent),
+			}}
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return core.View{Style: core.Style{FlexGrow: 1, Gap: 4}, Children: []core.Node{
-				ui.Icon(lucide.SquarePlay, 22, colors.Accent),
-				core.View{Style: core.Style{FlexGrow: 1}},
-				core.Text{TestID: "settings-widget-film-none", ContentFunc: func() string { return locales.WidgetNoFilm(cx) }, MaxLines: 2,
-					Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Text)},
-				core.Text{ContentFunc: func() string { return locales.WidgetNoFilmHint(cx) }, MaxLines: 2, Style: core.Style{FontSize: 11, LineHeight: 14}, StyleFunc: ui.Colored(colors.Muted)},
-			}}
+			return core.Show{When: has, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), JustifyContent: core.JustifyEnd},
+					StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
+					Children: []core.Node{
+						core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
+							Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
+						// A scrim darkens the poster from 30% of the way down to its foot, where the line is written, as the widget's does.
+						core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Gradients: []core.Gradient{scrim()}}},
+						core.View{Style: core.Style{Gap: 4, Padding: core.All(14)}, Children: []core.Node{
+							core.Text{ContentFunc: func() string { return locales.WidgetContinue(cx) }, MaxLines: 1, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: white.Faded(0.85)}},
+							core.Text{TestID: "settings-widget-film-text", ContentFunc: text, MaxLines: 2, Style: core.Style{FontSize: 13, LineHeight: 17, FontWeight: core.FontWeightBold, Color: white}},
+							progress(func() float32 { return float32(w().Film.Percent()) / 100 }, white),
+						}},
+					}}
+			},
+				Else: func(cx *core.Scope) core.Node {
+					return core.View{Style: core.Style{FlexGrow: 1, Gap: 4}, Children: []core.Node{
+						ui.Icon(lucide.SquarePlay, 22, colors.Accent),
+						core.View{Style: core.Style{FlexGrow: 1}},
+						core.Text{TestID: "settings-widget-film-none", ContentFunc: func() string { return locales.WidgetNoFilm(cx) }, MaxLines: 2,
+							Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Text)},
+						core.Text{ContentFunc: func() string { return locales.WidgetNoFilmHint(cx) }, MaxLines: 2, Style: core.Style{FontSize: 11, LineHeight: 14}, StyleFunc: ui.Colored(colors.Muted)},
+					}}
+				}}
 		}})
 }
 
-// widePreview is the medium Continue widget: the poster beside how far the film played, its title and the line it was left on, the streak and what is due at its foot. It shows while a film was left partway, as the medium widget alone has more to show then.
+// widePreview is the medium Continue widget: the poster, or a film's mark in its place, beside how far the film played, its title and the line it was left on, the streak and what is due at its foot. It shows while a film was left partway, as the medium widget alone has more to show then.
 func widePreview(cx *core.Scope, w func() widgets.Shown) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.Show{When: func() bool { return w().Film.Key != "" }, Then: func(cx *core.Scope) core.Node {
-		label := func() string { return locales.WidgetContinuePercent(cx, w().Film.Percent()) + ", " + w().Film.Title }
+		label := func() string { return widgets.ContinueLabel(locales.For(cx), w().Film) + ", " + w().Film.Title }
 		return tile(cx, "settings-widget-wide", widgetWide, label,
 			core.View{Style: core.Style{Direction: core.Row, Gap: 12, FlexGrow: 1}, Children: []core.Node{
-				core.View{Style: core.Style{Width: core.Pt(120), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden},
+				core.View{Style: core.Style{Width: core.Pt(120), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 					StyleFunc: func() core.Style { return core.Style{Background: colors.Inset()} },
-					Children: []core.Node{core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
-						Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}},
+					Children: []core.Node{
+						core.Show{When: func() bool { return posterSource(w()).Empty() }, Then: func(cx *core.Scope) core.Node {
+							return core.View{TestID: "settings-widget-wide-mark", Children: []core.Node{ui.Icon(lucide.Film, 26, colors.Muted)}}
+						}},
+						core.Image{SourceFunc: func() core.ImageSource { return posterSource(w()) }, ResizeMode: core.Cover, ElementsHidden: true,
+							Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}},
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { return locales.WidgetContinuePercent(cx, w().Film.Percent()) }, MaxLines: 1,
+					core.Text{TestID: "settings-widget-wide-continue", ContentFunc: func() string { return widgets.ContinueLabel(locales.For(cx), w().Film) }, MaxLines: 1,
 						Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Accent)},
 					core.Text{ContentFunc: func() string { return w().Film.Title }, MaxLines: 2, Style: core.Style{FontSize: 14, LineHeight: 18, FontWeight: look.Heavy}, StyleFunc: ui.Colored(colors.Text)},
 					core.Show{When: func() bool { return w().Line != "" }, Then: func(cx *core.Scope) core.Node {

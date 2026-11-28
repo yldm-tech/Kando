@@ -59,6 +59,28 @@ func TestScreenshotsTabletShortcuts(t *testing.T) {
 	shot(p, "tablet-shortcuts")
 }
 
+// TestScreenshotsWidgetsJustStarted is Settings › Widgets with a two-hour film of no poster just started, and nothing due for review.
+func TestScreenshotsWidgetsJustStarted(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	f.Film.DurationMS = (2 * time.Hour).Milliseconds()
+	f.PositionMS, f.PositionAt = 8000, now().Add(-time.Hour)
+	if err := store.Open(dir).SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-goal", wait)
+	if !p.app.Exists("id:settings-widgets") {
+		t.Skip("the target has no widgets")
+	}
+	p.app.Press("id:settings-widgets")
+	p.app.WaitFor("id:settings-widget-film-text", wait)
+	shot(p, "settings-widgets-started")
+}
+
 // TestScreenshotsSettingsAbout is the end of Settings: the sync and about groups, and the footer.
 func TestScreenshotsSettingsAbout(t *testing.T) {
 	shot := screenshots(t)

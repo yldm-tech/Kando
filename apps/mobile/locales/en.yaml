@@ -2701,7 +2701,7 @@ widgetContinueName:
   description: "iOS: the name of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetContinuePercent:
   message: "Continue · {percent}%"
-  description: "Over the film of the wide Continue widget: how far it was watched."
+  description: "Over the film of the wide Continue widget: how far it was watched, from 1%; a film watched less says widgetContinue alone."
   placeholders:
     percent: { type: "int", example: "42" }
 widgetDays:
@@ -2740,7 +2740,7 @@ widgetStudyName:
   description: "iOS: the name of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetTapToReview:
   message: "Tap to review"
-  description: "Foot of the streak widget."
+  description: "Foot of the streak widget while words or lines are due."
 playerCannotAddWord:
   message: "Open this film once while its computer is reachable to add its words to the vocabulary."
   description: "Toast when a word can't go in the vocabulary yet, as the film's library on the computer isn't known."

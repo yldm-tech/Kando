@@ -135,6 +135,27 @@ func TestTheContinueWidgetShowsTheFilmLeftPartway(t *testing.T) {
 	}
 }
 
+// With nothing due, the study widget says so with nothing to tap for; a film just started says Continue without a share that rounds to 0%; and a film with no poster shows a film's mark, in the small widget over the system's background and in the medium one in the poster's place.
+func TestTheWidgetsSayOnlyWhatHolds(t *testing.T) {
+	m := locales.In("en")
+	w := Shown{}
+	w.Days[0] = Day{At: now(), Streak: 2}
+	if got, want := strings.Join(texts(Entries(m, w)[Study][0].View), "|"), "symbol:flame.fill|Streak|2|days|Nothing to review"; got != want {
+		t.Errorf("the study widget with nothing due shows %q, want %q", got, want)
+	}
+	w.Film = Film{Key: "d/f1", Desktop: "d", ID: "f1", Title: "Long Talk", At: 8 * time.Second, Length: 2 * time.Hour}
+	cont := Entries(m, w)[Continue][0]
+	if cont.Background != nil {
+		t.Errorf("the Continue widget of a film with no poster has the background %#v", cont.Background)
+	}
+	if got, want := strings.Join(texts(cont.View), "|"), "symbol:film|Continue|Long Talk|progress"; got != want {
+		t.Errorf("the small Continue widget of a film with no poster shows %q, want %q", got, want)
+	}
+	if got, want := strings.Join(texts(cont.Families[widget.Medium]), "|"), "symbol:film|Continue|Long Talk|0 to review · 2-day streak"; got != want {
+		t.Errorf("the medium Continue widget of a film just started shows %q, want %q", got, want)
+	}
+}
+
 // Kept, the widgets are written once the session has read the store, with the film kept on the phone left partway, the line it was left on, its poster, and the streak of the days films played; a film played on writes them again, and nothing that changes what they show writes them no more.
 func TestKeepWritesTheWidgetsAsTheyChange(t *testing.T) {
 	dir := t.TempDir()
