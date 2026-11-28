@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
 	"kando/packages/study"
 	"kando/packages/sync"
@@ -949,4 +950,15 @@ func wordSheetOf(t *testing.T, speaks bool) *phone {
 	p.app.Press("id:learn-word-w-station")
 	p.app.WaitFor("id:word-sheet", wait)
 	return p
+}
+
+// The week's card counts the words put in the vocabulary this week and, under its bar, the words not yet known: the two are named apart in every language, so one name does not stand for two numbers.
+func TestTheWeeksTwoWordCountsAreNamedApart(t *testing.T) {
+	for _, tag := range []string{"en", "zh-Hans", "zh-Hant", "ja", "ko"} {
+		m := locales.In(tag)
+		bucket := strings.TrimSpace(strings.Replace(m.LearnNewCount(7), "7", "", 1))
+		if added := m.LearnNewWords(); strings.Contains(added, bucket) || strings.Contains(bucket, added) {
+			t.Errorf("%s: the words not yet known are %q beside %q for the words added this week", tag, bucket, added)
+		}
+	}
 }

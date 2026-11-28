@@ -16490,10 +16490,10 @@ func LearnMon(cx *core.Scope) string { return For(cx).LearnMon() }
 // LearnMon is the package's LearnMon in the language of msgs.
 func (msgs Messages) LearnMon() string { return msgs.text(textLearnMon) }
 
-// LearnNewCount says "New {count}"
+// LearnNewCount says "To learn {count}"
 // in the language the app shows under cx.
 //
-// Under the week's bar of the words by how well they are known: the words not yet known once.
+// Under the week's bar of the words by how well they are known: the words not yet known once. Named apart from learnNewWords, the words added this week, which the same card counts; the desktop's vocabNew says the same.
 func LearnNewCount(cx *core.Scope, count int) string { return For(cx).LearnNewCount(count) }
 
 // LearnNewCount is the package's LearnNewCount in the language of msgs.
@@ -16507,15 +16507,15 @@ func (msgs Messages) LearnNewCount(count int) string {
 		}
 		switch lang {
 		case "", "en":
-			return "New " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+			return "To learn " + msgs.arg(i18n.FormatNumber("en", float64(count)))
 		case "ja":
-			return "新規 " + i18n.FormatNumber("ja", float64(count))
+			return "未学習 " + i18n.FormatNumber("ja", float64(count))
 		case "ko":
-			return "새 단어 " + i18n.FormatNumber("ko", float64(count))
+			return "학습 전 " + i18n.FormatNumber("ko", float64(count))
 		case "zh-Hans":
-			return "新词 " + i18n.FormatNumber("zh-Hans", float64(count))
+			return "待学 " + i18n.FormatNumber("zh-Hans", float64(count))
 		case "zh-Hant":
-			return "新詞 " + i18n.FormatNumber("zh-Hant", float64(count))
+			return "待學 " + i18n.FormatNumber("zh-Hant", float64(count))
 		}
 	}
 }

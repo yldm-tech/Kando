@@ -1398,8 +1398,8 @@ learnMon:
   message: "Mon"
   description: "Short name of Monday under its bar in the week's chart."
 learnNewCount:
-  message: "New {count}"
-  description: "Under the week's bar of the words by how well they are known: the words not yet known once."
+  message: "To learn {count}"
+  description: "Under the week's bar of the words by how well they are known: the words not yet known once. Named apart from learnNewWords, the words added this week, which the same card counts; the desktop's vocabNew says the same."
   placeholders:
     count: { type: "int", example: 1 }
 learnNewWords:
