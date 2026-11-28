@@ -2,6 +2,23 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.77.0 - 2026-11-28
+
+### Features
+
+- Sign in to EveryAPI in the app (#530)
+- Receive links shared from other apps (#532)
+- Optional monthly token limit for every AI service (#529)
+- Kando Hosted phone relay for Kando Plus (desktop side) (#531)
+
+### Fixes
+
+- Open a film where it was left on any device (#536)
+- Solve YouTube's JavaScript challenge with Deno and tell a missing runtime apart (#537)
+- Let VoiceOver reach the controls on iOS sub pages (#534)
+- Fit the upright player, add full screen and repeat film (#533)
+- Main's red CI from the Deno kit and the hosted relay tests (#541)
+
 ## 0.76.0 - 2026-11-27
 
 ### Features
