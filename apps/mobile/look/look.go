@@ -14,6 +14,7 @@ import (
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -113,15 +114,31 @@ func Facts(f sync.Film) string {
 	return strings.Join(parts, " · ")
 }
 
-// Poster is a film's poster at width, in the 16:9 of a video, on a tile of the surface's color until it loads or where the film has none, rimmed so its edge shows on a dark page too.
+// Poster is a film's poster at width, in the 16:9 of a video, on a tile of the surface's color, rimmed so its edge shows on a dark page too. A film with no poster, or one the platform could not draw, shows a film's mark on the tile, as the Library's thumbnails do; a new source is drawn again. The row it leads names the film, so assistive technology skips it.
 func Poster(cx *core.Scope, source func() core.ImageSource, width core.Points, testID string) core.Node {
 	colors := ui.ColorsOf(cx)
-	return core.View{TestID: testID, Style: core.Style{Width: core.Pt(width), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderWidth: 1, Overflow: core.Hidden, FlexShrink: 0},
+	broken := core.NewSignalFunc(cx, core.ImageSource{}, nil)
+	blank := func() bool {
+		src := source()
+		return src.Empty() || broken.Get().Same(src)
+	}
+	mark := ""
+	if testID != "" {
+		mark = testID + "-mark"
+	}
+	return core.View{TestID: testID, AccessibilityElementsHidden: func() bool { return true },
+		Style: core.Style{Width: core.Pt(width), AspectRatio: 16.0 / 9, CornerRadius: 8, BorderWidth: 1, Overflow: core.Hidden, FlexShrink: 0,
+			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 		StyleFunc: func() core.Style {
 			return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0.08)}
 		},
-		Children: []core.Node{core.Image{SourceFunc: source, ResizeMode: core.Cover, ElementsHidden: true,
-			Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}}}}
+		Children: []core.Node{
+			core.Show{When: blank, Then: func(cx *core.Scope) core.Node {
+				return core.View{TestID: mark, Children: []core.Node{ui.Icon(lucide.Film, max(width/4, 16), colors.Faint)}}
+			}},
+			core.Image{SourceFunc: source, ResizeMode: core.Cover, ElementsHidden: true, OnError: func(error) { broken.Set(core.Untracked(cx, source)) },
+				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}},
+		}}
 }
 
 // LocalPoster is the poster of a film kept on the phone, none until it is downloaded.

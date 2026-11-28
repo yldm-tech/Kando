@@ -2477,19 +2477,19 @@ settingsOfflineDelete:
   placeholders:
     title: { type: "String", example: "Talk at the café" }
 settingsOfflineEmpty:
-  message: "No films saved on this device yet."
+  message: "No films saved yet"
   description: "The Offline Films page when no film is saved on this device."
 settingsOfflineFree:
   message: "About {size} free on this device"
   description: "On the Offline Films page, under the bar of the films' share of the device: about how much room is left, rounded to whole gigabytes or megabytes."
   placeholders:
     size: { type: "String", example: "38 GB" }
-settingsOfflineFilmSaved:
-  message: "Saved"
-  description: "On a row of Settings › Offline Films, after the film's size: the film is kept whole on the device."
 settingsOfflineSaved:
   message: "Saved on This Device"
   description: "Heading on the Offline Films page over the films saved on this device."
+settingsOfflineUnfinished:
+  message: "Unfinished Downloads"
+  description: "Heading on the Offline Films page over the films whose download is under way, paused or stopped, above the films saved on this device."
 settingsOfflineUse:
   message: "Offline Films Use"
   description: "On the Offline Films page, beside how much space the saved films take."

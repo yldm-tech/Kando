@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,13 +13,24 @@ import (
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// OfflinePage is Settings › Offline Films: how much space the films saved on this device take, their share of the device on a bar and about how much of it is free, once the system said (session.ReadSpace, which the app asks for as it opens the page), and the films, each with its poster, its size and where its download stands, and Delete, which asks first.
+// OfflinePage is Settings › Offline Films: how much space the films saved on this device take, their share of the device on a bar and about how much of it is free, once the system said (session.ReadSpace, which the app asks for as it opens the page), and the films in two groups, the downloads not finished, each with how far it got, over the films saved whole, each group largest first (offlineGroups), each film with its poster, its size and Delete, which asks first.
 func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	ref := &core.Ref{}
+	unfinished := func() []store.Film { u, _ := offlineGroups(s); return u }
+	saved := func() []store.Film { _, w := offlineGroups(s); return w }
+	group := func(id string, title func() string, films func() []store.Film) core.Node {
+		return core.Show{When: func() bool { return len(films()) > 0 }, Then: func(cx *core.Scope) core.Node {
+			return core.View{TestID: id, Children: []core.Node{section(cx, title,
+				core.Each(films, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
+					return offlineFilm(cx, s, f, i)
+				}))}}
+		}}
+	}
 	return look.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsOffline(cx) }, TestID: "offline-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 			core.View{StyleFunc: column(cx), Children: []core.Node{
@@ -33,37 +46,74 @@ func OfflinePage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 					}},
 				core.Show{When: func() bool { return len(s.Offline()) > 0 },
 					Then: func(cx *core.Scope) core.Node {
-						return section(cx, func() string { return locales.SettingsOfflineSaved(cx) },
-							core.Each(s.Offline, func(f store.Film) string { return f.Key() }, func(cx *core.Scope, f func() store.Film, i func() int) core.Node {
-								return offlineFilm(cx, s, f, i)
-							}))
+						return core.View{Style: core.Style{Gap: 23}, Children: []core.Node{
+							group("offline-unfinished", func() string { return locales.SettingsOfflineUnfinished(cx) }, unfinished),
+							group("offline-saved", func() string { return locales.SettingsOfflineSaved(cx) }, saved),
+						}}
 					},
 					Else: func(cx *core.Scope) core.Node {
-						return core.Text{TestID: "offline-empty", ContentFunc: func() string { return locales.SettingsOfflineEmpty(cx) },
-							Style: core.Style{FontSize: 14, LineHeight: 20, TextAlign: core.TextAlignCenter, Padding: core.Symmetric(24, 16)}, StyleFunc: ui.Colored(colors.Muted)}
+						return look.Empty{TestID: "offline-empty", Icon: lucide.Download, Title: func() string { return locales.SettingsOfflineEmpty(cx) }}
 					}},
 			}},
 		}},
 	}}, ui.NavHeader{OnBack: back, Scroll: ref})
 }
 
-// offlineFilm is a film saved on the device, f, at i in the list: its poster, title, size and where its download stands, and Delete, which asks before it deletes it from the device.
+// offlineGroups are the films of Offline Films (session.Offline) in the page's two groups: unfinished, those whose download is under way, paused or stopped, and saved, the rest, each largest first by the room it takes (offlineTaken), films of the same size in the order the phone keeps them. Read it in a binding.
+func offlineGroups(s *session.Session) (unfinished, saved []store.Film) {
+	type sized struct {
+		f    store.Film
+		size int64
+	}
+	var u, w []sized
+	for _, f := range s.Offline() {
+		size, partial := offlineTaken(s, f.Key())
+		if partial {
+			u = append(u, sized{f, size})
+		} else {
+			w = append(w, sized{f, size})
+		}
+	}
+	largest := func(list []sized) []store.Film {
+		slices.SortStableFunc(list, func(a, b sized) int { return cmp.Compare(b.size, a.size) })
+		out := make([]store.Film, len(list))
+		for i, it := range list {
+			out[i] = it.f
+		}
+		return out
+	}
+	return largest(u), largest(w)
+}
+
+// offlineTaken is how many bytes of video the film under key takes on the phone, of the copy that stands for it (session.Copy), and whether its download is unfinished: the part downloaded so far of one under way, paused or stopped; the whole video of one saved; none for a film kept by its lines alone or to stream. Read it in a binding.
+func offlineTaken(s *session.Session, key string) (bytes int64, unfinished bool) {
+	key = s.Copy(key)
+	if t, ok := s.Transfer(key); ok {
+		return t.Done, true
+	}
+	if f, ok := s.Film(key); ok && f.HasVideo() {
+		return f.Film.VideoSize, false
+	}
+	return 0, false
+}
+
+// offlineFilm is a film kept on the device, f, at i in its group: its poster, title, the room it takes and, for a download not finished, where it stands and how far it got on a bar, and Delete, which asks before it deletes it from the device.
 func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func() int) core.Node {
-	colors, tints := ui.ColorsOf(cx), ui.TintsOf(cx)
+	colors := ui.ColorsOf(cx)
 	key := f().Key()
 	// A film of a NAS matched to a computer's film is named as the computer names it, and stands for both copies the phone may keep: where the one with its video, or on its way, stands (session.Copy), with the computer's poster.
 	named := func() store.Film { lf, _ := s.LinesFilm(key); return lf }
-	copied := func() store.Film { c, _ := s.Film(s.Copy(key)); return c }
+	transfer := func() (session.Transfer, bool) { return s.Transfer(s.Copy(key)) }
 	detail := func() string {
 		var parts []string
-		if n := f().Film.VideoSize; n > 0 {
+		if n, _ := offlineTaken(s, key); n > 0 {
 			parts = append(parts, look.Size(n))
 		}
-		// A film kept whole says it is saved, as the design's list does; one on its way or stopped says where it stands.
-		if fl := copied(); fl.Done() && fl.HasVideo() {
-			parts = append(parts, locales.SettingsOfflineFilmSaved(cx))
-		} else if st := look.Status(cx, s, key); st != "" {
-			parts = append(parts, st)
+		// The group says a film is saved; a download not finished says where it stands, and a film kept without its video that its lines are.
+		if _, partial := transfer(); partial || len(parts) == 0 {
+			if st := look.Status(cx, s, key); st != "" {
+				parts = append(parts, st)
+			}
 		}
 		return strings.Join(parts, " · ")
 	}
@@ -77,26 +127,25 @@ func offlineFilm(cx *core.Scope, s *session.Session, f func() store.Film, i func
 			}
 		})
 	}
-	// The rows are the design's 64 points with a 15/600 title, as the films lists' rows with a poster are.
-	return look.Row{TestID: "offline-film-" + key, Index: i, TitleLines: 1, MinHeight: 64,
+	// The rows are the design's 64 points with a 15/600 title, as the films lists' rows with a poster are, on two lines, as most films' titles are long.
+	return look.Row{TestID: "offline-film-" + key, Index: i, TitleLines: 2, MinHeight: 64,
 		TitleStyle: core.Style{FontSize: 15, LineHeight: 20, FontWeight: core.FontWeightSemibold},
 		Leading: look.Poster(cx, func() core.ImageSource {
 			if c, ok := s.Film(named().Key()); ok && c.Poster != "" {
 				return look.LocalPoster(s, c)
 			}
 			return look.LocalPoster(s, f())
-		}, 72, ""),
+		}, 72, "offline-poster-"+key),
 		Title:  func() string { return named().Film.Title },
 		Detail: detail,
-		// Delete is a capsule in danger's color on its tint; ui.Button takes its text as a string, which would not follow the language, and has no danger look, so it is base.Button in the design's style.
-		Trailing: base.Button{TestID: "offline-delete-" + key, LabelFunc: func() string { return locales.SettingsOfflineDelete(cx, named().Film.Title) },
-			OnPress: func(core.PressEvent) { remove() },
-			Style:   core.Style{Height: core.Pt(30), Padding: core.Symmetric(0, 12), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0},
-			StyleFunc: func() core.Style {
-				return core.Style{Background: tints.Danger(), Active: &core.Style{Opacity: core.Alpha(0.6)}, FocusVisible: ui.FocusRing(cx, 2)}
-			},
-			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmDeleteConfirm(cx) }, MaxLines: 1,
-				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Danger)}}}}
+		Below: core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
+			return ui.Progress{TestID: "offline-progress-" + key, LabelFunc: func() string { return locales.FilmDownload(cx) },
+				Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }, Style: core.Style{Margin: core.Edges{Top: 4}}}
+		}},
+		// Delete is a quiet trash can at the row's end, so the list does not read as a column of red buttons; the alert it opens is where the danger shows.
+		// TODO(nsgo#2715): NSGo has no swipe actions on a list's row, so Delete is a button on it; make it the row's trailing swipe action, as a system list deletes, once NSGo has them https://github.com/nsgo-dev/nsgo/issues/2715
+		Trailing: ui.IconButton{TestID: "offline-delete-" + key, Icon: lucide.Trash, Variant: ui.IconButtonGhost, Size: 44, IconSize: 18, Tint: colors.Muted,
+			LabelFunc: func() string { return locales.SettingsOfflineDelete(cx, named().Film.Title) }, OnPress: remove}}
 }
 
 // offlineSpace is the device's room under what the films take: a bar of the device, the films' share of it in the accent and what the rest of the device holds in grey, and about how much is free. The texts over and under it say what it shows, so assistive technology skips the bar.
