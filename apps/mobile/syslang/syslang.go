@@ -12,7 +12,7 @@ const (
 	keptLanguages  = "KandoSystemLanguages"
 )
 
-// defaults is the app's own defaults: a list of strings under a key, nil while unset, and a string, "" while unset.
+// defaults is the app's own defaults domain alone: a list of strings under a key, nil while unset, and a string, "" while unset. It does not fall through to the global domain as NSUserDefaults' search list does, whose AppleLanguages are the device's languages: read so, the device's languages would pass for a language the user chose for the app, and be put back as one, holding the app to the device's first language even once the device's changes.
 type defaults interface {
 	strings(key string) []string
 	string(key string) string
@@ -24,8 +24,8 @@ type defaults interface {
 func keep(d defaults, lang string) {
 	langs := d.strings(appleLanguages)
 	pinned := d.string(nsgoLanguage)
-	// The user's own are languages NSGo did not write, as iOS Settings sets them.
-	users := len(langs) > 0 && (pinned == "" || langs[0] != pinned)
+	// The user's own are languages NSGo did not write. NSGo writes the language it forces alone; iOS Settings writes the language chosen with its region, before the device's others (zh-Hans-JP, ja-JP, en-JP), so even one that starts as NSGo's does is the user's. One the user picks in iOS Settings that is the very one NSGo wrote is not told from it, and goes as NSGo's does.
+	users := len(langs) > 0 && (pinned == "" || len(langs) > 1 || langs[0] != pinned)
 	if lang != "" {
 		if users {
 			d.setStrings(keptLanguages, langs)
@@ -39,5 +39,7 @@ func keep(d defaults, lang string) {
 	d.remove(keptLanguages)
 	if !users && pinned != "" {
 		d.setStrings(appleLanguages, kept)
+		// NSGo, following the system again, removes AppleLanguages whose first language is the one it wrote, as the user's may be (en-JP is not en, but a list of the user's may start with the very tag): with its record gone, it leaves them be.
+		d.remove(nsgoLanguage)
 	}
 }

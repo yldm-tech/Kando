@@ -20,21 +20,40 @@ func Keep(lang string) {
 // userDefaults is the app's NSUserDefaults.
 type userDefaults struct{ id objc.ID }
 
+// value is what the app's own domain holds under key, 0 for nothing: read from its persistent domain, as stringArrayForKey: and stringForKey: fall through to the global domain, whose AppleLanguages are the device's.
+func (u userDefaults) value(key string) objc.ID {
+	id := objc.ID(objc.GetClass("NSBundle")).Send(sel("mainBundle")).Send(sel("bundleIdentifier"))
+	if id == 0 {
+		return 0
+	}
+	domain := u.id.Send(sel("persistentDomainForName:"), id)
+	if domain == 0 {
+		return 0
+	}
+	return domain.Send(sel("objectForKey:"), nsString(key))
+}
+
 func (u userDefaults) strings(key string) []string {
-	list := u.id.Send(sel("stringArrayForKey:"), nsString(key))
-	if list == 0 {
+	list := u.value(key)
+	if list == 0 || !objc.Send[bool](list, sel("isKindOfClass:"), objc.GetClass("NSArray")) {
 		return nil
 	}
 	n := objc.Send[uint](list, sel("count"))
 	out := make([]string, 0, n)
 	for i := range n {
-		out = append(out, goString(list.Send(sel("objectAtIndex:"), i)))
+		if item := list.Send(sel("objectAtIndex:"), i); objc.Send[bool](item, sel("isKindOfClass:"), objc.GetClass("NSString")) {
+			out = append(out, goString(item))
+		}
 	}
 	return out
 }
 
 func (u userDefaults) string(key string) string {
-	return goString(u.id.Send(sel("stringForKey:"), nsString(key)))
+	v := u.value(key)
+	if v == 0 || !objc.Send[bool](v, sel("isKindOfClass:"), objc.GetClass("NSString")) {
+		return ""
+	}
+	return goString(v)
 }
 
 func (u userDefaults) setStrings(key string, v []string) {

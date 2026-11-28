@@ -95,3 +95,46 @@ func TestKeepingTwiceIsKeepingOnce(t *testing.T) {
 		t.Fatalf("the defaults hold %v, want AppleLanguages [zh-Hans] alone", m)
 	}
 }
+
+// launched is the first language iOS launches the app in, as the app's domain m and the device's languages say: the app's own AppleLanguages, else the device's.
+func launched(m memory, device []string) string {
+	if langs := m.strings(appleLanguages); len(langs) > 0 {
+		return langs[0]
+	}
+	return device[0]
+}
+
+// The sequence an iPhone in Japanese went through, its app explicitly in Simplified Chinese, which iOS Settings › Kando › Language shows as NSGo wrote it: English, Automatic, Simplified Chinese, Automatic again, then a relaunch, which forces nothing. Automatic is the device's language then, as no language of the app's own was left, and the device's languages never land in the app's domain: read through NSUserDefaults' search list, they once passed for the user's and were put back there, holding the app to Japanese however the device's languages change.
+func TestAutomaticAfterAnExplicitLanguageIsTheDevicesAcrossARelaunch(t *testing.T) {
+	device := []string{"ja-JP", "en-JP", "zh-Hans-JP"}
+	m := memory{appleLanguages: []string{"zh-Hans"}, nsgoLanguage: "zh-Hans"}
+	for _, lang := range []string{"zh-Hans", "en", "", "zh-Hans", ""} {
+		choose(m, lang)
+	}
+	// Relaunched, the app follows the system: its Effect runs with "".
+	choose(m, "")
+	if len(m) != 0 {
+		t.Fatalf("the app's domain holds %v, want nothing", m)
+	}
+	if got := launched(m, device); got != "ja-JP" {
+		t.Fatalf("the app launches in %q, want the device's ja-JP", got)
+	}
+}
+
+// The same sequence with the language chosen in iOS Settings as iOS writes it, its region and the device's others after it, while NSGo's record of Simplified Chinese stays from before: Automatic is the user's choice again at the relaunch, though it starts with the language NSGo forces.
+func TestAutomaticIsThePerAppLanguageAcrossARelaunch(t *testing.T) {
+	device := []string{"ja-JP", "en-JP", "zh-Hans-JP"}
+	for _, chosen := range [][]string{{"zh-Hans-JP", "ja-JP", "en-JP"}, {"zh-Hans", "ja-JP"}} {
+		m := memory{appleLanguages: chosen, nsgoLanguage: "zh-Hans"}
+		for _, lang := range []string{"zh-Hans", "en", "", "zh-Hans", ""} {
+			choose(m, lang)
+		}
+		choose(m, "")
+		if got := m.strings(appleLanguages); !slices.Equal(got, chosen) || len(m) != 1 {
+			t.Fatalf("with %q chosen in iOS Settings the app's domain holds %v, want AppleLanguages %q alone", chosen, m, chosen)
+		}
+		if got := launched(m, device); got != chosen[0] {
+			t.Fatalf("with %q chosen the app launches in %q", chosen, got)
+		}
+	}
+}
