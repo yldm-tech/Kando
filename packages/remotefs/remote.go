@@ -106,6 +106,8 @@ var errClosed = errors.New("storage: provider is closed")
 type session[C any] struct {
 	dial   func(ctx context.Context) (C, io.Closer, error)
 	broken func(err error) bool
+	// cancelBreaks says an operation cut off by its context leaves the connection unusable, as SMB's does: the request may be on the wire with its answer, or the credits the server owes for it, never taken in, and the requests after it on the connection wait for good. Such a connection is closed (cut), and the next operation dials again.
+	cancelBreaks bool
 
 	mu     sync.Mutex
 	conn   C
@@ -138,31 +140,82 @@ func (s *session[C]) drop(gen int, err error) bool {
 	if err == nil || !s.broken(err) {
 		return false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.gen == gen && s.closer != nil {
-		_ = s.closer.Close()
-		var zero C
-		s.conn, s.closer = zero, nil
-	}
+	s.reset(gen)
 	return true
+}
+
+// cut closes the connection of generation gen when an operation on it failed with err as its context ended, for a connection that does not outlive that (cancelBreaks). It is whether it closed it.
+func (s *session[C]) cut(ctx context.Context, gen int, err error) bool {
+	if err == nil || ctx.Err() == nil || !s.cancelBreaks {
+		return false
+	}
+	s.reset(gen)
+	return true
+}
+
+// reset closes the connection of generation gen when it is still the live one, so the next get dials again. The connection is closed after the lock is let go, so an operation that waits to dial does not wait on a close that may take a while.
+func (s *session[C]) reset(gen int) {
+	s.mu.Lock()
+	closer := s.closer
+	if s.gen != gen || closer == nil {
+		s.mu.Unlock()
+		return
+	}
+	var zero C
+	s.conn, s.closer = zero, nil
+	s.mu.Unlock()
+	_ = closer.Close()
 }
 
 // do runs fn on the live connection and, when it fails because the connection broke, once more on a new one. fn must be safe to run twice.
 func (s *session[C]) do(ctx context.Context, fn func(C) error) error {
+	_, err := s.doOn(ctx, fn)
+	return err
+}
+
+// doOn is do, with the generation of the connection fn last ran on, which what fn opened on it stays bound to (guard).
+func (s *session[C]) doOn(ctx context.Context, fn func(C) error) (int, error) {
 	conn, gen, err := s.get(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = fn(conn)
-	if !s.drop(gen, err) || ctx.Err() != nil {
-		return err
+	if s.cut(ctx, gen, err) || !s.drop(gen, err) || ctx.Err() != nil {
+		return gen, err
 	}
-	conn, _, err = s.get(ctx)
+	conn, gen, err = s.get(ctx)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return fn(conn)
+	err = fn(conn)
+	s.cut(ctx, gen, err)
+	return gen, err
+}
+
+// guard is rc, a file opened on the connection of generation gen and read under ctx, closing that connection as cut does when a read of it fails as ctx ends or it is closed after ctx ended, as when the one reading it went away partway.
+func (s *session[C]) guard(ctx context.Context, gen int, rc io.ReadCloser) io.ReadCloser {
+	return guarded[C]{ReadCloser: rc, s: s, ctx: ctx, gen: gen}
+}
+
+type guarded[C any] struct {
+	io.ReadCloser
+	s   *session[C]
+	ctx context.Context
+	gen int
+}
+
+func (g guarded[C]) Read(b []byte) (int, error) {
+	n, err := g.ReadCloser.Read(b)
+	if err != nil && err != io.EOF {
+		g.s.cut(g.ctx, g.gen, err)
+	}
+	return n, err
+}
+
+func (g guarded[C]) Close() error {
+	err := g.ReadCloser.Close()
+	g.s.cut(g.ctx, g.gen, g.ctx.Err())
+	return err
 }
 
 // Close closes the connection; get fails after it.
