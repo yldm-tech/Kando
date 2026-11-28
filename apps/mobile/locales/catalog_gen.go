@@ -1075,7 +1075,6 @@ const (
 	textFilmsContinue
 	textFilmsEmpty
 	textFilmsLibraries
-	textFilmsLibrariesNote
 	textFilmsLibraryLocked
 	textFilmsUnlockPassword
 	textFilmsUnlockCancel
@@ -1732,7 +1731,6 @@ var keyOfText = [numTexts]string{
 	"filmsContinue",
 	"filmsEmpty",
 	"filmsLibraries",
-	"filmsLibrariesNote",
 	"filmsLibraryLocked",
 	"filmsUnlockPassword",
 	"filmsUnlockCancel",
@@ -2387,7 +2385,6 @@ var textsEn = i18n.NewTexts(""+
 	"Continue watching"+
 	"No films ready yet"+
 	"Library"+
-	"A library is just a .kando folder, so you can keep separate ones for different purposes."+
 	"Locked"+
 	"Password"+
 	"Cancel"+
@@ -3039,7 +3036,6 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		18,
 		7,
-		88,
 		6,
 		8,
 		6,
@@ -3694,7 +3690,6 @@ var textsJa = i18n.NewTexts(""+
 	"続きを見る"+
 	"再生できる動画はまだありません"+
 	"ライブラリ"+
-	"ライブラリは .kando フォルダです。用途ごとに分けて置けます。"+
 	"ロック中"+
 	"パスワード"+
 	"キャンセル"+
@@ -4346,7 +4341,6 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		45,
 		15,
-		86,
 		12,
 		15,
 		15,
@@ -5001,7 +4995,6 @@ var textsKo = i18n.NewTexts(""+
 	"이어 보기"+
 	"아직 재생할 수 있는 영상이 없습니다"+
 	"보관함"+
-	"보관함은 .kando 폴더라서 용도별로 나눠 둘 수 있습니다."+
 	"잠김"+
 	"비밀번호"+
 	"취소"+
@@ -5653,7 +5646,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		50,
 		9,
-		74,
 		6,
 		12,
 		6,
@@ -6308,7 +6300,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"继续看"+
 	"还没有可以播放的影片"+
 	"资料库"+
-	"资料库就是一个 .kando 文件夹，可以按用途分开放。"+
 	"已锁定"+
 	"密码"+
 	"取消"+
@@ -6960,7 +6951,6 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		30,
 		9,
-		68,
 		9,
 		6,
 		6,
@@ -7615,7 +7605,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"繼續看"+
 	"還沒有可以播放的影片"+
 	"資料庫"+
-	"資料庫就是一個 .kando 資料夾，可以按用途分開放。"+
 	"已鎖定"+
 	"密碼"+
 	"取消"+
@@ -8267,7 +8256,6 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		30,
 		9,
-		68,
 		9,
 		6,
 		6,
@@ -11934,15 +11922,6 @@ func FilmsLibraries(cx *core.Scope) string { return For(cx).FilmsLibraries() }
 
 // FilmsLibraries is the package's FilmsLibraries in the language of msgs.
 func (msgs Messages) FilmsLibraries() string { return msgs.text(textFilmsLibraries) }
-
-// FilmsLibrariesNote says "A library is just a .kando folder, so you can keep separate ones for different purposes."
-// in the language the app shows under cx.
-//
-// Library switcher sheet: note under its title on what a library is.
-func FilmsLibrariesNote(cx *core.Scope) string { return For(cx).FilmsLibrariesNote() }
-
-// FilmsLibrariesNote is the package's FilmsLibrariesNote in the language of msgs.
-func (msgs Messages) FilmsLibrariesNote() string { return msgs.text(textFilmsLibrariesNote) }
 
 // FilmsLibrary says "Library: {name}"
 // in the language the app shows under cx.

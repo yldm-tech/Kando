@@ -168,6 +168,17 @@ func TestContinueWatchingWhereTheComputerLeftOff(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 6000 })
 }
 
+// The library sheet is its title over the libraries, with no note between them.
+func TestTheLibrarySheetIsItsLibraries(t *testing.T) {
+	p, _ := libraryScene(t)
+	p.app.Press("id:films-library")
+	p.app.WaitFor("id:films-library-option-2", wait)
+	lines := strings.Split(p.texts("id:films-library-sheet"), "\n")
+	if len(lines) < 2 || lines[0] != msgs.FilmsLibraries() || lines[1] != msgs.FilmsAllLibraries() {
+		t.Fatalf("the library sheet reads %q, want its title then All Libraries", lines)
+	}
+}
+
 // A film with no poster, as one of a NAS or one its computer kept none of, shows a film's mark in its card and its row rather than an empty picture; a film with one does not.
 func TestAFilmWithNoPosterShowsAMark(t *testing.T) {
 	d := newDesktopWithMovies(t)

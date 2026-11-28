@@ -496,9 +496,6 @@ filmsLeftOn:
 filmsLibraries:
   message: "Library"
   description: "Title of the Library's switcher, which picks the library the list shows."
-filmsLibrariesNote:
-  message: "A library is just a .kando folder, so you can keep separate ones for different purposes."
-  description: "Library switcher sheet: note under its title on what a library is."
 filmsLibrary:
   message: "Library: {name}"
   description: "Spoken name of the Library's switcher, with the library it shows."
