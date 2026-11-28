@@ -47,6 +47,54 @@ func TestScreenshotsLibraryOptions(t *testing.T) {
 	shot(p, "films-options-sheet")
 }
 
+// The options of a computer's film streamed once, which keeps its lines on the phone but no video (films-options-streamed).
+func TestScreenshotsLibraryStreamedOptions(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetNoFilmOps(true)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	options := "id:films-options-" + store.DesktopID(d.Fingerprint) + "-f1"
+	p.app.WaitFor(options, wait)
+	p.app.Press(options)
+	p.choose(msgs.FilmPlay())
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Press("id:player-minimize")
+	p.app.Press(options)
+	p.app.WaitFor("id:films-options-title", wait)
+	p.app.Advance(500 * time.Millisecond)
+	shot(p, "films-options-streamed")
+}
+
+// The options of a film kept by its lines whose computer has its video now (films-options-lines).
+func TestScreenshotsLibraryLinesOptions(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	d.SetNoFilmOps(true)
+	lines := linesFilm()
+	lines.Video, lines.Film.SubtitlesOnly = talkVideo, false
+	d.AddFilm(lines)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	kept := linesFilm().Film
+	kept.VideoSize = int64(len(talkVideo))
+	st := store.Open(dir)
+	if err := st.SaveFilm(store.Film{Desktop: id, Library: "Japanese Class", Film: kept, LinesOnly: true, Added: now()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveCues(id, kept.ID, talkCues); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, secrets)
+	options := "id:films-options-" + id + "-f3"
+	p.app.WaitFor(filmRow(id, "f3")+" >> text:YouTube · 0:10 · "+msgs.FilmLinesSaved(), wait)
+	p.app.Press(options)
+	p.app.WaitFor("id:films-options-title", wait)
+	p.app.Advance(500 * time.Millisecond)
+	shot(p, "films-options-lines")
+}
+
 func TestScreenshotsLibraryFilterEmpty(t *testing.T) {
 	shot := screenshots(t)
 	p, _ := libraryScene(t)

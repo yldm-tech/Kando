@@ -251,6 +251,67 @@ func TestASearchOfSpacesSearchesForNothing(t *testing.T) {
 	}
 }
 
+// While a search is on, its field focused or a query typed in it, the day's study, the jobs card, the films to go on with and the subscriptions give way, so what it finds starts right under the field and a phone's keyboard does not cover it; they come back once the field is empty and left, the field keeping its focus and its text meanwhile.
+func TestASearchPutsItsResultsUnderTheField(t *testing.T) {
+	d := newDesktopWithMovies(t)
+	d.SetJob(moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.84))
+	d.AddSubscription(earthScience())
+	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	blocks := []string{"id:films-stats", "id:films-jobs-card", "id:films-continue", "id:films-subscriptions"}
+	for _, b := range blocks {
+		p.app.WaitFor(b, wait)
+	}
+	gone := func(when string) {
+		t.Helper()
+		for _, b := range blocks {
+			p.app.WaitForGone(b, wait)
+		}
+		if field, list := p.app.Find("id:films-search").Bounds(), p.app.Find("id:films-list").Bounds(); list.Origin.Y-(field.Origin.Y+field.Size.Height) > 30 {
+			t.Fatalf("%s, the results start %v under the field", when, list.Origin.Y-(field.Origin.Y+field.Size.Height))
+		}
+	}
+	back := func() {
+		t.Helper()
+		for _, b := range blocks {
+			p.app.WaitFor(b, wait)
+		}
+	}
+
+	p.app.Focus("id:films-search")
+	gone("with the field focused")
+	if !p.app.Find("id:films-search").Focused {
+		t.Fatal("the field lost its focus as the blocks over the results went")
+	}
+	p.app.Type("id:films-search", "how")
+	hit := "id:films-hit-" + id + "-f1"
+	p.app.WaitFor(hit, wait)
+	gone("with a query typed")
+	if f := p.app.Find("id:films-search"); !f.Focused || f.Text != "how" {
+		t.Fatalf("the field reads %q, focused %v", f.Text, f.Focused)
+	}
+	// The keyboard put away, the query still searches.
+	p.app.Submit("id:films-search")
+	gone("with the keyboard away")
+	if got := p.app.Find("id:films-search").Text; got != "how" {
+		t.Fatalf("the field reads %q once left", got)
+	}
+
+	// Spaces alone search for nothing.
+	p.app.Clear("id:films-search")
+	p.app.Type("id:films-search", "  ")
+	p.app.Submit("id:films-search")
+	back()
+	p.app.Clear("id:films-search")
+	p.app.Submit("id:films-search")
+	back()
+}
+
 // A film's options download it and, once it is on the phone, play it or delete it from the phone after asking.
 func TestAFilmsOptionsDownloadAndDeleteIt(t *testing.T) {
 	d := newDesktop(t)
@@ -524,7 +585,7 @@ func TestTheLibraryShowsTheFilmAJobAdded(t *testing.T) {
 	p.app.WaitFor(filmRow(id, "f3"), wait)
 }
 
-// While a computer has jobs under way the Library shows a card under the search: which computer processes how many videos, the one running now and its step, and how many need the user; pressed, it opens Jobs. It stays while searching.
+// While a computer has jobs under way the Library shows a card under the search: which computer processes how many videos, the one running now and its step, and how many need the user; pressed, it opens Jobs. A search takes it away until the search is over.
 func TestTheJobsCardSaysWhatTheComputerIsDoing(t *testing.T) {
 	d := newDesktop(t)
 	running := moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 2, 0.84)
@@ -544,11 +605,15 @@ func TestTheJobsCardSaysWhatTheComputerIsDoing(t *testing.T) {
 	if got, want := p.texts("id:films-jobs-card-needs"), msgs.FilmsJobsCardNeedsYou(1); got != want {
 		t.Fatalf("the jobs card's pill is %q, want %q", got, want)
 	}
+	// A search takes the card away, so what it finds starts under the field; it comes back once the search is over.
 	p.app.Type("id:films-search", "zzz")
 	p.app.WaitFor("id:films-empty", wait)
-	if !p.app.Exists("id:films-jobs-card") {
-		t.Fatal("a search hides the jobs card")
+	if p.app.Exists("id:films-jobs-card") {
+		t.Fatal("the jobs card shows over the search's results")
 	}
+	p.app.Clear("id:films-search")
+	p.app.Submit("id:films-search")
+	p.app.WaitFor("id:films-jobs-card", wait)
 	p.app.Press("id:films-jobs-card")
 	p.app.WaitFor("id:jobs-page", wait)
 }

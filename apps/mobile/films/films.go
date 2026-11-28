@@ -63,8 +63,9 @@ type view struct {
 	library *core.Signal[catalog.Scope]
 	entries *core.Memo[[]catalog.Entry]
 	lines   *core.Resource[map[string][]sync.Cue]
-	// field is the search field's.
-	field *core.Ref
+	// field is the search field's, and focused whether it has the focus.
+	field   *core.Ref
+	focused *core.Signal[bool]
 	// sheet is the film whose options show (options).
 	sheet *core.Signal[optionsSheet]
 	// keys are the films of the page's list in its order, which a film played from it goes on to by a swipe (Actions.Feed): the Library's rows as filtered, searched and scoped, or a work's films.
@@ -82,6 +83,7 @@ func newView(cx *core.Scope, s *session.Session, act Actions) *view {
 		library: act.Library,
 		entries: core.NewMemoFunc(cx, s.Entries, nil),
 		field:   &core.Ref{},
+		focused: core.NewSignal(cx, false),
 		sheet:   core.NewSignalFunc(cx, optionsSheet{}, nil),
 	}
 	if v.library == nil {
@@ -153,14 +155,14 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	inline := tablet && cx.Env().OS() != core.OSIOS
 	ref := &core.Ref{}
 	blocks := []core.Node{
-		core.Show{When: func() bool { return paired() || len(v.entries.Get()) > 0 }, Then: v.stats},
+		core.Show{When: func() bool { return !v.searching() && (paired() || len(v.entries.Get()) > 0) }, Then: v.stats},
 	}
 	if !inline {
 		blocks = append(blocks, core.Show{When: func() bool { return len(v.entries.Get()) > 0 || !paired() }, Then: v.search})
 	}
 	if !tablet {
 		// A tablet shows the jobs as the stats' fourth tile instead (stats.go).
-		blocks = append(blocks, core.Show{When: v.jobsShown, Then: v.jobsCard})
+		blocks = append(blocks, core.Show{When: func() bool { return !v.searching() && v.jobsShown() }, Then: v.jobsCard})
 	}
 	blocks = append(blocks,
 		core.Show{When: func() bool { return len(v.storageFailures()) > 0 }, Then: v.storageBanner},
@@ -168,11 +170,11 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			return computers.Problem(cx, s, d, act.Pair)
 		}),
 		core.Show{When: func() bool { return !paired() }, Then: func(cx *core.Scope) core.Node { return unpaired(cx, act.Pair) }},
-		core.Show{When: func() bool { return v.searched() == "" && len(v.resumable()) > 0 }, Then: v.carousel},
-		core.Show{When: func() bool { return v.searched() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
+		core.Show{When: func() bool { return !v.searching() && len(v.resumable()) > 0 }, Then: v.carousel},
+		core.Show{When: func() bool { return !v.searching() && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
 	)
 	if act.Source != nil {
-		blocks = append(blocks, core.Show{When: func() bool { return v.searched() == "" }, Then: func(cx *core.Scope) core.Node { return sources.Group(cx, s, act.Source) }})
+		blocks = append(blocks, core.Show{When: func() bool { return !v.searching() }, Then: func(cx *core.Scope) core.Node { return sources.Group(cx, s, act.Source) }})
 	}
 	blocks = append(blocks, v.list(cx))
 	body := core.Scroll{TestID: "films-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1},
@@ -263,6 +265,9 @@ func (v *view) scoped() []catalog.Entry {
 // resumable are the films to go on with, of the library the switcher shows.
 func (v *view) resumable() []catalog.Entry { return catalog.Continue(v.scoped(), continueMax) }
 
+// searching reports whether a search is on: its field focused, or something besides spaces typed in it. While it is, the blocks between the field and the films give way (Page), so what the search finds starts right under the field rather than under a phone's keyboard; the field itself is never rebuilt, so it keeps its focus and its text.
+func (v *view) searching() bool { return v.focused.Get() || strings.TrimSpace(v.query.Get()) != "" }
+
 // search is the search field over the films' titles and the lines kept on the phone: 38 tall on the fill, its magnifier and placeholder in the muted ink.
 func (v *view) search(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
@@ -270,6 +275,7 @@ func (v *view) search(cx *core.Scope) core.Node {
 		ui.Input{TestID: "films-search", Ref: v.field, Role: core.RoleSearchField, Value: v.query.Get, OnChange: v.query.Set,
 			PlaceholderFunc: func() string { return locales.FilmsSearch(cx) }, LabelFunc: func() string { return locales.FilmsSearch(cx) },
 			ReturnKeyType: core.ReturnKeySearch, AutoCapitalize: core.AutoCapitalizeNone, NoAutoCorrect: true,
+			OnFocus: func() { v.focused.Set(true) }, OnBlur: func() { v.focused.Set(false) },
 			Style: core.Style{Height: core.Pt(38), FontSize: 15, CornerRadius: 11, BorderWidth: 0, Padding: core.Edges{Left: 33, Right: 12}},
 			StyleFunc: func() core.Style {
 				return core.Style{Background: colors.Inset(), BorderColor: ui.Alpha(colors.Text(), 0), PlaceholderColor: colors.Muted()}

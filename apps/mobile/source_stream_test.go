@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -254,4 +255,25 @@ func TestASourceRemovedMidwayStopsItsStream(t *testing.T) {
 	if got := p.texts("id:player-failed-why"); got != msgs.SourceFailGone() {
 		t.Errorf("the player says why as %q", got)
 	}
+}
+
+// A film of a source kept only as it was streamed has no offline files: its options remove it from the device, which takes it off the Library, as nothing else lists it.
+func TestAStreamedSourceFilmIsRemovedFromTheDevice(t *testing.T) {
+	dir := t.TempDir()
+	src := davSource(davFilms(t, false))
+	opt := keepSource(t, dir, src, davtest.Password)
+	f := keepHoliday(t, dir, src, "", false)
+	p := startPhone(t, dir, opt)
+	options := "id:films-options-" + f.Desktop + "-" + f.Film.ID
+	p.app.WaitFor(options, wait)
+	p.app.Press(options)
+	labels := p.optionLabels()
+	if slices.Contains(labels, msgs.FilmDelete()) || !slices.Contains(labels, msgs.FilmRemove()) {
+		t.Fatalf("the options of a streamed film of a source are %q", labels)
+	}
+	p.choose(msgs.FilmRemove())
+	p.app.WaitUntil(wait, func() bool { return len(p.app.Alerts()) == 1 })
+	p.app.Answer(1)
+	p.waitFile(filepath.Join("films", f.Desktop, f.Film.ID), -1)
+	p.app.WaitForGone(filmRow(f.Desktop, f.Film.ID), wait)
 }
