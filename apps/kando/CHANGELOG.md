@@ -2,6 +2,16 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.78.0 - 2026-11-28
+
+### Features
+
+- Swipe between films, PiP, card hint and mini poster fixes (#539)
+
+### Fixes
+
+- Phone acceptance fixes: Automatic language, search, lost films, Appearance tile (#540)
+
 ## 0.77.3 - 2026-11-28
 
 ### Fixes

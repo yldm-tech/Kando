@@ -1,7 +1,7 @@
 # Kando's app for phones and tablets (yldm-tech/Kando#178), for the nsgo tool (go tool nsgo, the version go.mod pins). It plays the films Kando on a computer has made, downloaded over the local network from the computers it is paired with, and those it is still making, streamed from it as they are made; downloading from video sites, transcribing and translating stay on the computer. The Package (phone) workflow (.github/workflows/package-phone.yml) builds it for the stores, and listing/ holds its store listings and privacy answers; signing stays out of this file, as the desktop app's does.
 name: Kando
 id: ai.yldm.kando.mobile
-version: 0.77.3
+version: 0.78.0
 # The phone app's own icon: the desktop icon's speech bubble on a full-bleed square with no transparency, which the App Store requires of an iOS icon and iOS and Android's launchers round themselves; the desktop icon draws its own rounded square on a transparent margin, as macOS icons do.
 icon:
   png: assets/Icon.png
