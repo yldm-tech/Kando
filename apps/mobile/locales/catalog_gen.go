@@ -497,6 +497,7 @@ var Parameters = map[string][]string{
 	"ComputersUnpaired":              {"name"},
 	"ComputersUnreachable":           {"name"},
 	"DictationScore":                 {"hit", "total"},
+	"DictationScoreChars":            {"hit", "total"},
 	"ExportCount":                    {"words", "lines"},
 	"FilmDeleteTitle":                {"title"},
 	"FilmDownloading":                {"percent"},
@@ -749,6 +750,7 @@ type Translation struct {
 	ComputersUnpaired              func(name string) string
 	ComputersUnreachable           func(name string) string
 	DictationScore                 func(hit int, total int) string
+	DictationScoreChars            func(hit int, total int) string
 	ExportCount                    func(words int, lines int) string
 	FilmDeleteTitle                func(title string) string
 	FilmDownloading                func(percent int) string
@@ -8908,6 +8910,9 @@ func Supply(lang string, t Translation) {
 	if t.DictationScore != nil {
 		s.DictationScore = t.DictationScore
 	}
+	if t.DictationScoreChars != nil {
+		s.DictationScoreChars = t.DictationScoreChars
+	}
 	if t.ExportCount != nil {
 		s.ExportCount = t.ExportCount
 	}
@@ -10860,6 +10865,53 @@ func (msgs Messages) DictationScore(hit int, total int) string {
 			return "听对了 " + i18n.FormatNumber("zh-Hans", float64(hit)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个词"
 		case "zh-Hant":
 			return "聽對了 " + i18n.FormatNumber("zh-Hant", float64(hit)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個詞"
+		}
+	}
+}
+
+// DictationScoreChars says "{total, plural, one {Heard {hit} / # character correctly} other {Heard {hit} / # characters correctly}}"
+// in the language the app shows under cx.
+//
+// Dictation card after the check, for a line written without spaces between its words (Chinese, Japanese, Thai), which is checked a character at a time: how many of the line's characters the learner typed.
+func DictationScoreChars(cx *core.Scope, hit int, total int) string {
+	return For(cx).DictationScoreChars(hit, total)
+}
+
+// DictationScoreChars is the package's DictationScoreChars in the language of msgs.
+func (msgs Messages) DictationScoreChars(hit int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.DictationScoreChars(hit, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].DictationScoreChars; f != nil {
+			return f(hit, total)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(total)) {
+			case i18n.One:
+				b.WriteString("Heard ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(hit))))
+				b.WriteString(" / ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" character correctly")
+			default:
+				b.WriteString("Heard ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(hit))))
+				b.WriteString(" / ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(total))))
+				b.WriteString(" characters correctly")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(hit)) + " / " + i18n.FormatNumber("ja", float64(total)) + " 文字を聞き取れました"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(hit)) + " / " + i18n.FormatNumber("ko", float64(total)) + "자를 맞게 들었어요"
+		case "zh-Hans":
+			return "听对了 " + i18n.FormatNumber("zh-Hans", float64(hit)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 个字"
+		case "zh-Hant":
+			return "聽對了 " + i18n.FormatNumber("zh-Hant", float64(hit)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 個字"
 		}
 	}
 }
