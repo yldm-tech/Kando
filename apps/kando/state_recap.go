@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/recap"
+	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -54,7 +55,7 @@ func (a *app) recapHooks() areaHooks {
 	}
 }
 
-// recapFollow brings the card up to date with the player and reports whether it changed it. A film opened held where it stopped last time, as from its poster, the hero's card or the menu bar, which the player opens unplayed at its resume position (films.ResumeFrom), opens the card; a film opened playing, as by 继续 or a line of the palette, does not. The card waits for the film's lines and shows only when some of them were watched (the palette's furthest point, which a seek does not move), then sums them up. It closes once the film plays or is moved, once it is not the film open, and while the word looked up or the line selected for correcting shows its own card.
+// recapFollow brings the card up to date with the player and reports whether it changed it. A film opened held where it stopped last time, as from its poster, the hero's card or the menu bar, which the player opens unplayed at its resume position (films.ResumeFrom), opens the card; a film opened playing, as by 继续 or a line of the palette, does not, and neither does a film left within its first minute (psync.RecapFrom). The card waits for the film's lines and shows only when some of them were watched (the palette's furthest point, which a seek does not move), then sums them up. It closes once the film plays or is moved, once it is not the film open, and while the word looked up or the line selected for correcting shows its own card.
 func (a *app) recapFollow() bool {
 	r := &a.recap
 	changed := false
@@ -64,7 +65,7 @@ func (a *app) recapFollow() bool {
 			a.recapClose()
 			changed = true
 		}
-		if p != nil && !p.played && p.head > 0 && a.openKey != "" {
+		if p != nil && !p.played && p.head >= psync.RecapFrom && a.openKey != "" {
 			r.card = recapCard{open: true, pending: true, video: p.path, at: p.head}
 			changed = true
 		}

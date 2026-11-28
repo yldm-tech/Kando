@@ -407,11 +407,11 @@ func TestScreenshotsTablet(t *testing.T) {
 
 func TestScreenshotsPlayerRecap(t *testing.T) {
 	shot := screenshots(t)
-	d := newDesktop(t)
-	d.SetRecap(sync.RecapItem{StartMS: 1000, Text: "两人在早上见面，互相问候。"}, sync.RecapItem{StartMS: 3000, Text: "一方问对方最近过得怎么样。"}, sync.RecapItem{StartMS: 5000, Text: "对方说一切都好，并道谢。"})
+	d := recapDesktop(t)
+	d.SetRecap(sync.RecapItem{StartMS: 61_000, Text: "两人在早上见面，互相问候。"}, sync.RecapItem{StartMS: 63_000, Text: "一方问对方最近过得怎么样。"}, sync.RecapItem{StartMS: 65_000, Text: "对方说一切都好，并道谢。"})
 	dir := t.TempDir()
 	studyNoted(t, dir)
-	p := openStudyAtIn(t, d, dir, 6*sec)
+	p := openRecapAtIn(t, d, dir, 66*sec)
 	p.app.WaitFor("id:player-recap-note", wait)
 	shot(p, "player-recap")
 }

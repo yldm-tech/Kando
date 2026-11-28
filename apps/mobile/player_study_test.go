@@ -376,6 +376,57 @@ func openStudyAtIn(t *testing.T, d *synctest.Desktop, dir string, at time.Durati
 	if err := store.Open(dir).SaveFilm(f); err != nil {
 		t.Fatal(err)
 	}
+	return openKept(t, d, dir, f)
+}
+
+// recapTalkMS is how long the talk a minute later (recapCues) is: a film opens with a recap only when left past its first minute (sync.RecapFrom).
+const recapTalkMS = 70_000
+
+// recapCues are the talk's lines a minute later, in a film of recapTalkMS.
+var recapCues = func() []sync.Cue {
+	out := slices.Clone(talkCues)
+	for i := range out {
+		out[i].StartMS += time.Minute.Milliseconds()
+		out[i].EndMS += time.Minute.Milliseconds()
+	}
+	return out
+}()
+
+// recapDesktop is newDesktop serving the talk a minute later (recapCues).
+func recapDesktop(t *testing.T) *synctest.Desktop {
+	t.Helper()
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Japanese Class")
+	d.AddFilm(synctest.Film{Library: "lib", Video: talkVideo, Poster: []byte("jpeg"), Cues: recapCues,
+		Film: sync.Film{ID: "f1", Title: "Morning Talk", Source: "youtube", DurationMS: recapTalkMS, Spoken: "ja", Translation: "简体中文", Updated: now()}})
+	d.Offer("123456")
+	return d
+}
+
+// openRecapAt is openStudyAt of the talk a minute later (recapCues), from d, a recapDesktop.
+func openRecapAt(t *testing.T, d *synctest.Desktop, at time.Duration) *phone {
+	t.Helper()
+	return openRecapAtIn(t, d, t.TempDir(), at)
+}
+
+// openRecapAtIn is openRecapAt with the phone's data in dir, which may hold what the phone kept before.
+func openRecapAtIn(t *testing.T, d *synctest.Desktop, dir string, at time.Duration) *phone {
+	t.Helper()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	f.PositionMS, f.Film.DurationMS = at.Milliseconds(), recapTalkMS
+	st := store.Open(dir)
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveCues(f.Desktop, f.Film.ID, recapCues); err != nil {
+		t.Fatal(err)
+	}
+	return openKept(t, d, dir, f)
+}
+
+// openKept opens f, kept on the phone with its data in dir, from its page, paired with d.
+func openKept(t *testing.T, d *synctest.Desktop, dir string, f store.Film) *phone {
+	t.Helper()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.app.WaitFor(talkRow(f.Desktop), wait)
 	p.app.Press(talkRow(f.Desktop))
@@ -385,20 +436,20 @@ func openStudyAtIn(t *testing.T, d *synctest.Desktop, dir string, at time.Durati
 
 // A film opened from its page where it was left holds there and shows the recap of the part watched: the computer is sent the lines up to where it was left, never a later one, and its moments show, each playing the film from its line; Continue plays on from where it was left.
 func TestAFilmLeftPartwayOpensWithARecapOfWhatWasWatched(t *testing.T) {
-	d := newDesktop(t)
-	p := openStudyAt(t, d, 6*sec)
+	d := recapDesktop(t)
+	p := openRecapAt(t, d, 66*sec)
 	p.app.WaitFor("id:player-recap-note", wait)
 	if !p.app.Find("id:player-video").Video.Paused {
 		t.Fatal("the film plays under the recap")
 	}
-	if got := p.app.Find("id:player-recap-at").Text; got != msgs.PlayerRecapStoppedAt("0:06") {
+	if got := p.app.Find("id:player-recap-at").Text; got != msgs.PlayerRecapStoppedAt("1:06") {
 		t.Fatalf("the recap says %q", got)
 	}
 	recaps := d.Recaps()
 	if len(recaps) != 1 || len(recaps[0].Lines) != 3 || recaps[0].Lines[2].Original != "Fine, thanks." || recaps[0].Film != "f1" {
 		t.Fatalf("the computer was asked %+v", recaps)
 	}
-	if got := p.texts("id:player-recap-items"); got != "0:01\nBegan: Good morning.\n0:05\nThen: Fine, thanks." {
+	if got := p.texts("id:player-recap-items"); got != "1:01\nBegan: Good morning.\n1:05\nThen: Fine, thanks." {
 		t.Fatalf("the recap reads %q", got)
 	}
 	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapNote("test-model") {
@@ -406,24 +457,24 @@ func TestAFilmLeftPartwayOpensWithARecapOfWhatWasWatched(t *testing.T) {
 	}
 	p.app.Press("id:player-recap-continue")
 	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
-	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 6*sec || p.app.Find("id:player-video").Video.Paused {
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 66*sec || p.app.Find("id:player-video").Video.Paused {
 		t.Fatalf("continue went to %v", s)
 	}
 }
 
 // A moment of the recap plays the film from its line, with the film's subtitle delay; the recap closed with × leaves the film held.
 func TestARecapMomentPlaysFromItsLine(t *testing.T) {
-	d := newDesktop(t)
-	d.SetRecap(sync.RecapItem{StartMS: 3000, Text: "They greet."})
-	p := openStudyAt(t, d, 6*sec)
+	d := recapDesktop(t)
+	d.SetRecap(sync.RecapItem{StartMS: 63_000, Text: "They greet."})
+	p := openRecapAt(t, d, 66*sec)
 	p.app.WaitFor("id:player-recap-item", wait)
 	p.app.Press("id:player-recap-item")
 	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
-	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 3*sec || p.app.Find("id:player-video").Video.Paused {
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 63*sec || p.app.Find("id:player-video").Video.Paused {
 		t.Fatalf("the moment went to %v", s)
 	}
 
-	p = openStudyAt(t, newDesktop(t), 6*sec)
+	p = openRecapAt(t, recapDesktop(t), 66*sec)
 	p.app.WaitFor("id:player-recap-note", wait)
 	p.app.Press("id:player-recap-close")
 	p.app.WaitUntil(wait, func() bool { return !p.app.Exists("id:player-recap") })
@@ -434,14 +485,14 @@ func TestARecapMomentPlaysFromItsLine(t *testing.T) {
 
 // Without an AI service on the computer the recap shows the lines watched, saying they are not summed up and why; Start Over plays from the start.
 func TestARecapWithoutAnAIServiceShowsTheLinesWatched(t *testing.T) {
-	d := newDesktop(t)
+	d := recapDesktop(t)
 	d.SetNoAI(true)
-	p := openStudyAt(t, d, 6*sec)
+	p := openRecapAt(t, d, 66*sec)
 	p.app.WaitFor("id:player-recap-note", wait)
 	if got := p.app.Find("id:player-recap-note").Text; got != msgs.PlayerRecapExcerptsNoAI("Studio") {
 		t.Fatalf("the footnote reads %q", got)
 	}
-	if got := p.texts("id:player-recap-items"); got != "0:01\n早上好。\n0:03\n你好吗？\n0:05\nFine, thanks." {
+	if got := p.texts("id:player-recap-items"); got != "1:01\n早上好。\n1:03\n你好吗？\n1:05\nFine, thanks." {
 		t.Fatalf("the recap reads %q", got)
 	}
 	p.app.Press("id:player-recap-start-over")
@@ -451,13 +502,23 @@ func TestARecapWithoutAnAIServiceShowsTheLinesWatched(t *testing.T) {
 	}
 }
 
-// A film left before its first line plays at once, without a recap: nothing of it was watched.
+// A film left past its first minute but before its first line plays at once, without a recap: nothing of it was watched.
 func TestAFilmLeftBeforeItsFirstLinePlaysWithoutARecap(t *testing.T) {
-	d := newDesktop(t)
-	p := openStudyAt(t, d, 500*time.Millisecond)
+	d := recapDesktop(t)
+	p := openRecapAt(t, d, time.Minute+500*time.Millisecond)
 	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") && !p.app.Find("id:player-video").Video.Paused })
 	if p.app.Exists("id:player-recap") || len(d.Recaps()) != 0 {
 		t.Fatal("a film nothing of which was watched opened with a recap")
+	}
+}
+
+// A film left within its first minute plays at once, without a recap, though lines of it were watched: too little was watched to sum up, so the computer is not asked.
+func TestAFilmLeftWithinItsFirstMinutePlaysWithoutARecap(t *testing.T) {
+	d := newDesktop(t)
+	p := openStudyAt(t, d, 6*sec)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-line") && !p.app.Find("id:player-video").Video.Paused })
+	if p.app.Exists("id:player-recap") || len(d.Recaps()) != 0 {
+		t.Fatal("a film left at 0:06 opened with a recap")
 	}
 }
 

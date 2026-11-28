@@ -46,14 +46,14 @@ type recapper struct {
 // recapEndMargin is how close to its end a film left there is taken as watched to its end: it opens without a recap, as the player starts it from the beginning again.
 const recapEndMargin = 2 * time.Second
 
-// newRecapper is the recap of the film p plays. A film opened held where it was left (held), as from its page's Play, holds there and waits for its lines: when some of them were watched, it shows the recap of them, and otherwise plays on. A film opened playing, as from Continue Watching or a line found, shows none.
+// newRecapper is the recap of the film p plays. A film opened held where it was left (held), as from its page's Play, holds there and waits for its lines: when some of them were watched, it shows the recap of them, and otherwise plays on. A film left within its first minute (sync.RecapFrom) plays on without one. A film opened playing, as from Continue Watching or a line found, shows none.
 func newRecapper(cx *core.Scope, p *play, held bool) *recapper {
 	f, _ := p.s.Film(p.key)
 	r := &recapper{p: p, card: core.NewSignalFunc(cx, recapCard{}, nil)}
 	// Where the player opens it: where it was left last on any device (newPlay).
 	at := p.at.GetUntracked()
 	length := time.Duration(f.Film.DurationMS) * time.Millisecond
-	if !held || at <= 0 || (length > 0 && at >= length-recapEndMargin) {
+	if !held || at < sync.RecapFrom || (length > 0 && at >= length-recapEndMargin) {
 		return r
 	}
 	p.playing.Set(false)
