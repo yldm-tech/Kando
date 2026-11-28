@@ -178,16 +178,53 @@ func TestScreenshotsSettingsLanguage(t *testing.T) {
 
 func TestScreenshotsOfflineFilms(t *testing.T) {
 	shot := screenshots(t)
-	dir := t.TempDir()
-	f := keepTalk(t, dir)
-	// A phone of 128 GB with about 38 GB free, as the design's.
-	p := startPhone(t, dir, nsgotest.DiskSpace(core.DiskSpace{Total: 128 << 30, Available: 38 << 30, Opportunistic: 38 << 30}, nil))
-	p.app.WaitFor("id:tab-bar", wait)
-	p.openTab(settingsTab, msgs.SettingsTitle())
+	p, f := offlineScene(t, false)
 	p.app.Press("id:settings-offline")
 	p.app.WaitFor("id:offline-film-"+f.Key(), wait)
 	p.app.WaitFor("id:offline-space-free", wait)
 	shot(p, "settings-offline")
+}
+
+// TestScreenshotsOfflineFilmsDark is Offline Films in the dark appearance, which Settings' Appearance steps to from the system's look, then light.
+func TestScreenshotsOfflineFilmsDark(t *testing.T) {
+	shot := screenshots(t)
+	p, f := offlineScene(t, false)
+	p.app.Press("id:settings-appearance")
+	p.app.Press("id:settings-appearance")
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-page").Style.Background == core.RGB(0x000000) })
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-film-"+f.Key(), wait)
+	p.app.WaitFor("id:offline-space-free", wait)
+	shot(p, "settings-offline-dark")
+}
+
+// TestScreenshotsOfflineFilmsEmpty is Offline Films with no film on the phone.
+func TestScreenshotsOfflineFilmsEmpty(t *testing.T) {
+	shot := screenshots(t)
+	p, _ := offlineScene(t, true)
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-empty", wait)
+	p.app.WaitFor("id:offline-space-free", wait)
+	shot(p, "settings-offline-empty")
+}
+
+// offlineScene is a phone of 128 GB with about 38 GB free, as the design's, open on Settings: with the talk and offlineShelf's films on it, the talk returned, unless empty.
+func offlineScene(t *testing.T, empty bool) (*phone, store.Film) {
+	t.Helper()
+	dir := t.TempDir()
+	var f store.Film
+	if empty {
+		if err := store.Open(dir).SavePrefs(store.Prefs{Onboarded: true}); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		f = keepTalk(t, dir)
+		offlineShelf(t, dir)
+	}
+	p := startPhone(t, dir, nsgotest.DiskSpace(core.DiskSpace{Total: 128 << 30, Available: 38 << 30, Opportunistic: 38 << 30}, nil))
+	p.app.WaitFor("id:tab-bar", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	return p, f
 }
 
 func TestScreenshotsLearn(t *testing.T) {

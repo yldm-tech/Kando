@@ -1,11 +1,15 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"kando/apps/mobile/locales"
+	"kando/apps/mobile/look"
 	"kando/apps/mobile/store"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -94,8 +98,9 @@ func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	}
 	p.app.Press("id:settings-offline")
 	p.app.WaitFor("id:offline-film-"+f.Key(), wait)
-	if got := p.texts("id:offline-film-" + f.Key()); !strings.Contains(got, msgs.SettingsOfflineFilmSaved()) {
-		t.Fatalf("the saved film's row reads %q, without %q", got, msgs.SettingsOfflineFilmSaved())
+	// The group says the film is saved; its row says the room it takes.
+	if got, want := p.texts("id:offline-film-"+f.Key()), f.Film.Title+"\n"+look.Size(f.Film.VideoSize); got != want {
+		t.Fatalf("the saved film's row reads %q, want %q", got, want)
 	}
 	if p.app.Exists("id:offline-space-bar") || p.app.Exists("id:offline-space-free") {
 		t.Fatal("the page shows the room on a device that does not say it")
@@ -113,6 +118,165 @@ func TestOfflineFilmsListsAndDeletesTheSavedFilms(t *testing.T) {
 	p.app.Answer(1)
 	p.app.WaitFor("id:offline-empty", wait)
 	p.app.WaitUntil(wait, func() bool { films, _ := store.Open(dir).Films(); return len(films) == 0 })
+}
+
+// Settings › Offline Films lists the downloads not finished, each with how far it got, over the films saved whole, each group largest first by the room it takes, so what takes the space shows at the top of each.
+func TestOfflineFilmsGroupUnfinishedDownloadsAboveSavedOnesLargestFirst(t *testing.T) {
+	dir := t.TempDir()
+	talk := keepTalk(t, dir)
+	saved, partial := offlineShelf(t, dir)
+	kyoto, ocean := saved[0], saved[1]
+	ramen, tokyo := partial[0], partial[1]
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-film-"+talk.Key(), wait)
+
+	// in reports whether the titles show under group in the order given.
+	in := func(group string, films ...store.Film) {
+		t.Helper()
+		got := p.texts("id:" + group)
+		at := -1
+		for _, f := range films {
+			i := strings.Index(got, f.Film.Title)
+			if i < 0 {
+				t.Fatalf("%s reads %q, without %q", group, got, f.Film.Title)
+			}
+			if i < at {
+				t.Fatalf("%s reads %q, with %q out of order", group, got, f.Film.Title)
+			}
+			at = i
+		}
+	}
+	// The paused downloads take 340 MB and 2.7 MB so far, of 1.2 GB and 980 MB; the saved films 1.4 GB, 820 MB and the talk's few hundred KB.
+	in("offline-unfinished", ramen, tokyo)
+	in("offline-saved", kyoto, ocean, talk)
+	for _, f := range []store.Film{ramen, tokyo} {
+		if strings.Contains(p.texts("id:offline-saved"), f.Film.Title) {
+			t.Errorf("the paused download %q is listed with the saved films", f.Film.Title)
+		}
+	}
+	page := p.texts("id:offline-page")
+	if strings.Index(page, ramen.Film.Title) > strings.Index(page, kyoto.Film.Title) {
+		t.Errorf("the saved films come before the unfinished downloads: %q", page)
+	}
+
+	// A paused download says the room its part takes and where it stopped, and shows how far it got on a bar; a saved film says its size alone.
+	if got, want := p.texts("id:offline-film-"+ramen.Key()), ramen.Film.Title+"\n"+look.Size(340<<20)+" · "+msgs.FilmPaused(28); got != want {
+		t.Errorf("the paused download's row reads %q, want %q", got, want)
+	}
+	if !p.app.Exists("id:offline-progress-" + ramen.Key()) {
+		t.Error("the paused download shows no bar of how far it got")
+	}
+	if got, want := p.texts("id:offline-film-"+kyoto.Key()), kyoto.Film.Title+"\n"+look.Size(1400<<20); got != want {
+		t.Errorf("the saved film's row reads %q, want %q", got, want)
+	}
+	if p.app.Exists("id:offline-progress-" + kyoto.Key()) {
+		t.Error("a saved film shows a download bar")
+	}
+	// Titles take two lines, as most films' are long.
+	var title *nsgotest.View
+	var find func(v *nsgotest.View)
+	find = func(v *nsgotest.View) {
+		if v.Kind == nsgotest.KindText && v.Text == kyoto.Film.Title {
+			title = v
+		}
+		for _, c := range v.Children {
+			find(c)
+		}
+	}
+	find(p.app.Find("id:offline-film-" + kyoto.Key()))
+	if title == nil || title.MaxLines != 2 {
+		t.Errorf("the title is %+v, want it on two lines at most", title)
+	}
+	// The film without a poster shows a film's mark in its place; one with a poster does not.
+	if !p.app.Exists("id:offline-poster-" + ocean.Key() + "-mark") {
+		t.Error("the film without a poster shows an empty tile")
+	}
+	if p.app.Exists("id:offline-poster-" + kyoto.Key() + "-mark") {
+		t.Error("the film with a poster shows the placeholder mark")
+	}
+}
+
+// Deleting a paused download from Settings › Offline Films asks first, then removes it and its part from the device; with the last unfinished download gone, its group leaves the page and the saved films stay.
+func TestOfflineFilmsDeleteAPausedDownload(t *testing.T) {
+	dir := t.TempDir()
+	talk := keepTalk(t, dir)
+	_, partial := offlineShelf(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-unfinished", wait)
+	for _, f := range partial {
+		del := p.app.Find("id:offline-delete-" + f.Key())
+		if got, want := del.Props.Label, msgs.SettingsOfflineDelete(f.Film.Title); got != want {
+			t.Fatalf("Delete is read as %q, want %q", got, want)
+		}
+		// Delete is a quiet icon, not a button in danger's color: its glyph is the muted text's.
+		if p.texts("id:offline-delete-"+f.Key()) != "" {
+			t.Fatalf("Delete shows text %q, want an icon alone", p.texts("id:offline-delete-"+f.Key()))
+		}
+		p.app.Press("id:offline-delete-" + f.Key())
+		p.app.Answer(0)
+		if !p.app.Exists("id:offline-film-" + f.Key()) {
+			t.Fatal("cancelling deleted the download")
+		}
+		p.app.Press("id:offline-delete-" + f.Key())
+		p.app.Answer(1)
+		p.app.WaitForGone("id:offline-film-"+f.Key(), wait)
+		folder := store.Open(dir).FilmDir(f.Desktop, f.Film.ID)
+		p.app.WaitUntil(wait, func() bool { _, err := os.Stat(filepath.Join(folder, store.PartFile)); return os.IsNotExist(err) })
+	}
+	p.app.WaitForGone("id:offline-unfinished", wait)
+	if !p.app.Exists("id:offline-film-" + talk.Key()) {
+		t.Error("deleting the downloads took the saved film too")
+	}
+}
+
+// Settings › Offline Films lists, and Settings counts, only the films with video on the phone: a film kept to stream and one kept by its lines alone hold none, so they are on neither; a download started and paused before any of its video came is.
+func TestOfflineFilmsLeaveOutFilmsWithoutVideo(t *testing.T) {
+	dir := t.TempDir()
+	talk := keepTalk(t, dir)
+	st := store.Open(dir)
+	record := func(id, title string) store.Film {
+		return store.Film{Desktop: "gonedesk", Library: "Japanese Class", Added: now(),
+			Film: sync.Film{ID: id, Title: title, DurationMS: 20 * 60_000, VideoSize: 700 << 20}}
+	}
+	streamed := record("streamed", "Your Name.")
+	streamed.Streamed = true
+	lines := record("lines", "Thunderbolt Fantasy")
+	lines.LinesOnly = true
+	for _, f := range []store.Film{streamed, lines} {
+		if err := st.SaveFilm(f); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.SaveCues(f.Desktop, f.Film.ID, talkCues); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A download asked for and paused before its first byte leaves an empty part.
+	begun := keepOffline(t, dir, record("begun", "Kiki's Delivery Service"), 0, "")
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	if got, want := p.texts("id:settings-offline"), msgs.SettingsOffline()+"\n"+msgs.SettingsOfflineCount(2); got != want {
+		t.Fatalf("the Offline Films row reads %q, want %q", got, want)
+	}
+	p.app.Press("id:settings-offline")
+	p.app.WaitFor("id:offline-film-"+talk.Key(), wait)
+	if !p.app.Exists("id:offline-film-" + begun.Key()) {
+		t.Error("the download paused before its first byte is not listed")
+	}
+	if got := p.texts("id:offline-unfinished"); !strings.Contains(got, begun.Film.Title) {
+		t.Errorf("the unfinished downloads read %q, without %q", got, begun.Film.Title)
+	}
+	for _, f := range []store.Film{streamed, lines} {
+		if p.app.Exists("id:offline-film-" + f.Key()) {
+			t.Errorf("%q, which keeps no video on the phone, is listed", f.Film.Title)
+		}
+	}
 }
 
 // Settings › Offline Films shows the films' share of the device on a bar, beside what the rest of the device holds, and about how much of it is free, as the system says.
@@ -161,4 +325,59 @@ func TestTheSubtitleSizeControlSaysTheSizesInFull(t *testing.T) {
 	if got, want := p.texts("id:style-size-small"), msgs.StyleSizeShortSmall(); got != want {
 		t.Fatalf("the small size shows %q, want %q", got, want)
 	}
+}
+
+// keepOffline puts f on the phone as Offline Films lists it: its video, size bytes long, whole when f names its Video, else the part a paused download left; and its poster, a file of testdata/store, when poster is not "". The video is a sparse file, so a film of gigabytes takes no room.
+func keepOffline(t *testing.T, dir string, f store.Film, size int64, poster string) store.Film {
+	t.Helper()
+	st := store.Open(dir)
+	if f.Added.IsZero() {
+		f.Added = now()
+	}
+	folder := st.FilmDir(f.Desktop, f.Film.ID)
+	if err := os.MkdirAll(folder, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if poster != "" {
+		f.Poster = "poster.jpg"
+		if err := os.WriteFile(filepath.Join(folder, f.Poster), storeAsset(t, poster), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SaveCues(f.Desktop, f.Film.ID, talkCues); err != nil {
+		t.Fatal(err)
+	}
+	name := store.PartFile
+	if f.Video != "" {
+		name = f.Video
+	}
+	video, err := os.Create(filepath.Join(folder, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := video.Truncate(size); err != nil {
+		t.Fatal(err)
+	}
+	if err := video.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+
+// offlineShelf is what the Offline Films tests and scene keep on the phone beside the talk: two films saved whole, one of them without a poster, and two downloads paused partway, one barely begun, all with the long titles films have.
+func offlineShelf(t *testing.T, dir string) (saved, partial []store.Film) {
+	t.Helper()
+	film := func(id, title string, size int64) store.Film {
+		return store.Film{Desktop: "gonedesk", Library: "Japanese Class",
+			Film: sync.Film{ID: id, Title: title, DurationMS: 20 * 60_000, Spoken: "ja", Translation: "简体中文", VideoSize: size}}
+	}
+	whole := func(f store.Film) store.Film { f.Video = "video.mp4"; return f }
+	kyoto := keepOffline(t, dir, whole(film("kyoto", "A Walk Through Old Kyoto: Temples, Gardens and the Quiet Streets Between Them", 1400<<20)), 1400<<20, "poster-kyoto.jpg")
+	ocean := keepOffline(t, dir, whole(film("ocean", "Life in the Deep Ocean, Episode 3: Creatures of the Midnight Zone", 820<<20)), 820<<20, "")
+	ramen := keepOffline(t, dir, film("ramen", "Ramen from Scratch: A Master Chef's Twelve-Hour Tonkotsu Broth", 1200<<20), 340<<20, "poster-ramen.jpg")
+	tokyo := keepOffline(t, dir, film("tokyo", "Tokyo After Dark: Night Markets, Izakayas and the Last Train Home", 980<<20), 27<<17, "poster-city.jpg")
+	return []store.Film{kyoto, ocean}, []store.Film{ramen, tokyo}
 }

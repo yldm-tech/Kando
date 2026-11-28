@@ -1442,8 +1442,8 @@ const (
 	textSettingsNoComputer
 	textSettingsOffline
 	textSettingsOfflineEmpty
-	textSettingsOfflineFilmSaved
 	textSettingsOfflineSaved
+	textSettingsOfflineUnfinished
 	textSettingsOfflineUse
 	textSettingsPair
 	textSettingsPairAnother
@@ -2095,8 +2095,8 @@ var keyOfText = [numTexts]string{
 	"settingsNoComputer",
 	"settingsOffline",
 	"settingsOfflineEmpty",
-	"settingsOfflineFilmSaved",
 	"settingsOfflineSaved",
+	"settingsOfflineUnfinished",
 	"settingsOfflineUse",
 	"settingsPair",
 	"settingsPairAnother",
@@ -2745,9 +2745,9 @@ var textsEn = i18n.NewTexts(""+
 	"Automatic"+
 	"Not connected"+
 	"Offline Films"+
-	"No films saved on this device yet."+
-	"Saved"+
+	"No films saved yet"+
 	"Saved on This Device"+
+	"Unfinished Downloads"+
 	"Offline Films Use"+
 	"Connect a Computer"+
 	"Connect Another Computer"+
@@ -3393,8 +3393,8 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		13,
 		13,
-		34,
-		5,
+		18,
+		20,
 		20,
 		17,
 		18,
@@ -4045,8 +4045,8 @@ var textsJa = i18n.NewTexts(""+
 	"未接続"+
 	"オフラインの動画"+
 	"この端末に保存した動画はまだありません。"+
-	"保存済み"+
 	"この端末に保存済み"+
+	"未完了のダウンロード"+
 	"オフラインの動画の使用量"+
 	"コンピュータに接続"+
 	"別のコンピュータに接続"+
@@ -4693,8 +4693,8 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		24,
 		60,
-		12,
 		27,
+		30,
 		36,
 		27,
 		33,
@@ -5344,8 +5344,8 @@ var textsKo = i18n.NewTexts(""+
 	"연결 안 됨"+
 	"오프라인 영화"+
 	"이 기기에 저장한 영화가 아직 없습니다."+
-	"저장됨"+
 	"이 기기에 저장됨"+
+	"완료되지 않은 다운로드"+
 	"오프라인 영화 사용량"+
 	"컴퓨터 연결"+
 	"다른 컴퓨터 연결"+
@@ -5992,8 +5992,8 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		19,
 		54,
-		9,
 		23,
+		32,
 		29,
 		16,
 		23,
@@ -6643,8 +6643,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"未连接电脑"+
 	"离线影片"+
 	"还没有存到本机的影片。"+
-	"已存好"+
 	"已存到本机"+
+	"未完成的下载"+
 	"离线影片占用"+
 	"连接电脑"+
 	"连接另一台电脑"+
@@ -7291,8 +7291,8 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		12,
 		33,
-		9,
 		15,
+		18,
 		18,
 		12,
 		21,
@@ -7942,8 +7942,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"未連接電腦"+
 	"離線影片"+
 	"還沒有存到本機的影片。"+
-	"已存好"+
 	"已存到本機"+
+	"未完成的下載"+
 	"離線影片佔用"+
 	"連接電腦"+
 	"連接另一台電腦"+
@@ -8590,8 +8590,8 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		12,
 		33,
-		9,
 		15,
+		18,
 		18,
 		12,
 		21,
@@ -21117,7 +21117,7 @@ func (msgs Messages) SettingsOfflineDelete(title string) string {
 	}
 }
 
-// SettingsOfflineEmpty says "No films saved on this device yet."
+// SettingsOfflineEmpty says "No films saved yet"
 // in the language the app shows under cx.
 //
 // The Offline Films page when no film is saved on this device.
@@ -21158,17 +21158,6 @@ func (msgs Messages) SettingsOfflineFree(size string) string {
 	}
 }
 
-// SettingsOfflineFilmSaved says "Saved"
-// in the language the app shows under cx.
-//
-// On a row of Settings › Offline Films, after the film's size: the film is kept whole on the device.
-func SettingsOfflineFilmSaved(cx *core.Scope) string { return For(cx).SettingsOfflineFilmSaved() }
-
-// SettingsOfflineFilmSaved is the package's SettingsOfflineFilmSaved in the language of msgs.
-func (msgs Messages) SettingsOfflineFilmSaved() string {
-	return msgs.text(textSettingsOfflineFilmSaved)
-}
-
 // SettingsOfflineSaved says "Saved on This Device"
 // in the language the app shows under cx.
 //
@@ -21177,6 +21166,17 @@ func SettingsOfflineSaved(cx *core.Scope) string { return For(cx).SettingsOfflin
 
 // SettingsOfflineSaved is the package's SettingsOfflineSaved in the language of msgs.
 func (msgs Messages) SettingsOfflineSaved() string { return msgs.text(textSettingsOfflineSaved) }
+
+// SettingsOfflineUnfinished says "Unfinished Downloads"
+// in the language the app shows under cx.
+//
+// Heading on the Offline Films page over the films whose download is under way, paused or stopped, above the films saved on this device.
+func SettingsOfflineUnfinished(cx *core.Scope) string { return For(cx).SettingsOfflineUnfinished() }
+
+// SettingsOfflineUnfinished is the package's SettingsOfflineUnfinished in the language of msgs.
+func (msgs Messages) SettingsOfflineUnfinished() string {
+	return msgs.text(textSettingsOfflineUnfinished)
+}
 
 // SettingsOfflineUse says "Offline Films Use"
 // in the language the app shows under cx.

@@ -161,12 +161,18 @@ func (s *Session) shareKeptPositions() {
 	}
 }
 
-// Offline are the films the phone keeps, as Offline Films lists them, each once: a computer's film kept beside a film of a source matched to it is listed as that film, whose row stands for both copies (Copy, DeleteCopies). Read it in a binding.
+// Offline are the films whose video the phone keeps, as Offline Films lists and Settings counts them, each once: those whose copy (Copy) has its video whole, and those whose download was started and is under way, paused or stopped (Transfer), a part of it on the phone or not yet. A film kept only to stream or by its lines alone holds no video, so it is not one. A computer's film kept beside a film of a source matched to it is listed as that film, whose row stands for both copies (Copy, DeleteCopies). Read it in a binding.
 func (s *Session) Offline() []store.Film {
 	var out []store.Film
 	for _, f := range s.films.Get() {
 		if n, ok := s.matched(f.Key()); ok && n.Key() != f.Key() {
 			continue
+		}
+		key := s.Copy(f.Key())
+		if _, moving := s.Transfer(key); !moving {
+			if c, ok := s.Film(key); !ok || !c.HasVideo() {
+				continue
+			}
 		}
 		out = append(out, f)
 	}
