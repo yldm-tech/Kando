@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"slices"
 	gosync "sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -94,7 +95,10 @@ type Desktop struct {
 	// pairHeld holds the pairing answers (HoldPairing).
 	pairHeld chan struct{}
 	// off hangs up on every connection, as a computer asleep or with Phone Sync off (SetOff).
-	off     bool
+	off bool
+	// silent keeps every connection open but carries nothing on it (SetSilent); conns are the connections accepted, which silenced stay so.
+	silent  bool
+	conns   []*silentConn
 	ranges  []string
 	modTime time.Time
 }
@@ -148,6 +152,8 @@ func start(t testing.TB, name string, cert *tls.Certificate) *Desktop {
 	}
 	d.srv.StartTLS()
 	t.Cleanup(d.srv.Close)
+	// A silenced connection carries no hang-up either, so it is closed here for the server to close.
+	t.Cleanup(d.hangUp)
 	u, err := url.Parse(d.srv.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -310,7 +316,28 @@ func (d *Desktop) SetOff(off bool) {
 	}
 }
 
-// offListener hangs up on the connections it accepts while its desktop is off, before the TLS handshake, so a phone's request fails as one to a computer that is not there does.
+// SetSilent has the desktop stop answering without hanging up while silent, as a computer gone off the network does, or one quit and started again while the phone slept: the connections the phone has open to it stay open but carry nothing either way, and so do those it opens meanwhile. Once it answers again, the connections opened from then on work; those silenced stay silent, half-open, as the phone's connections to a computer that restarted are.
+func (d *Desktop) SetSilent(silent bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.silent = silent
+	if silent {
+		for _, c := range d.conns {
+			c.dead.Store(true)
+		}
+	}
+}
+
+// hangUp closes every connection the desktop accepted.
+func (d *Desktop) hangUp() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, c := range d.conns {
+		c.Conn.Close()
+	}
+}
+
+// offListener hangs up on the connections it accepts while its desktop is off, before the TLS handshake, so a phone's request fails as one to a computer that is not there does; while its desktop is silent (SetSilent), the connections it accepts carry nothing.
 type offListener struct {
 	net.Listener
 	d *Desktop
@@ -324,12 +351,46 @@ func (l offListener) Accept() (net.Conn, error) {
 		}
 		l.d.mu.Lock()
 		off := l.d.off
+		var sc *silentConn
+		if !off {
+			sc = &silentConn{Conn: c}
+			sc.dead.Store(l.d.silent)
+			l.d.conns = slices.DeleteFunc(l.d.conns, func(c *silentConn) bool { return c.closed.Load() })
+			l.d.conns = append(l.d.conns, sc)
+		}
 		l.d.mu.Unlock()
 		if !off {
-			return c, nil
+			return sc, nil
 		}
 		c.Close()
 	}
+}
+
+// silentConn is a connection that, once dead, drops what it reads and what it is given to write, as a connection to a computer gone is to the phone.
+type silentConn struct {
+	net.Conn
+	dead, closed atomic.Bool
+}
+
+func (c *silentConn) Read(p []byte) (int, error) {
+	for {
+		n, err := c.Conn.Read(p)
+		if err != nil || !c.dead.Load() {
+			return n, err
+		}
+	}
+}
+
+func (c *silentConn) Write(p []byte) (int, error) {
+	if c.dead.Load() {
+		return len(p), nil
+	}
+	return c.Conn.Write(p)
+}
+
+func (c *silentConn) Close() error {
+	c.closed.Store(true)
+	return c.Conn.Close()
 }
 
 // Close stops the desktop, as one turned off or with Phone Sync off: nothing listens at Addr after it.
