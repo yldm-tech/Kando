@@ -304,6 +304,20 @@ func TestDownloadReportsAFailureTheSignInDoesNotChange(t *testing.T) {
 	}
 }
 
+// A link whose page or file is gone, an HTTP 404 as yt-dlp's generic extractor reports a dead file link, fails without the sign-in too; the error is then the link's, not the browser's sign-in, which would not bring it back.
+func TestDownloadReportsALinkThatIsGone(t *testing.T) {
+	gone := "ERROR: [generic] BigBuckBunny_320x180: Unable to download webpage: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>)\n"
+	tool, runs := signedOutYTDLP(t, "errors/cookies-chrome-missing.stderr", fakeTool{Stderr: gone, Exit: 1})
+	tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), DownloadTemp: t.TempDir(), Cookies: "chrome"}
+	_, err := tools.Download(context.Background(), "https://example.com/BigBuckBunny_320x180.mp4")
+	if err == nil || !strings.Contains(err.Error(), "HTTP Error 404") || strings.Contains(err.Error(), "cookies") || ClassifyDownload(err.Error()) == core.FailCookies {
+		t.Fatalf("err = %v, want the link's 404, not the browser's sign-in", err)
+	}
+	if n := countRuns(t, runs); n != 2 {
+		t.Fatalf("yt-dlp ran %d times", n)
+	}
+}
+
 // Only a sign-in yt-dlp could not read is tried again without it: a failure of the video, or a Keychain that kept the key, which yt-dlp goes on without, runs yt-dlp once.
 func TestDownloadDoesNotRetryOtherFailures(t *testing.T) {
 	for _, stderr := range []string{"errors/private-youtube.stderr", "errors/network-dns.stderr", "login/chrome-keychain-denied.stderr"} {

@@ -69,7 +69,10 @@ var loginUnread = []LoginTrouble{LoginNoAccess, LoginNotFound, LoginInUse, Login
 // signedOutFails are why a run without the browser's sign-in can fail that the sign-in would not have changed: the network, a link yt-dlp cannot read, DRM, a region the site keeps the video from. Every other failure, as a private, members-only or age-restricted video, a login YouTube asks for to prove the viewer is not a bot, or one yt-dlp does not recognize, may be the sign-in's.
 var signedOutFails = []core.FailKind{core.FailNetwork, core.FailHost, core.FailUnsupported, core.FailBadLink, core.FailDRM, core.FailRegion}
 
-// withoutUnreadLogin runs yt-dlp with args through run, and when they borrow a browser's sign-in (--cookies-from-browser) that yt-dlp could not read and stopped at (loginUnread), once more with the same args without it, so a video that needs no sign-in, as most do, is still downloaded or read signed out. When that second run fails too, the first run's error is returned, which tells the user to mend the browser's sign-in, as a video that needs it fails for that most likely; only a failure the sign-in would not have changed (signedOutFails) returns the second run's error, which is then the more telling one: a sign-in that is read again would fail as well. A run that ctx ended is not run again, and its error is returned.
+// goneSigns are how yt-dlp says the page or file of a link is not there, an HTTP 404 or 410, which ClassifyDownload counts with the private videos (core.FailPrivate) but a sign-in does not bring back: a run without the sign-in that fails so returns its own error, so a dead link is not reported as the browser's sign-in.
+var goneSigns = []string{"HTTP Error 404", "HTTP Error 410"}
+
+// withoutUnreadLogin runs yt-dlp with args through run, and when they borrow a browser's sign-in (--cookies-from-browser) that yt-dlp could not read and stopped at (loginUnread), once more with the same args without it, so a video that needs no sign-in, as most do, is still downloaded or read signed out. When that second run fails too, the first run's error is returned, which tells the user to mend the browser's sign-in, as a video that needs it fails for that most likely; only a failure the sign-in would not have changed (signedOutFails, or a link that is gone, goneSigns) returns the second run's error, which is then the more telling one: a sign-in that is read again would fail as well. A run that ctx ended is not run again, and its error is returned.
 func withoutUnreadLogin(ctx context.Context, args []string, run func(args []string) error) error {
 	err := run(args)
 	if err == nil || ctx.Err() != nil {
@@ -88,7 +91,7 @@ func withoutUnreadLogin(ctx context.Context, args []string, run func(args []stri
 	if retryErr == nil {
 		return nil
 	}
-	if ctx.Err() != nil || slices.Contains(signedOutFails, ClassifyDownload(retryErr.Error())) {
+	if ctx.Err() != nil || slices.Contains(signedOutFails, ClassifyDownload(retryErr.Error())) || slices.ContainsFunc(goneSigns, func(sign string) bool { return strings.Contains(retryErr.Error(), sign) }) {
 		return retryErr
 	}
 	return err
