@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
+	"kando/apps/mobile/store"
 	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -57,6 +58,7 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 			v.act.Play(key)
 		}, func(error) {})
 	}
+	_, listed := s.Listed(e.Key())
 	var opts []option
 	switch {
 	case kept && k.Done():
@@ -68,11 +70,15 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		if k.HasVideo() && catalog.Resumable(e.Position, time.Duration(e.Film.DurationMS)*time.Millisecond) {
 			opts = append(opts, option{label: locales.FilmsPlayFromStart(cx), do: func() { v.playAt(key, 0) }})
 		}
-		// A film kept by its lines whose computer has its video now downloads that video.
+		// A film kept by its lines whose computer has its video now downloads that video; while it does, Delete cancels that download alone (session.Delete).
+		if !k.HasVideo() && moving && t.State == session.Running {
+			opts = append(opts, option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
+			break
+		}
 		if !k.HasVideo() && !e.Film.SubtitlesOnly && s.Client(e.Desktop) != nil {
 			opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 		}
-		opts = append(opts, option{label: locales.FilmDelete(cx), value: about(cx, e.Film.VideoSize), do: func() { v.confirmDelete(cx, e) }})
+		opts = append(opts, v.removal(cx, e, k, listed)...)
 	case moving && t.State == session.Running:
 		opts = append(opts,
 			option{label: locales.FilmPause(cx), do: func() { s.Pause(key) }},
@@ -83,9 +89,8 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		if catalog.Resumable(e.Position, time.Duration(e.Film.DurationMS)*time.Millisecond) {
 			opts = append(opts, option{label: locales.FilmsPlayFromStart(cx), do: func() { v.playAt(key, 0) }})
 		}
-		opts = append(opts,
-			option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.DownloadCopy(e.Key()) }},
-			option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
+		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.DownloadCopy(e.Key()) }})
+		opts = append(opts, v.removal(cx, e, k, listed)...)
 	case kept && k.Streamed && !moving:
 		// Kept to stream from its computer or storage: plays while its video can stream, and downloads offline on demand.
 		if s.StreamLink(key) != "" {
@@ -97,7 +102,7 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		if !e.Film.Making && s.Client(e.Desktop) != nil && !s.FilmGone(key) {
 			opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 		}
-		opts = append(opts, option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
+		opts = append(opts, v.removal(cx, e, k, listed)...)
 	case kept:
 		// A download that stopped as its computer no longer serves the film has nothing to go on with.
 		if !moving || t.State != session.Failed || t.Problem != session.Gone {
@@ -117,7 +122,6 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 		}
 		opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 	}
-	_, listed := s.Listed(e.Key())
 	if listed && e.Film.SubtitlesOnly && q.Can(sync.OpFilmVideo) && !s.VideoComing(e.Desktop, e.Film.ID) {
 		opts = append(opts, option{label: locales.FilmVideoOnComputer(cx, computer), do: func() { s.DownloadVideoOnComputer(e.Desktop, e.Film) }})
 	}
@@ -176,6 +180,24 @@ func (v *view) optionsNode(cx *core.Scope) core.Node {
 					}}
 			}),
 		}}}}
+}
+
+// removal is the option that takes away what the phone keeps of e's film, k being the copy that stands for it (session.Copy), named for what that takes (session.DeleteCopies): its offline files where its video, or part of it, is on the phone, the whole video's size at the row's end; the lines saved of a film kept by them alone; and of a film kept only as it was streamed, its lines and record, nothing while a computer lists it, as the film stays in the Library and the next play keeps them again, but the film itself where nothing else lists it, which takes it off the Library. None, nil.
+func (v *view) removal(cx *core.Scope, e catalog.Entry, k store.Film, listed bool) []option {
+	confirm := func() { v.confirmDelete(cx, e) }
+	// The computer's film of a film of a source matched to it is kept by its lines alone where the lines were saved from it.
+	c, saved := v.s.Film(e.Key())
+	switch {
+	case k.HasVideo():
+		return []option{{label: locales.FilmDelete(cx), value: about(cx, e.Film.VideoSize), do: confirm}}
+	case !k.Done() && !k.Streamed:
+		return []option{{label: locales.FilmDelete(cx), do: confirm}}
+	case k.LinesOnly || saved && c.LinesOnly:
+		return []option{{label: locales.FilmDeleteLines(cx), do: confirm}}
+	case !listed:
+		return []option{{label: locales.FilmRemove(cx), do: confirm}}
+	}
+	return nil
 }
 
 // about is a size as an option's value says it, "" for none.

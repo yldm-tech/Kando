@@ -209,7 +209,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			return locales.FilmStorageFailed(cx)
 		}, LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Danger)}
 	}}
-	// offline is what the phone keeps of the film, a group under its own header: where its download stands, with its bar while it moves, over the row that cancels it, or once it is whole the row that deletes it from the phone with the room that frees.
+	// offline is what the phone keeps of the film, a group under its own header: where its download stands, with its bar while it moves, over the row that cancels it, or once it is whole the row that deletes it from the phone with the room that frees, the saved lines of a film kept by them alone.
 	const (
 		noRow = iota
 		cancelRow
@@ -242,7 +242,14 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			if last.Get() == cancelRow {
 				return look.Row{TestID: "film-cancel", Index: second, TitleTone: look.ToneDanger, Title: text(locales.FilmCancel), OnPress: cancel}
 			}
-			return look.Row{TestID: "film-delete", Index: second, TitleTone: look.ToneDanger, Title: text(locales.FilmDelete), OnPress: confirmDelete,
+			// A film kept by its lines alone has no offline files: what deleting takes is the lines saved.
+			return look.Row{TestID: "film-delete", Index: second, TitleTone: look.ToneDanger, OnPress: confirmDelete,
+				Title: func() string {
+					if k, ok := kept(); ok && !k.HasVideo() {
+						return locales.FilmDeleteLines(cx)
+					}
+					return locales.FilmDelete(cx)
+				},
 				Value: func() string {
 					if k, ok := kept(); ok && k.HasVideo() && k.Film.VideoSize > 0 {
 						return look.Size(k.Film.VideoSize)

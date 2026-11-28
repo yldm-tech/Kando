@@ -82,7 +82,7 @@ func TestAComputerFilmStreamsOverTheLocalNetwork(t *testing.T) {
 	}
 }
 
-// A computer film can also start streaming straight from its row's options sheet; once streamed, its options offer Play and Save for offline (not Resume/Cancel), and pressing the row opens the player directly.
+// A computer film can also start streaming straight from its row's options sheet; once streamed, its options offer Play and Save for offline (not Resume/Cancel, nor deleting offline files), and pressing the row opens the player directly.
 func TestAFilmStreamsFromOptionsAndReopensFromTheList(t *testing.T) {
 	d := newDesktop(t)
 	d.SetNoFilmOps(true)
@@ -101,9 +101,9 @@ func TestAFilmStreamsFromOptionsAndReopensFromTheList(t *testing.T) {
 	}
 	p.app.Press("id:player-minimize")
 
-	// Options for a streamed film offer Play, Save for offline, and Remove — never Resume/Cancel.
+	// Options for a streamed film offer Play and Save for offline, never Resume/Cancel, nor deleting offline files the phone does not have: what streaming kept is its lines, which its computer still lists the film with.
 	p.app.Press(options)
-	if got, want := p.optionLabels(), []string{msgs.FilmPlay(), msgs.FilmsSaveOffline(), msgs.FilmDelete()}; !slices.Equal(got, want) {
+	if got, want := p.optionLabels(), []string{msgs.FilmPlay(), msgs.FilmsSaveOffline()}; !slices.Equal(got, want) {
 		t.Fatalf("options after streaming are %q, want %q", got, want)
 	}
 	p.app.Key("Escape")

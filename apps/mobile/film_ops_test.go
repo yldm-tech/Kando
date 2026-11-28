@@ -201,6 +201,54 @@ func TestCancellingTheVideoOfAFilmKeptByItsLinesKeepsThem(t *testing.T) {
 	p.app.WaitFor("id:player-lines-pane >> text:How are you?", wait)
 }
 
+// A film kept by its lines has no offline files to delete: its options and its page offer to delete the saved lines, with no size, also once its computer has the video, which its options offer to save for offline with its size; deleting them takes the film's folder off the phone.
+func TestAFilmKeptByItsLinesDeletesItsLines(t *testing.T) {
+	d := newDesktop(t)
+	d.SetNoFilmOps(true)
+	d.AddFilm(linesFilm())
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	row, options := filmRow(id, "f3"), "id:films-options-"+id+"-f3"
+	p.app.WaitFor(options, wait)
+	p.app.Press(options)
+	p.choose(msgs.FilmSaveLines())
+	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmSubtitlesOnly()+" · "+msgs.FilmLinesSaved(), wait)
+	p.app.Press(options)
+	if got, want := p.optionLabels(), []string{msgs.FilmStudyLines(), msgs.FilmDeleteLines()}; !slices.Equal(got, want) {
+		t.Fatalf("the options of a film kept by its lines are %q, want %q", got, want)
+	}
+	p.app.Key("Escape")
+	p.app.WaitForGone("id:films-options-sheet", wait)
+
+	// The computer has the video now, which the Library reads again.
+	d.ReplaceVideo("f3", talkVideo)
+	p.app.PullToRefresh("id:films-scroll")
+	p.app.WaitFor(row+" >> text:YouTube · 0:10 · "+msgs.FilmLinesSaved(), wait)
+	p.app.Press(options)
+	if got, want := p.optionLabels(), []string{msgs.FilmStudyLines(), msgs.FilmsSaveOffline(), msgs.FilmDeleteLines()}; !slices.Equal(got, want) {
+		t.Fatalf("the options of a film kept by its lines whose computer has its video are %q, want %q", got, want)
+	}
+	if got, want := p.texts("id:films-option-1"), msgs.FilmsSaveOffline()+"\n"+msgs.FilmsAboutSize("977 KB"); got != want {
+		t.Fatalf("the download option reads %q, want %q", got, want)
+	}
+	if got := p.texts("id:films-option-2"); got != msgs.FilmDeleteLines() {
+		t.Fatalf("the delete option reads %q, with no size", got)
+	}
+	p.app.Key("Escape")
+	p.app.WaitForGone("id:films-options-sheet", wait)
+
+	p.app.Press(row)
+	p.app.WaitFor("id:film-delete", wait)
+	if got := p.texts("id:film-delete"); got != msgs.FilmDeleteLines() {
+		t.Fatalf("the page's delete row reads %q", got)
+	}
+	p.app.Press("id:film-delete")
+	p.app.WaitUntil(wait, func() bool { return len(p.app.Alerts()) == 1 })
+	p.app.Answer(1)
+	p.waitFile(filepath.Join("films", id, "f3"), -1)
+}
+
 // A tablet's sidebar lists the computers' subscriptions under the sections, with the count of new videos waiting on each; pressed, one opens its sheet over whichever section shows, and the Add button opens the Add sheet.
 func TestATabletsSidebarListsTheSubscriptions(t *testing.T) {
 	d := newDesktop(t)

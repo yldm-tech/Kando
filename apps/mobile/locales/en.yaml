@@ -326,6 +326,12 @@ filmCancel:
 filmDelete:
   message: "Delete offline files from this device"
   description: "Label of the row in the Offline group of a downloaded film's page, and of the row in the Library's film options sheet: deletes the film's files from the phone after asking, keeping it in the computer's library; the page's row shows the space it frees at its end."
+filmDeleteLines:
+  message: "Delete saved lines from this device"
+  description: "Row in the Offline group of the page of a film kept on the phone by its lines alone, without its video, and option of the Library's film options sheet for it: deletes the lines saved on the phone after asking, keeping the film in the computer's library."
+filmRemove:
+  message: "Remove from this device"
+  description: "Option of the Library's film options sheet for a film the phone keeps no video or lines of its own for, only because it was streamed, and that no computer lists any more: takes it off the phone, and so off the Library, after asking."
 filmDeleteConfirm:
   message: "Delete"
   description: "The alert's button that confirms deleting a downloaded film."

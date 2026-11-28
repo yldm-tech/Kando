@@ -1050,6 +1050,8 @@ const (
 	textExportWithTranslation
 	textFilmCancel
 	textFilmDelete
+	textFilmDeleteLines
+	textFilmRemove
 	textFilmDeleteConfirm
 	textFilmDownload
 	textFilmDownloaded
@@ -1705,6 +1707,8 @@ var keyOfText = [numTexts]string{
 	"exportWithTranslation",
 	"filmCancel",
 	"filmDelete",
+	"filmDeleteLines",
+	"filmRemove",
 	"filmDeleteConfirm",
 	"filmDownload",
 	"filmDownloaded",
@@ -2358,6 +2362,8 @@ var textsEn = i18n.NewTexts(""+
 	"Include translation"+
 	"Cancel Download"+
 	"Delete offline files from this device"+
+	"Delete saved lines from this device"+
+	"Remove from this device"+
 	"Delete"+
 	"Save for offline"+
 	"Saved on this device"+
@@ -3008,6 +3014,8 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		15,
 		37,
+		35,
+		23,
 		6,
 		16,
 		20,
@@ -3661,6 +3669,8 @@ var textsJa = i18n.NewTexts(""+
 	"例文の訳を含める"+
 	"ダウンロードをキャンセル"+
 	"この端末からオフラインファイルを削除"+
+	"この端末から保存したセリフを削除"+
+	"この端末から取り除く"+
 	"削除"+
 	"オフライン用に保存"+
 	"この端末に保存済み"+
@@ -4311,6 +4321,8 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		36,
 		54,
+		48,
+		30,
 		6,
 		27,
 		27,
@@ -4964,6 +4976,8 @@ var textsKo = i18n.NewTexts(""+
 	"예문 번역 포함"+
 	"다운로드 취소"+
 	"이 기기에서 오프라인 파일 삭제"+
+	"이 기기에서 저장한 대사 삭제"+
+	"이 기기에서 제거"+
 	"삭제"+
 	"오프라인용으로 저장"+
 	"이 기기에 저장됨"+
@@ -5614,6 +5628,8 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		19,
 		43,
+		40,
+		23,
 		6,
 		28,
 		23,
@@ -6267,6 +6283,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"带上原句的译文"+
 	"取消下载"+
 	"从本机删除离线文件"+
+	"从本机删除保存的台词"+
+	"从本机移除"+
 	"删除"+
 	"存到本机离线看"+
 	"已存到本机"+
@@ -6917,6 +6935,8 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		12,
 		27,
+		30,
+		15,
 		6,
 		21,
 		15,
@@ -7570,6 +7590,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"帶上原句的譯文"+
 	"取消下載"+
 	"從本機刪除離線檔案"+
+	"從本機刪除儲存的台詞"+
+	"從本機移除"+
 	"刪除"+
 	"存到本機離線看"+
 	"已存到本機"+
@@ -8220,6 +8242,8 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		12,
 		27,
+		30,
+		15,
 		6,
 		21,
 		15,
@@ -11056,6 +11080,24 @@ func FilmDelete(cx *core.Scope) string { return For(cx).FilmDelete() }
 
 // FilmDelete is the package's FilmDelete in the language of msgs.
 func (msgs Messages) FilmDelete() string { return msgs.text(textFilmDelete) }
+
+// FilmDeleteLines says "Delete saved lines from this device"
+// in the language the app shows under cx.
+//
+// Row in the Offline group of the page of a film kept on the phone by its lines alone, without its video, and option of the Library's film options sheet for it: deletes the lines saved on the phone after asking, keeping the film in the computer's library.
+func FilmDeleteLines(cx *core.Scope) string { return For(cx).FilmDeleteLines() }
+
+// FilmDeleteLines is the package's FilmDeleteLines in the language of msgs.
+func (msgs Messages) FilmDeleteLines() string { return msgs.text(textFilmDeleteLines) }
+
+// FilmRemove says "Remove from this device"
+// in the language the app shows under cx.
+//
+// Option of the Library's film options sheet for a film the phone keeps no video or lines of its own for, only because it was streamed, and that no computer lists any more: takes it off the phone, and so off the Library, after asking.
+func FilmRemove(cx *core.Scope) string { return For(cx).FilmRemove() }
+
+// FilmRemove is the package's FilmRemove in the language of msgs.
+func (msgs Messages) FilmRemove() string { return msgs.text(textFilmRemove) }
 
 // FilmDeleteConfirm says "Delete"
 // in the language the app shows under cx.
