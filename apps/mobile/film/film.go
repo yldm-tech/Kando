@@ -1,4 +1,4 @@
-// Package film is a film's page: its poster where it has one, its title, what the phone keeps of it and its facts, each a group under its own header, and its main action at the page's foot. Its download starts, pauses, resumes and, once whole, plays from that action; the offline group says where it stands and cancels it, or once whole deletes it from the phone. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
+// Package film is a film's page: its poster where it has one, its title, what the phone keeps of it and its facts, each a group under its own header, and its main action at the page's foot. Its download starts, pauses, resumes and, once whole, plays from that action; the offline group says where it stands and cancels it, or once whole deletes it from the phone. A film whose computer no longer serves its files, as a download of it found, offers no download nor a way to go on with one, and says why. A film its computer keeps no video of is kept by its lines, which play without the picture, and says what can be done to have the video (VideoPrompt), as the player does in the picture's place.
 package film
 
 import (
@@ -35,6 +35,13 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	state := func() (session.State, bool) { t, ok := transfer(); return t.State, ok }
 	running := func() bool { st, ok := state(); return ok && st == session.Running }
 	stopped := func() bool { st, ok := state(); return ok && st != session.Running }
+	// lost is a film whose computer no longer serves its files, as its download found (session.FilmGone): there is nothing to download or go on with.
+	lost := func() bool {
+		if t, ok := transfer(); ok {
+			return t.State == session.Failed && t.Problem == session.Gone
+		}
+		return s.FilmGone(key)
+	}
 
 	type posterSource struct{ c *sync.Client }
 	remote := core.NewResource(cx, func() (posterSource, bool) {
@@ -85,6 +92,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		notKept = iota
 		downloading
 		halted
+		gone
 		whole
 	)
 	phase := core.NewMemo(cx, func() int {
@@ -93,6 +101,8 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			return whole
 		case running():
 			return downloading
+		case lost():
+			return gone
 		case stopped():
 			return halted
 		}
@@ -145,6 +155,9 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 			return look.Button{Kind: look.Tinted, Text: text(locales.FilmPause), Icon: lucide.Pause, TestID: "film-pause", OnPress: func() { s.Pause(key) }}
 		case halted:
 			return look.Button{Kind: look.Primary, Text: text(locales.FilmResume), TestID: "film-resume", OnPress: func() { s.Resume(key) }}
+		case gone:
+			// Its computer no longer serves it: the download shows, disabled, under the note that says why (goneNote), and what the phone kept of it is cancelled in the offline group.
+			return look.Button{Kind: look.Primary, Text: text(locales.FilmDownload), Icon: lucide.Download, TestID: "film-download", Disabled: func() bool { return true }}
 		}
 		// A film being made plays from its computer on its network as it is made; it downloads once done.
 		if f.Making && onNetwork.Get() {
@@ -175,6 +188,10 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	})
 	prompt := core.Show{When: noVideo, Then: func(cx *core.Scope) core.Node {
 		return core.View{StyleFunc: func() core.Style { return look.Card(cx) }, Children: []core.Node{VideoPrompt(cx, s, desktop, f, "film-no-video")}}
+	}}
+	// Why a film its computer no longer serves cannot be downloaded, while the phone keeps nothing of it; once it keeps part of it, the offline group says so.
+	goneNote := core.Show{When: func() bool { _, ok := transfer(); return phase.Get() == gone && !ok }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "film-gone", ContentFunc: text(locales.FilmGone), LiveRegion: core.LiveRegionPolite, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	// What the storage holds of a film whose video stays on the computer, and why it could not be read from there.
 	storageNote := core.Show{When: func() bool { return stored.Get() == linesStored && phase.Get() != whole && !noVideo() }, Then: func(cx *core.Scope) core.Node {
@@ -278,6 +295,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 					art,
 					core.Text{TestID: "film-title", Content: f.Title, Role: core.RoleHeader, MaxLines: 3, Style: look.Heading, StyleFunc: ui.Colored(colors.Text)},
 					prompt,
+					goneNote,
 					storageNote,
 					makingNote,
 					storageFailed,

@@ -81,7 +81,8 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	}
 	appearance := len(look2)
 	look2 = append(look2, look.Row{TestID: "settings-appearance", Index: func() int { return appearance }, Chevron: true,
-		Leading: look.GlyphTile(cx, glyph("◐"), theme.Of(cx).TileInk),
+		// A colored tile, as the other rows of the group have: the ink tile would be lost on the dark card, leaving its mark alone.
+		Leading: look.GlyphTile(cx, glyph("◐"), fixed(theme.TileBlue)),
 		Title:   func() string { return locales.SettingsAppearance(cx) },
 		Value:   func() string { return appearanceName(cx, s.Prefs().Appearance) },
 		OnPress: func() { s.SetAppearance(session.NextAppearance(s.Prefs().Appearance)) }})

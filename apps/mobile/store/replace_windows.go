@@ -26,3 +26,17 @@ func replace(tmp, path string) error {
 		wait = min(2*wait, 50*time.Millisecond)
 	}
 }
+
+// removeAll removes path and everything in it, trying again for a little while, as replace does, while Windows refuses to delete a file a handle holds open: a film's folder is removed just after its download wrote and closed its files, which an antivirus may still be scanning, or a reader still holds a moment, and a folder left so keeps its record, which shows the film as still kept.
+func removeAll(path string) error {
+	deadline := time.Now().Add(replaceFor)
+	wait := time.Millisecond
+	for {
+		err := os.RemoveAll(path)
+		if err == nil || !(errors.Is(err, syscall.ERROR_ACCESS_DENIED) || errors.Is(err, errSharingViolation)) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(wait)
+		wait = min(2*wait, 50*time.Millisecond)
+	}
+}

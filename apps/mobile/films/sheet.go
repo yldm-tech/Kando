@@ -94,19 +94,23 @@ func (v *view) options(cx *core.Scope, e catalog.Entry) {
 				opts = append(opts, option{label: locales.FilmsPlayFromStart(cx), do: func() { v.playAt(key, 0) }})
 			}
 		}
-		if !e.Film.Making && s.Client(e.Desktop) != nil {
+		if !e.Film.Making && s.Client(e.Desktop) != nil && !s.FilmGone(key) {
 			opts = append(opts, option{label: downloadLabel(cx, e), value: about(cx, downloadSize(e)), do: func() { s.Download(e.Desktop, e.Library.Name, e.Film) }})
 		}
 		opts = append(opts, option{label: locales.FilmDelete(cx), do: func() { v.confirmDelete(cx, e) }})
 	case kept:
-		opts = append(opts,
-			option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }},
-			option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
+		// A download that stopped as its computer no longer serves the film has nothing to go on with.
+		if !moving || t.State != session.Failed || t.Problem != session.Gone {
+			opts = append(opts, option{label: locales.FilmResume(cx), do: func() { s.Resume(key) }})
+		}
+		opts = append(opts, option{label: locales.FilmCancel(cx), danger: true, do: func() { s.Delete(key) }})
 	case e.Film.Making:
 		// Being made, it plays from its computer on its network as it is made, and downloads once done.
 		if s.OnNetwork(e.Desktop) {
 			opts = append(opts, option{label: locales.FilmPlay(cx), do: streamPlay})
 		}
+	case s.FilmGone(key):
+		// Its computer no longer serves it, as a download of it found: nothing of it can be played or downloaded from there.
 	case s.Client(e.Desktop) != nil:
 		if canStream {
 			opts = append(opts, option{label: locales.FilmPlay(cx), do: streamPlay})

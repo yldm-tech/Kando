@@ -165,11 +165,11 @@ func (s *Store) SaveFilm(f Film) error {
 	return writeJSON(filepath.Join(dir, filmFile), f)
 }
 
-// DeleteFilm removes the film's folder and everything in it. It holds filmFolders, so marks being saved into the folder (SaveMarks) are either in it before it goes, and go with it, or find it gone after.
+// DeleteFilm removes the film's folder and everything in it, waiting a little on Windows for whatever still holds a file of it (removeAll). It holds filmFolders, so marks being saved into the folder (SaveMarks) are either in it before it goes, and go with it, or find it gone after.
 func (s *Store) DeleteFilm(desktop, id string) error {
 	filmFolders.Lock()
 	defer filmFolders.Unlock()
-	return os.RemoveAll(s.FilmDir(desktop, id))
+	return removeAll(s.FilmDir(desktop, id))
 }
 
 // filmFolders keeps a film's folder from being removed (DeleteFilm) while marks are written into it (SaveMarks), across every Store of the process: a file being written into a folder keeps it from being removed, for good on Windows, where an open file cannot be deleted, and for a moment elsewhere.

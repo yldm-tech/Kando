@@ -51,8 +51,11 @@ func (s *Session) Listing() bool {
 	return false
 }
 
-// Refresh reads every paired computer's shelf again.
+// Refresh reads every paired computer's shelf again, and offers again the films whose computer no longer served them (FilmGone), for a computer that serves them again since.
 func (s *Session) Refresh() {
+	if len(s.gone.GetUntracked()) > 0 {
+		s.gone.Set(map[string]bool{})
+	}
 	for _, d := range s.desktops.GetUntracked() {
 		s.RefreshDesktop(d.ID)
 	}

@@ -4,6 +4,7 @@ package session
 import (
 	"context"
 	"errors"
+	"log"
 	"maps"
 	"net/http"
 	"os"
@@ -113,6 +114,8 @@ type Session struct {
 	used      *core.Signal[int64]
 	space     *space
 	prefs     *core.Signal[store.Prefs]
+	// gone are the films, by key, whose download stopped this session as their computer no longer serves their files (Gone): the phone offers no download of them until the Library is refreshed (FilmGone).
+	gone *core.Signal[map[string]bool]
 	// shelves are what the paired computers last listed, by ID, and listings the reads of them under way, each told from a later one by listGen (Shelf).
 	shelves  *core.Signal[map[string]Shelf]
 	listings map[string]listing
@@ -219,6 +222,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		desktops:     core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
 		films:        core.NewSignalFunc[[]store.Film](cx, nil, nil),
 		transfers:    core.NewSignalFunc(cx, map[string]Transfer{}, nil),
+		gone:         core.NewSignalFunc(cx, map[string]bool{}, nil),
 		used:         core.NewSignal(cx, int64(0)),
 		space:        newSpace(cx),
 		prefs:        core.NewSignalFunc(cx, store.Prefs{}, nil),
@@ -888,8 +892,27 @@ func (s *Session) finished(key string, j *job, got store.Film, err error, stoppe
 	case stopped:
 		s.setTransfer(key, func(t Transfer) Transfer { t.State = Paused; return t })
 	default:
-		s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, ProblemOf(err); return t })
+		problem := ProblemOf(err)
+		if problem == Gone {
+			s.setGone(key)
+			// A computer's film the phone kept nothing of but for this download, no part of its video and no place it was left at, goes from the phone: there is nothing to go on with, and a record left would show as a download paused at 0% once the app opens again.
+			if t, _ := s.Transfer(key); !j.lines && !got.FromSource() && t.Done == 0 && got.PositionMS == 0 {
+				s.remove(key)
+				return
+			}
+		}
+		s.setTransfer(key, func(t Transfer) Transfer { t.State, t.Problem = Failed, problem; return t })
 	}
+}
+
+// FilmGone reports whether the download of the film under key stopped this session as its computer no longer serves its files, so the phone offers none of it: a film the computer removed, or whose files it lost while still listing it. Refreshing the Library forgets it, for a computer that serves the film again. Read it in a binding.
+func (s *Session) FilmGone(key string) bool { return s.gone.Get()[key] }
+
+// setGone marks the film under key as one its computer no longer serves (FilmGone).
+func (s *Session) setGone(key string) {
+	m := maps.Clone(s.gone.GetUntracked())
+	m[key] = true
+	s.gone.Set(m)
 }
 
 func (s *Session) remove(key string) {
@@ -914,7 +937,9 @@ func (s *Session) remove(key string) {
 
 // deleteFilm removes f's folder, off the engine's goroutine.
 func (s *Session) deleteFilm(f store.Film) {
-	_ = s.st.DeleteFilm(f.Desktop, f.Film.ID)
+	if err := s.st.DeleteFilm(f.Desktop, f.Film.ID); err != nil {
+		log.Printf("session: remove the folder of film %s: %v", f.Film.ID, err)
+	}
 	used, _ := s.st.Used()
 	s.cx.Post(func() { s.used.Set(used) })
 }

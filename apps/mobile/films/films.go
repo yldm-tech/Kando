@@ -3,6 +3,7 @@ package films
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"kando/apps/mobile/catalog"
@@ -68,6 +69,9 @@ type view struct {
 	sheet *core.Signal[optionsSheet]
 }
 
+// searched is what the user searched for, without the spaces around it: "" while the field is empty or holds only spaces, as one left after clearing it does, which searches for nothing.
+func (v *view) searched() string { return strings.TrimSpace(v.query.Get()) }
+
 // newView is the state of a page of the tab's films, without a search, a chip or a library chosen.
 func newView(cx *core.Scope, s *session.Session, act Actions) *view {
 	v := &view{cx: cx, s: s, act: act,
@@ -88,7 +92,7 @@ func newView(cx *core.Scope, s *session.Session, act Actions) *view {
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	v := newView(cx, s, act)
 	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
-	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
+	searching := core.NewMemo(cx, func() bool { return v.searched() != "" })
 	linesKey := core.NewMemo(cx, s.LinesKey)
 	v.lines = core.NewResource(cx, func() (string, bool) {
 		return linesKey.Get(), searching.Get()
@@ -139,11 +143,11 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 			return computers.Problem(cx, s, d, act.Pair)
 		}),
 		core.Show{When: func() bool { return !paired() }, Then: func(cx *core.Scope) core.Node { return unpaired(cx, act.Pair) }},
-		core.Show{When: func() bool { return v.query.Get() == "" && len(v.resumable()) > 0 }, Then: v.carousel},
-		core.Show{When: func() bool { return v.query.Get() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
+		core.Show{When: func() bool { return v.searched() == "" && len(v.resumable()) > 0 }, Then: v.carousel},
+		core.Show{When: func() bool { return v.searched() == "" && len(v.subscriptions()) > 0 }, Then: v.subscriptionRow},
 	)
 	if act.Source != nil {
-		blocks = append(blocks, core.Show{When: func() bool { return v.query.Get() == "" }, Then: func(cx *core.Scope) core.Node { return sources.Group(cx, s, act.Source) }})
+		blocks = append(blocks, core.Show{When: func() bool { return v.searched() == "" }, Then: func(cx *core.Scope) core.Node { return sources.Group(cx, s, act.Source) }})
 	}
 	blocks = append(blocks, v.list(cx))
 	body := core.Scroll{TestID: "films-scroll", Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1},
