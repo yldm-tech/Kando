@@ -58,3 +58,15 @@ func TestScreenshotsTabletShortcuts(t *testing.T) {
 	p.app.WaitFor("id:settings-shortcuts-page", wait)
 	shot(p, "tablet-shortcuts")
 }
+
+// TestScreenshotsSettingsAbout is the end of Settings: the sync and about groups, and the footer.
+func TestScreenshotsSettingsAbout(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-introduction", wait)
+	p.app.Scroll("id:settings-scroll", 5000)
+	shot(p, "settings-about")
+}

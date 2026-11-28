@@ -2434,9 +2434,6 @@ settingsConflictsDone:
 settingsConflictsDoneDetail:
   message: "Everything matches on all devices."
   description: "Under No Conflicts Left."
-settingsConflictsNone:
-  message: "None"
-  description: "Beside Sync Conflicts in Settings when none is open."
 settingsConflictsNote:
   message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
   description: "At the top of the Sync Conflicts page."

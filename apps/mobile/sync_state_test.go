@@ -96,8 +96,23 @@ func TestASyncConflictIsSettledOnThePhone(t *testing.T) {
 	if got := fieldText(r, sync.FieldNote); got != "said to a friend\na polite answer" {
 		t.Fatalf("the computer's note is %q", got)
 	}
+	// With none left, Settings has no Sync group to show.
 	p.app.HeaderBack("id:conflicts-page")
-	p.app.WaitUntil(wait, func() bool { return strings.Contains(p.texts("id:settings-conflicts"), msgs.SettingsConflictsNone()) })
+	p.app.WaitFor("id:settings-page", wait)
+	p.app.WaitForGone("id:settings-conflicts", wait)
+}
+
+// With no conflict to settle, Settings has no Sync group: its one row would only say there is none.
+func TestSettingsHasNoSyncGroupWithoutConflicts(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-introduction", wait)
+	if p.app.Exists("id:settings-conflicts") || p.app.Exists("text:"+msgs.SettingsSync()) {
+		t.Fatal("Settings shows its Sync group with no conflict")
+	}
 }
 
 // Settings says how many conflicts are open, and Use This keeps the version set aside on the computer.

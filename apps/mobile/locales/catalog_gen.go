@@ -1432,7 +1432,6 @@ const (
 	textSettingsConflictsDetail
 	textSettingsConflictsDone
 	textSettingsConflictsDoneDetail
-	textSettingsConflictsNone
 	textSettingsConflictsNote
 	textSettingsGoal
 	textSettingsIntroduction
@@ -2090,7 +2089,6 @@ var keyOfText = [numTexts]string{
 	"settingsConflictsDetail",
 	"settingsConflictsDone",
 	"settingsConflictsDoneDetail",
-	"settingsConflictsNone",
 	"settingsConflictsNote",
 	"settingsGoal",
 	"settingsIntroduction",
@@ -2746,7 +2744,6 @@ var textsEn = i18n.NewTexts(""+
 	"Two devices changed the same thing. Keep one."+
 	"No Conflicts Left"+
 	"Everything matches on all devices."+
-	"None"+
 	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
 	"Show Onboarding Again"+
@@ -3399,7 +3396,6 @@ var textsEn = i18n.NewTexts(""+
 		45,
 		17,
 		34,
-		4,
 		145,
 		10,
 		21,
@@ -4055,7 +4051,6 @@ var textsJa = i18n.NewTexts(""+
 	"2 台の端末が同じ箇所を変更しました。どちらかを残してください。"+
 	"競合はありません"+
 	"すべての端末で内容が一致しています。"+
-	"なし"+
 	"2 台の端末が同じ訳文や同じメモを変更したときは、ここで残す方を選びます。単語、保存した文、進み具合は自動でまとめられます。"+
 	"1 日の目標"+
 	"紹介をもう一度見る"+
@@ -4708,7 +4703,6 @@ var textsJa = i18n.NewTexts(""+
 		92,
 		24,
 		54,
-		6,
 		182,
 		14,
 		27,
@@ -5364,7 +5358,6 @@ var textsKo = i18n.NewTexts(""+
 	"두 기기가 같은 곳을 바꿨습니다. 하나를 남기세요."+
 	"남은 충돌 없음"+
 	"모든 기기의 내용이 같습니다."+
-	"없음"+
 	"두 기기가 같은 번역이나 같은 메모를 바꾸면 여기서 남길 쪽을 고르세요. 단어, 저장한 문장, 진행 상황은 자동으로 합쳐집니다."+
 	"하루 목표"+
 	"소개 다시 보기"+
@@ -6017,7 +6010,6 @@ var textsKo = i18n.NewTexts(""+
 		68,
 		20,
 		40,
-		6,
 		171,
 		13,
 		20,
@@ -6673,7 +6665,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"两台设备改了同一处，留下一个。"+
 	"没有冲突了"+
 	"所有设备上的内容都一致。"+
-	"无"+
 	"两台设备改了同一句译文或同一条笔记时，在这里选择保留哪一个。单词、收藏的句子和进度会自动合并。"+
 	"每日目标"+
 	"重新查看引导"+
@@ -7326,7 +7317,6 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		15,
 		36,
-		3,
 		141,
 		12,
 		18,
@@ -7982,7 +7972,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"兩台裝置改了同一處，留下一個。"+
 	"沒有衝突了"+
 	"所有裝置上的內容都一致。"+
-	"無"+
 	"兩台裝置改了同一句譯文或同一則筆記時，在這裡選擇保留哪一個。單字、收藏的句子和進度會自動合併。"+
 	"每日目標"+
 	"重新查看引導"+
@@ -8635,7 +8624,6 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		15,
 		36,
-		3,
 		141,
 		12,
 		18,
@@ -21027,15 +21015,6 @@ func SettingsConflictsDoneDetail(cx *core.Scope) string { return For(cx).Setting
 func (msgs Messages) SettingsConflictsDoneDetail() string {
 	return msgs.text(textSettingsConflictsDoneDetail)
 }
-
-// SettingsConflictsNone says "None"
-// in the language the app shows under cx.
-//
-// Beside Sync Conflicts in Settings when none is open.
-func SettingsConflictsNone(cx *core.Scope) string { return For(cx).SettingsConflictsNone() }
-
-// SettingsConflictsNone is the package's SettingsConflictsNone in the language of msgs.
-func (msgs Messages) SettingsConflictsNone() string { return msgs.text(textSettingsConflictsNone) }
 
 // SettingsConflictsNote says "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
 // in the language the app shows under cx.
