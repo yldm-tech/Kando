@@ -2,6 +2,14 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.77.3 - 2026-11-28
+
+### Fixes
+
+- Skip the recap within a film's first minute and leave films opened for a moment out of Continue Watching (#542)
+- Review card tap, line starts past an hour, keyboard over another tab (#538)
+- Reconnect to a computer that left the connection half-open (#550)
+
 ## 0.77.2 - 2026-11-28
 
 ### Fixes
