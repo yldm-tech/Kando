@@ -169,6 +169,18 @@ func TestAWordTappedIsLookedUpThroughTheComputer(t *testing.T) {
 	}
 }
 
+// A word whose reading is the word itself, as one written in kana alone, does not say it twice: the card leaves the reading out.
+func TestAWordReadAsItIsWrittenShowsNoReading(t *testing.T) {
+	d := newDesktop(t)
+	d.SetEntry("morning", sync.WordEntry{Word: "morning", Reading: "morning", Meaning: "n. 早晨", Language: "简体中文"})
+	p, _ := studyPlayer(t, d)
+	p.app.Press(`id:player-card >> text:"morning"`)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:player-word-meaning") })
+	if p.app.Exists("id:player-word-reading") {
+		t.Fatalf("the word card says the reading %q, the word itself", p.app.Find("id:player-word-reading").Text)
+	}
+}
+
 // The word card says where the meaning came from, as the computer says it: a dictionary installed there, with the credit its license asks for, a plugin's lookup source there, or the AI service of the computer that answered, by the name it sent with the answer, or without a name when it sent none; an older computer that does not say leaves it out.
 func TestTheWordCardSaysWhereTheMeaningCameFrom(t *testing.T) {
 	d := newDesktop(t)
