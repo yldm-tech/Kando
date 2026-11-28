@@ -552,7 +552,6 @@ var Parameters = map[string][]string{
 	"FilmsDeleteFromLibraryTitle":    {"title"},
 	"FilmsDeleteFromLibraryMessage":  {"computer"},
 	"FilmsDeletedFromLibrary":        {"title", "computer"},
-	"JobsBadgeLabel":                 {"count"},
 	"JobsReadOnly":                   {"name"},
 	"LearnDueIn":                     {"count"},
 	"FilmsUsed":                      {"size"},
@@ -804,7 +803,6 @@ type Translation struct {
 	FilmsDeleteFromLibraryTitle    func(title string) string
 	FilmsDeleteFromLibraryMessage  func(computer string) string
 	FilmsDeletedFromLibrary        func(title string, computer string) string
-	JobsBadgeLabel                 func(count int) string
 	JobsReadOnly                   func(name string) string
 	LearnDueIn                     func(count int) string
 	FilmsUsed                      func(size string) string
@@ -9121,9 +9119,6 @@ func Supply(lang string, t Translation) {
 	if t.FilmsDeletedFromLibrary != nil {
 		s.FilmsDeletedFromLibrary = t.FilmsDeletedFromLibrary
 	}
-	if t.JobsBadgeLabel != nil {
-		s.JobsBadgeLabel = t.JobsBadgeLabel
-	}
 	if t.JobsReadOnly != nil {
 		s.JobsReadOnly = t.JobsReadOnly
 	}
@@ -13680,36 +13675,6 @@ func (msgs Messages) FilmsDeletedFromLibrary(title string, computer string) stri
 			return "已从 " + computer + " 删除「" + title + "」"
 		case "zh-Hant":
 			return "已從 " + computer + " 刪除「" + title + "」"
-		}
-	}
-}
-
-// JobsBadgeLabel says "Jobs, {count} unfinished"
-// in the language the app shows under cx.
-//
-// Spoken name of the Library's Jobs button on a phone while jobs run, wait or failed, or links wait to be sent.
-func JobsBadgeLabel(cx *core.Scope, count int) string { return For(cx).JobsBadgeLabel(count) }
-
-// JobsBadgeLabel is the package's JobsBadgeLabel in the language of msgs.
-func (msgs Messages) JobsBadgeLabel(count int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsBadgeLabel(count))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].JobsBadgeLabel; f != nil {
-			return f(count)
-		}
-		switch lang {
-		case "", "en":
-			return "Jobs, " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " unfinished"
-		case "ja":
-			return "ジョブ、未完了 " + i18n.FormatNumber("ja", float64(count)) + " 件"
-		case "ko":
-			return "작업, 완료되지 않음 " + i18n.FormatNumber("ko", float64(count)) + "개"
-		case "zh-Hans":
-			return "任务，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个未完成"
-		case "zh-Hant":
-			return "任務，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個未完成"
 		}
 	}
 }

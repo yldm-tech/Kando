@@ -353,12 +353,7 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 					}
 					return jobs.Page(cx, s, act)
 				}
-				// Where the tab bar is the system's, which shows no count, the Library's header carries the Jobs tab's.
-				var jobsButton func()
-				if shell.SystemBar(cx) {
-					jobsButton = openJobs
-				}
-				act := films.Actions{Pair: openPair, Play: play, PlayHeld: playHeld, PlayAt: layer.PlayAt, Feed: layer.SetFeed, Add: openAdd, Jobs: jobsButton, OpenJobs: openJobs, PickLibrary: pickLibrary, Searches: searches.Get, Library: library,
+				act := films.Actions{Pair: openPair, Play: play, PlayHeld: playHeld, PlayAt: layer.PlayAt, Feed: layer.SetFeed, Add: openAdd, OpenJobs: openJobs, PickLibrary: pickLibrary, Searches: searches.Get, Library: library,
 					Subscription: subscription.Set, Film: func(e catalog.Entry) { openFilm(e.Desktop, e.Library, e.Film) },
 					Work:   func(desktop, id string) { n.Push(route{page: workPage, desktop: desktop, work: id}) },
 					Source: func(id string) { n.Push(route{page: browsePage, source: id}) }}

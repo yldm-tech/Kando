@@ -7,16 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"kando/apps/mobile/films"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
-	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	"kando/apps/mobile/theme"
 	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 
-	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -676,35 +673,16 @@ func TestTheJobsTabCountsWhatIsUnfinished(t *testing.T) {
 	p.app.WaitFor("id:jobs-page", wait)
 }
 
-// TestTheLibraryCountsJobsWhereTheTabBarIsTheSystems mounts the Library as the app does where the tab bar is the system's (shell.SystemBar), which shows no badge: the page's header then has a Jobs button with the unfinished count, said in its label, that opens Jobs. The headless tests run simulated, where the app draws its own bar, so App does not take this path here and the page is mounted on its own.
-func TestTheLibraryCountsJobsWhereTheTabBarIsTheSystems(t *testing.T) {
+// On an iPhone, whose tab bar is the system's, the Library's header has Add alone: the jobs are the Jobs tab's and the jobs card's, which the Library shows while there are some.
+func TestTheLibraryHasNoJobsButtonWhereTheTabBarIsTheSystems(t *testing.T) {
 	d := newDesktop(t)
-	dir := t.TempDir()
-	opened := 0
-	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
-		theme.Apply(cx)
-		s := session.New(cx, session.Config{Dir: dir, Device: "Test Phone", Platform: sync.PlatformIOS, Now: sessionNow, RelayEvery: relayEvery})
-		nav := base.NewNav(cx, 0)
-		return core.Show{When: s.Loaded, Then: func(cx *core.Scope) core.Node {
-			return nav.Stack(core.Style{FlexGrow: 1}, func(cx *core.Scope, _ int, _ func() int) base.NavPage {
-				return films.Page(cx, s, films.Actions{Add: func() {}, Pair: func() {}, Jobs: func() { opened++ }})
-			})
-		}}
-	}, nsgotest.Environment(core.Environment{Locale: lang}), pairedWith(t, d, dir))
-	app.WaitFor("id:films-jobs", wait)
-	if got := app.Find("id:films-jobs").Props.Label; got != msgs.JobsTitle() {
-		t.Fatalf("the Jobs button with nothing to do is named %q, want %q", got, msgs.JobsTitle())
-	}
 	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 0, 0.1)
-	app.WaitUntil(wait, func() bool {
-		return app.Find("id:films-jobs").Props.Label == msgs.JobsBadgeLabel(1) && (&phone{t: t, app: app}).texts("id:films-jobs-badge") == "1"
-	})
-	if got := app.Find("id:films-jobs-badge").Style.Background; got != theme.BadgeRed {
-		t.Errorf("the badge of a job running is %v, want the badges' red", got)
-	}
-	app.Press("id:films-jobs")
-	if opened != 1 {
-		t.Fatalf("pressing Jobs opened it %d times, want once", opened)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
+	p.app.WaitFor("id:films-add", wait)
+	p.app.WaitFor("id:films-jobs-card", wait)
+	if p.app.Exists("id:films-jobs") {
+		t.Fatal("the Library's header has a Jobs button beside the Jobs tab and the jobs card")
 	}
 }
 
