@@ -816,6 +816,22 @@ func TestTheReviewCardSaysWhenTheNextReviewIs(t *testing.T) {
 	}
 }
 
+// Learn heads its page with a note only while it has news: that the computers could not be reached and the phone shows what it kept. In sync it has none; the week's card says its counts are every device's.
+func TestLearnHasNoSyncNoteWhileInSync(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-goal", wait)
+	if p.app.Exists("id:learn-sync-note") || p.app.Exists("id:learn-offline") {
+		t.Fatal("Learn has a note at its top while it is in sync")
+	}
+	d.SetOff(true)
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitFor("id:learn-offline", reconnect)
+}
+
 // While the reminder is on, Learn says when it comes under the review mode, and that leads to Settings.
 func TestLearnSaysWhenTheReminderComes(t *testing.T) {
 	d := studyDesktop(t)

@@ -1223,7 +1223,6 @@ const (
 	textLearnStreakLabel
 	textLearnStudyTime
 	textLearnSun
-	textLearnSyncNote
 	textLearnThu
 	textLearnTitle
 	textLearnTodayShort
@@ -1881,7 +1880,6 @@ var keyOfText = [numTexts]string{
 	"learnStreakLabel",
 	"learnStudyTime",
 	"learnSun",
-	"learnSyncNote",
 	"learnThu",
 	"learnTitle",
 	"learnTodayShort",
@@ -2537,7 +2535,6 @@ var textsEn = i18n.NewTexts(""+
 	"Streak"+
 	"Study time"+
 	"Sun"+
-	"Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"+
 	"Thu"+
 	"Learn"+
 	"Today"+
@@ -3190,7 +3187,6 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		10,
 		3,
-		98,
 		3,
 		5,
 		5,
@@ -3846,7 +3842,6 @@ var textsJa = i18n.NewTexts(""+
 	"連続日数"+
 	"学習時間"+
 	"日"+
-	"単語、保存したセリフ、見たところまでが、コンピュータ・スマートフォン・タブレットの間で自動的に同期されます"+
 	"木"+
 	"学習"+
 	"今日"+
@@ -4499,7 +4494,6 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		159,
 		3,
 		6,
 		6,
@@ -5155,7 +5149,6 @@ var textsKo = i18n.NewTexts(""+
 	"연속 학습"+
 	"학습 시간"+
 	"일"+
-	"단어, 저장한 문장, 본 위치가 컴퓨터, 휴대폰, 태블릿 사이에서 자동으로 동기화돼요"+
 	"목"+
 	"학습"+
 	"오늘"+
@@ -5808,7 +5801,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		3,
-		113,
 		3,
 		6,
 		6,
@@ -6464,7 +6456,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"连续学习"+
 	"学习时长"+
 	"日"+
-	"生词、收藏和看到哪儿，在电脑、手机、平板之间自动同步"+
 	"四"+
 	"学习"+
 	"今"+
@@ -7117,7 +7108,6 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		78,
 		3,
 		6,
 		3,
@@ -7773,7 +7763,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"連續學習"+
 	"學習時長"+
 	"日"+
-	"生詞、收藏和看到哪裡，在電腦、手機、平板之間自動同步"+
 	"四"+
 	"學習"+
 	"今"+
@@ -8426,7 +8415,6 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		78,
 		3,
 		6,
 		3,
@@ -17038,15 +17026,6 @@ func LearnSun(cx *core.Scope) string { return For(cx).LearnSun() }
 
 // LearnSun is the package's LearnSun in the language of msgs.
 func (msgs Messages) LearnSun() string { return msgs.text(textLearnSun) }
-
-// LearnSyncNote says "Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"
-// in the language the app shows under cx.
-//
-// Under Learn's title.
-func LearnSyncNote(cx *core.Scope) string { return For(cx).LearnSyncNote() }
-
-// LearnSyncNote is the package's LearnSyncNote in the language of msgs.
-func (msgs Messages) LearnSyncNote() string { return msgs.text(textLearnSyncNote) }
 
 // LearnThu says "Thu"
 // in the language the app shows under cx.

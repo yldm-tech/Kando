@@ -95,24 +95,17 @@ func white(cx *core.Scope, alpha float32) func() core.Style {
 	return func() core.Style { return core.Style{Color: ui.Alpha(colors.OnAccent(), alpha)} }
 }
 
-// status is the line under the title: the words, the lines and where the learner stopped follow them from device to device; or, when the computers could not be reached at the last sync, that the phone shows what it kept.
+// status is the line under the title while the computers could not be reached at the last sync: the phone shows what it kept. In sync it shows nothing, as the words, lines and positions follow the learner from device to device without being asked and the week's card says its counts are every device's.
 func status(cx *core.Scope, s *session.Session) core.Node {
 	colors := ui.ColorsOf(cx)
 	offline := func() bool { p := s.LearnProblem(); return p != session.NoProblem && len(s.Desktops()) > 0 }
-	line := func(id string, icon func() *core.SVG, text func() string) core.Node {
+	return core.Show{When: offline, Then: func(cx *core.Scope) core.Node {
 		// The icon stays by the first line of a note that wraps, as the design pins it.
-		return core.View{TestID: id, Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 6}, Children: []core.Node{
-			core.View{Style: core.Style{Margin: core.Edges{Top: 2}, FlexShrink: 0}, Children: []core.Node{ui.Icon(icon, 14, colors.Muted)}},
-			core.Text{ContentFunc: text, Style: look.Caption.Merge(core.Style{LineHeight: 18, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
+		return core.View{TestID: "learn-offline", Style: core.Style{Direction: core.Row, AlignItems: core.AlignStart, Gap: 6}, Children: []core.Node{
+			core.View{Style: core.Style{Margin: core.Edges{Top: 2}, FlexShrink: 0}, Children: []core.Node{ui.Icon(lucide.WifiOff, 14, colors.Muted)}},
+			core.Text{ContentFunc: func() string { return locales.LearnOffline(cx) }, Style: look.Caption.Merge(core.Style{LineHeight: 18, FlexShrink: 1}), StyleFunc: ui.Colored(colors.Muted)},
 		}}
-	}
-	return core.Show{When: offline,
-		Then: func(cx *core.Scope) core.Node {
-			return line("learn-offline", lucide.WifiOff, func() string { return locales.LearnOffline(cx) })
-		},
-		Else: func(cx *core.Scope) core.Node {
-			return line("learn-sync-note", lucide.RefreshCw, func() string { return locales.LearnSyncNote(cx) })
-		}}
+	}}
 }
 
 // goal is the day's minutes watched against the goal, in a ring on the accent's gradient, with what is left to reach it, the streak and the week's time.

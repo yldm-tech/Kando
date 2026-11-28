@@ -1494,9 +1494,6 @@ learnStudyTime:
 learnSun:
   message: "Sun"
   description: "Short name of Sunday under its bar in the week's chart."
-learnSyncNote:
-  message: "Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"
-  description: "Under Learn's title."
 learnThu:
   message: "Thu"
   description: "Short name of Thursday under its bar in the week's chart."
