@@ -682,7 +682,6 @@ var Parameters = map[string][]string{
 	"SettingsConflictWord":           {"word"},
 	"SettingsConflictYesterday":      {"when"},
 	"SettingsConflictsCount":         {"count"},
-	"SettingsFooter":                 {"app", "version"},
 	"SettingsGoalValue":              {"count"},
 	"SettingsOfflineCount":           {"count"},
 	"SettingsOfflineDelete":          {"title"},
@@ -934,7 +933,6 @@ type Translation struct {
 	SettingsConflictWord           func(word string) string
 	SettingsConflictYesterday      func(hc string, when time.Time) string
 	SettingsConflictsCount         func(count int) string
-	SettingsFooter                 func(app string, version string) string
 	SettingsGoalValue              func(count int) string
 	SettingsOfflineCount           func(count int) string
 	SettingsOfflineDelete          func(title string) string
@@ -1440,6 +1438,7 @@ const (
 	textSettingsIntroduction
 	textSettingsLanguage
 	textSettingsLanguageSystem
+	textSettingsLicense
 	textSettingsNoComputer
 	textSettingsOffline
 	textSettingsOfflineEmpty
@@ -2097,6 +2096,7 @@ var keyOfText = [numTexts]string{
 	"settingsIntroduction",
 	"settingsLanguage",
 	"settingsLanguageSystem",
+	"settingsLicense",
 	"settingsNoComputer",
 	"settingsOffline",
 	"settingsOfflineEmpty",
@@ -2752,6 +2752,7 @@ var textsEn = i18n.NewTexts(""+
 	"Show Onboarding Again"+
 	"Language"+
 	"Automatic"+
+	"FSL-1.1 License"+
 	"Not connected"+
 	"Offline Films"+
 	"No films saved on this device yet."+
@@ -3404,6 +3405,7 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		8,
 		9,
+		15,
 		13,
 		13,
 		34,
@@ -4059,6 +4061,7 @@ var textsJa = i18n.NewTexts(""+
 	"紹介をもう一度見る"+
 	"表示言語"+
 	"自動"+
+	"FSL-1.1 ライセンス"+
 	"未接続"+
 	"オフラインの動画"+
 	"この端末に保存した動画はまだありません。"+
@@ -4711,6 +4714,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		12,
 		6,
+		23,
 		9,
 		24,
 		60,
@@ -5366,6 +5370,7 @@ var textsKo = i18n.NewTexts(""+
 	"소개 다시 보기"+
 	"언어"+
 	"자동"+
+	"FSL-1.1 라이선스"+
 	"연결 안 됨"+
 	"오프라인 영화"+
 	"이 기기에 저장한 영화가 아직 없습니다."+
@@ -6018,6 +6023,7 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		6,
 		6,
+		20,
 		14,
 		19,
 		54,
@@ -6673,6 +6679,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"重新查看引导"+
 	"界面语言"+
 	"跟随系统"+
+	"FSL-1.1 许可"+
 	"未连接电脑"+
 	"离线影片"+
 	"还没有存到本机的影片。"+
@@ -7325,6 +7332,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		12,
 		12,
+		14,
 		15,
 		12,
 		33,
@@ -7980,6 +7988,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"重新查看引導"+
 	"介面語言"+
 	"跟隨系統"+
+	"FSL-1.1 授權"+
 	"未連接電腦"+
 	"離線影片"+
 	"還沒有存到本機的影片。"+
@@ -8632,6 +8641,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		12,
 		12,
+		14,
 		15,
 		12,
 		33,
@@ -9498,9 +9508,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsConflictsCount != nil {
 		s.SettingsConflictsCount = t.SettingsConflictsCount
-	}
-	if t.SettingsFooter != nil {
-		s.SettingsFooter = t.SettingsFooter
 	}
 	if t.SettingsGoalValue != nil {
 		s.SettingsGoalValue = t.SettingsGoalValue
@@ -21039,38 +21046,6 @@ func SettingsConflictsNote(cx *core.Scope) string { return For(cx).SettingsConfl
 // SettingsConflictsNote is the package's SettingsConflictsNote in the language of msgs.
 func (msgs Messages) SettingsConflictsNote() string { return msgs.text(textSettingsConflictsNote) }
 
-// SettingsFooter says "{app} {version} · FSL-1.1 License"
-// in the language the app shows under cx.
-//
-// Centered under the last group of Settings: the app's name, its version and its license.
-func SettingsFooter(cx *core.Scope, app string, version string) string {
-	return For(cx).SettingsFooter(app, version)
-}
-
-// SettingsFooter is the package's SettingsFooter in the language of msgs.
-func (msgs Messages) SettingsFooter(app string, version string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsFooter(app, version))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].SettingsFooter; f != nil {
-			return f(app, version)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(app) + " " + msgs.arg(version) + " · FSL-1.1 License"
-		case "ja":
-			return app + " " + version + " · FSL-1.1 ライセンス"
-		case "ko":
-			return app + " " + version + " · FSL-1.1 라이선스"
-		case "zh-Hans":
-			return app + " " + version + " · FSL-1.1 许可"
-		case "zh-Hant":
-			return app + " " + version + " · FSL-1.1 授權"
-		}
-	}
-}
-
 // SettingsGoal says "Daily Goal"
 // in the language the app shows under cx.
 //
@@ -21136,6 +21111,15 @@ func SettingsLanguageSystem(cx *core.Scope) string { return For(cx).SettingsLang
 
 // SettingsLanguageSystem is the package's SettingsLanguageSystem in the language of msgs.
 func (msgs Messages) SettingsLanguageSystem() string { return msgs.text(textSettingsLanguageSystem) }
+
+// SettingsLicense says "FSL-1.1 License"
+// in the language the app shows under cx.
+//
+// Centered under the last group of Settings: the app's license. The version is in the About group's Version row.
+func SettingsLicense(cx *core.Scope) string { return For(cx).SettingsLicense() }
+
+// SettingsLicense is the package's SettingsLicense in the language of msgs.
+func (msgs Messages) SettingsLicense() string { return msgs.text(textSettingsLicense) }
 
 // SettingsNoComputer says "Not connected"
 // in the language the app shows under cx.

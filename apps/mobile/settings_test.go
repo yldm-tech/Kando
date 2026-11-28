@@ -232,3 +232,21 @@ func TestTheSubtitleSizeControlSaysTheSizesInFull(t *testing.T) {
 		t.Fatalf("the small size shows %q, want %q", got, want)
 	}
 }
+
+// Settings gives the app's version once, in its About row, which opens the releases; the footer under it says the license alone.
+func TestSettingsSaysTheVersionOnce(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-footer", wait)
+	if got, want := p.texts("id:settings-footer"), msgs.SettingsLicense(); got != want {
+		t.Fatalf("the footer says %q, want %q", got, want)
+	}
+	if v := core.App().Version; v != "" {
+		if n := strings.Count(p.texts("id:settings-page"), v); n != 1 {
+			t.Fatalf("Settings gives the version %s %d times, want once", v, n)
+		}
+	}
+}

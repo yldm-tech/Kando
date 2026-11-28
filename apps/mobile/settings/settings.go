@@ -43,7 +43,7 @@ func fixed(c core.Color) func() core.Color { return func() core.Color { return c
 // glyph is a tile's mark that is the same in every language: a symbol, or the letters of a name, as the design's K for Kando and AI.
 func glyph(g string) func() string { return func() string { return g } }
 
-// Page is the tab's root page: the app's card, then the subtitles, the app's look, the computer that processes the links, this device's own settings, the sync conflicts and what the app is, over its version and license.
+// Page is the tab's root page: the app's card, then the subtitles, the app's look, the computer that processes the links, this device's own settings, the sync conflicts and what the app is, with its version, over its license.
 func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	colors := ui.ColorsOf(cx)
 	title := func() string { return locales.SettingsTitle(cx) }
@@ -125,12 +125,10 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						},
 						OnPress: act.Conflicts}),
 				section(cx, func() string { return locales.SettingsAbout(cx) }, about...),
-				core.Show{When: func() bool { return version != "" }, Then: func(cx *core.Scope) core.Node {
-					// The footer sits clear of the column's end, about 35 points over the tab bar at the end of the scroll, as the design leaves it.
-					return core.View{Style: core.Style{Padding: core.Edges{Right: 16, Bottom: 11, Left: 16}}, Children: []core.Node{
-						core.Text{TestID: "settings-footer", ContentFunc: func() string { return locales.SettingsFooter(cx, locales.AppName(cx), version) },
-							Style: look.Footnote.Merge(core.Style{LineHeight: 17, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
-					}}
+				// The footer says the license, the version being the About group's row; it sits clear of the column's end, about 35 points over the tab bar at the end of the scroll, as the design leaves it.
+				core.View{Style: core.Style{Padding: core.Edges{Right: 16, Bottom: 11, Left: 16}}, Children: []core.Node{
+					core.Text{TestID: "settings-footer", ContentFunc: func() string { return locales.SettingsLicense(cx) },
+						Style: look.Footnote.Merge(core.Style{LineHeight: 17, TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
 				}},
 			}},
 		}},

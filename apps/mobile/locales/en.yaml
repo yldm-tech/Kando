@@ -2440,12 +2440,6 @@ settingsConflictsNone:
 settingsConflictsNote:
   message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
   description: "At the top of the Sync Conflicts page."
-settingsFooter:
-  message: "{app} {version} · FSL-1.1 License"
-  description: "Centered under the last group of Settings: the app's name, its version and its license."
-  placeholders:
-    app: { type: "String", example: "Kando" }
-    version: { type: "String", example: "0.5.1" }
 settingsGoal:
   message: "Daily Goal"
   description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
@@ -2463,6 +2457,9 @@ settingsLanguage:
 settingsLanguageSystem:
   message: "Automatic"
   description: "Value of the Language row, and the first choice on its page: the app follows the system's language."
+settingsLicense:
+  message: "FSL-1.1 License"
+  description: "Centered under the last group of Settings: the app's license. The version is in the About group's Version row."
 settingsNoComputer:
   message: "Not connected"
   description: "At the foot of a tablet's sidebar while no computer is paired."
