@@ -120,7 +120,13 @@ func dictationCard(cx *core.Scope, clip learning.Clip, checked func() bool, chec
 		}
 		return core.View{TestID: "dictation-result", Style: core.Style{Gap: 8}, Children: []core.Node{
 			ui.Tabular(core.Text{TestID: "dictation-score", LiveRegion: core.LiveRegionPolite,
-				ContentFunc: func() string { r := result.Get(); return locales.DictationScore(cx, r.hit, r.total) },
+				ContentFunc: func() string {
+					r := result.Get()
+					if learning.ByCharacter(clip.Line) {
+						return locales.DictationScoreChars(cx, r.hit, r.total)
+					}
+					return locales.DictationScore(cx, r.hit, r.total)
+				},
 				Style:       look.Caption.Merge(core.Style{FontWeight: core.FontWeightBold}), StyleFunc: ui.Colored(colors.Muted)}),
 			// The marked words sit close, on lines 30 apart, as the design sets them inline.
 			core.View{TestID: "dictation-line", Style: core.Style{Direction: core.Row, Wrap: core.Wrap, ColumnGap: 2, RowGap: 5}, Children: words},

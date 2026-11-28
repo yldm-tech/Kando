@@ -77,6 +77,7 @@ dictationNoFilm: "이 영상을 기기에 저장하면 대사를 받아쓸 수 �
 dictationPlaceholder: "들은 내용을 입력하세요"
 dictationPlay: "대사 재생"
 dictationScore: "{hit} / {total}개 단어를 맞게 들었어요"
+dictationScoreChars: "{hit} / {total}자를 맞게 들었어요"
 dictationStop: "정지"
 dictationTitle: "이 대사 받아쓰기"
 exportAnki: "Anki"

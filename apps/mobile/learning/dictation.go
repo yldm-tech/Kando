@@ -89,6 +89,9 @@ func Dictate(line, typed string) (words []Heard, hit, total int) {
 	return words, hit, total
 }
 
+// ByCharacter reports whether Dictate checks line a character at a time, as a line written without spaces between its words, in Chinese, Japanese or Thai: its score then counts characters rather than words.
+func ByCharacter(line string) bool { return unspaced(line) }
+
 // unspaced reports whether line is written without spaces between its words: it has Han, kana or Thai letters.
 func unspaced(line string) bool {
 	for _, r := range line {

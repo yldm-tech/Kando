@@ -275,6 +275,12 @@ dictationScore:
   placeholders:
     hit: { type: "int", example: 3 }
     total: { type: "int", example: 5 }
+dictationScoreChars:
+  message: "{total, plural, one {Heard {hit} / # character correctly} other {Heard {hit} / # characters correctly}}"
+  description: "Dictation card after the check, for a line written without spaces between its words (Chinese, Japanese, Thai), which is checked a character at a time: how many of the line's characters the learner typed."
+  placeholders:
+    hit: { type: "int", example: 9 }
+    total: { type: "int", example: 11 }
 dictationStop:
   message: "Stop"
   description: "Accessibility label of the dictation card's play button while the line plays."

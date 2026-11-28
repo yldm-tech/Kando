@@ -77,6 +77,7 @@ dictationNoFilm: "この映画を端末に保存すると、セリフを書き�
 dictationPlaceholder: "聞こえた内容を入力"
 dictationPlay: "セリフを再生"
 dictationScore: "{hit} / {total} 語を聞き取れました"
+dictationScoreChars: "{hit} / {total} 文字を聞き取れました"
 dictationStop: "停止"
 dictationTitle: "このセリフを書き取る"
 exportAnki: "Anki"

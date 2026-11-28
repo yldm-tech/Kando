@@ -76,6 +76,7 @@ dictationNoFilm: "把这部影片存到这台设备上，就能听写它的台�
 dictationPlaceholder: "在这里写下听到的内容"
 dictationPlay: "播放这句"
 dictationScore: "听对了 {hit} / {total} 个词"
+dictationScoreChars: "听对了 {hit} / {total} 个字"
 dictationStop: "停止"
 dictationTitle: "听写这句"
 exportAnki: "Anki 卡片"

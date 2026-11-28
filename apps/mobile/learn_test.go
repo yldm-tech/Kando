@@ -538,7 +538,7 @@ func TestARefusedChangeLeavesTheOthers(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDue(1) })
 }
 
-// Dictation plays each line due from the film kept on the phone, from just before it starts to just after it ends, and marks what the learner typed once they check it; the grade they give then goes to the computer, as a card's does.
+// Dictation plays each line due from the film kept on the phone, from just before it starts to just after it ends, and marks what the learner typed once they check it, counting the characters of a line written without spaces between its words and the words of one with them; the grade they give then goes to the computer, as a card's does.
 func TestTheReviewDictatesTheLinesOfAFilmOnThePhone(t *testing.T) {
 	d := studyDesktop(t)
 	dir, f := keptFrom(t, d)
@@ -563,7 +563,7 @@ func TestTheReviewDictatesTheLinesOfAFilmOnThePhone(t *testing.T) {
 	}
 	p.app.Type("id:dictation-input", "おはよう")
 	p.app.Press("id:dictation-check")
-	if got, want := p.texts("id:dictation-score"), msgs.DictationScore(4, 9); got != want {
+	if got, want := p.texts("id:dictation-score"), msgs.DictationScoreChars(4, 9); got != want {
 		t.Errorf("the check says %q, want %q", got, want)
 	}
 	if got := p.texts("id:dictation-translation"); got != "早上好。" {
