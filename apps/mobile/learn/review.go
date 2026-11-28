@@ -268,7 +268,14 @@ func flipCard(cx *core.Scope, s *session.Session, item func() learning.Item, sho
 		}}
 	}
 	// The back is drawn in the dark palette, whatever the app's.
-	back := core.View{TestID: "review-back", Style: face, AccessibilityElementsHidden: func() bool { return !shown() }, StyleFunc: func() core.Style { return turn(true) }, Children: []core.Node{
+	// The back lies over the front, turned away but still in the way of a touch: until the card turns over it lets presses through to the front, as the front does for the back once it has.
+	back := core.View{TestID: "review-back", Style: face, AccessibilityElementsHidden: func() bool { return !shown() }, StyleFunc: func() core.Style {
+		st := turn(true)
+		if !shown() {
+			st.PointerEvents = core.PointerEventsNone
+		}
+		return st
+	}, Children: []core.Node{
 		core.Show{When: shown, Then: func(cx *core.Scope) core.Node {
 			theme.Dark(cx)
 			colors := ui.ColorsOf(cx)

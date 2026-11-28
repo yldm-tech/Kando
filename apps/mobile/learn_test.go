@@ -841,6 +841,26 @@ func TestTheReviewCardHidesTheFaceTurnedAway(t *testing.T) {
 	}
 }
 
+// Before a review card turns over, its back, laid over the front and only turned away, lets touches through to the front: on iOS a view takes the touch whether or not it handles it, so a back that took it kept the card from ever turning. Turned over, the front lets them through to the back.
+func TestTheReviewCardTakesTouchesOnTheFaceShown(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-review-start", wait)
+	p.app.Press("id:learn-review-start")
+	p.app.WaitFor("id:review-card", wait)
+	if p.app.Find("id:review-back").Props.PointerEvents != core.PointerEventsNone || p.app.Find("id:review-show").Props.PointerEvents == core.PointerEventsNone {
+		t.Fatal("before it turns over, the card does not take touches on its front alone")
+	}
+	p.app.Press("id:review-show")
+	p.app.WaitFor("id:review-answer", wait)
+	if p.app.Find("id:review-back").Props.PointerEvents == core.PointerEventsNone || p.app.Find("id:review-show").Props.PointerEvents != core.PointerEventsNone {
+		t.Fatal("turned over, the card does not take touches on its back alone")
+	}
+}
+
 // A saved line plays its film, and a word's sheet leads back to it, only once the film is whole on the phone: one still downloading has no video to play.
 func TestLearnPlaysOnlyAWholeFilm(t *testing.T) {
 	dir := t.TempDir()

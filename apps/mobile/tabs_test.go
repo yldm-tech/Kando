@@ -511,3 +511,22 @@ func TestTheAppearanceIsTheOneChosenInSettings(t *testing.T) {
 		}
 	}
 }
+
+// A search typed on the Library lets go of the keyboard when another tab is opened: the Library is only hidden while the other shows, and its field, still focused, kept the keyboard up over the tab opened.
+func TestOpeningAnotherTabPutsTheKeyboardAway(t *testing.T) {
+	dir := t.TempDir()
+	keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor("id:films-search", wait)
+	p.app.Type("id:films-search", "talk")
+	if !p.app.Find("id:films-search").Focused {
+		t.Fatal("the search is not focused while typed in")
+	}
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-page", wait)
+	for _, v := range p.app.QueryMounted("id:films-search") {
+		if v.Focused {
+			t.Fatal("the Library's search keeps the keyboard after the Settings tab opened")
+		}
+	}
+}
