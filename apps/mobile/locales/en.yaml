@@ -58,6 +58,9 @@ addQuality720:
 addQualityBest:
   message: "Best quality"
   description: "Add sheet: the computer downloads the best picture the site has."
+addQualityDefault:
+  message: "Default"
+  description: "Add sheet: the segment that leaves the picture the computer downloads to the computer's own setting; the note under the form names the computer, so the narrow segment does not."
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."

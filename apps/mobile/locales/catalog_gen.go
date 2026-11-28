@@ -989,6 +989,7 @@ const (
 	textAddQuality
 	textAddQuality720
 	textAddQualityBest
+	textAddQualityDefault
 	textAddSend
 	textAddSubtitles
 	textAddSubtitlesPlatform
@@ -1642,6 +1643,7 @@ var keyOfText = [numTexts]string{
 	"addQuality",
 	"addQuality720",
 	"addQualityBest",
+	"addQualityDefault",
 	"addSend",
 	"addSubtitles",
 	"addSubtitlesPlatform",
@@ -2293,6 +2295,7 @@ var textsEn = i18n.NewTexts(""+
 	"Save"+
 	"720P"+
 	"Best quality"+
+	"Default"+
 	"Send"+
 	"Original Subtitles"+
 	"Use the uploader's subtitles"+
@@ -2941,6 +2944,7 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		4,
 		12,
+		7,
 		4,
 		18,
 		28,
@@ -3592,6 +3596,7 @@ var textsJa = i18n.NewTexts(""+
 	"保存"+
 	"720P"+
 	"最高画質"+
+	"デフォルト"+
 	"送信"+
 	"元の字幕"+
 	"投稿者の字幕"+
@@ -4240,6 +4245,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		4,
 		12,
+		15,
 		6,
 		12,
 		18,
@@ -4891,6 +4897,7 @@ var textsKo = i18n.NewTexts(""+
 	"저장"+
 	"720P"+
 	"최고 화질"+
+	"기본"+
 	"보내기"+
 	"원문 자막"+
 	"업로더 자막"+
@@ -5539,6 +5546,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		4,
 		13,
+		6,
 		9,
 		13,
 		16,
@@ -6190,6 +6198,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"保存"+
 	"720P"+
 	"最高画质"+
+	"默认"+
 	"发送"+
 	"原文字幕"+
 	"用上传者的字幕"+
@@ -6838,6 +6847,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		4,
 		12,
+		6,
 		6,
 		12,
 		21,
@@ -7489,6 +7499,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"儲存"+
 	"720P"+
 	"最高畫質"+
+	"預設"+
 	"傳送"+
 	"原文字幕"+
 	"用上傳者的字幕"+
@@ -8137,6 +8148,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		4,
 		12,
+		6,
 		6,
 		12,
 		21,
@@ -9852,6 +9864,15 @@ func AddQualityBest(cx *core.Scope) string { return For(cx).AddQualityBest() }
 
 // AddQualityBest is the package's AddQualityBest in the language of msgs.
 func (msgs Messages) AddQualityBest() string { return msgs.text(textAddQualityBest) }
+
+// AddQualityDefault says "Default"
+// in the language the app shows under cx.
+//
+// Add sheet: the segment that leaves the picture the computer downloads to the computer's own setting; the note under the form names the computer, so the narrow segment does not.
+func AddQualityDefault(cx *core.Scope) string { return For(cx).AddQualityDefault() }
+
+// AddQualityDefault is the package's AddQualityDefault in the language of msgs.
+func (msgs Messages) AddQualityDefault() string { return msgs.text(textAddQualityDefault) }
 
 // AddSend says "Send"
 // in the language the app shows under cx.

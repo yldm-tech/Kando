@@ -42,3 +42,21 @@ func TestASegmentedControlIsTabsNamedByItsTexts(t *testing.T) {
 		t.Fatal("the segment does not show 最佳")
 	}
 }
+
+// A segment's text longer than the segment stays inside it, ending in an ellipsis, rather than overflowing on both sides past the control and the screen.
+func TestALongSegmentTextStaysInItsSegment(t *testing.T) {
+	const long = "As on a computer with a very long name indeed"
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		value := core.NewSignal(cx, "")
+		return core.View{Style: core.Style{Width: core.Pt(300)}, Children: []core.Node{Segmented{Label: func() string { return "Save" }, Value: value.Get, OnChange: value.Set, Segments: []Segment{
+			{Value: "", TestID: "seg-long", Text: func() string { return long }},
+			{Value: "best", TestID: "seg-best", Text: func() string { return "Best" }},
+			{Value: "720", TestID: "seg-720", Text: func() string { return "720P" }},
+		}}}}
+	}, nsgotest.Environment(core.Environment{OS: core.OSIOS, Idiom: core.IdiomPhone}))
+	seg := app.Find("id:seg-long").Bounds()
+	text := app.Find("id:seg-long >> text:" + long).Bounds()
+	if text.Origin.X < seg.Origin.X-0.5 || text.Origin.X+text.Size.Width > seg.Origin.X+seg.Size.Width+0.5 {
+		t.Fatalf("the text is at x %v, %v wide, outside its segment at x %v, %v wide", text.Origin.X, text.Size.Width, seg.Origin.X, seg.Size.Width)
+	}
+}
