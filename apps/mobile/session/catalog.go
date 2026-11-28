@@ -1,14 +1,18 @@
 package session
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"kando/apps/mobile/catalog"
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 )
 
@@ -127,12 +131,49 @@ func (s *Session) setShelf(id string, change func(Shelf) Shelf) {
 	s.matchLines()
 }
 
-// Computers are the paired computers with what they last listed, in the order they were paired, for catalog.Merge.
+// Computers are the paired computers with what they last listed, in the order they were paired, for catalog.Merge: each library's positions as the computer listed them, with the later ones of the phone's learning state of it laid over them (studiedPositions), so a film keeps the place the phone left it at once its record, which kept that place too, leaves the phone, as its offline file is deleted, until the computer takes it and lists it.
 func (s *Session) Computers() []catalog.Computer {
 	shelves := s.shelves.Get()
+	studies := s.studies.Get()
 	var out []catalog.Computer
 	for _, d := range s.desktops.Get() {
-		out = append(out, catalog.Computer{ID: d.ID, Name: d.Name, Listing: shelves[d.ID].Listing})
+		listing := shelves[d.ID].Listing
+		listing.Libraries = slices.Clone(listing.Libraries)
+		for i, lib := range listing.Libraries {
+			if l, ok := studies[studyKey(d.ID, lib.ID)]; ok {
+				listing.Libraries[i].Positions = studiedPositions(lib.Positions, l, d.DeviceID)
+			}
+		}
+		out = append(out, catalog.Computer{ID: d.ID, Name: d.Name, Listing: listing})
+	}
+	return out
+}
+
+// studiedPositions is listed, a library's positions as its computer listed them, with each film's place in l, the phone's learning state of the library, laid over it where it is later: the computer's as the phone last synced them, and the phone's own changes not taken yet (study.Library.Pending), as a place kept while a film played on (KeepPosition) or sent to a computer that did not answer. A pending place at the beginning stands as the beginning, as catalog.Merge takes the phone's. device is the phone's ID on the computer.
+func studiedPositions(listed map[string]catalog.Position, l study.Library, device string) map[string]catalog.Position {
+	out := maps.Clone(listed)
+	if out == nil {
+		out = map[string]catalog.Position{}
+	}
+	later := func(film string, p catalog.Position) {
+		// The rule is catalog.Merge's: a place kept with a time, even the beginning, stands until a later one.
+		if cur, ok := out[film]; !ok || cur.When.IsZero() && cur.At <= 0 || p.When.After(cur.When) {
+			out[film] = p
+		}
+	}
+	for film, p := range catalog.Positions(sync.StateChanges{Records: l.Records, Devices: l.Devices}, device) {
+		later(film, p)
+	}
+	for _, r := range l.Pending {
+		f, ok := r.Fields[sync.FieldPositionMS]
+		if r.Kind != sync.KindPosition || r.Removed != nil || !ok {
+			continue
+		}
+		var ms float64
+		if !sync.IsNull(f.Value) && (json.Unmarshal(f.Value, &ms) != nil || ms < 0) {
+			continue
+		}
+		later(cmp.Or(r.Film, r.ID), catalog.Position{At: time.Duration(ms) * time.Millisecond, When: f.At, Mine: true})
 	}
 	return out
 }

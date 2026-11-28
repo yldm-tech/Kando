@@ -40,6 +40,8 @@ type Film struct {
 	Cues   []sync.Cue
 	// Plays is what Video is of a film being made (sync.Film.Making, sync.FilmWatching.Plays): its video, a link's sound, or "" while nothing of it plays yet, when the video's address answers not found.
 	Plays string
+	// NoETag serves the video named by its Last-Modified date alone, with no ETag, as a desktop serves a film it keeps on a NAS or a storage location over SMB or SFTP (remotefs.Handler).
+	NoETag bool
 }
 
 // Desktop is the stand-in server. Its methods may be called from any goroutine.
@@ -88,7 +90,9 @@ type Desktop struct {
 	libs  []sync.Library
 	films []Film
 	stall int64
-	held  chan struct{}
+	// videoHeld holds the video answers before their first byte (HoldVideos).
+	videoHeld chan struct{}
+	held      chan struct{}
 	// holding counts the libraries answers waiting on held (HeldLibraries).
 	holding int
 	// pairHeld holds the pairing answers (HoldPairing).
@@ -239,6 +243,25 @@ func (d *Desktop) Stall(after int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.stall = after
+}
+
+// HoldVideos makes each video answer begun from now on wait before it sends anything, its headers too, until release is called or the phone gives up on it, as a desktop slow to start serving a large file does.
+func (d *Desktop) HoldVideos() (release func()) {
+	held := make(chan struct{})
+	d.mu.Lock()
+	d.videoHeld = held
+	d.mu.Unlock()
+	var once gosync.Once
+	return func() {
+		once.Do(func() {
+			d.mu.Lock()
+			if d.videoHeld == held {
+				d.videoHeld = nil
+			}
+			d.mu.Unlock()
+			close(held)
+		})
+	}
 }
 
 // Hold makes each libraries answer begun from now on wait until release is called or the phone gives up on it, as a desktop slow to answer does.
@@ -512,10 +535,19 @@ func (d *Desktop) video(w http.ResponseWriter, r *http.Request) {
 		rec += " " + ir
 	}
 	d.ranges = append(d.ranges, rec)
-	stall, mod := d.stall, d.modTime
+	stall, mod, held := d.stall, d.modTime, d.videoHeld
 	d.mu.Unlock()
-	sum := sha256.Sum256(f.Video)
-	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	if held != nil {
+		select {
+		case <-held:
+		case <-r.Context().Done():
+			return
+		}
+	}
+	if !f.NoETag {
+		sum := sha256.Sum256(f.Video)
+		w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	}
 	w.Header().Set("Content-Type", f.ContentType)
 	content := &stallReader{Reader: bytes.NewReader(f.Video), left: stall, ctx: r.Context()}
 	http.ServeContent(flushWriter{w}, r, "", mod, content)

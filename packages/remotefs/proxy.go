@@ -3,6 +3,8 @@ package remotefs
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +20,10 @@ import (
 	psync "kando/packages/sync"
 )
 
-// Handler serves the file at p of reader, whatever the request's path, as a file server does: GET and HEAD, a Range or several (206), If-Range, If-Modified-Since and If-None-Match against the file's time and the store's ETag, and a Content-Type from the extension. A missing file or a folder is 404, and a reader that cannot be reached 502.
+// firstByteTimeout is how long Handler waits for a file's store to find the file and give its first bytes before it gives up: 504 when it has not found the file by then, a body cut off when it has but gives no bytes.
+var firstByteTimeout = 30 * time.Second
+
+// Handler serves the file at p of reader, whatever the request's path, as a file server does: GET and HEAD, a Range or several (206), If-Range, If-Modified-Since and If-None-Match against the file's time and the store's ETag, and a Content-Type from the extension. A missing file or a folder is 404, a reader that cannot be reached 502, and one that does not answer within firstByteTimeout 504.
 func Handler(reader Reader, p string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -26,9 +31,18 @@ func Handler(reader Reader, p string) http.Handler {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		info, err := reader.Stat(r.Context(), p)
+		// The store has firstByteTimeout to find the file and give its first bytes: one that does not answer, as a NAS whose connection hangs, fails then rather than holding the request open, and the reads it cuts off leave that connection to be made anew.
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		waiting := time.AfterFunc(firstByteTimeout, cancel)
+		defer waiting.Stop()
+		info, err := reader.Stat(ctx, p)
 		if errors.Is(err, ErrNotExist) || errors.Is(err, ErrInvalidPath) || (err == nil && info.Dir) {
 			http.NotFound(w, r)
+			return
+		}
+		if err != nil && ctx.Err() != nil && r.Context().Err() == nil {
+			http.Error(w, "storage did not answer in time", http.StatusGatewayTimeout)
 			return
 		}
 		if err != nil {
@@ -36,13 +50,22 @@ func Handler(reader Reader, p string) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", psync.MediaType(p))
-		if info.ETag != "" {
-			w.Header().Set("ETag", info.ETag)
+		if etag := entityTag(info.ETag); etag != "" {
+			w.Header().Set("ETag", etag)
 		}
-		body := &rangeReader{ctx: r.Context(), reader: reader, path: p, size: info.Size}
+		body := &rangeReader{ctx: ctx, reader: reader, path: p, size: info.Size, waiting: waiting}
 		defer body.Close()
 		http.ServeContent(w, r, path.Base(p), info.Modified, body)
 	})
+}
+
+// entityTag is tag, the store's tag of a file's content, as the ETag header carries it: as it is when it is a quoted entity tag already, as an object store's or a WebDAV server's; else, as a media source's version of a file (mediasource.Entry.Version: a plugin's, as Plex's part key and size, or a size and time), a quoted one made of it, the same for the same tag. A bare tag would never match the If-Range a client sends it back in, which http.ServeContent reads as a date, so each resumed download would get the whole file again.
+func entityTag(tag string) string {
+	if tag == "" || strings.HasPrefix(tag, `"`) || strings.HasPrefix(tag, `W/"`) {
+		return tag
+	}
+	sum := sha256.Sum256([]byte(tag))
+	return `"` + hex.EncodeToString(sum[:16]) + `"`
 }
 
 // rangeReader is the file at path of size bytes as the io.ReadSeeker http.ServeContent takes: a Seek only notes the offset, and the first Read after it opens the file there, to its end.
@@ -53,6 +76,8 @@ type rangeReader struct {
 	size   int64
 	offset int64
 	body   io.ReadCloser
+	// waiting ends the request's context unless the first bytes come in time (Handler), stopped once they do; nil after.
+	waiting *time.Timer
 }
 
 func (r *rangeReader) Read(buf []byte) (int, error) {
@@ -68,6 +93,10 @@ func (r *rangeReader) Read(buf []byte) (int, error) {
 	}
 	n, err := r.body.Read(buf)
 	r.offset += int64(n)
+	if n > 0 && r.waiting != nil {
+		r.waiting.Stop()
+		r.waiting = nil
+	}
 	return n, err
 }
 

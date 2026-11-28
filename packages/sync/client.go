@@ -133,7 +133,7 @@ func (c *Client) Poster(ctx context.Context, id string) (data []byte, contentTyp
 	return data, resp.Header.Get("Content-Type"), err
 }
 
-// Part is a part of a film's video the desktop answers: Body reads the bytes from Start to End, both included, of the Total the file holds, and ETag names the file as it is, which a later request sends as IfRange so a part of a file that changed meanwhile comes whole instead. ContentType is the file's type as the desktop names it, such as video/mp4, which a phone keeping the file names it by.
+// Part is a part of a film's video the desktop answers: Body reads the bytes from Start to End, both included, of the Total the file holds, and ETag names the file as it is (Validator), which a later request sends as IfRange so a part of a file that changed meanwhile comes whole instead. ContentType is the file's type as the desktop names it, such as video/mp4, which a phone keeping the file names it by.
 type Part struct {
 	Body        io.ReadCloser
 	Start, End  int64
@@ -157,7 +157,7 @@ func (c *Client) Video(ctx context.Context, id string, from, to int64, ifRange s
 	if err != nil {
 		return nil, err
 	}
-	part := &Part{Body: resp.Body, ETag: resp.Header.Get("ETag"), ContentType: resp.Header.Get("Content-Type")}
+	part := &Part{Body: resp.Body, ETag: Validator(resp.Header), ContentType: resp.Header.Get("Content-Type")}
 	if resp.StatusCode == http.StatusPartialContent {
 		if _, err := fmt.Sscanf(resp.Header.Get("Content-Range"), "bytes %d-%d/%d", &part.Start, &part.End, &part.Total); err != nil {
 			resp.Body.Close()
@@ -168,6 +168,14 @@ func (c *Client) Video(ctx context.Context, id string, from, to int64, ifRange s
 	part.Total = resp.ContentLength
 	part.End = resp.ContentLength - 1
 	return part, nil
+}
+
+// Validator is what names the file an answer of a video is of, for a later request's If-Range: its ETag, else its Last-Modified date, which is all a desktop sends of a film it serves from a NAS or a storage location that keeps no ETag (remotefs.Handler); "" for neither, when a part kept cannot be gone on with.
+func Validator(h http.Header) string {
+	if etag := h.Get("ETag"); etag != "" {
+		return etag
+	}
+	return h.Get("Last-Modified")
 }
 
 // ServeVideo answers r, a player's request for film id's video, with the desktop's answer: r's method, GET or HEAD, and its Range, If-Range and If-None-Match go to the desktop over the pinned connection with the device's token, and the status, the headers that say what is sent, and the body come back as the desktop sends them. It serves a player that opens a URL and cannot pin a certificate or send a token, such as the system's, from a loopback server of the phone's.

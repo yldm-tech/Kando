@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/mobile/store"
+	"kando/apps/mobile/study"
 	"kando/packages/sync"
 	"kando/packages/sync/synctest"
 )
@@ -134,6 +136,39 @@ func TestWhereAFilmWasLeftGoesToTheComputer(t *testing.T) {
 		t.Fatal("the position went to the computer while the film played on")
 	}
 	p.app.Press("id:player-minimize")
+	p.app.WaitUntil(wait, func() bool {
+		r, ok := d.State("lib", sync.KindPosition, "f1")
+		return ok && string(r.Fields[sync.FieldPositionMS].Value) == "6000"
+	})
+}
+
+// Deleting a film's offline file keeps where the phone left it, which the computer had not taken yet: the Library still shows the phone's place, not the older one the computer listed, and the computer takes it once it answers.
+func TestDeletingAFilmKeepsWhereThePhoneLeftIt(t *testing.T) {
+	d := newDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), study.Position("f1", 3*sec, now().Add(-time.Hour)))
+	dir := t.TempDir()
+	f := keepTalkFrom(t, dir, store.DesktopID(d.Fingerprint))
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(f.Desktop)
+	openKeptStudy(p, f)
+	playStudy(p)
+	p.at(6 * sec)
+	// The computer does not answer the put the player makes as it is left, so the place stays the phone's alone.
+	release := d.HoldPuts()
+	defer release()
+	p.app.Press("id:player-minimize")
+	row := talkRow(f.Desktop)
+	p.app.WaitFor(row+" >> text:"+msgs.FilmsWatchedTo("0:06")+" · "+msgs.FilmDownloaded(), wait)
+
+	p.app.Press("id:films-options-" + f.Desktop + "-f1")
+	p.choose(msgs.FilmDelete())
+	p.app.Answer(1)
+	p.waitFile(filepath.Join("films", f.Desktop, "f1"), -1)
+	p.app.WaitUntil(wait, func() bool { return !p.app.Exists(row + " >> text:" + msgs.FilmDownloaded()) })
+	if !p.app.Exists(row + " >> text:" + msgs.FilmsWatchedTo("0:06")) {
+		t.Fatalf("after deleting, the row reads %q", p.texts(row))
+	}
+	release()
 	p.app.WaitUntil(wait, func() bool {
 		r, ok := d.State("lib", sync.KindPosition, "f1")
 		return ok && string(r.Fields[sync.FieldPositionMS].Value) == "6000"

@@ -29,6 +29,8 @@ type Pool struct {
 	open    Opener
 	sources map[string]poolSource
 	conns   map[string]Driver
+	// connecting is the connection being made to each source (connect), which every Driver that asks meanwhile waits for, as long as its own context lets it.
+	connecting map[string]*poolConnect
 	// proxy serves the sources' videos on the loopback address to the system's player and ffmpeg (URL), started the first time one is asked for.
 	proxy *remotefs.Proxy
 }
@@ -88,43 +90,78 @@ func (p *Pool) Source(id string) (Source, bool) {
 	return s.source, ok
 }
 
-// Driver is the connection to the source id, made the first time it is asked for, within PoolOpenTimeout; ErrSourceGone when the Pool holds no such source. Two callers that ask at once may both connect; the second connection is then closed and the first kept.
+// Driver is the connection to the source id, made the first time it is asked for; ErrSourceGone when the Pool holds no such source. The connection is made once however many ask for it meanwhile, apart from any of them (connect), within PoolOpenTimeout, and each waits for it only as long as ctx lets it: connecting may take longer than a request can wait, as while macOS asks the user whether Kando may read the source's secrets from the keychain, and a request that gives up neither cuts the connecting short nor starts another, so the next one finds the connection made.
 func (p *Pool) Driver(ctx context.Context, id string) (Driver, error) {
 	p.mu.Lock()
 	held, ok := p.sources[id]
 	d, open := p.conns[id], p.open
-	p.mu.Unlock()
 	if !ok || open == nil {
+		p.mu.Unlock()
 		return nil, fmt.Errorf("%w: %s", ErrSourceGone, id)
 	}
 	if d != nil {
+		p.mu.Unlock()
 		return d, nil
 	}
+	c := p.connecting[id]
+	if c == nil || !sameSource(c.held.source, held.source) {
+		c = &poolConnect{held: held, done: make(chan struct{})}
+		if p.connecting == nil {
+			p.connecting = map[string]*poolConnect{}
+		}
+		p.connecting[id] = c
+		go p.connect(id, open, c)
+	}
+	p.mu.Unlock()
 	if _, ok := ctx.Deadline(); !ok {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, PoolOpenTimeout)
 		defer cancel()
 	}
-	d, err := open(ctx, held.kind, held.source)
-	if err != nil {
-		return nil, err
+	select {
+	case <-c.done:
+		return c.d, c.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("mediasource: still connecting to %s: %w", id, ctx.Err())
 	}
+}
+
+// poolConnect is a connection being made to the source held: the driver, or why there is none, once done is closed.
+type poolConnect struct {
+	held poolSource
+	done chan struct{}
+	d    Driver
+	err  error
+}
+
+// connect makes the connection c to the source id with open, within PoolOpenTimeout, and keeps it as the source's while the source is still as it was; on its own goroutine, so no Driver waiting for it holds it up or cuts it short.
+func (p *Pool) connect(id string, open Opener, c *poolConnect) {
+	ctx, cancel := context.WithTimeout(context.Background(), PoolOpenTimeout)
+	defer cancel()
+	d, err := open(ctx, c.held.kind, c.held.source)
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	if now, ok := p.sources[id]; !ok || !sameSource(now.source, held.source) {
+	if p.connecting[id] == c {
+		delete(p.connecting, id)
+	}
+	now, ok := p.sources[id]
+	switch {
+	case err != nil:
+	case !ok || !sameSource(now.source, c.held.source):
 		// The source changed or went while it connected: the connection is to what it was.
 		_ = d.Close()
-		return nil, fmt.Errorf("%w: %s", ErrSourceGone, id)
-	}
-	if have := p.conns[id]; have != nil {
+		d, err = nil, fmt.Errorf("%w: %s", ErrSourceGone, id)
+	case p.conns[id] != nil:
 		_ = d.Close()
-		return have, nil
+		d = p.conns[id]
+	default:
+		if p.conns == nil {
+			p.conns = map[string]Driver{}
+		}
+		p.conns[id] = d
 	}
-	if p.conns == nil {
-		p.conns = map[string]Driver{}
-	}
-	p.conns[id] = d
-	return d, nil
+	p.mu.Unlock()
+	c.d, c.err = d, err
+	close(c.done)
 }
 
 // Close closes every connection and the loopback server; Driver connects again after it, and URL starts a new server.

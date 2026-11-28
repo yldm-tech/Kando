@@ -34,10 +34,16 @@ type smbConn struct {
 }
 
 func (c *smbConn) Close() error {
-	_ = c.share.Umount()
-	_ = c.session.Logoff()
+	// A connection closed because a request on it was cut off may never answer the tree disconnect and the logoff, so they get a moment before the TCP connection goes anyway.
+	ctx, cancel := context.WithTimeout(context.Background(), smbCloseTimeout)
+	defer cancel()
+	_ = c.share.WithContext(ctx).Umount()
+	_ = c.session.WithContext(ctx).Logoff()
 	return c.tcp.Close()
 }
+
+// smbCloseTimeout bounds the goodbyes of a connection closing (smbConn.Close).
+const smbCloseTimeout = 3 * time.Second
 
 func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	host := strings.TrimSpace(cfg.Host)
@@ -62,6 +68,7 @@ func openSMB(ctx context.Context, cfg Remote) (*smbStore, error) {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	st := &smbStore{root: root}
 	st.s.broken = smbBroken
+	st.s.cancelBreaks = true
 	st.s.dial = func(ctx context.Context) (*smb2.Share, io.Closer, error) {
 		c, err := dialSMB(ctx, host, addr, share, cfg)
 		if err != nil {
@@ -160,10 +167,16 @@ func smbBroken(err error) bool {
 
 // do runs fn with the share bound to ctx, once more on a new connection when it finds the connection broken.
 func (s *smbStore) do(ctx context.Context, fn func(share *smb2.Share) error) error {
+	_, err := s.doOn(ctx, fn)
+	return err
+}
+
+// doOn is do, with the generation of the connection fn last ran on (session.doOn).
+func (s *smbStore) doOn(ctx context.Context, fn func(share *smb2.Share) error) (int, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return 0, err
 	}
-	return s.s.do(ctx, func(share *smb2.Share) error { return fn(share.WithContext(ctx)) })
+	return s.s.doOn(ctx, func(share *smb2.Share) error { return fn(share.WithContext(ctx)) })
 }
 
 // path is the share's path of the clean path p; the library takes slashes.
@@ -232,7 +245,7 @@ func (s *smbStore) Open(ctx context.Context, p string, offset, length int64) (io
 		return nil, err
 	}
 	var f *smb2.File
-	err = s.do(ctx, func(share *smb2.Share) error {
+	gen, err := s.doOn(ctx, func(share *smb2.Share) error {
 		var err error
 		f, err = share.Open(s.path(p))
 		if err != nil {
@@ -253,10 +266,12 @@ func (s *smbStore) Open(ctx context.Context, p string, offset, length int64) (io
 	if err != nil {
 		return nil, smbErr(err)
 	}
+	// Its reads are bound to ctx: one cut off by it, or the file closed after it, leaves the connection to be made anew (session.cancelBreaks).
+	rc := s.s.guard(ctx, gen, f)
 	if length < 0 {
-		return f, nil
+		return rc, nil
 	}
-	return limitedFile{Reader: io.LimitReader(f, length), Closer: f}, nil
+	return limitedFile{Reader: io.LimitReader(rc, length), Closer: rc}, nil
 }
 
 // Write uploads r into a hidden file beside p and renames it over p.
@@ -296,7 +311,8 @@ func (s *smbStore) Write(ctx context.Context, p string, r io.Reader, size int64)
 		err = share.Rename(temp, s.path(p))
 	}
 	if err != nil {
-		if !s.s.drop(gen, err) {
+		// An upload cut off by ctx leaves its connection to be made anew, and its hidden file behind, as a crash does, which List does not show.
+		if !s.s.cut(ctx, gen, err) && !s.s.drop(gen, err) {
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), smbDialTimeout)
 			defer cancel()
 			_ = conn.WithContext(cleanup).Remove(temp)

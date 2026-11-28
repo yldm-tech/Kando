@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"path"
 	"strings"
@@ -273,5 +274,36 @@ func TestProxyRevokesAURLOnceEveryHolderGaveItBack(t *testing.T) {
 	proxy.Revoke(again)
 	if resp, _ := get(t, again, nil); resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("a revoke after the last one carried over to the new URL: %d", resp.StatusCode)
+	}
+}
+
+// tagged is a Reader of one file whose store names it by tag, as a media source names a file by its version.
+type tagged struct {
+	memReader
+	tag string
+}
+
+func (r *tagged) Stat(ctx context.Context, p string) (Info, error) {
+	info, err := r.memReader.Stat(ctx, p)
+	info.ETag = r.tag
+	return info, err
+}
+
+// Handler sends a store's tag that is not a quoted entity tag, as a media source's version, as one made of it, the same each time, so an If-Range with it is met with the range asked for; a quoted one goes as it is.
+func TestHandlerQuotesABareTag(t *testing.T) {
+	at := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	for _, tag := range []string{"/library/parts/7/1700000000/file.mp4:10", `"abc"`} {
+		r := &tagged{memReader: memReader{files: map[string]string{"film.mp4": "0123456789"}, at: at}, tag: tag}
+		srv := httptest.NewServer(Handler(r, "film.mp4"))
+		resp, _ := get(t, srv.URL, nil)
+		etag := resp.Header.Get("ETag")
+		again, _ := get(t, srv.URL, nil)
+		if !strings.HasPrefix(etag, `"`) || again.Header.Get("ETag") != etag || (strings.HasPrefix(tag, `"`) && etag != tag) {
+			t.Fatalf("tag %q served as %q, then %q", tag, etag, again.Header.Get("ETag"))
+		}
+		if resp, body := get(t, srv.URL, http.Header{"Range": {"bytes=4-"}, "If-Range": {etag}}); resp.StatusCode != http.StatusPartialContent || body != "456789" {
+			t.Fatalf("tag %q: if-range of the same file: %d %q", tag, resp.StatusCode, body)
+		}
+		srv.Close()
 	}
 }

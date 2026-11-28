@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
@@ -58,6 +61,86 @@ func TestADownloadPausesAndResumes(t *testing.T) {
 	p.app.WaitFor(row+" >> text:"+"YouTube · 0:10 · "+msgs.FilmDownloaded(), wait)
 	if got := p.texts("id:films-used"); !strings.Contains(got, "MB") && !strings.Contains(got, "KB") {
 		t.Errorf("the Library shows %q, without the space the downloads take", got)
+	}
+}
+
+// A film its desktop serves from a NAS that keeps no ETag, named by its Last-Modified date alone, goes on from the part kept when its download is paused and resumed, the second request asking for the rest of the file against that date, and its progress goes on from the share it had rather than from 0.
+func TestADownloadOfAFilmWithoutAnETagResumes(t *testing.T) {
+	d := synctest.New(t, "Studio")
+	d.AddLibrary("lib", "Japanese Class")
+	d.AddFilm(synctest.Film{Library: "lib", Video: talkVideo, Poster: []byte("jpeg"), Cues: talkCues, NoETag: true,
+		Film: sync.Film{ID: "f1", Title: "Morning Talk", Source: "youtube", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文", Updated: now()}})
+	d.Offer("123456")
+	p := startPhone(t, "")
+	dir := p.openTalk(d)
+	d.Stall(300_000)
+	p.app.Press("id:film-download")
+	p.app.WaitFor("text:"+msgs.FilmDownloading(30), wait)
+	p.app.Press("id:film-pause")
+	p.app.WaitFor("text:"+msgs.FilmPaused(30), wait)
+	p.waitFile(filepath.Join(dir, store.PartFile), 300_000)
+
+	// Resumed, the next 500 KB take it from 30% to 80%; started over, they would take it to 50%.
+	d.Stall(500_000)
+	p.app.Press("id:film-resume")
+	p.app.WaitFor("text:"+msgs.FilmDownloading(80), wait)
+	p.app.Press("id:film-pause")
+	p.app.WaitFor("text:"+msgs.FilmPaused(80), wait)
+	p.waitFile(filepath.Join(dir, store.PartFile), 800_000)
+
+	d.Stall(0)
+	p.app.Press("id:film-resume")
+	p.app.WaitFor("id:film-play", wait)
+	data, err := os.ReadFile(filepath.Join(p.dir, dir, "video.mp4"))
+	if err != nil || !bytes.Equal(data, talkVideo) {
+		t.Fatalf("the video kept is %d bytes, %v; want the desktop's %d", len(data), err, len(talkVideo))
+	}
+	modified := time.Unix(1_700_000_000, 0).UTC().Format(http.TimeFormat)
+	if r := d.Ranges(); !slices.Equal(r, []string{"bytes=0-", "bytes=300000- " + modified, "bytes=800000- " + modified}) {
+		t.Fatalf("ranges asked for %q", r)
+	}
+}
+
+// A download paused at once, before the desktop answers with its first byte, and resumed goes on to the whole film; so does one paused and resumed again and again in quick taps.
+func TestADownloadPausedBeforeItsFirstByteResumes(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	dir := p.openTalk(d)
+	release := d.HoldVideos()
+	defer release()
+	p.app.Press("id:film-download")
+	p.app.WaitUntil(wait, func() bool { return len(d.Ranges()) == 1 })
+	p.app.Press("id:film-pause")
+	p.app.WaitFor("text:"+msgs.FilmPaused(0), wait)
+	p.app.Press("id:film-resume")
+	p.app.WaitFor("text:"+msgs.FilmDownloading(0), wait)
+	release()
+	p.app.WaitFor("id:film-play", wait)
+	data, err := os.ReadFile(filepath.Join(p.dir, dir, "video.mp4"))
+	if err != nil || !bytes.Equal(data, talkVideo) {
+		t.Fatalf("the video kept is %d bytes, %v; want the desktop's %d", len(data), err, len(talkVideo))
+	}
+}
+
+// Pause and resume tapped again and again in quick turns, while the desktop has not answered yet, leave one download, which goes on to the whole film once the desktop answers.
+func TestQuickPausesAndResumesLeaveOneDownload(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	dir := p.openTalk(d)
+	release := d.HoldVideos()
+	defer release()
+	p.app.Press("id:film-download")
+	for range 6 {
+		p.app.WaitFor("id:film-pause", wait)
+		p.app.Press("id:film-pause")
+		p.app.WaitFor("id:film-resume", wait)
+		p.app.Press("id:film-resume")
+	}
+	release()
+	p.app.WaitFor("id:film-play", wait)
+	data, err := os.ReadFile(filepath.Join(p.dir, dir, "video.mp4"))
+	if err != nil || !bytes.Equal(data, talkVideo) {
+		t.Fatalf("the video kept is %d bytes, %v; want the desktop's %d", len(data), err, len(talkVideo))
 	}
 }
 
