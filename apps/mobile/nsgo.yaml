@@ -15,6 +15,8 @@ build:
 
 apple:
   info:
+    # The player's picture in picture (player.settingsSheet, core.Video.PictureInPicture) and its audio only mode, which plays on with the screen locked, are background playback, which iOS allows only to an app that declares the audio background mode; without it NSGo's AVPictureInPictureController is never made and every start fails (NSGo's internal/platform/apple/pip.go, "Picture in Picture requires apple.info.UIBackgroundModes: [audio]").
+    UIBackgroundModes: [audio]
     # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are, and the NAS shares and servers it reaches itself (package sources, over SMB, SFTP or WebDAV with kando/packages/remotefs). Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync), nor to a NAS's, which the user trusts by its fingerprint at the first connection. The catalogs' NSLocalNetworkUsageDescription message says it in each language (InfoPlist.strings); this English one is the Info.plist's.
     NSLocalNetworkUsageDescription: Kando connects to Kando on your computer, and to the NAS and servers you add, over your local network to list and download your films.
     # The pairing page reads the QR code the computer shows from the camera's live picture (package pair, NSGo's Scope.ScanCode), which iOS lets an app do only with a reason it shows as it asks; the catalogs' NSCameraUsageDescription message says it in each language (InfoPlist.strings).

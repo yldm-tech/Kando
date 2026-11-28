@@ -1370,6 +1370,7 @@ const (
 	textPlayerPartsHint
 	textPlayerPause
 	textPlayerPictureInPicture
+	textPlayerPictureInPictureFailed
 	textPlayerPlay
 	textPlayerPosition
 	textPlayerPrevLine
@@ -1521,6 +1522,9 @@ const (
 	textPlayerMinimize
 	textPlayerFullScreen
 	textPlayerExitFullScreen
+	textPlayerStackedLayout
+	textPlayerNextFilm
+	textPlayerPrevFilm
 	textPlayerTabWords
 	textPlayerWordAdd
 	textPlayerWordInVocabulary
@@ -2024,6 +2028,7 @@ var keyOfText = [numTexts]string{
 	"playerPartsHint",
 	"playerPause",
 	"playerPictureInPicture",
+	"playerPictureInPictureFailed",
 	"playerPlay",
 	"playerPosition",
 	"playerPrevLine",
@@ -2175,6 +2180,9 @@ var keyOfText = [numTexts]string{
 	"playerMinimize",
 	"playerFullScreen",
 	"playerExitFullScreen",
+	"playerStackedLayout",
+	"playerNextFilm",
+	"playerPrevFilm",
 	"playerTabWords",
 	"playerWordAdd",
 	"playerWordInVocabulary",
@@ -2676,6 +2684,7 @@ var textsEn = i18n.NewTexts(""+
 	"The film in equal parts. Tap one to play from it."+
 	"Pause"+
 	"Picture in Picture"+
+	"Picture in Picture isn't available right now"+
 	"Play"+
 	"Position"+
 	"Previous Line"+
@@ -2827,6 +2836,9 @@ var textsEn = i18n.NewTexts(""+
 	"Minimize Player"+
 	"Full Screen"+
 	"Exit Full Screen"+
+	"Switch to Stacked Layout"+
+	"Next Film"+
+	"Previous Film"+
 	"New Words"+
 	"Add to Vocabulary"+
 	"In Vocabulary · Remove"+
@@ -3325,6 +3337,7 @@ var textsEn = i18n.NewTexts(""+
 		49,
 		5,
 		18,
+		44,
 		4,
 		8,
 		13,
@@ -3476,6 +3489,9 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		11,
 		16,
+		24,
+		9,
+		13,
 		9,
 		17,
 		23,
@@ -3977,6 +3993,7 @@ var textsJa = i18n.NewTexts(""+
 	"映像を同じ長さに分けました。タップするとそこから再生します。"+
 	"一時停止"+
 	"ピクチャ・イン・ピクチャ"+
+	"ピクチャ・イン・ピクチャを今は開始できません"+
 	"再生"+
 	"再生位置"+
 	"前のセリフ"+
@@ -4128,6 +4145,9 @@ var textsJa = i18n.NewTexts(""+
 	"プレーヤーをしまう"+
 	"フルスクリーン"+
 	"フルスクリーンを解除"+
+	"上下レイアウトに切り替え"+
+	"次の作品"+
+	"前の作品"+
 	"単語"+
 	"単語帳に追加"+
 	"単語帳にあります · 削除"+
@@ -4626,6 +4646,7 @@ var textsJa = i18n.NewTexts(""+
 		90,
 		12,
 		36,
+		66,
 		6,
 		12,
 		15,
@@ -4777,6 +4798,9 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		21,
 		30,
+		36,
+		12,
+		12,
 		6,
 		18,
 		34,
@@ -5278,6 +5302,7 @@ var textsKo = i18n.NewTexts(""+
 	"영상을 같은 길이로 나눴습니다. 탭하면 그곳부터 재생합니다."+
 	"일시 정지"+
 	"PIP 모드"+
+	"지금은 PIP를 시작할 수 없습니다"+
 	"재생"+
 	"재생 위치"+
 	"이전 대사"+
@@ -5429,6 +5454,9 @@ var textsKo = i18n.NewTexts(""+
 	"플레이어 최소화"+
 	"전체 화면"+
 	"전체 화면 종료"+
+	"위아래 레이아웃으로 전환"+
+	"다음 작품"+
+	"이전 작품"+
 	"단어"+
 	"단어장에 추가"+
 	"단어장에 있음 · 삭제"+
@@ -5927,6 +5955,7 @@ var textsKo = i18n.NewTexts(""+
 		83,
 		13,
 		10,
+		43,
 		6,
 		13,
 		13,
@@ -6078,6 +6107,9 @@ var textsKo = i18n.NewTexts(""+
 		22,
 		13,
 		20,
+		35,
+		13,
+		13,
 		6,
 		19,
 		29,
@@ -6579,6 +6611,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"按时间把字幕平均切成几段，点一段就跳过去。"+
 	"暂停"+
 	"画中画"+
+	"暂时无法开启画中画"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
@@ -6730,6 +6763,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"收起播放器"+
 	"全屏"+
 	"退出全屏"+
+	"切换到上下布局"+
+	"下一部"+
+	"上一部"+
 	"生词"+
 	"加入生词本"+
 	"已在生词本 · 移除"+
@@ -7228,6 +7264,7 @@ var textsZhHans = i18n.NewTexts(""+
 		63,
 		6,
 		9,
+		27,
 		6,
 		12,
 		9,
@@ -7379,6 +7416,9 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		6,
 		12,
+		21,
+		9,
+		9,
 		6,
 		15,
 		25,
@@ -7880,6 +7920,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"按時間把字幕平均切成幾段，點一段就跳過去。"+
 	"暫停"+
 	"子母畫面"+
+	"暫時無法開啟子母畫面"+
 	"播放"+
 	"播放位置"+
 	"上一句"+
@@ -8031,6 +8072,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"收起播放器"+
 	"全螢幕"+
 	"結束全螢幕"+
+	"切換到上下佈局"+
+	"下一部"+
+	"上一部"+
 	"生詞"+
 	"加入生詞本"+
 	"已在生詞本 · 移除"+
@@ -8529,6 +8573,7 @@ var textsZhHant = i18n.NewTexts(""+
 		63,
 		6,
 		12,
+		30,
 		6,
 		12,
 		9,
@@ -8680,6 +8725,9 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		9,
 		15,
+		21,
+		9,
+		9,
 		6,
 		15,
 		25,
@@ -19037,6 +19085,19 @@ func PlayerPictureInPicture(cx *core.Scope) string { return For(cx).PlayerPictur
 // PlayerPictureInPicture is the package's PlayerPictureInPicture in the language of msgs.
 func (msgs Messages) PlayerPictureInPicture() string { return msgs.text(textPlayerPictureInPicture) }
 
+// PlayerPictureInPictureFailed says "Picture in Picture isn't available right now"
+// in the language the app shows under cx.
+//
+// Toast in the player when the system cannot start Picture in Picture for the film; the film plays on in the player.
+func PlayerPictureInPictureFailed(cx *core.Scope) string {
+	return For(cx).PlayerPictureInPictureFailed()
+}
+
+// PlayerPictureInPictureFailed is the package's PlayerPictureInPictureFailed in the language of msgs.
+func (msgs Messages) PlayerPictureInPictureFailed() string {
+	return msgs.text(textPlayerPictureInPictureFailed)
+}
+
 // PlayerPlay says "Play"
 // in the language the app shows under cx.
 //
@@ -22279,6 +22340,33 @@ func PlayerExitFullScreen(cx *core.Scope) string { return For(cx).PlayerExitFull
 
 // PlayerExitFullScreen is the package's PlayerExitFullScreen in the language of msgs.
 func (msgs Messages) PlayerExitFullScreen() string { return msgs.text(textPlayerExitFullScreen) }
+
+// PlayerStackedLayout says "Switch to Stacked Layout"
+// in the language the app shows under cx.
+//
+// Spoken name of the button over an upright video that fills a phone's screen: it puts the picture back over the line's card, the controls and the list of lines.
+func PlayerStackedLayout(cx *core.Scope) string { return For(cx).PlayerStackedLayout() }
+
+// PlayerStackedLayout is the package's PlayerStackedLayout in the language of msgs.
+func (msgs Messages) PlayerStackedLayout() string { return msgs.text(textPlayerStackedLayout) }
+
+// PlayerNextFilm says "Next Film"
+// in the language the app shows under cx.
+//
+// Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe up does: plays the next film of the list it was opened from.
+func PlayerNextFilm(cx *core.Scope) string { return For(cx).PlayerNextFilm() }
+
+// PlayerNextFilm is the package's PlayerNextFilm in the language of msgs.
+func (msgs Messages) PlayerNextFilm() string { return msgs.text(textPlayerNextFilm) }
+
+// PlayerPrevFilm says "Previous Film"
+// in the language the app shows under cx.
+//
+// Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe down does: plays the film before it in the list it was opened from.
+func PlayerPrevFilm(cx *core.Scope) string { return For(cx).PlayerPrevFilm() }
+
+// PlayerPrevFilm is the package's PlayerPrevFilm in the language of msgs.
+func (msgs Messages) PlayerPrevFilm() string { return msgs.text(textPlayerPrevFilm) }
 
 // PlayerTabWords says "New Words"
 // in the language the app shows under cx.

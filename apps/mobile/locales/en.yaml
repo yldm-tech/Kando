@@ -2061,6 +2061,9 @@ playerPause:
 playerPictureInPicture:
   message: "Picture in Picture"
   description: "Row of the playback settings: plays the video in the system's small window over other apps."
+playerPictureInPictureFailed:
+  message: "Picture in Picture isn't available right now"
+  description: "Toast in the player when the system cannot start Picture in Picture for the film; the film plays on in the player."
 playerPlay:
   message: "Play"
   description: "Spoken name of the player's button while the film is held."
@@ -2773,6 +2776,15 @@ playerFullScreen:
 playerExitFullScreen:
   message: "Exit Full Screen"
   description: "Spoken name of the button in the row over the full-screen picture that goes back to the upright player."
+playerStackedLayout:
+  message: "Switch to Stacked Layout"
+  description: "Spoken name of the button over an upright video that fills a phone's screen: it puts the picture back over the line's card, the controls and the list of lines."
+playerNextFilm:
+  message: "Next Film"
+  description: "Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe up does: plays the next film of the list it was opened from."
+playerPrevFilm:
+  message: "Previous Film"
+  description: "Action offered to assistive technology on the picture of a video filling an upright phone's screen, as a swipe down does: plays the film before it in the list it was opened from."
 playerTabWords:
   message: "New Words"
   description: "Tab of the player's panel: the film's words looked up or in the vocabulary. Their number shows beside it."

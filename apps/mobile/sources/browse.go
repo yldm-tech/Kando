@@ -22,8 +22,10 @@ import (
 type Browse struct {
 	Folder func(dir string)
 	Play   func(key string)
-	Edit   func(id string)
-	Back   func()
+	// Feed gives the player the folder's videos in its order as it lists them, which a video played from it goes on to by a swipe (player.Layer.SetFeed); nil for none.
+	Feed func(keys func() []string)
+	Edit func(id string)
+	Back func()
 }
 
 // listed is a folder's listing: under way, read (its folders and videos), or why not.
@@ -58,6 +60,16 @@ func BrowsePage(cx *core.Scope, s *session.Session, id, dir string, act Browse) 
 	}
 	source := func() store.Source { src, _ := s.Source(id); return src }
 	ref := &core.Ref{}
+	// videos are the folder's videos in its order, as the phone keeps them once one plays (session.SourceFilmKey).
+	videos := func() []string {
+		var keys []string
+		for _, e := range list.GetUntracked().entries {
+			if !e.Dir {
+				keys = append(keys, session.SourceFilmKey(id, nas.Join(dir, e.Name)))
+			}
+		}
+		return keys
+	}
 	rows := core.Each(func() []remotefs.Info { return list.Get().entries }, func(e remotefs.Info) string { return e.Name }, func(cx *core.Scope, e func() remotefs.Info, i func() int) core.Node {
 		p := nas.Join(dir, e().Name)
 		if e().Dir {
@@ -66,7 +78,13 @@ func BrowsePage(cx *core.Scope, s *session.Session, id, dir string, act Browse) 
 				Title:   func() string { return e().Name },
 				OnPress: func() { act.Folder(p) }}
 		}
-		return videoRow(cx, s, id, p, e, i, act.Play)
+		play := func(key string) {
+			if act.Feed != nil {
+				act.Feed(videos)
+			}
+			act.Play(key)
+		}
+		return videoRow(cx, s, id, p, e, i, play)
 	})
 	failed := func(cx *core.Scope) core.Node {
 		denied := func() bool { return errors.Is(list.Get().err, session.ErrLocalNetwork) }

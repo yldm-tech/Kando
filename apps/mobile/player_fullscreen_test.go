@@ -101,6 +101,25 @@ func TestOnASmallPhoneTheListOfLinesScrolls(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:player-lines").Offset.Y > 0 })
 }
 
+// A video near square, as a dance filmed upright and cropped to 828×720, keeps its full screen upright: on its side it would hardly grow, and it reads as upright. From 4:3 on, full screen turns the phone sideways.
+func TestFullScreenKeepsANearSquareVideoUpright(t *testing.T) {
+	p := openPlayerOf(t, 390, 844, core.Size{Width: 828, Height: 720})
+	p.app.Press("id:player-fullscreen")
+	if p.app.Orientation != core.OrientationPortrait {
+		t.Fatalf("full screen of a near-square video asks for %v, want upright", p.app.Orientation)
+	}
+	p.app.WaitFor("id:player-mode-pill", wait)
+	if b := p.app.Find("id:player-stage").Bounds(); !near(b.Size.Width, 390) {
+		t.Fatalf("the picture is %+v in an upright full screen", b.Size)
+	}
+
+	q := openPlayerOf(t, 390, 844, videoSizes["4:3"])
+	q.app.Press("id:player-fullscreen")
+	if q.app.Orientation != core.OrientationLandscape {
+		t.Fatalf("full screen of a 4:3 video asks for %v, want sideways", q.app.Orientation)
+	}
+}
+
 // Full screen from the picture's button turns a wide video's screen sideways and lays the player out as on its side, over the same video, which plays on where it was; its button in the row over the picture leaves it, and the screen is the system's to turn again.
 func TestFullScreenTurnsAWideVideoSideways(t *testing.T) {
 	p := openPlayerOf(t, 390, 844, videoSizes["16:9"])
@@ -318,4 +337,39 @@ func TestThePlaybackSettingsSwipeAway(t *testing.T) {
 	p.app.Pan("id:player-settings-sheet", core.Point{Y: 120}, core.Point{Y: 420})
 	p.app.Advance(600 * time.Millisecond)
 	p.app.WaitForGone("id:player-settings", wait)
+}
+
+// A film its computer did not translate has no translation for the card to blur, so the card's hint is the one about the words, not the one to tap a blurred line; with a translation hidden it is.
+func TestTheCardsHintFollowsWhatIsBlurred(t *testing.T) {
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	f.Film.Translation = ""
+	st := store.Open(dir)
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	own := make([]sync.Cue, len(talkCues))
+	for i, c := range talkCues {
+		own[i] = sync.Cue{StartMS: c.StartMS, EndMS: c.EndMS, Original: c.Original}
+	}
+	if err := st.SaveCues(f.Desktop, f.Film.ID, own); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.app.Press(talkRow(f.Desktop))
+	p.app.WaitFor("id:player-card-hint", wait)
+	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec, Size: videoSizes["16:9"]})
+	p.at(1500 * time.Millisecond)
+	if got := p.texts("id:player-card-hint"); got != msgs.PlayerHintWords() {
+		t.Fatalf("an untranslated film's hint reads %q", got)
+	}
+
+	q, _ := openPlayer(t)
+	q.at(1500 * time.Millisecond)
+	q.app.Press("id:player-mode")
+	q.app.Press("id:player-mode-original")
+	if got := q.texts("id:player-card-hint"); got != msgs.PlayerHintReveal() {
+		t.Fatalf("with the translation hidden the hint reads %q", got)
+	}
 }

@@ -169,6 +169,8 @@ func (v *view) optionsNode(cx *core.Scope) core.Node {
 					OnPress: func() {
 						do := o().do
 						close()
+						// A film it plays goes on, by a swipe, through the page's list.
+						v.feed(v.keys)
 						// The option runs once the sheet has closed, so an alert it asks with shows over the page.
 						cx.Post(do)
 					}}

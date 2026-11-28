@@ -302,6 +302,7 @@ func (v *view) detailTone(cx *core.Scope, key func() string) func() core.Color {
 
 // open is what pressing a film does: plays a film on the phone, or one streamed from its computer, storage, NAS or server, from the line the search found, or where it was left (openFilm), else opens the film's page.
 func (v *view) open(r catalog.Result) {
+	v.feed(v.keys)
 	if h := r.Hit; h != nil {
 		if k, ok := v.s.Film(r.Key()); ok && (k.Done() || (k.Streamed && v.s.StreamLink(r.Key()) != "")) || v.s.Matched(r.Key()) {
 			v.playAt(r.Key(), h.At)

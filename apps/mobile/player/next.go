@@ -30,11 +30,12 @@ type upNext struct {
 	due    time.Time
 }
 
-// carried is what the player gives the next film's player as it goes on to it: the sleep timer, still running.
+// carried is what the player gives the next film's player as it goes on to it: the sleep timer, still running, and the picture's ratio, which the next takes until its own video tells its own, so a swipe through upright videos stays immersive rather than stacking for a moment.
 type carried struct {
-	key   string
-	sleep sleepMode
-	until time.Time
+	key    string
+	sleep  sleepMode
+	until  time.Time
+	aspect float32
 }
 
 // carry gives p the sleep timer the player before it ran, when it went on to p's film.
@@ -42,13 +43,16 @@ func (l *Layer) carry(p *play) {
 	if c := l.carried; c.key == p.key {
 		p.sleep.Set(c.sleep)
 		p.sleepUntil = c.until
+		if c.aspect > 0 {
+			p.aspect.Set(c.aspect)
+		}
 	}
 	l.carried = carried{}
 }
 
 // goOn plays the film kept under key in place of p's, the player shown or minimized as it is, with p's sleep timer.
 func (l *Layer) goOn(p *play, key string) {
-	l.carried = carried{key: key, sleep: p.sleep.GetUntracked(), until: p.sleepUntil}
+	l.carried = carried{key: key, sleep: p.sleep.GetUntracked(), until: p.sleepUntil, aspect: p.aspect.GetUntracked()}
 	l.held = false
 	l.key.Set(key)
 }

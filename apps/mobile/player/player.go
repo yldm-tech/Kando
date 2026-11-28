@@ -224,8 +224,13 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			// In picture in picture the film plays on in the system's window over other apps; the player leaves for the tabs once the window shows, and shows again when the window is turned back into it.
 			PictureInPicture: true,
 			OnPictureInPicture: func(st core.PictureInPictureState) {
-				if st.Active && !p.pip.GetUntracked().Active {
+				was := p.pip.GetUntracked()
+				if st.Active && !was.Active {
 					l.Minimize()
+				}
+				// A start the system refused says so, and the film plays on in the player; the system's own words are its, so they are not shown.
+				if st.Error != "" && st.Error != was.Error && !st.Active {
+					p.say("pip", locales.PlayerPictureInPictureFailed(cx))
 				}
 				p.pip.Set(st)
 			},
@@ -280,7 +285,10 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		{Color: core.RGBA(0x000000, 0.55), At: core.Pct(0)}, {Color: core.RGBA(0x000000, 0), At: core.Pct(22)},
 		{Color: core.RGBA(0x000000, 0), At: core.Pct(55)}, {Color: core.RGBA(0x000000, 0.7), At: core.Pct(100)},
 	}}}})}
-	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden},
+	sw := newSwiper(cx, l, p, key, func() bool { return narrow() && shown() && !panelOn.Get() })
+	stage := core.View{TestID: "player-stage", Style: core.Style{Background: core.RGB(0x000000), Overflow: core.Hidden, Animated: &core.AnimatedStyle{TranslateY: sw.drag}},
+		OnPan: sw.pan, PanActivation: core.PanActivation{ActiveOffsetY: 14, FailOffsetX: 14},
+		AccessibilityActionsFunc: sw.actions, OnAccessibilityAction: sw.act,
 		StyleFunc: func() core.Style {
 			if shape.Get() == full {
 				return core.Style{FlexGrow: 1, FlexShrink: 1}
@@ -321,7 +329,12 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			return topBar(cx, title, l.Minimize, func() { settingsOpen.Set(true) })
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return landscapeTop(cx, p, title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn, func() bool { return fullOn() && shape.Get() == full }, leaveFull, narrow)
+			return landscapeTop(cx, p, title, l.Minimize, func() { settingsOpen.Set(true) }, panelOn, func() bool { return fullOn() && shape.Get() == full }, leaveFull, func() string {
+				if tall() && !forced.Get() {
+					return locales.PlayerStackedLayout(cx)
+				}
+				return locales.PlayerExitFullScreen(cx)
+			}, narrow)
 		}}
 	controlsNode := core.Show{When: notFull,
 		Then: func(cx *core.Scope) core.Node { return transport(cx, p) },
@@ -440,7 +453,7 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 			}
 			return st
 		},
-		Children: []core.Node{backdrop(cx, p, func() bool { return shown() && shape.Get() != full }), main, list,
+		Children: []core.Node{backdrop(cx, p, func() bool { return shown() && shape.Get() != full }), sw.neighbors(cx), main, list,
 			wordPopover(cx, p, w, func() bool { return shape.Get() == full }),
 			wordSheet(cx, p, w, func() bool { return shape.Get() != full }),
 			explainSheet(cx, p, w, fx),
@@ -455,13 +468,16 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		}}
 }
 
-// fullScreen asks the system, while full screen is on (forced), to show the app sideways for a video wider than tall, wide, else upright for one taller than wide, whose full screen stays upright. Each request lives with its own scope, so leaving full screen, minimizing or closing the player gives the orientation back to the system, and turning the phone back upright keeps a wide video sideways until full screen ends. A video whose ratio changes as it loads moves from one request to the other.
+// sidewaysFrom is how much wider than tall a video must be for its full screen to turn the phone on its side: a video near square, as a dance filmed upright and cropped wider, fills an upright screen about as well and reads as upright, so it stays upright.
+const sidewaysFrom = float32(4.0 / 3)
+
+// fullScreen asks the system, while full screen is on (forced), to show the app sideways for a video at least sidewaysFrom wider than tall, wide, else upright, whose full screen stays upright. Each request lives with its own scope, so leaving full screen, minimizing or closing the player gives the orientation back to the system, and turning the phone back upright keeps a wide video sideways until full screen ends. A video whose ratio changes as it loads moves from one request to the other.
 func fullScreen(forced *core.Signal[bool], p *play, wide bool) core.Node {
 	mask := core.OrientationPortrait
 	if wide {
 		mask = core.OrientationLandscape
 	}
-	return core.Show{When: func() bool { return forced.Get() && (p.aspect.Get() >= 1) == wide }, Then: func(cx *core.Scope) core.Node {
+	return core.Show{When: func() bool { return forced.Get() && (p.aspect.Get() >= sidewaysFrom) == wide }, Then: func(cx *core.Scope) core.Node {
 		cx.RequestOrientation(mask)
 		return core.Group(nil)
 	}}
@@ -494,8 +510,8 @@ func roundButton(id string, icon func() *core.SVG, size, glyph core.Points, labe
 		Children:  []core.Node{ui.IconOf(icon, glyph, func() core.Color { return theme.PlayerInk })}}
 }
 
-// landscapeTop is a phone on its side's row over the picture: the button that minimizes the player and the film's title at the left; at the right the subtitle mode, a tap on which goes on to the next, the button that slides the list of lines in, or up on an upright full screen (narrow), the button that leaves full screen while it is on (inFull, leave), and the playback settings.
-func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func(), panelOn *core.Signal[bool], inFull func() bool, leave func(), narrow func() bool) core.Node {
+// landscapeTop is a phone on its side's row over the picture: the button that minimizes the player and the film's title at the left; at the right the subtitle mode, a tap on which goes on to the next, the button that slides the list of lines in, or up on an upright full screen (narrow), the button that leaves full screen while it is on (inFull, leave, named by leaveLabel), and the playback settings. On an upright full screen the subtitle mode sits under the title, which keeps the row's width.
+func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func(), panelOn *core.Signal[bool], inFull func() bool, leave func(), leaveLabel func() string, narrow func() bool) core.Node {
 	glass := func() core.Color { return theme.PlayerInk.Faded(0.14) }
 	panelToggle := func(cx *core.Scope, icon func() *core.SVG) core.Node {
 		return roundButton("player-panel-toggle", icon, 40, 20, func() string { return locales.PlayerLines(cx) }, func() core.Color {
@@ -505,19 +521,24 @@ func landscapeTop(cx *core.Scope, p *play, title string, minimize, settings func
 			return glass()
 		}, panelOn.Get, func() { panelOn.Update(func(on bool) bool { return !on }) })
 	}
+	modePill := func(cx *core.Scope, height core.Points) core.Node {
+		return base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
+			Style: core.Style{Height: core.Pt(height), Padding: core.Symmetric(0, height*7/16), CornerRadius: height / 2, JustifyContent: core.JustifyCenter, AlignSelf: core.AlignStart, Background: theme.PlayerInk.Faded(0.16),
+				BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}},
+			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, MaxLines: 1,
+				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}}
+	}
 	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
 		ui.IconButton{TestID: "player-minimize", Icon: lucide.ChevronLeft, LabelFunc: func() string { return locales.PlayerMinimize(cx) }, Variant: ui.IconButtonGhost, Size: 40, IconSize: 26,
 			Tint: func() core.Color { return theme.PlayerInk }, OnPress: minimize},
-		core.Text{Content: title, Role: core.RoleHeader, MaxLines: 1, Style: overPicture.Merge(core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold, FlexShrink: 1, MinWidth: core.Pt(0)})},
-		core.View{Style: core.Style{FlexGrow: 1}},
-		base.Button{TestID: "player-mode-pill", LabelFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, OnPress: func(core.PressEvent) { p.nextMode() },
-			Style: core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 14), CornerRadius: 16, JustifyContent: core.JustifyCenter, Background: theme.PlayerInk.Faded(0.16),
-				BackdropFilters: []core.Filter{core.Blur(10)}, Active: &core.Style{Opacity: core.Alpha(0.7)}},
-			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.PlayerModePill(cx, modeShort(cx, p.mode.Get())) }, MaxLines: 1,
-				Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: theme.PlayerInk}}}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 4}, Children: []core.Node{
+			core.Text{TestID: "player-title", Content: title, Role: core.RoleHeader, MaxLines: 1, Style: overPicture.Merge(core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold})},
+			core.Show{When: narrow, Then: func(cx *core.Scope) core.Node { return modePill(cx, 28) }},
+		}},
+		core.Show{When: func() bool { return !narrow() }, Then: func(cx *core.Scope) core.Node { return modePill(cx, 32) }},
 		core.Show{When: narrow, Then: func(cx *core.Scope) core.Node { return panelToggle(cx, lucide.PanelBottom) }, Else: func(cx *core.Scope) core.Node { return panelToggle(cx, lucide.PanelRight) }},
 		core.Show{When: inFull, Then: func(cx *core.Scope) core.Node {
-			return roundButton("player-fullscreen-exit", lucide.Minimize, 40, 20, func() string { return locales.PlayerExitFullScreen(cx) }, glass, nil, leave)
+			return roundButton("player-fullscreen-exit", lucide.Minimize, 40, 20, leaveLabel, glass, nil, leave)
 		}},
 		roundButton("player-more", lucide.Ellipsis, 40, 20, func() string { return locales.PlayerSettings(cx) }, glass, nil, settings),
 	}}
@@ -537,10 +558,7 @@ func backdrop(cx *core.Scope, p *play, when func() bool) core.Node {
 			core.Image{ResizeMode: core.Cover, ElementsHidden: true,
 				Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Height: core.Pct(70),
 					Filters: []core.Filter{core.Blur(50), core.Saturate(1.4)}, Opacity: core.Alpha(0.55)},
-				SourceFunc: func() core.ImageSource {
-					f, _ := p.s.Film(p.key)
-					return look.LocalPoster(p.s, f)
-				}},
+				SourceFunc: look.FilmPoster(cx, p.s, func() string { return p.key })},
 			core.View{Style: fill.Merge(core.Style{Gradients: []core.Gradient{{Kind: core.GradientLinear, Angle: 180, Stops: []core.ColorStop{
 				{Color: theme.PlayerBG.Faded(0.2), At: core.Pct(0)}, {Color: theme.PlayerBG.Faded(0.85), At: core.Pct(45)}, {Color: theme.PlayerBG, At: core.Pct(70)},
 			}}}})},
