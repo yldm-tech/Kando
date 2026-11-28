@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 )
 
 // Lookups and explanations (yldm-tech/Kando#222), follow-up questions and recaps (#215). A phone looks up a word of a line, has a line explained, asks about it, or has the part of a film it watched summed up, through the desktop it is paired with: the desktop asks the AI service set in its own settings, so the service's key never leaves the desktop, and keeps the words looked up in its own cache, so a word asked once answers again at once, from any device, also while the AI service cannot be reached. All of them are reads (not Mutates): they change nothing a device syncs, a read-only device (Caller.ReadOnly) may call them, and a call sent again asks again; a desktop keeps no word a read-only device looked up in its cache, so such a device changes nothing on it. A word put in the vocabulary travels as a KindWord record of the learning state, not here.
@@ -151,6 +152,12 @@ type RecapItem struct {
 
 // RecapItems is how many moments a Recap has at most, as the design's card shows three.
 const RecapItems = 3
+
+// RecapFrom is how far into a film it must have been left for opening it where it was left to recap the part watched, on the phone and on the desktop alike: left before it, too little was watched to sum up, and the film plays on from there without asking the AI service.
+const RecapFrom = time.Minute
+
+// ContinueFrom is how far into a film it must have been left to be one to go on with, on the phone (Continue Watching and its widget) and on the desktop (the hero's 继续观看) alike: left before it, as when a film was opened for a moment, it was not started, and it opens from the beginning.
+const ContinueFrom = 5 * time.Second
 
 // recapBudget is how many bytes of lines a FilmRecap carries at most, below MaxCall by room for the call around them.
 const recapBudget = MaxCall - 8<<10

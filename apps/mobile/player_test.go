@@ -279,7 +279,7 @@ func positionAt(d *synctest.Desktop) float64 {
 func TestAStreamedFilmOpensWhereTheComputerLeftIt(t *testing.T) {
 	d := newDesktop(t)
 	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
-		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	id := store.DesktopID(d.Fingerprint)
@@ -292,24 +292,24 @@ func TestAStreamedFilmOpensWhereTheComputerLeftIt(t *testing.T) {
 	p.at(0)
 	p.at(300 * time.Millisecond)
 	p.app.Play("id:player-video", core.VideoInfo{Duration: 10 * sec})
-	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 4*sec {
-		t.Fatalf("the film went to %v, want where the computer left it, 4s", s)
+	if s := p.seeks(); len(s) == 0 || s[len(s)-1] != 6*sec {
+		t.Fatalf("the film went to %v, want where the computer left it, 6s", s)
 	}
 	p.at(500 * time.Millisecond)
-	if got := p.texts("id:player-at"); got != "0:04" {
-		t.Fatalf("before the seek lands the playhead says %q, want 0:04", got)
+	if got := p.texts("id:player-at"); got != "0:06" {
+		t.Fatalf("before the seek lands the playhead says %q, want 0:06", got)
 	}
 	p.app.Press("id:player-minimize")
 	time.Sleep(300 * time.Millisecond)
 	if films, err := store.Open(dir).Films(); err != nil || len(films) != 1 || films[0].PositionMS != 0 || !films[0].PositionAt.IsZero() {
 		t.Fatalf("before the seek landed the phone kept %+v, %v", films, err)
 	}
-	if got := positionAt(d); got != 4000 {
-		t.Fatalf("before the seek landed the computer's place became %v, want 4000", got)
+	if got := positionAt(d); got != 6000 {
+		t.Fatalf("before the seek landed the computer's place became %v, want 6000", got)
 	}
 	// Once the video plays from there, where it plays is the film's place, the phone's and the computer's.
 	p.app.Press("id:player-mini-open")
-	p.at(4200 * time.Millisecond)
+	p.at(6200 * time.Millisecond)
 	p.at(9500 * time.Millisecond)
 	p.app.Press("id:player-minimize")
 	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 9500 && positionAt(d) == 9500 })

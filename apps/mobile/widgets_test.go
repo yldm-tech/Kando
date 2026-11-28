@@ -19,7 +19,7 @@ func TestSettingsShowsTheWidgetsAsTheyAre(t *testing.T) {
 	}
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
-	f.PositionMS, f.PositionAt = 3500, now().Add(-time.Hour)
+	f.PositionMS, f.PositionAt = 7500, now().Add(-time.Hour)
 	if err := store.Open(dir).SaveFilm(f); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestSettingsShowsTheWidgetsAsTheyAre(t *testing.T) {
 	if got := p.app.Find("id:settings-widget-streak-due").Text; got != msgs.WidgetDue(0) {
 		t.Fatalf("the streak widget says %q due, want nothing", got)
 	}
-	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-widget-film-text").Text == "你好吗？" })
+	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:settings-widget-film-text").Text == "再见。" })
 	if got, want := p.app.Find("id:settings-widget-wide-foot").Text, msgs.WidgetFoot(0, 3); got != want {
 		t.Fatalf("the medium widget's foot reads %q, want %q", got, want)
 	}
@@ -57,7 +57,7 @@ func TestSettingsShowsTheWidgetsAsTheyAre(t *testing.T) {
 func TestTheContinueWidgetOpensItsFilm(t *testing.T) {
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
-	f.PositionMS, f.PositionAt = 3500, now().Add(-time.Hour)
+	f.PositionMS, f.PositionAt = 7500, now().Add(-time.Hour)
 	if err := store.Open(dir).SaveFilm(f); err != nil {
 		t.Fatal(err)
 	}

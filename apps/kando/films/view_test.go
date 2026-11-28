@@ -348,6 +348,30 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 	wantCalls(t, a, "open-at done 0s")
 }
 
+// TestHeroDoesNotContinueAFilmOpenedForAMoment: a film stopped within its first 5 seconds (psync.ContinueFrom), as one opened for a moment, is not one to continue, so the hero continues the film stopped partway before it; a short clip stopped at 0:05 still is.
+func TestHeroDoesNotContinueAFilmOpenedForAMoment(t *testing.T) {
+	a := newFakeApp()
+	rivers, algebra := a.items[0], a.items[1]
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	hero := func() string { return app.Find("id:films-hero").Props.Label }
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.Local)
+	change(app, a, func() {
+		a.resume[algebra.VideoPath], a.played[algebra.VideoPath] = 4*time.Second+900*time.Millisecond, now.AddDate(0, 0, -1)
+		a.resume[rivers.VideoPath], a.played[rivers.VideoPath] = 30*time.Second, now.AddDate(0, 0, -7)
+	})
+	if hero() != rivers.Name || !app.Exists(whole(msgs.FilmsHeroResume("0:30"))) {
+		t.Fatalf("the hero is %q, not Rivers of Europe to continue: %q", hero(), app.Texts())
+	}
+	if _, ok := ResumeFrom(a, algebra); ok {
+		t.Fatal("a film stopped at 0:04 picks up where it stopped")
+	}
+	a.durations[algebra.VideoPath], a.resume[algebra.VideoPath] = 12*time.Second, 5*time.Second
+	if at, ok := ResumeFrom(a, algebra); !ok || at != 5*time.Second {
+		t.Fatalf("a 12 s clip stopped at 0:05 picks up at %v, %v", at, ok)
+	}
+}
+
 // TestHeroIsTheFilmBeingWatched: the hero shows the film played last that can be continued, saying so, rather than the film finished last; with none to continue, the newest finished film never played; and with every film played to the end, the newest finished one.
 func TestHeroIsTheFilmBeingWatched(t *testing.T) {
 	a := newFakeApp()

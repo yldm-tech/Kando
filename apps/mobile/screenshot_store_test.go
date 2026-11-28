@@ -144,7 +144,7 @@ func storePhone(t *testing.T, at time.Duration, opts ...nsgotest.Option) (*phone
 
 func TestScreenshotsStoreLibrary(t *testing.T) {
 	shot := screenshots(t)
-	p, _, f := storePhone(t, 3500*time.Millisecond)
+	p, _, f := storePhone(t, 6*time.Second)
 	p.app.WaitFor("id:films-continue-"+f.Desktop+"-f1", wait)
 	p.app.WaitFor(filmRow(f.Desktop, "f6"), wait)
 	shot(p, "store-library")
@@ -156,7 +156,7 @@ func TestScreenshotsStorePlayer(t *testing.T) {
 	p.app.Press(talkRow(f.Desktop))
 	p.app.WaitFor("id:player-video", wait)
 	p.app.WaitFor("id:player-card >> id:player-ruby >> text:げんき", time.Minute)
-	storeCloseRecap(p)
+	storeHold(p)
 	shot(p, "store-player")
 	// 元気 shows under its reading before the dictionary that cuts Japanese is read in the background, but a tap looks it up only once it is: the line is cut into its words then, です among them.
 	p.app.WaitUntil(time.Minute, func() bool { return p.app.Exists(`id:player-card >> text:"です"`) })
@@ -173,14 +173,12 @@ func TestScreenshotsStorePlayer(t *testing.T) {
 	shot(p, "store-explain")
 }
 
-// storeCloseRecap closes the recap of what was watched that a film left partway opens with, leaving the player held where it was left.
-func storeCloseRecap(p *phone) {
+// storeHold holds the film where it was left: left within its first minute (sync.RecapFrom), it opens playing, without a recap.
+func storeHold(p *phone) {
 	p.t.Helper()
-	p.app.WaitFor("id:player-recap-close", wait)
-	p.app.Press("id:player-recap-close")
-	p.app.WaitForGone("id:player-recap", wait)
-	// The sheet slides away over its transition.
-	p.app.Advance(600 * time.Millisecond)
+	p.app.WaitUntil(wait, func() bool { return !p.app.Find("id:player-video").Video.Paused })
+	p.app.Press("id:player-play")
+	p.app.WaitFor("id:player-paused", wait)
 }
 
 // storeLearnPhone starts the phone with the talk kept and paired with the store's computer, whose words saved from the talk have the three saved first due for review and the others due in days, at Learn.

@@ -16,7 +16,7 @@ func TestScreenshotsWidgets(t *testing.T) {
 	shot := screenshots(t)
 	dir := t.TempDir()
 	f := keepTalk(t, dir)
-	f.PositionMS, f.PositionAt = 3500, now().Add(-time.Hour)
+	f.PositionMS, f.PositionAt = 7500, now().Add(-time.Hour)
 	if err := store.Open(dir).SaveFilm(f); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestScreenshotsWidgets(t *testing.T) {
 	}
 	p.app.Press("id:settings-widgets")
 	p.app.WaitUntil(wait, func() bool {
-		return p.app.Exists("id:settings-widget-film-text") && p.app.Find("id:settings-widget-film-text").Text == "你好吗？"
+		return p.app.Exists("id:settings-widget-film-text") && p.app.Find("id:settings-widget-film-text").Text == "再见。"
 	})
 	shot(p, "settings-widgets")
 }

@@ -144,14 +144,14 @@ func TestChipsAndTheSwitcherNarrowTheList(t *testing.T) {
 func TestContinueWatchingWhereTheComputerLeftOff(t *testing.T) {
 	d := newDesktop(t)
 	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
-		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
 	dir := t.TempDir()
 	secrets := pairedWith(t, d, dir)
 	id := store.DesktopID(d.Fingerprint)
 	p := startPhone(t, dir, secrets)
 	card := "id:films-continue-" + id + "-f1"
 	p.app.WaitFor(card, wait)
-	if got, want := p.texts("id:films-continue-meta-"+id+"-f1"), msgs.FilmsLeftOn("Studio", "0:04"); got != want {
+	if got, want := p.texts("id:films-continue-meta-"+id+"-f1"), msgs.FilmsLeftOn("Studio", "0:06"); got != want {
 		t.Fatalf("the card says %q, want %q", got, want)
 	}
 	if got := p.texts(card); !strings.Contains(got, msgs.FilmsLeftHere("Studio")) {
@@ -165,7 +165,7 @@ func TestContinueWatchingWhereTheComputerLeftOff(t *testing.T) {
 	p.app.WaitFor(card, wait)
 	p.app.Press(card)
 	p.app.WaitFor("id:player-video", wait)
-	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 4000 })
+	p.app.WaitUntil(wait, func() bool { return p.keptPosition() == 6000 })
 }
 
 // A search finds the lines of the films on the phone, saying the line it found; pressed, the film plays from it. A search that finds nothing says so.
@@ -365,7 +365,7 @@ func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
 	// The computer's own actions on a film are films_test.go's; here the options are the phone's.
 	d.SetNoFilmOps(true)
 	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
-		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
 	dir := t.TempDir()
 	secrets := pairedWith(t, d, dir)
 	id := store.DesktopID(d.Fingerprint)

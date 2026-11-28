@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
 	"kando/packages/core"
+	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -58,10 +59,10 @@ func HeroFilm(a App, items []Film) (Film, bool) {
 	return newest, found
 }
 
-// ResumeFrom is where a film opens or 继续 picks it up: where it stopped, unless that is within 3 seconds of either end. Every way of opening a film but 从头看 and a jump to a line starts there (app.Open).
+// ResumeFrom is where a film opens or 继续 picks it up: where it stopped, unless that is within its first 5 seconds (psync.ContinueFrom, as the phone's Continue Watching counts them) or within 3 seconds of its end. Every way of opening a film but 从头看 and a jump to a line starts there (app.Open).
 func ResumeFrom(p Progress, item Film) (time.Duration, bool) {
 	at := p.ResumeAt(item.VideoPath)
-	if at < watchSlack {
+	if at < psync.ContinueFrom {
 		return 0, false
 	}
 	if d := p.Duration(item.VideoPath); d > 0 && at > d-watchSlack {
