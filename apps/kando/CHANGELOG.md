@@ -2,6 +2,12 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.77.1 - 2026-11-28
+
+### Fixes
+
+- Name the computer by its device name on the desktop and the phone (#543)
+
 ## 0.77.0 - 2026-11-28
 
 ### Features
