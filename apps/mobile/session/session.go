@@ -176,6 +176,10 @@ type Session struct {
 	making *making
 	// src are the NAS and servers the phone reaches itself (sources.go).
 	src *sources
+	// locked are the libraries each computer last listed as locked, by its ID, whose films the phone hides (locked.go); lockedMu orders their saves as prefsMu does the preferences'.
+	locked                    *core.Signal[map[string][]store.LockedLibrary]
+	lockedMu                  gosync.Mutex
+	lockedSaving, lockedSaved uint64
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -227,6 +231,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		space:        newSpace(cx),
 		prefs:        core.NewSignalFunc(cx, store.Prefs{}, nil),
 		shelves:      core.NewSignalFunc(cx, map[string]Shelf{}, nil),
+		locked:       core.NewSignalFunc[map[string][]store.LockedLibrary](cx, nil, nil),
 		listings:     map[string]listing{},
 		jobs:         map[string]*job{},
 		following:    map[string]*follow{},
@@ -288,6 +293,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		lookups, _ := s.st.Lookups()
 		links, _ := s.st.Links()
 		sources, _ := s.st.Sources()
+		locked, _ := s.st.Locked()
 		// A phone that paired or downloaded before the introduction existed has been introduced already.
 		migrated := !prefs.Onboarded && (len(desktops) > 0 || len(films) > 0)
 		prefs.Onboarded = prefs.Onboarded || migrated
@@ -305,6 +311,8 @@ func New(cx *core.Scope, cfg Config) *Session {
 		}
 		cx.Post(func() {
 			s.desktops.Set(desktops)
+			// The locked libraries come with the films, so none of theirs shows before the phone knows them locked. No computer is listed before the desktops are read.
+			s.locked.Set(locked)
 			s.films.Set(films)
 			s.used.Set(used)
 			// A word looked up before the store was read stays.

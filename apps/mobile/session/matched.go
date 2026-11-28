@@ -161,10 +161,10 @@ func (s *Session) shareKeptPositions() {
 	}
 }
 
-// Offline are the films the phone keeps, as Offline Films lists them, each once: a computer's film kept beside a film of a source matched to it is listed as that film, whose row stands for both copies (Copy, DeleteCopies). Read it in a binding.
+// Offline are the films the phone keeps, as Offline Films lists them, each once: a computer's film kept beside a film of a source matched to it is listed as that film, whose row stands for both copies (Copy, DeleteCopies). The films of a locked library are left out until it is unlocked (locked.go). Read it in a binding.
 func (s *Session) Offline() []store.Film {
 	var out []store.Film
-	for _, f := range s.films.Get() {
+	for _, f := range s.shown() {
 		if n, ok := s.matched(f.Key()); ok && n.Key() != f.Key() {
 			continue
 		}

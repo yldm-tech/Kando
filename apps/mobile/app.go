@@ -187,6 +187,21 @@ func App(cx *core.Scope, cfg session.Config) core.Node {
 			}
 		}
 	})
+	// A film's page of a library locked meanwhile goes from the stacks, with the pages opened over it: the phone shows nothing of a locked library's films until it is unlocked (session.Hidden).
+	cx.Effect(func() {
+		gone := func(r route) bool {
+			return r.page == filmPage && (s.LibraryLocked(r.desktop, r.library.ID, r.library.Name) || s.Hidden(store.Key(r.desktop, r.film.ID)))
+		}
+		for _, n := range navs {
+			if slices.ContainsFunc(n.Routes(), gone) {
+				cx.Post(func() {
+					if routes := n.Routes(); slices.ContainsFunc(routes, gone) {
+						n.Pop(len(routes) - slices.IndexFunc(routes, gone))
+					}
+				})
+			}
+		}
+	})
 	// The film playing shows over the tabs, or in the mini player over them.
 	layer := player.NewLayer(cx, s)
 	// Subtitle Style, from the player's settings, opens in Settings, the film playing on in the mini player over it.
