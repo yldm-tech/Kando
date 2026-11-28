@@ -281,6 +281,10 @@ func TestTheDailyGoal(t *testing.T) {
 	if got, want := p.texts("id:learn-goal-text"), msgs.LearnGoalMet(); got != want {
 		t.Errorf("with a goal of 10 minutes the goal says %q, want %q", got, want)
 	}
+	// The goal met says it is today's once, with no heading over it that says so again.
+	if got := strings.Split(p.texts("id:learn-goal"), "\n"); len(got) != 4 || got[0] != "12" || got[2] != msgs.LearnGoalMet() {
+		t.Errorf("the goal's card reads %q, want the minutes, the goal, the goal met and the streak", got)
+	}
 	if got, want := p.app.Find("id:learn-goal-bar").Props.Label, msgs.LearnGoalOf(10); got != want {
 		t.Errorf("with a goal of 10 minutes the goal's bar is named %q, want %q", got, want)
 	}

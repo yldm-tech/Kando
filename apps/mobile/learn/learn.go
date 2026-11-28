@@ -148,7 +148,6 @@ func goal(cx *core.Scope, s *session.Session) core.Node {
 		return sum
 	}
 	texts := core.View{Style: core.Style{Gap: 3, FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
-		core.Text{ContentFunc: func() string { return locales.LearnToday(cx) }, Style: look.Caption, StyleFunc: white(cx, 0.85)},
 		core.Text{TestID: "learn-goal-text", ContentFunc: func() string {
 			if minutes() >= s.Goal() {
 				return locales.LearnGoalMet(cx)

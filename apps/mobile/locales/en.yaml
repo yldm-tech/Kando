@@ -1503,9 +1503,6 @@ learnThu:
 learnTitle:
   message: "Learn"
   description: "Tab and title of Learn: the saved words and lines and their review."
-learnToday:
-  message: "Today"
-  description: "Over the minutes of films played today."
 learnTodayShort:
   message: "Today"
   description: "Under today's bar in the week's chart, in place of its weekday."

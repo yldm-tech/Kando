@@ -1226,7 +1226,6 @@ const (
 	textLearnSyncNote
 	textLearnThu
 	textLearnTitle
-	textLearnToday
 	textLearnTodayShort
 	textLearnTue
 	textLearnVocabulary
@@ -1885,7 +1884,6 @@ var keyOfText = [numTexts]string{
 	"learnSyncNote",
 	"learnThu",
 	"learnTitle",
-	"learnToday",
 	"learnTodayShort",
 	"learnTue",
 	"learnVocabulary",
@@ -2543,7 +2541,6 @@ var textsEn = i18n.NewTexts(""+
 	"Thu"+
 	"Learn"+
 	"Today"+
-	"Today"+
 	"Tue"+
 	"Word list"+
 	"Wed"+
@@ -3195,7 +3192,6 @@ var textsEn = i18n.NewTexts(""+
 		3,
 		98,
 		3,
-		5,
 		5,
 		5,
 		3,
@@ -3854,7 +3850,6 @@ var textsJa = i18n.NewTexts(""+
 	"木"+
 	"学習"+
 	"今日"+
-	"今日"+
 	"火"+
 	"単語帳"+
 	"水"+
@@ -4506,7 +4501,6 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		159,
 		3,
-		6,
 		6,
 		6,
 		3,
@@ -5165,7 +5159,6 @@ var textsKo = i18n.NewTexts(""+
 	"목"+
 	"학습"+
 	"오늘"+
-	"오늘"+
 	"화"+
 	"단어장"+
 	"수"+
@@ -5817,7 +5810,6 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		113,
 		3,
-		6,
 		6,
 		6,
 		3,
@@ -6475,7 +6467,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"生词、收藏和看到哪儿，在电脑、手机、平板之间自动同步"+
 	"四"+
 	"学习"+
-	"今天"+
 	"今"+
 	"二"+
 	"生词本"+
@@ -7128,7 +7119,6 @@ var textsZhHans = i18n.NewTexts(""+
 		3,
 		78,
 		3,
-		6,
 		6,
 		3,
 		3,
@@ -7786,7 +7776,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"生詞、收藏和看到哪裡，在電腦、手機、平板之間自動同步"+
 	"四"+
 	"學習"+
-	"今天"+
 	"今"+
 	"二"+
 	"生詞本"+
@@ -8439,7 +8428,6 @@ var textsZhHant = i18n.NewTexts(""+
 		3,
 		78,
 		3,
-		6,
 		6,
 		3,
 		3,
@@ -17077,15 +17065,6 @@ func LearnTitle(cx *core.Scope) string { return For(cx).LearnTitle() }
 
 // LearnTitle is the package's LearnTitle in the language of msgs.
 func (msgs Messages) LearnTitle() string { return msgs.text(textLearnTitle) }
-
-// LearnToday says "Today"
-// in the language the app shows under cx.
-//
-// Over the minutes of films played today.
-func LearnToday(cx *core.Scope) string { return For(cx).LearnToday() }
-
-// LearnToday is the package's LearnToday in the language of msgs.
-func (msgs Messages) LearnToday() string { return msgs.text(textLearnToday) }
 
 // LearnTodayShort says "Today"
 // in the language the app shows under cx.
