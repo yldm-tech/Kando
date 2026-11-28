@@ -13,6 +13,7 @@ import (
 	"kando/packages/remotefs"
 	"kando/packages/remotefs/davtest"
 	"kando/packages/remotefs/sftptest"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -419,5 +420,33 @@ func TestASourceFormSaysWhatIsMissing(t *testing.T) {
 	}
 	if list, _ := store.Open(dir).Sources(); len(list) != 0 {
 		t.Errorf("a source that misses its share was saved: %v", list)
+	}
+}
+
+// A film downloaded from a NAS says it comes from the NAS, by the name the user gave it, in its row and the player's Info tab, not that it is a file of the computer's.
+func TestASourceFilmSaysItsSource(t *testing.T) {
+	dir := t.TempDir()
+	src := davSource(davFilms(t, false))
+	st := store.Open(dir)
+	f := store.Film{Desktop: store.SourceOwner(src.ID), Library: src.Name, Source: src.ID, Path: "Holiday.mp4", Video: "video.mp4", Added: now(),
+		Film: sync.Film{ID: store.SourceFilmID("Holiday.mp4"), Title: "Holiday", Source: "local", VideoSize: int64(len(talkVideo))}}
+	if err := st.SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(st.FilmDir(f.Desktop, f.Film.ID), f.Video), talkVideo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, keepSource(t, dir, src, davtest.Password))
+	row := filmRow(f.Desktop, f.Film.ID)
+	p.app.WaitFor(row, wait)
+	if got := p.texts(row); !strings.Contains(got, src.Name+" · ") || strings.Contains(got, msgs.FilmsSourceLocal()) {
+		t.Fatalf("the NAS film's row reads %q, want its source %q", got, src.Name)
+	}
+	p.app.Press(row)
+	p.app.WaitFor("id:player-video", wait)
+	p.app.Press("id:player-tab-info")
+	p.app.WaitFor("id:player-info-source", wait)
+	if got, want := p.texts("id:player-info-source"), msgs.PlayerInfoSource()+"\n"+src.Name; got != want {
+		t.Fatalf("the Info tab's source reads %q, want %q", got, want)
 	}
 }

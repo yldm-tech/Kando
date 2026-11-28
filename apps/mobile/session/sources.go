@@ -350,6 +350,23 @@ type sourceGoneError struct{}
 
 func (sourceGoneError) Error() string { return "the source was removed" }
 
+// SourceLabel is the NAS or server the films kept under desktop come from (store.SourceOwner), as a film's row and info name its source: the source's name now, else the name of the library it was kept in, which is the source's when the film was kept, "" when neither is known; false for a computer's films, whose source is the site they came from (catalog.SourceOf). Read it in a binding.
+func (s *Session) SourceLabel(desktop string) (string, bool) {
+	id, ok := store.OwnerSource(desktop)
+	if !ok {
+		return "", false
+	}
+	if src, ok := s.Source(id); ok && src.Name != "" {
+		return src.Name, true
+	}
+	for _, f := range s.films.Get() {
+		if f.Desktop == desktop && f.Library != "" {
+			return f.Library, true
+		}
+	}
+	return "", true
+}
+
 // SourceFilmKey is the key (store.Key) of the film of the file at p of the source id, which DownloadSource keeps it under.
 func SourceFilmKey(id, p string) string {
 	return store.Key(store.SourceOwner(id), store.SourceFilmID(p))

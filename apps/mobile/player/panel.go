@@ -287,6 +287,10 @@ func infoPage(cx *core.Scope, p *play) core.Node {
 		f, _ := p.s.LinesFilm(p.key)
 		return f.Film, f.Library
 	}
+	source := func() string {
+		f, _ := p.s.LinesFilm(p.key)
+		return look.FilmSource(cx, p.s, f.Desktop, sourceName(cx, f.Film.Source))
+	}
 	first := true
 	row := func(id string, name, value func() string) core.Node {
 		top := !first
@@ -308,7 +312,7 @@ func infoPage(cx *core.Scope, p *play) core.Node {
 	spoken := func() string { f, _ := film(); return look.Languages(sync.Film{Spoken: f.Spoken}) }
 	translated := func() string { f, _ := film(); return f.Translation }
 	rows := []core.Node{
-		row("player-info-source", func() string { return locales.PlayerInfoSource(cx) }, func() string { f, _ := film(); return sourceName(cx, f.Source) }),
+		row("player-info-source", func() string { return locales.PlayerInfoSource(cx) }, source),
 		row("player-info-length", func() string { return locales.PlayerInfoLength(cx) }, func() string {
 			return locales.PlayerInfoLengthValue(cx, clock(p.length.Get()), len(p.list()))
 		}),

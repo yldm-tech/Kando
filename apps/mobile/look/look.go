@@ -157,6 +157,18 @@ func FilmPoster(cx *core.Scope, s *session.Session, key func() string) func() co
 	}
 }
 
+// FilmSource is where a film of desktop comes from, as its row and its info say it: for a film of a NAS or server the phone reaches itself, the source's name (session.SourceLabel), or the Library's name for them when it has none; else site, the site the film came from as the caller's chips name it. Read it in a binding.
+func FilmSource(cx *core.Scope, s *session.Session, desktop, site string) string {
+	name, ok := s.SourceLabel(desktop)
+	switch {
+	case !ok:
+		return site
+	case name != "":
+		return name
+	}
+	return locales.SourcesGroup(cx)
+}
+
 // Status is where the film under key stands on the phone, as its rows and its page say it: downloading or paused at a share of its video, why its download stopped, downloaded, or its lines kept for a film kept without its video; for a film not on the phone, that its computer no longer serves it once a download of it found so (session.FilmGone), else "". Of a film of a source and the computer's film of the same file, it is where the copy that stands for both stands (session.Copy).
 func Status(cx *core.Scope, s *session.Session, key string) string {
 	key = s.Copy(key)

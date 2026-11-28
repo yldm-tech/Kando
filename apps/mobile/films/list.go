@@ -407,7 +407,7 @@ func (v *view) facts(cx *core.Scope, e catalog.Entry) string {
 	case length > 0:
 		when = look.Duration(length)
 	}
-	parts := []string{sourceName(cx, catalog.SourceOf(e.Film))}
+	parts := []string{look.FilmSource(cx, v.s, e.Desktop, sourceName(cx, catalog.SourceOf(e.Film)))}
 	only := ""
 	switch {
 	case e.Film.SubtitlesOnly:
