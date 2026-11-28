@@ -15,6 +15,7 @@ addSharedFile: "Kando が受け取れるのは動画のリンクだけです。�
 addQuality: "保存"
 addQuality720: "720P"
 addQualityBest: "最高画質"
+addQualityDefault: "デフォルト"
 addSend: "送信"
 addSubscribeNote: "{name} がこのリストを購読し、新しい動画が出たら追加します。"
 addSubscribeOffline: "{name} はオフラインです。戻ってから購読してください。"

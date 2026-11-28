@@ -130,7 +130,7 @@ func Sheet(cx *core.Scope, s *session.Session, text *core.Signal[string], open f
 				return subtitlesChoice(cx, desktopName, subtitles)
 			}},
 			core.Show{When: func() bool { return !list(desktop()) && s.Queue(desktop()).Offers(sync.OptionQuality) }, Then: func(cx *core.Scope) core.Node {
-				return qualityChoice(cx, desktopName, quality)
+				return qualityChoice(cx, quality)
 			}},
 			core.Text{TestID: "add-note", ContentFunc: func() string {
 				q := s.Queue(desktop())
@@ -169,14 +169,14 @@ func label(cx *core.Scope, text func() string) core.Node {
 	return core.Text{ContentFunc: text, MaxLines: 1, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Left: 4}}), StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
 }
 
-// qualityChoice is the picture the computer downloads, as the design's segmented control under Save: its own setting, the best there is, or 720p.
+// qualityChoice is the picture the computer downloads, as the design's segmented control under Save: its own setting, the best there is, or 720p. The first segment says Default rather than the computer's name, which the note under the form says, as a name does not fit in a third of the sheet's width.
 // The design's third choice, the subtitles alone with no video, is not a job option the protocol has (sync.JobOptions.Quality).
-func qualityChoice(cx *core.Scope, computer func() string, quality *core.Signal[string]) core.Node {
+func qualityChoice(cx *core.Scope, quality *core.Signal[string]) core.Node {
 	text := func() string { return locales.AddQuality(cx) }
 	return core.View{Style: core.Style{Gap: 8}, Children: []core.Node{
 		label(cx, text),
 		look.Segmented{Label: text, Value: quality.Get, OnChange: quality.Set, Segments: []look.Segment{
-			{Value: "", TestID: "add-quality-computer", Text: func() string { return locales.AddAsComputer(cx, computer()) }},
+			{Value: "", TestID: "add-quality-computer", Text: func() string { return locales.AddQualityDefault(cx) }},
 			{Value: sync.QualityBest, TestID: "add-quality-best", Text: func() string { return locales.AddQualityBest(cx) }},
 			{Value: sync.Quality720, TestID: "add-quality-720", Text: func() string { return locales.AddQuality720(cx) }},
 		}},

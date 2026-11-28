@@ -28,7 +28,8 @@ func (s Segmented) Render(cx *core.Scope) core.Node {
 	var options []ui.Option[string]
 	for _, seg := range s.Segments {
 		options = append(options, ui.Option[string]{Value: seg.Value, LabelFunc: seg.Text, TestID: seg.TestID,
-			Content: core.Text{ContentFunc: seg.Text, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18},
+			// The text may shrink below its own width, so a segment's text longer than the segment ends in an ellipsis inside it: the segment centers its content in a row, which a text that keeps its width overflows on both sides.
+			Content: core.Text{ContentFunc: seg.Text, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FlexShrink: 1, MinWidth: core.Pt(0)},
 				StyleFunc: func() core.Style {
 					if s.Value() == seg.Value {
 						return core.Style{FontWeight: core.FontWeightBold, Color: colors.Text()}
