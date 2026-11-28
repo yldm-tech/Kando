@@ -184,7 +184,7 @@ func TestAFilmWithNoPosterShowsAMark(t *testing.T) {
 	d := newDesktopWithMovies(t)
 	for _, f := range []struct{ lib, id string }{{"lib", "f1"}, {"movies", "f2"}} {
 		d.SetState(f.lib, now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: f.id, Film: f.id,
-			Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+			Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
 	}
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
