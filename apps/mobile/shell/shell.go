@@ -25,7 +25,7 @@ type Tab struct {
 	TestID  string
 	// Badge, when set, is a count the drawn tab bar and a tablet's sidebar show on the section while it is not 0, in the badges' orange while BadgeWarn reports true, red otherwise.
 	// The count is not in the section's spoken name: the tab's LabelFunc is the section's name alone, so a screen reader does not hear it.
-	// TODO(nsgo#1076): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count, and the app shows the jobs' count on the Library's header there instead (SystemBar); pass Badge through once they take one, and drop that button https://github.com/nsgo-dev/nsgo/issues/1076
+	// TODO(nsgo#1076): ui.ShellTab and mobile.TabBarItem have no badge (ui/tabshell.go:10-20, core/tabbar.go:20-28), so the system's tab bar of an iPhone or an Android phone (UITabBarItem.badgeValue, BottomNavigationView's badge) shows no count there (SystemBar), where the jobs card on the Library says how many jobs are unfinished; pass Badge through once they take one https://github.com/nsgo-dev/nsgo/issues/1076
 	Badge     func() int
 	BadgeWarn func() bool
 }

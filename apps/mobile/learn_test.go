@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/mobile/locales"
 	"kando/apps/mobile/store"
 	"kando/packages/study"
 	"kando/packages/sync"
@@ -147,7 +148,7 @@ func TestLearnReviewsTheComputersWordsAndLines(t *testing.T) {
 	if got := reviewOf(t, d, sync.KindLine, "l-fine").Due; !got.Equal(now().Add(study.Intervals[0])) {
 		t.Errorf("the line is next due %v, want a day after the review", got)
 	}
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDone() })
 }
 
 // A review made away from the computer is kept on the phone, and the computer takes it once it can be reached again.
@@ -226,6 +227,10 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	if !p.app.Find("id:export-format-anki").Props.Checked {
 		t.Fatal("the export does not start with Anki's notes")
 	}
+	// The Share button and the formats say what comes of it, with no footnote saying it again.
+	if lines := strings.Split(p.texts("id:export-page"), "\n"); lines[len(lines)-1] != msgs.LearnExport() {
+		t.Errorf("the export sheet ends with %q, want its Share button", lines[len(lines)-1])
+	}
 	p.app.Press("id:export-share")
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 1 })
 	files := p.app.Shares[0].Files
@@ -280,6 +285,10 @@ func TestTheDailyGoal(t *testing.T) {
 	p.openTab(learnTab, msgs.LearnTitle())
 	if got, want := p.texts("id:learn-goal-text"), msgs.LearnGoalMet(); got != want {
 		t.Errorf("with a goal of 10 minutes the goal says %q, want %q", got, want)
+	}
+	// The goal met says it is today's once, with no heading over it that says so again.
+	if got := strings.Split(p.texts("id:learn-goal"), "\n"); len(got) != 4 || got[0] != "12" || got[2] != msgs.LearnGoalMet() {
+		t.Errorf("the goal's card reads %q, want the minutes, the goal, the goal met and the streak", got)
 	}
 	if got, want := p.app.Find("id:learn-goal-bar").Props.Label, msgs.LearnGoalOf(10); got != want {
 		t.Errorf("with a goal of 10 minutes the goal's bar is named %q, want %q", got, want)
@@ -776,27 +785,56 @@ func TestLearnListsTheWordsAndLinesInline(t *testing.T) {
 	})
 }
 
-// With nothing due, the review card says so and OK puts it away.
-func TestOKPutsAwayTheReviewCardWithNothingDue(t *testing.T) {
+// With words saved and none due, the review card says the review is done and when the next one is, with nothing to press; the hint of how words get in is for a word list still empty.
+func TestTheReviewCardSaysWhenTheNextReviewIs(t *testing.T) {
 	d := newDesktop(t)
 	d.SetState("lib", now().Add(-time.Hour), studyRecords()[1])
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
 	p.openTab(learnTab, msgs.LearnTitle())
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
-	if p.app.Exists("id:learn-review-start") {
-		t.Fatal("the review can start with nothing due")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDone() })
+	if got, want := p.texts("id:learn-review-detail"), msgs.LearnReviewNext(7); got != want {
+		t.Errorf("the review card says %q, want %q", got, want)
+	}
+	for _, id := range []string{"id:learn-review-start", "id:learn-review-ok", "id:learn-pair"} {
+		if p.app.Exists(id) {
+			t.Errorf("the review card with nothing due has %s", id)
+		}
 	}
 	// With no line saved, the saved lines' section says where they come from rather than showing its heading over nothing.
 	if got := p.texts("id:learn-lines-empty"); got != msgs.LinesEmpty() {
 		t.Errorf("the saved lines' section says %q with no line saved, want %q", got, msgs.LinesEmpty())
 	}
-	p.app.Press("id:learn-review-ok")
-	p.app.WaitForGone("id:learn-review", wait)
-	if !p.app.Exists("id:learn-word-w-later") {
-		t.Fatal("the word list went with the review card")
+
+	empty := newDesktop(t)
+	dir = t.TempDir()
+	p = startPhone(t, dir, pairedWith(t, empty, dir))
+	p.waitLearned(store.DesktopID(empty.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
+	if got, want := p.texts("id:learn-review-detail"), msgs.LearnReviewNoneDetail(); got != want {
+		t.Errorf("the review card of an empty word list says %q, want %q", got, want)
 	}
+	if p.app.Exists("id:learn-review-ok") {
+		t.Error("the review card of an empty word list has OK")
+	}
+}
+
+// Learn heads its page with a note only while it has news: that the computers could not be reached and the phone shows what it kept. In sync it has none; the week's card says its counts are every device's.
+func TestLearnHasNoSyncNoteWhileInSync(t *testing.T) {
+	d := studyDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.waitLearned(store.DesktopID(d.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitFor("id:learn-goal", wait)
+	if p.app.Exists("id:learn-sync-note") || p.app.Exists("id:learn-offline") {
+		t.Fatal("Learn has a note at its top while it is in sync")
+	}
+	d.SetOff(true)
+	p.app.PullToRefresh("id:learn-scroll")
+	p.app.WaitFor("id:learn-offline", reconnect)
 }
 
 // While the reminder is on, Learn says when it comes under the review mode, and that leads to Settings.
@@ -916,4 +954,15 @@ func wordSheetOf(t *testing.T, speaks bool) *phone {
 	p.app.Press("id:learn-word-w-station")
 	p.app.WaitFor("id:word-sheet", wait)
 	return p
+}
+
+// The week's card counts the words put in the vocabulary this week and, under its bar, the words not yet known: the two are named apart in every language, so one name does not stand for two numbers.
+func TestTheWeeksTwoWordCountsAreNamedApart(t *testing.T) {
+	for _, tag := range []string{"en", "zh-Hans", "zh-Hant", "ja", "ko"} {
+		m := locales.In(tag)
+		bucket := strings.TrimSpace(strings.Replace(m.LearnNewCount(7), "7", "", 1))
+		if added := m.LearnNewWords(); strings.Contains(added, bucket) || strings.Contains(bucket, added) {
+			t.Errorf("%s: the words not yet known are %q beside %q for the words added this week", tag, bucket, added)
+		}
+	}
 }

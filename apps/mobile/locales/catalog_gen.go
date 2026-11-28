@@ -552,7 +552,6 @@ var Parameters = map[string][]string{
 	"FilmsDeleteFromLibraryTitle":    {"title"},
 	"FilmsDeleteFromLibraryMessage":  {"computer"},
 	"FilmsDeletedFromLibrary":        {"title", "computer"},
-	"JobsBadgeLabel":                 {"count"},
 	"JobsReadOnly":                   {"name"},
 	"LearnDueIn":                     {"count"},
 	"FilmsUsed":                      {"size"},
@@ -623,6 +622,7 @@ var Parameters = map[string][]string{
 	"LearnReviewDue":                 {"count"},
 	"LearnReviewDueDetail":           {"count"},
 	"LearnReviewDueWords":            {"count"},
+	"LearnReviewNext":                {"days"},
 	"LearnShowAll":                   {"count"},
 	"LearnWeekBars":                  {"count"},
 	"LearnWordsDue":                  {"total", "due"},
@@ -682,7 +682,6 @@ var Parameters = map[string][]string{
 	"SettingsConflictWord":           {"word"},
 	"SettingsConflictYesterday":      {"when"},
 	"SettingsConflictsCount":         {"count"},
-	"SettingsFooter":                 {"app", "version"},
 	"SettingsGoalValue":              {"count"},
 	"SettingsOfflineCount":           {"count"},
 	"SettingsOfflineDelete":          {"title"},
@@ -804,7 +803,6 @@ type Translation struct {
 	FilmsDeleteFromLibraryTitle    func(title string) string
 	FilmsDeleteFromLibraryMessage  func(computer string) string
 	FilmsDeletedFromLibrary        func(title string, computer string) string
-	JobsBadgeLabel                 func(count int) string
 	JobsReadOnly                   func(name string) string
 	LearnDueIn                     func(count int) string
 	FilmsUsed                      func(size string) string
@@ -875,6 +873,7 @@ type Translation struct {
 	LearnReviewDue                 func(count int) string
 	LearnReviewDueDetail           func(count int) string
 	LearnReviewDueWords            func(count int) string
+	LearnReviewNext                func(days int) string
 	LearnShowAll                   func(count int) string
 	LearnWeekBars                  func(count int) string
 	LearnWordsDue                  func(total int, due int) string
@@ -934,7 +933,6 @@ type Translation struct {
 	SettingsConflictWord           func(word string) string
 	SettingsConflictYesterday      func(hc string, when time.Time) string
 	SettingsConflictsCount         func(count int) string
-	SettingsFooter                 func(app string, version string) string
 	SettingsGoalValue              func(count int) string
 	SettingsOfflineCount           func(count int) string
 	SettingsOfflineDelete          func(title string) string
@@ -1044,7 +1042,6 @@ const (
 	textExportCSV
 	textExportCSVDetail
 	textExportFormat
-	textExportShareNote
 	textExportTSV
 	textExportTSVDetail
 	textExportTitle
@@ -1077,7 +1074,6 @@ const (
 	textFilmsContinue
 	textFilmsEmpty
 	textFilmsLibraries
-	textFilmsLibrariesNote
 	textFilmsLibraryLocked
 	textFilmsUnlockPassword
 	textFilmsUnlockCancel
@@ -1213,6 +1209,7 @@ const (
 	textLearnRemoveFromList
 	textLearnReviewCards
 	textLearnReviewDictation
+	textLearnReviewDone
 	textLearnReviewMode
 	textLearnReviewNone
 	textLearnReviewNoneDetail
@@ -1222,10 +1219,8 @@ const (
 	textLearnStreakLabel
 	textLearnStudyTime
 	textLearnSun
-	textLearnSyncNote
 	textLearnThu
 	textLearnTitle
-	textLearnToday
 	textLearnTodayShort
 	textLearnTue
 	textLearnVocabulary
@@ -1435,12 +1430,12 @@ const (
 	textSettingsConflictsDetail
 	textSettingsConflictsDone
 	textSettingsConflictsDoneDetail
-	textSettingsConflictsNone
 	textSettingsConflictsNote
 	textSettingsGoal
 	textSettingsIntroduction
 	textSettingsLanguage
 	textSettingsLanguageSystem
+	textSettingsLicense
 	textSettingsNoComputer
 	textSettingsOffline
 	textSettingsOfflineEmpty
@@ -1702,7 +1697,6 @@ var keyOfText = [numTexts]string{
 	"exportCSV",
 	"exportCSVDetail",
 	"exportFormat",
-	"exportShareNote",
 	"exportTSV",
 	"exportTSVDetail",
 	"exportTitle",
@@ -1735,7 +1729,6 @@ var keyOfText = [numTexts]string{
 	"filmsContinue",
 	"filmsEmpty",
 	"filmsLibraries",
-	"filmsLibrariesNote",
 	"filmsLibraryLocked",
 	"filmsUnlockPassword",
 	"filmsUnlockCancel",
@@ -1871,6 +1864,7 @@ var keyOfText = [numTexts]string{
 	"learnRemoveFromList",
 	"learnReviewCards",
 	"learnReviewDictation",
+	"learnReviewDone",
 	"learnReviewMode",
 	"learnReviewNone",
 	"learnReviewNoneDetail",
@@ -1880,10 +1874,8 @@ var keyOfText = [numTexts]string{
 	"learnStreakLabel",
 	"learnStudyTime",
 	"learnSun",
-	"learnSyncNote",
 	"learnThu",
 	"learnTitle",
-	"learnToday",
 	"learnTodayShort",
 	"learnTue",
 	"learnVocabulary",
@@ -2093,12 +2085,12 @@ var keyOfText = [numTexts]string{
 	"settingsConflictsDetail",
 	"settingsConflictsDone",
 	"settingsConflictsDoneDetail",
-	"settingsConflictsNone",
 	"settingsConflictsNote",
 	"settingsGoal",
 	"settingsIntroduction",
 	"settingsLanguage",
 	"settingsLanguageSystem",
+	"settingsLicense",
 	"settingsNoComputer",
 	"settingsOffline",
 	"settingsOfflineEmpty",
@@ -2358,7 +2350,6 @@ var textsEn = i18n.NewTexts(""+
 	"CSV spreadsheet"+
 	"One word per row; opens in spreadsheet apps and Notion"+
 	"Format"+
-	"The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."+
 	"Plain text (tab-separated)"+
 	"Imports into Quizlet and most flashcard apps"+
 	"Export word list"+
@@ -2391,7 +2382,6 @@ var textsEn = i18n.NewTexts(""+
 	"Continue watching"+
 	"No films ready yet"+
 	"Library"+
-	"A library is just a .kando folder, so you can keep separate ones for different purposes."+
 	"Locked"+
 	"Password"+
 	"Cancel"+
@@ -2527,6 +2517,7 @@ var textsEn = i18n.NewTexts(""+
 	"In word list · remove"+
 	"Cards"+
 	"Dictation"+
+	"All caught up"+
 	"Review mode"+
 	"No words due today"+
 	"Tap words in the subtitles while watching to add them to your word list"+
@@ -2536,10 +2527,8 @@ var textsEn = i18n.NewTexts(""+
 	"Streak"+
 	"Study time"+
 	"Sun"+
-	"Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"+
 	"Thu"+
 	"Learn"+
-	"Today"+
 	"Today"+
 	"Tue"+
 	"Word list"+
@@ -2749,12 +2738,12 @@ var textsEn = i18n.NewTexts(""+
 	"Two devices changed the same thing. Keep one."+
 	"No Conflicts Left"+
 	"Everything matches on all devices."+
-	"None"+
 	"When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."+
 	"Daily Goal"+
 	"Show Onboarding Again"+
 	"Language"+
 	"Automatic"+
+	"FSL-1.1 License"+
 	"Not connected"+
 	"Offline Films"+
 	"No films saved on this device yet."+
@@ -3011,7 +3000,6 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		54,
 		6,
-		108,
 		26,
 		44,
 		16,
@@ -3044,7 +3032,6 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		18,
 		7,
-		88,
 		6,
 		8,
 		6,
@@ -3180,6 +3167,7 @@ var textsEn = i18n.NewTexts(""+
 		22,
 		5,
 		9,
+		13,
 		11,
 		18,
 		71,
@@ -3189,9 +3177,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		10,
 		3,
-		98,
 		3,
-		5,
 		5,
 		5,
 		3,
@@ -3402,12 +3388,12 @@ var textsEn = i18n.NewTexts(""+
 		45,
 		17,
 		34,
-		4,
 		145,
 		10,
 		21,
 		8,
 		9,
+		15,
 		13,
 		13,
 		34,
@@ -3667,7 +3653,6 @@ var textsJa = i18n.NewTexts(""+
 	"CSV"+
 	"1 行に 1 単語。表計算アプリや Notion で開けます"+
 	"形式"+
-	"ファイルができると共有シートが開きます。ファイルに保存するか、Anki などのアプリで開けます。"+
 	"テキスト（タブ区切り）"+
 	"Quizlet や多くの単語カードアプリに読み込めます"+
 	"単語帳を書き出す"+
@@ -3700,7 +3685,6 @@ var textsJa = i18n.NewTexts(""+
 	"続きを見る"+
 	"再生できる動画はまだありません"+
 	"ライブラリ"+
-	"ライブラリは .kando フォルダです。用途ごとに分けて置けます。"+
 	"ロック中"+
 	"パスワード"+
 	"キャンセル"+
@@ -3836,6 +3820,7 @@ var textsJa = i18n.NewTexts(""+
 	"単語帳にあり · 削除"+
 	"カード"+
 	"ディクテーション"+
+	"復習はすべて完了"+
 	"復習の方法"+
 	"今日復習する単語はありません"+
 	"視聴中に字幕の単語をタップすると単語帳に追加されます"+
@@ -3845,10 +3830,8 @@ var textsJa = i18n.NewTexts(""+
 	"連続日数"+
 	"学習時間"+
 	"日"+
-	"単語、保存したセリフ、見たところまでが、コンピュータ・スマートフォン・タブレットの間で自動的に同期されます"+
 	"木"+
 	"学習"+
-	"今日"+
 	"今日"+
 	"火"+
 	"単語帳"+
@@ -4058,12 +4041,12 @@ var textsJa = i18n.NewTexts(""+
 	"2 台の端末が同じ箇所を変更しました。どちらかを残してください。"+
 	"競合はありません"+
 	"すべての端末で内容が一致しています。"+
-	"なし"+
 	"2 台の端末が同じ訳文や同じメモを変更したときは、ここで残す方を選びます。単語、保存した文、進み具合は自動でまとめられます。"+
 	"1 日の目標"+
 	"紹介をもう一度見る"+
 	"表示言語"+
 	"自動"+
+	"FSL-1.1 ライセンス"+
 	"未接続"+
 	"オフラインの動画"+
 	"この端末に保存した動画はまだありません。"+
@@ -4320,7 +4303,6 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		64,
 		6,
-		134,
 		33,
 		65,
 		24,
@@ -4353,7 +4335,6 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		45,
 		15,
-		86,
 		12,
 		15,
 		15,
@@ -4489,6 +4470,7 @@ var textsJa = i18n.NewTexts(""+
 		28,
 		9,
 		24,
+		24,
 		15,
 		42,
 		78,
@@ -4498,9 +4480,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		159,
 		3,
-		6,
 		6,
 		6,
 		3,
@@ -4711,12 +4691,12 @@ var textsJa = i18n.NewTexts(""+
 		92,
 		24,
 		54,
-		6,
 		182,
 		14,
 		27,
 		12,
 		6,
+		23,
 		9,
 		24,
 		60,
@@ -4976,7 +4956,6 @@ var textsKo = i18n.NewTexts(""+
 	"CSV"+
 	"한 줄에 단어 하나. 스프레드시트 앱과 Notion에서 열 수 있습니다"+
 	"형식"+
-	"파일이 만들어지면 공유 시트가 열려요. 파일에 저장하거나 Anki 같은 앱에서 열 수 있어요."+
 	"텍스트(탭 구분)"+
 	"Quizlet과 대부분의 단어 카드 앱으로 가져올 수 있습니다"+
 	"단어장 내보내기"+
@@ -5009,7 +4988,6 @@ var textsKo = i18n.NewTexts(""+
 	"이어 보기"+
 	"아직 재생할 수 있는 영상이 없습니다"+
 	"보관함"+
-	"보관함은 .kando 폴더라서 용도별로 나눠 둘 수 있습니다."+
 	"잠김"+
 	"비밀번호"+
 	"취소"+
@@ -5145,6 +5123,7 @@ var textsKo = i18n.NewTexts(""+
 	"단어장에 있음 · 삭제"+
 	"카드"+
 	"받아쓰기"+
+	"복습을 모두 마쳤어요"+
 	"복습 방식"+
 	"오늘은 복습할 단어가 없어요"+
 	"보는 중에 자막의 단어를 탭하면 단어장에 추가돼요"+
@@ -5154,10 +5133,8 @@ var textsKo = i18n.NewTexts(""+
 	"연속 학습"+
 	"학습 시간"+
 	"일"+
-	"단어, 저장한 문장, 본 위치가 컴퓨터, 휴대폰, 태블릿 사이에서 자동으로 동기화돼요"+
 	"목"+
 	"학습"+
-	"오늘"+
 	"오늘"+
 	"화"+
 	"단어장"+
@@ -5367,12 +5344,12 @@ var textsKo = i18n.NewTexts(""+
 	"두 기기가 같은 곳을 바꿨습니다. 하나를 남기세요."+
 	"남은 충돌 없음"+
 	"모든 기기의 내용이 같습니다."+
-	"없음"+
 	"두 기기가 같은 번역이나 같은 메모를 바꾸면 여기서 남길 쪽을 고르세요. 단어, 저장한 문장, 진행 상황은 자동으로 합쳐집니다."+
 	"하루 목표"+
 	"소개 다시 보기"+
 	"언어"+
 	"자동"+
+	"FSL-1.1 라이선스"+
 	"연결 안 됨"+
 	"오프라인 영화"+
 	"이 기기에 저장한 영화가 아직 없습니다."+
@@ -5629,7 +5606,6 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		85,
 		6,
-		120,
 		21,
 		74,
 		22,
@@ -5662,7 +5638,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		50,
 		9,
-		74,
 		6,
 		12,
 		6,
@@ -5798,6 +5773,7 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		6,
 		12,
+		29,
 		13,
 		39,
 		69,
@@ -5807,9 +5783,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		3,
-		113,
 		3,
-		6,
 		6,
 		6,
 		3,
@@ -6020,12 +5994,12 @@ var textsKo = i18n.NewTexts(""+
 		68,
 		20,
 		40,
-		6,
 		171,
 		13,
 		20,
 		6,
 		6,
+		20,
 		14,
 		19,
 		54,
@@ -6285,7 +6259,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"CSV 表格"+
 	"每行一个生词，可用表格软件和 Notion 打开"+
 	"格式"+
-	"生成后会打开分享面板，可以存到文件里，或直接用 Anki 等应用打开。"+
 	"纯文本（Tab 分隔）"+
 	"可导入 Quizlet 和大多数单词卡应用"+
 	"导出生词本"+
@@ -6318,7 +6291,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"继续看"+
 	"还没有可以播放的影片"+
 	"资料库"+
-	"资料库就是一个 .kando 文件夹，可以按用途分开放。"+
 	"已锁定"+
 	"密码"+
 	"取消"+
@@ -6454,6 +6426,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已在生词本 · 移除"+
 	"卡片"+
 	"听写"+
+	"复习都完成了"+
 	"复习方式"+
 	"今天没有要复习的生词"+
 	"看片时点字幕里的词，就能加进生词本"+
@@ -6463,10 +6436,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"连续学习"+
 	"学习时长"+
 	"日"+
-	"生词、收藏和看到哪儿，在电脑、手机、平板之间自动同步"+
 	"四"+
 	"学习"+
-	"今天"+
 	"今"+
 	"二"+
 	"生词本"+
@@ -6676,12 +6647,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"两台设备改了同一处，留下一个。"+
 	"没有冲突了"+
 	"所有设备上的内容都一致。"+
-	"无"+
 	"两台设备改了同一句译文或同一条笔记时，在这里选择保留哪一个。单词、收藏的句子和进度会自动合并。"+
 	"每日目标"+
 	"重新查看引导"+
 	"界面语言"+
 	"跟随系统"+
+	"FSL-1.1 许可"+
 	"未连接电脑"+
 	"离线影片"+
 	"还没有存到本机的影片。"+
@@ -6938,7 +6909,6 @@ var textsZhHans = i18n.NewTexts(""+
 		10,
 		56,
 		6,
-		93,
 		25,
 		45,
 		15,
@@ -6971,7 +6941,6 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		30,
 		9,
-		68,
 		9,
 		6,
 		6,
@@ -7107,6 +7076,7 @@ var textsZhHans = i18n.NewTexts(""+
 		25,
 		6,
 		6,
+		18,
 		12,
 		30,
 		51,
@@ -7116,9 +7086,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		78,
 		3,
-		6,
 		6,
 		3,
 		3,
@@ -7329,12 +7297,12 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		15,
 		36,
-		3,
 		141,
 		12,
 		18,
 		12,
 		12,
+		14,
 		15,
 		12,
 		33,
@@ -7594,7 +7562,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"CSV 表格"+
 	"每列一個生詞，可用試算表軟體和 Notion 開啟"+
 	"格式"+
-	"產生後會打開分享面板，可以存到檔案裡，或直接用 Anki 等 App 開啟。"+
 	"純文字（Tab 分隔）"+
 	"可匯入 Quizlet 和大多數單字卡 App"+
 	"匯出生詞本"+
@@ -7627,7 +7594,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"繼續看"+
 	"還沒有可以播放的影片"+
 	"資料庫"+
-	"資料庫就是一個 .kando 資料夾，可以按用途分開放。"+
 	"已鎖定"+
 	"密碼"+
 	"取消"+
@@ -7763,6 +7729,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已在生詞本 · 移除"+
 	"卡片"+
 	"聽寫"+
+	"複習都完成了"+
 	"複習方式"+
 	"今天沒有要複習的生詞"+
 	"看片時點字幕裡的詞，就能加進生詞本"+
@@ -7772,10 +7739,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"連續學習"+
 	"學習時長"+
 	"日"+
-	"生詞、收藏和看到哪裡，在電腦、手機、平板之間自動同步"+
 	"四"+
 	"學習"+
-	"今天"+
 	"今"+
 	"二"+
 	"生詞本"+
@@ -7985,12 +7950,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"兩台裝置改了同一處，留下一個。"+
 	"沒有衝突了"+
 	"所有裝置上的內容都一致。"+
-	"無"+
 	"兩台裝置改了同一句譯文或同一則筆記時，在這裡選擇保留哪一個。單字、收藏的句子和進度會自動合併。"+
 	"每日目標"+
 	"重新查看引導"+
 	"介面語言"+
 	"跟隨系統"+
+	"FSL-1.1 授權"+
 	"未連接電腦"+
 	"離線影片"+
 	"還沒有存到本機的影片。"+
@@ -8247,7 +8212,6 @@ var textsZhHant = i18n.NewTexts(""+
 		10,
 		59,
 		6,
-		92,
 		25,
 		43,
 		15,
@@ -8280,7 +8244,6 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		30,
 		9,
-		68,
 		9,
 		6,
 		6,
@@ -8416,6 +8379,7 @@ var textsZhHant = i18n.NewTexts(""+
 		25,
 		6,
 		6,
+		18,
 		12,
 		30,
 		51,
@@ -8425,9 +8389,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		3,
-		78,
 		3,
-		6,
 		6,
 		3,
 		3,
@@ -8638,12 +8600,12 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		15,
 		36,
-		3,
 		141,
 		12,
 		18,
 		12,
 		12,
+		14,
 		15,
 		12,
 		33,
@@ -9121,9 +9083,6 @@ func Supply(lang string, t Translation) {
 	if t.FilmsDeletedFromLibrary != nil {
 		s.FilmsDeletedFromLibrary = t.FilmsDeletedFromLibrary
 	}
-	if t.JobsBadgeLabel != nil {
-		s.JobsBadgeLabel = t.JobsBadgeLabel
-	}
 	if t.JobsReadOnly != nil {
 		s.JobsReadOnly = t.JobsReadOnly
 	}
@@ -9334,6 +9293,9 @@ func Supply(lang string, t Translation) {
 	if t.LearnReviewDueWords != nil {
 		s.LearnReviewDueWords = t.LearnReviewDueWords
 	}
+	if t.LearnReviewNext != nil {
+		s.LearnReviewNext = t.LearnReviewNext
+	}
 	if t.LearnShowAll != nil {
 		s.LearnShowAll = t.LearnShowAll
 	}
@@ -9510,9 +9472,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsConflictsCount != nil {
 		s.SettingsConflictsCount = t.SettingsConflictsCount
-	}
-	if t.SettingsFooter != nil {
-		s.SettingsFooter = t.SettingsFooter
 	}
 	if t.SettingsGoalValue != nil {
 		s.SettingsGoalValue = t.SettingsGoalValue
@@ -11026,15 +10985,6 @@ func ExportFormat(cx *core.Scope) string { return For(cx).ExportFormat() }
 // ExportFormat is the package's ExportFormat in the language of msgs.
 func (msgs Messages) ExportFormat() string { return msgs.text(textExportFormat) }
 
-// ExportShareNote says "The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."
-// in the language the app shows under cx.
-//
-// Under the export's button.
-func ExportShareNote(cx *core.Scope) string { return For(cx).ExportShareNote() }
-
-// ExportShareNote is the package's ExportShareNote in the language of msgs.
-func (msgs Messages) ExportShareNote() string { return msgs.text(textExportShareNote) }
-
 // ExportTSV says "Plain text (tab-separated)"
 // in the language the app shows under cx.
 //
@@ -11951,15 +11901,6 @@ func FilmsLibraries(cx *core.Scope) string { return For(cx).FilmsLibraries() }
 
 // FilmsLibraries is the package's FilmsLibraries in the language of msgs.
 func (msgs Messages) FilmsLibraries() string { return msgs.text(textFilmsLibraries) }
-
-// FilmsLibrariesNote says "A library is just a .kando folder, so you can keep separate ones for different purposes."
-// in the language the app shows under cx.
-//
-// Library switcher sheet: note under its title on what a library is.
-func FilmsLibrariesNote(cx *core.Scope) string { return For(cx).FilmsLibrariesNote() }
-
-// FilmsLibrariesNote is the package's FilmsLibrariesNote in the language of msgs.
-func (msgs Messages) FilmsLibrariesNote() string { return msgs.text(textFilmsLibrariesNote) }
 
 // FilmsLibrary says "Library: {name}"
 // in the language the app shows under cx.
@@ -13680,36 +13621,6 @@ func (msgs Messages) FilmsDeletedFromLibrary(title string, computer string) stri
 			return "已从 " + computer + " 删除「" + title + "」"
 		case "zh-Hant":
 			return "已從 " + computer + " 刪除「" + title + "」"
-		}
-	}
-}
-
-// JobsBadgeLabel says "Jobs, {count} unfinished"
-// in the language the app shows under cx.
-//
-// Spoken name of the Library's Jobs button on a phone while jobs run, wait or failed, or links wait to be sent.
-func JobsBadgeLabel(cx *core.Scope, count int) string { return For(cx).JobsBadgeLabel(count) }
-
-// JobsBadgeLabel is the package's JobsBadgeLabel in the language of msgs.
-func (msgs Messages) JobsBadgeLabel(count int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsBadgeLabel(count))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].JobsBadgeLabel; f != nil {
-			return f(count)
-		}
-		switch lang {
-		case "", "en":
-			return "Jobs, " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " unfinished"
-		case "ja":
-			return "ジョブ、未完了 " + i18n.FormatNumber("ja", float64(count)) + " 件"
-		case "ko":
-			return "작업, 완료되지 않음 " + i18n.FormatNumber("ko", float64(count)) + "개"
-		case "zh-Hans":
-			return "任务，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 个未完成"
-		case "zh-Hant":
-			return "任務，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 個未完成"
 		}
 	}
 }
@@ -16558,10 +16469,10 @@ func LearnMon(cx *core.Scope) string { return For(cx).LearnMon() }
 // LearnMon is the package's LearnMon in the language of msgs.
 func (msgs Messages) LearnMon() string { return msgs.text(textLearnMon) }
 
-// LearnNewCount says "New {count}"
+// LearnNewCount says "To learn {count}"
 // in the language the app shows under cx.
 //
-// Under the week's bar of the words by how well they are known: the words not yet known once.
+// Under the week's bar of the words by how well they are known: the words not yet known once. Named apart from learnNewWords, the words added this week, which the same card counts; the desktop's vocabNew says the same.
 func LearnNewCount(cx *core.Scope, count int) string { return For(cx).LearnNewCount(count) }
 
 // LearnNewCount is the package's LearnNewCount in the language of msgs.
@@ -16575,15 +16486,15 @@ func (msgs Messages) LearnNewCount(count int) string {
 		}
 		switch lang {
 		case "", "en":
-			return "New " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+			return "To learn " + msgs.arg(i18n.FormatNumber("en", float64(count)))
 		case "ja":
-			return "新規 " + i18n.FormatNumber("ja", float64(count))
+			return "未学習 " + i18n.FormatNumber("ja", float64(count))
 		case "ko":
-			return "새 단어 " + i18n.FormatNumber("ko", float64(count))
+			return "학습 전 " + i18n.FormatNumber("ko", float64(count))
 		case "zh-Hans":
-			return "新词 " + i18n.FormatNumber("zh-Hans", float64(count))
+			return "待学 " + i18n.FormatNumber("zh-Hans", float64(count))
 		case "zh-Hant":
-			return "新詞 " + i18n.FormatNumber("zh-Hant", float64(count))
+			return "待學 " + i18n.FormatNumber("zh-Hant", float64(count))
 		}
 	}
 }
@@ -16731,6 +16642,15 @@ func LearnReviewDictation(cx *core.Scope) string { return For(cx).LearnReviewDic
 // LearnReviewDictation is the package's LearnReviewDictation in the language of msgs.
 func (msgs Messages) LearnReviewDictation() string { return msgs.text(textLearnReviewDictation) }
 
+// LearnReviewDone says "All caught up"
+// in the language the app shows under cx.
+//
+// Title of Learn's review card while words or lines are saved but none is due.
+func LearnReviewDone(cx *core.Scope) string { return For(cx).LearnReviewDone() }
+
+// LearnReviewDone is the package's LearnReviewDone in the language of msgs.
+func (msgs Messages) LearnReviewDone() string { return msgs.text(textLearnReviewDone) }
+
 // LearnReviewDue says "{count, plural, one {Review # item} other {Review # items}}"
 // in the language the app shows under cx.
 //
@@ -16854,6 +16774,110 @@ func LearnReviewMode(cx *core.Scope) string { return For(cx).LearnReviewMode() }
 // LearnReviewMode is the package's LearnReviewMode in the language of msgs.
 func (msgs Messages) LearnReviewMode() string { return msgs.text(textLearnReviewMode) }
 
+// LearnReviewNext says "{days, plural, =0 {Next review later today} =1 {Next review tomorrow} one {Next review in # day} other {Next review in # days}}"
+// in the language the app shows under cx.
+//
+// Under the review card's title while words or lines are saved but none is due: when the first of them comes due, in calendar days from today.
+func LearnReviewNext(cx *core.Scope, days int) string { return For(cx).LearnReviewNext(days) }
+
+// LearnReviewNext is the package's LearnReviewNext in the language of msgs.
+func (msgs Messages) LearnReviewNext(days int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LearnReviewNext(days))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LearnReviewNext; f != nil {
+			return f(days)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("Next review later today")
+			case days == 1:
+				b.WriteString("Next review tomorrow")
+			default:
+				switch i18n.Cardinal("en", float64(days)) {
+				case i18n.One:
+					b.WriteString("Next review in ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+					b.WriteString(" day")
+				default:
+					b.WriteString("Next review in ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+					b.WriteString(" days")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("次の復習：今日このあと")
+			case days == 1:
+				b.WriteString("次の復習：明日")
+			default:
+				switch i18n.Cardinal("ja", float64(days)) {
+				default:
+					b.WriteString("次の復習：")
+					b.WriteString(i18n.FormatNumber("ja", float64(days)))
+					b.WriteString(" 日後")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("다음 복습: 오늘 이따가")
+			case days == 1:
+				b.WriteString("다음 복습: 내일")
+			default:
+				switch i18n.Cardinal("ko", float64(days)) {
+				default:
+					b.WriteString("다음 복습: ")
+					b.WriteString(i18n.FormatNumber("ko", float64(days)))
+					b.WriteString("일 후")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("下一次复习：今天晚些时候")
+			case days == 1:
+				b.WriteString("下一次复习：明天")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(days)) {
+				default:
+					b.WriteString("下一次复习：")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(days)))
+					b.WriteString(" 天后")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("下一次複習：今天稍晚")
+			case days == 1:
+				b.WriteString("下一次複習：明天")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(days)) {
+				default:
+					b.WriteString("下一次複習：")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(days)))
+					b.WriteString(" 天後")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
 // LearnReviewNone says "No words due today"
 // in the language the app shows under cx.
 //
@@ -16956,15 +16980,6 @@ func LearnSun(cx *core.Scope) string { return For(cx).LearnSun() }
 // LearnSun is the package's LearnSun in the language of msgs.
 func (msgs Messages) LearnSun() string { return msgs.text(textLearnSun) }
 
-// LearnSyncNote says "Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"
-// in the language the app shows under cx.
-//
-// Under Learn's title.
-func LearnSyncNote(cx *core.Scope) string { return For(cx).LearnSyncNote() }
-
-// LearnSyncNote is the package's LearnSyncNote in the language of msgs.
-func (msgs Messages) LearnSyncNote() string { return msgs.text(textLearnSyncNote) }
-
 // LearnThu says "Thu"
 // in the language the app shows under cx.
 //
@@ -16982,15 +16997,6 @@ func LearnTitle(cx *core.Scope) string { return For(cx).LearnTitle() }
 
 // LearnTitle is the package's LearnTitle in the language of msgs.
 func (msgs Messages) LearnTitle() string { return msgs.text(textLearnTitle) }
-
-// LearnToday says "Today"
-// in the language the app shows under cx.
-//
-// Over the minutes of films played today.
-func LearnToday(cx *core.Scope) string { return For(cx).LearnToday() }
-
-// LearnToday is the package's LearnToday in the language of msgs.
-func (msgs Messages) LearnToday() string { return msgs.text(textLearnToday) }
 
 // LearnTodayShort says "Today"
 // in the language the app shows under cx.
@@ -20968,15 +20974,6 @@ func (msgs Messages) SettingsConflictsDoneDetail() string {
 	return msgs.text(textSettingsConflictsDoneDetail)
 }
 
-// SettingsConflictsNone says "None"
-// in the language the app shows under cx.
-//
-// Beside Sync Conflicts in Settings when none is open.
-func SettingsConflictsNone(cx *core.Scope) string { return For(cx).SettingsConflictsNone() }
-
-// SettingsConflictsNone is the package's SettingsConflictsNone in the language of msgs.
-func (msgs Messages) SettingsConflictsNone() string { return msgs.text(textSettingsConflictsNone) }
-
 // SettingsConflictsNote says "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
 // in the language the app shows under cx.
 //
@@ -20985,38 +20982,6 @@ func SettingsConflictsNote(cx *core.Scope) string { return For(cx).SettingsConfl
 
 // SettingsConflictsNote is the package's SettingsConflictsNote in the language of msgs.
 func (msgs Messages) SettingsConflictsNote() string { return msgs.text(textSettingsConflictsNote) }
-
-// SettingsFooter says "{app} {version} · FSL-1.1 License"
-// in the language the app shows under cx.
-//
-// Centered under the last group of Settings: the app's name, its version and its license.
-func SettingsFooter(cx *core.Scope, app string, version string) string {
-	return For(cx).SettingsFooter(app, version)
-}
-
-// SettingsFooter is the package's SettingsFooter in the language of msgs.
-func (msgs Messages) SettingsFooter(app string, version string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsFooter(app, version))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].SettingsFooter; f != nil {
-			return f(app, version)
-		}
-		switch lang {
-		case "", "en":
-			return msgs.arg(app) + " " + msgs.arg(version) + " · FSL-1.1 License"
-		case "ja":
-			return app + " " + version + " · FSL-1.1 ライセンス"
-		case "ko":
-			return app + " " + version + " · FSL-1.1 라이선스"
-		case "zh-Hans":
-			return app + " " + version + " · FSL-1.1 许可"
-		case "zh-Hant":
-			return app + " " + version + " · FSL-1.1 授權"
-		}
-	}
-}
 
 // SettingsGoal says "Daily Goal"
 // in the language the app shows under cx.
@@ -21083,6 +21048,15 @@ func SettingsLanguageSystem(cx *core.Scope) string { return For(cx).SettingsLang
 
 // SettingsLanguageSystem is the package's SettingsLanguageSystem in the language of msgs.
 func (msgs Messages) SettingsLanguageSystem() string { return msgs.text(textSettingsLanguageSystem) }
+
+// SettingsLicense says "FSL-1.1 License"
+// in the language the app shows under cx.
+//
+// Centered under the last group of Settings: the app's license. The version is in the About group's Version row.
+func SettingsLicense(cx *core.Scope) string { return For(cx).SettingsLicense() }
+
+// SettingsLicense is the package's SettingsLicense in the language of msgs.
+func (msgs Messages) SettingsLicense() string { return msgs.text(textSettingsLicense) }
 
 // SettingsNoComputer says "Not connected"
 // in the language the app shows under cx.
@@ -21999,7 +21973,7 @@ func (msgs Messages) WidgetContinueName() string { return msgs.text(textWidgetCo
 // WidgetContinuePercent says "Continue · {percent}%"
 // in the language the app shows under cx.
 //
-// Over the film of the wide Continue widget: how far it was watched.
+// Over the film of the wide Continue widget: how far it was watched, from 1%; a film watched less says widgetContinue alone.
 func WidgetContinuePercent(cx *core.Scope, percent int) string {
 	return For(cx).WidgetContinuePercent(percent)
 }
@@ -22260,7 +22234,7 @@ func (msgs Messages) WidgetStudyName() string { return msgs.text(textWidgetStudy
 // WidgetTapToReview says "Tap to review"
 // in the language the app shows under cx.
 //
-// Foot of the streak widget.
+// Foot of the streak widget while words or lines are due.
 func WidgetTapToReview(cx *core.Scope) string { return For(cx).WidgetTapToReview() }
 
 // WidgetTapToReview is the package's WidgetTapToReview in the language of msgs.

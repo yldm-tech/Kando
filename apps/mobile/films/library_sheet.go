@@ -57,7 +57,6 @@ func LibrarySheet(cx *core.Scope, s *session.Session, library *core.Signal[catal
 		OnPress: func() { pick(catalog.Scope{}) }}
 	sheet := look.Dialog{TestID: "films-library-sheet", Open: open.Get, OnClose: func() { open.Set(false) }, Title: func() string { return locales.FilmsLibraries(cx) },
 		Children: []core.Node{
-			core.Text{ContentFunc: func() string { return locales.FilmsLibrariesNote(cx) }, Style: core.Style{FontSize: 13, LineHeight: 18, Margin: core.Edges{Top: -10}}, StyleFunc: ui.Colored(colors.Muted)},
 			look.Group{Children: []core.Node{
 				all,
 				core.Each(libs.Get, func(l catalog.Scope) string { return l.Desktop + "/" + l.ID + "/" + l.Name }, func(cx *core.Scope, l func() catalog.Scope, i func() int) core.Node {

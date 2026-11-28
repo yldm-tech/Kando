@@ -49,6 +49,14 @@ func (f Film) Percent() int {
 	return min(int(f.At*100/f.Length), 100)
 }
 
+// ContinueLabel is what the Continue widget says over f, in the language of m: Continue, with how far it played once that is at least 1%, as 0% would say nothing of a film just started.
+func ContinueLabel(m locales.Messages, f Film) string {
+	if p := f.Percent(); p > 0 {
+		return m.WidgetContinuePercent(p)
+	}
+	return m.WidgetContinue()
+}
+
 // Snapshot is what the widgets show of the session, Days today's first and then each midnight's, and Film the film to go on with, a zero Key for none.
 type Snapshot struct {
 	Days [ahead + 1]Day
@@ -202,9 +210,9 @@ func Entries(m locales.Messages, w Shown) map[string][]widget.Entry {
 	return map[string][]widget.Entry{Study: study, Continue: {cont}}
 }
 
-// streakView is the small study widget: the streak under a flame, and what is due at its foot.
+// streakView is the small study widget: the streak under a flame, and what is due at its foot, with a tap to review while something is.
 func streakView(m locales.Messages, d Day) widget.View {
-	return widget.Column{Style: widget.Style{AlignItems: widget.AlignStart, FillWidth: true, FillHeight: true, Gap: 2}, Children: []widget.View{
+	children := []widget.View{
 		widget.Row{Style: widget.Style{Gap: 4}, Children: []widget.View{
 			widget.Symbol{Name: "flame.fill", Style: widget.Style{Color: flame, FontSize: 13, Accented: true}},
 			widget.Text{Content: m.WidgetStreak(), Style: widget.Style{TextStyle: widget.Caption, FontWeight: core.FontWeightBold, Color: widget.Secondary, MaxLines: 1}},
@@ -215,8 +223,12 @@ func streakView(m locales.Messages, d Day) widget.View {
 		}},
 		widget.Spacer{},
 		widget.Text{Content: m.WidgetDue(d.Due), Style: widget.Style{TextStyle: widget.Footnote, FontWeight: core.FontWeightSemibold, MaxLines: 1, MinScale: 0.8}},
-		widget.Text{Content: m.WidgetTapToReview(), Style: widget.Style{TextStyle: widget.Caption2, Color: widget.Secondary, MaxLines: 1}},
-	}}
+	}
+	// Tap to review only while something is due: with nothing due, a tap opens a review with nothing in it.
+	if d.Due > 0 {
+		children = append(children, widget.Text{Content: m.WidgetTapToReview(), Style: widget.Style{TextStyle: widget.Caption2, Color: widget.Secondary, MaxLines: 1}})
+	}
+	return widget.Column{Style: widget.Style{AlignItems: widget.AlignStart, FillWidth: true, FillHeight: true, Gap: 2}, Children: children}
 }
 
 // ringView is the Lock Screen's round widget: how many words and lines are due.
@@ -237,11 +249,25 @@ func noFilmView(m locales.Messages) widget.View {
 	}}
 }
 
-// filmView is the small Continue widget: over the film's poster, on a scrim at its foot, the line it was left on, else its title, and how far it played.
+// filmMark is the mark of a film with no poster, a film's symbol, as the app's rows show one.
+func filmMark(size core.Points) widget.View {
+	return widget.Symbol{Name: "film", Style: widget.Style{Color: widget.Secondary, FontSize: size}}
+}
+
+// filmView is the small Continue widget: over the film's poster, on a scrim at its foot, the line it was left on, else its title, and how far it played; with no poster, the same under a film's mark on the system's background.
 func filmView(m locales.Messages, w Shown) widget.View {
 	text := w.Line
 	if text == "" {
 		text = w.Film.Title
+	}
+	if poster(w, true) == nil {
+		return widget.Column{Style: widget.Style{FillWidth: true, FillHeight: true, AlignItems: widget.AlignStart, Gap: 4}, Children: []widget.View{
+			filmMark(22),
+			widget.Spacer{},
+			widget.Text{Content: m.WidgetContinue(), Style: widget.Style{TextStyle: widget.Caption2, FontWeight: core.FontWeightBold, Color: widget.Secondary}},
+			widget.Text{Content: text, Style: widget.Style{FontSize: 13, FontWeight: core.FontWeightBold, MaxLines: 2}},
+			widget.Progress{Value: float64(w.Film.Percent()) / 100, Style: widget.Style{Color: widget.Accent, Accented: true}},
+		}}
 	}
 	return widget.Column{Style: widget.Style{FillWidth: true, FillHeight: true, AlignItems: widget.AlignStart, Justify: widget.AlignEnd}, Children: []widget.View{
 		widget.Column{Style: widget.Style{FillWidth: true, AlignItems: widget.AlignStart, Gap: 4, Padding: core.All(8), CornerRadius: 10, Background: widget.RGBA(0x000000, 0.55), Color: white}, Children: []widget.View{
@@ -252,10 +278,10 @@ func filmView(m locales.Messages, w Shown) widget.View {
 	}}
 }
 
-// wideFilmView is the medium Continue widget: the poster beside how far the film played, its title and the line it was left on, and the streak and what is due at its foot.
+// wideFilmView is the medium Continue widget: the poster, or a film's mark in its place, beside how far the film played, its title and the line it was left on, and the streak and what is due at its foot.
 func wideFilmView(m locales.Messages, w Shown, today Day) widget.View {
 	texts := []widget.View{
-		widget.Text{Content: m.WidgetContinuePercent(w.Film.Percent()), Style: widget.Style{TextStyle: widget.Caption2, FontWeight: core.FontWeightBold, Color: widget.Accent, Accented: true, MaxLines: 1}},
+		widget.Text{Content: ContinueLabel(m, w.Film), Style: widget.Style{TextStyle: widget.Caption2, FontWeight: core.FontWeightBold, Color: widget.Accent, Accented: true, MaxLines: 1}},
 		widget.Text{Content: w.Film.Title, Style: widget.Style{TextStyle: widget.Subheadline, FontWeight: core.FontWeight(800), MaxLines: 2}},
 	}
 	if w.Line != "" {
@@ -263,10 +289,13 @@ func wideFilmView(m locales.Messages, w Shown, today Day) widget.View {
 	}
 	texts = append(texts, widget.Spacer{},
 		widget.Text{Content: m.WidgetFoot(today.Due, today.Streak), Style: widget.Style{TextStyle: widget.Caption2, Color: widget.Secondary, MaxLines: 1, MinScale: 0.8}})
-	row := []widget.View{}
+	// A film with no poster has a film's mark on a tile in the poster's place.
+	var picture widget.View = widget.Column{Style: widget.Style{Width: 110, FillHeight: true, CornerRadius: 12, Background: widget.RGBA(0x787880, 0.16), AlignItems: widget.AlignCenter, Justify: widget.AlignCenter},
+		Children: []widget.View{filmMark(26)}}
 	if p := poster(w, false); p != nil {
-		row = append(row, p)
+		picture = p
 	}
+	row := []widget.View{picture}
 	row = append(row, widget.Column{Style: widget.Style{FillWidth: true, FillHeight: true, AlignItems: widget.AlignStart, Gap: 3}, Children: texts})
 	return widget.Row{Style: widget.Style{FillWidth: true, FillHeight: true, Gap: 12}, Children: row}
 }

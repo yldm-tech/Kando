@@ -43,8 +43,6 @@ type Actions struct {
 	OpenJobs func()
 	// PickLibrary opens the sheet that picks the library the list shows (LibrarySheet); nil for no switcher.
 	PickLibrary func()
-	// Jobs, when set, puts a Jobs button with the unfinished jobs' count on the page's header, which opens the Jobs tab: the app sets it where the tab bar is the system's, which shows no count (shell.SystemBar).
-	Jobs func()
 	// Library is the library the list shows, none for all, which a tablet's sidebar names and picks too; nil for the page's own.
 	Library *core.Signal[catalog.Scope]
 	// Searches counts the times the user asked for the search from the keyboard (shortcuts.Search): the tab focuses its search field each time it grows. Nil for none.
@@ -197,23 +195,7 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 	} else {
 		trailing = []core.Node{look.CircleButton{TestID: "films-add", Icon: look.Plus, Label: addLabel, Primary: true, OnPress: add}}
 	}
-	unfinished := func() int { active, failed := s.Unfinished(); return active + failed }
-	jobsLabel := func() string {
-		if n := unfinished(); n > 0 {
-			return locales.JobsBadgeLabel(cx, n)
-		}
-		return locales.JobsTitle(cx)
-	}
-	if act.Jobs != nil {
-		// TODO(nsgo#1076): core.HeaderSymbol is a name and a label only (core/platformprops.go:57), so iOS's native header shows no count on the Jobs button; its label says the count, and the drawn header elsewhere shows the badge. Pass the count once a header symbol takes a badge (UIBarButtonItem.badge), and drop the button once the system's tab bar shows the Jobs tab's (shell.Tab.Badge) https://github.com/nsgo-dev/nsgo/issues/1076
-		trailing = append([]core.Node{look.CircleButton{TestID: "films-jobs", Icon: lucide.ArrowDownToLine, Label: jobsLabel, OnPress: act.Jobs,
-			Badge: look.Count{TestID: "films-jobs-badge", Count: unfinished, Warn: func() bool { _, failed := s.Unfinished(); return failed > 0 },
-				Ring: true, Style: core.Style{Position: core.Absolute, Top: core.Pt(3), Right: core.Pt(1)}}}}, trailing...)
-	}
 	head := look.Head{Title: title, Trailing: trailing, Inline: inline, Symbols: func() []core.HeaderSymbol {
-		if act.Jobs != nil {
-			return []core.HeaderSymbol{{Name: "arrow.down.to.line", Label: jobsLabel()}, {Name: "plus", Label: addLabel()}}
-		}
 		return []core.HeaderSymbol{{Name: "plus", Label: addLabel()}}
 	}}
 	// The switcher heads the page over the title where no sidebar names the library (critic U6: a tablet upright has none), once a computer is paired or while films kept on the phone list without one, as their libraries are still the phone's to pick (design 08).

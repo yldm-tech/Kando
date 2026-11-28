@@ -302,9 +302,6 @@ exportCount:
 exportFormat:
   message: "Format"
   description: "Export page: heading of the formats."
-exportShareNote:
-  message: "The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."
-  description: "Under the export's button."
 exportTSV:
   message: "Plain text (tab-separated)"
   description: "Export page: plain text with a tab between the fields."
@@ -496,9 +493,6 @@ filmsLeftOn:
 filmsLibraries:
   message: "Library"
   description: "Title of the Library's switcher, which picks the library the list shows."
-filmsLibrariesNote:
-  message: "A library is just a .kando folder, so you can keep separate ones for different purposes."
-  description: "Library switcher sheet: note under its title on what a library is."
 filmsLibrary:
   message: "Library: {name}"
   description: "Spoken name of the Library's switcher, with the library it shows."
@@ -843,11 +837,6 @@ filmsDeletedFromLibrary:
   placeholders:
     title: { type: "String", example: "Rust Talk" }
     computer: { type: "String", example: "Studio" }
-jobsBadgeLabel:
-  message: "Jobs, {count} unfinished"
-  description: "Spoken name of the Library's Jobs button on a phone while jobs run, wait or failed, or links wait to be sent."
-  placeholders:
-    count: { type: "int", example: "2" }
 jobsEmpty:
   message: "No jobs. Tap + to send a video's link."
   description: "Jobs page, under a computer's card when it has no jobs and no links wait for it."
@@ -1406,8 +1395,8 @@ learnMon:
   message: "Mon"
   description: "Short name of Monday under its bar in the week's chart."
 learnNewCount:
-  message: "New {count}"
-  description: "Under the week's bar of the words by how well they are known: the words not yet known once."
+  message: "To learn {count}"
+  description: "Under the week's bar of the words by how well they are known: the words not yet known once. Named apart from learnNewWords, the words added this week, which the same card counts; the desktop's vocabNew says the same."
   placeholders:
     count: { type: "int", example: 1 }
 learnNewWords:
@@ -1444,6 +1433,9 @@ learnReviewCards:
 learnReviewDictation:
   message: "Dictation"
   description: "Review mode: the line is played and the learner types what they hear."
+learnReviewDone:
+  message: "All caught up"
+  description: "Title of Learn's review card while words or lines are saved but none is due."
 learnReviewDue:
   message: "{count, plural, one {Review # item} other {Review # items}}"
   description: "Title of Learn's review card: how many words and lines are due."
@@ -1462,6 +1454,11 @@ learnReviewDueWords:
 learnReviewMode:
   message: "Review mode"
   description: "Label beside Learn's choice of how the review goes: cards or dictation."
+learnReviewNext:
+  message: "{days, plural, =0 {Next review later today} =1 {Next review tomorrow} one {Next review in # day} other {Next review in # days}}"
+  description: "Under the review card's title while words or lines are saved but none is due: when the first of them comes due, in calendar days from today."
+  placeholders:
+    days: { type: "int", example: 1 }
 learnReviewNone:
   message: "No words due today"
   description: "Title of Learn's review card while nothing is due."
@@ -1491,18 +1488,12 @@ learnStudyTime:
 learnSun:
   message: "Sun"
   description: "Short name of Sunday under its bar in the week's chart."
-learnSyncNote:
-  message: "Words, saved lines and where you stopped sync automatically across your computer, phone and tablet"
-  description: "Under Learn's title."
 learnThu:
   message: "Thu"
   description: "Short name of Thursday under its bar in the week's chart."
 learnTitle:
   message: "Learn"
   description: "Tab and title of Learn: the saved words and lines and their review."
-learnToday:
-  message: "Today"
-  description: "Over the minutes of films played today."
 learnTodayShort:
   message: "Today"
   description: "Under today's bar in the week's chart, in place of its weekday."
@@ -2437,18 +2428,9 @@ settingsConflictsDone:
 settingsConflictsDoneDetail:
   message: "Everything matches on all devices."
   description: "Under No Conflicts Left."
-settingsConflictsNone:
-  message: "None"
-  description: "Beside Sync Conflicts in Settings when none is open."
 settingsConflictsNote:
   message: "When two devices change the same translated line or the same note, choose which to keep here. Words, saved lines and progress merge on their own."
   description: "At the top of the Sync Conflicts page."
-settingsFooter:
-  message: "{app} {version} · FSL-1.1 License"
-  description: "Centered under the last group of Settings: the app's name, its version and its license."
-  placeholders:
-    app: { type: "String", example: "Kando" }
-    version: { type: "String", example: "0.5.1" }
 settingsGoal:
   message: "Daily Goal"
   description: "Row in Settings, and the title of its page, that picks the daily goal of minutes of films."
@@ -2466,6 +2448,9 @@ settingsLanguage:
 settingsLanguageSystem:
   message: "Automatic"
   description: "Value of the Language row, and the first choice on its page: the app follows the system's language."
+settingsLicense:
+  message: "FSL-1.1 License"
+  description: "Centered under the last group of Settings: the app's license. The version is in the About group's Version row."
 settingsNoComputer:
   message: "Not connected"
   description: "At the foot of a tablet's sidebar while no computer is paired."
@@ -2716,7 +2701,7 @@ widgetContinueName:
   description: "iOS: the name of the Continue widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetContinuePercent:
   message: "Continue · {percent}%"
-  description: "Over the film of the wide Continue widget: how far it was watched."
+  description: "Over the film of the wide Continue widget: how far it was watched, from 1%; a film watched less says widgetContinue alone."
   placeholders:
     percent: { type: "int", example: "42" }
 widgetDays:
@@ -2755,7 +2740,7 @@ widgetStudyName:
   description: "iOS: the name of the streak widget in the system's gallery of widgets (nsgo.yaml's widgets), after the app's name."
 widgetTapToReview:
   message: "Tap to review"
-  description: "Foot of the streak widget."
+  description: "Foot of the streak widget while words or lines are due."
 playerCannotAddWord:
   message: "Open this film once while its computer is reachable to add its words to the vocabulary."
   description: "Toast when a word can't go in the vocabulary yet, as the film's library on the computer isn't known."

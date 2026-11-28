@@ -94,7 +94,6 @@ func ExportSheet(cx *core.Scope, s *session.Session, open func() bool, close fun
 					func(v study.VocabOptions) bool { return v.Lines }, func(v *study.VocabOptions, on bool) { v.Lines = on }),
 			}},
 			share,
-			note("export-share-note", func() string { return locales.ExportShareNote(cx) }, look.Footnote),
 		}},
 	}}
 }

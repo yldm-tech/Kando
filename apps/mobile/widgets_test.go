@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +51,37 @@ func TestSettingsShowsTheWidgetsAsTheyAre(t *testing.T) {
 	}
 	if got := p.app.Find("id:settings-widget-lock-due").Text; got != "0" {
 		t.Fatalf("the Lock Screen's ring shows %q due", got)
+	}
+}
+
+// Settings › Widgets shows the widgets as they draw what holds: with nothing due, no tap to review; a film just started, Continue with no share of 0%; and a film with no poster, a film's mark in the small widget and in the medium one's picture.
+func TestSettingsShowsTheWidgetsOfAFilmJustStarted(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the platform is the target's")
+	}
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	f.Film.DurationMS = (2 * time.Hour).Milliseconds()
+	f.PositionMS, f.PositionAt = 8000, now().Add(-time.Hour)
+	if err := store.Open(dir).SaveFilm(f); err != nil {
+		t.Fatal(err)
+	}
+	p := startPhone(t, dir, nsgotest.Environment(core.Environment{Locale: lang, OS: core.OSIOS}))
+	p.app.WaitFor(talkRow(f.Desktop), wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.WaitFor("id:settings-widgets", wait)
+	p.app.Press("id:settings-widgets")
+	p.app.WaitFor("id:settings-widget-film-text", wait)
+	if p.app.Exists("id:settings-widget-streak-tap") || p.app.Exists("text:"+msgs.WidgetTapToReview()) {
+		t.Error("the streak widget asks for a tap to review with nothing due")
+	}
+	for _, mark := range []string{"id:settings-widget-film-mark", "id:settings-widget-wide-mark"} {
+		if !p.app.Exists(mark) {
+			t.Errorf("%s does not show for a film with no poster", mark)
+		}
+	}
+	if got, want := p.texts("id:settings-widget-wide"), msgs.WidgetContinue(); !strings.HasPrefix(got, want+"\n") {
+		t.Errorf("the medium widget reads %q, want it to start with %q", got, want)
 	}
 }
 

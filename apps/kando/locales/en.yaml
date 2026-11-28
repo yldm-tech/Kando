@@ -7828,7 +7828,7 @@ vocabMinutes:
   placeholders:
     count: { type: "int", example: "45" }
 vocabNew:
-  message: "New {count}"
+  message: "To learn {count}"
   description: "Study stats dialog, under the mastery bar: how many words and saved lines were never known in a review yet."
   placeholders:
     count: { type: "int", example: "1" }

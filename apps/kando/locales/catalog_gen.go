@@ -64913,7 +64913,7 @@ func (msgs Messages) VocabMinutes(count int) string {
 	}
 }
 
-// VocabNew says "New {count}"
+// VocabNew says "To learn {count}"
 // in the language the app shows under cx.
 //
 // Study stats dialog, under the mastery bar: how many words and saved lines were never known in a review yet.
@@ -64930,15 +64930,15 @@ func (msgs Messages) VocabNew(count int) string {
 		}
 		switch lang {
 		case "", "en":
-			return "New " + msgs.arg(i18n.FormatNumber("en", float64(count)))
+			return "To learn " + msgs.arg(i18n.FormatNumber("en", float64(count)))
 		case "ja":
-			return "新規 " + i18n.FormatNumber("ja", float64(count))
+			return "未学習 " + i18n.FormatNumber("ja", float64(count))
 		case "ko":
-			return "새것 " + i18n.FormatNumber("ko", float64(count))
+			return "학습 전 " + i18n.FormatNumber("ko", float64(count))
 		case "zh-Hans":
-			return "新的 " + i18n.FormatNumber("zh-Hans", float64(count))
+			return "待学 " + i18n.FormatNumber("zh-Hans", float64(count))
 		case "zh-Hant":
-			return "新的 " + i18n.FormatNumber("zh-Hant", float64(count))
+			return "待學 " + i18n.FormatNumber("zh-Hant", float64(count))
 		}
 	}
 }
