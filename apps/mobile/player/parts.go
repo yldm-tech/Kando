@@ -292,14 +292,20 @@ func modeName(cx *core.Scope, mode string) string {
 	return locales.PlayerModeBilingual(cx)
 }
 
+// glideLines is how many lines from the one shown the list still glides to as it follows the line playing.
+const glideLines = 3
+
 // lines is the list of the film's lines: each with its start and its texts as the mode picks them, the original first, the one playing on a light band in bold, those before it faded, the one looped barred and the saved starred; a tap plays from a line. It follows the line playing unless the user is scrolling it. compact is the narrower list at the side of a phone on its side.
 func lines(cx *core.Scope, p *play, compact bool) core.Node {
 	colors := ui.ColorsOf(cx)
 	ref := &core.Ref{}
 	dragging := core.NewSignal(cx, false)
+	// The list glides from a line to the next few and jumps straight to one further away, as a seek lands it. An animated scroll across hundreds of rows sweeps past rows not laid out yet, so the list shows blank for seconds before the line, and with the NSGo this module pins it also stops short of the line (nsgo#2719, fixed in nsgo#2725, which still shows the blank sweep on an iPhone).
+	shown := -1
 	cx.Effect(func() {
 		if i := p.current.Get(); i >= 0 && !dragging.GetUntracked() {
-			ref.ScrollToIndexAt(i, 0.3, 0, true)
+			ref.ScrollToIndexAt(i, 0.3, 0, shown >= 0 && i-shown <= glideLines && shown-i <= glideLines)
+			shown = i
 		}
 	})
 	empty := core.Show{When: func() bool { _, ok := p.cues.Get(); return ok && len(p.list()) == 0 }, Then: func(cx *core.Scope) core.Node {
