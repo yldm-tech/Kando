@@ -280,6 +280,8 @@ func TestAStudyErrorWithoutACodeKeepsWhatTheServiceSaid(t *testing.T) {
 		if reply.Error == nil || reply.Error.Code != CodeFailed || reply.Error.Message != studyFailed {
 			t.Fatalf("%s answered %+v, want failed with %q", c.op, reply.Error, studyFailed)
 		}
+		// The call's id is random hex, which may hold 402; what the service said could leak anywhere else in the reply.
+		reply.ID = ""
 		data, _ := json.Marshal(reply)
 		for _, leak := range []string{"https://", "$4.99", "Top up", "402"} {
 			if strings.Contains(string(data), leak) {
