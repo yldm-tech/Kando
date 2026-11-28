@@ -274,8 +274,8 @@ func TestPhoneRelayHostedFullSyncsSubtitlesOnly(t *testing.T) {
 func TestPhoneRelayHostedFallsBackWhenPlusEnds(t *testing.T) {
 	a, tt, updates, f := hostedApp(t)
 	ownBucket(t, a)
-	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery = every, 0 }(phoneHostPoll)
-	phoneHostPoll, phoneRelayEvery = 100*time.Millisecond, 100*time.Millisecond
+	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery, phoneRelayMinWrite = every, 0, 0 }(phoneHostPoll)
+	phoneHostPoll, phoneRelayEvery, phoneRelayMinWrite = 100*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
 	a.phone.now = time.Now
 	f.set(func() { f.plus, f.refuse = false, "plus_required" })
 	a.phone.host.on = true
@@ -415,8 +415,8 @@ func TestPhoneRelayHostedSwitchHandsThePhonesOver(t *testing.T) {
 	a, tt, updates, f := hostedApp(t)
 	f.set(func() { f.plus = true })
 	ownBucket(t, a)
-	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery = every, 0 }(phoneHostPoll)
-	phoneHostPoll, phoneRelayEvery = 100*time.Millisecond, 100*time.Millisecond
+	defer func(every time.Duration) { phoneHostPoll, phoneRelayEvery, phoneRelayMinWrite = every, 0, 0 }(phoneHostPoll)
+	phoneHostPoll, phoneRelayEvery, phoneRelayMinWrite = 100*time.Millisecond, 100*time.Millisecond, 10*time.Millisecond
 	// The grants a handoff mints are newer than the phone's by the clock, as a phone keeps the newest.
 	a.phone.now = time.Now
 	phoneSyncOn(t, a, tt, updates)
@@ -459,7 +459,7 @@ func TestPhoneRelayHostedSwitchHandsThePhonesOver(t *testing.T) {
 	}
 }
 
-// relayAsk has phone ask the computer for its jobs through the relay, as a phone away from its network does, and waits for the answer, applying the app's updates meanwhile. The relay takes a turn at most every ten seconds (sync.RelayMinWrite), so this takes a while.
+// relayAsk has phone ask the computer for its jobs through the relay, as a phone away from its network does, and waits for the answer, applying the app's updates meanwhile. The relay takes a turn at most every sync.RelayMinWrite, ten seconds, unless the test shortens it (phoneRelayMinWrite).
 func relayAsk(t *testing.T, a *app, updates <-chan func(), phone *psync.RelayPhone) {
 	t.Helper()
 	ctx := context.Background()
@@ -468,6 +468,9 @@ func relayAsk(t *testing.T, a *app, updates <-chan func(), phone *psync.RelayPho
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The reply is looked for at every tick, however often the app's updates come: with the relay's turns shortened they come more often than a quiet spell of a tick would ever let it be looked for.
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
 	deadline := time.Now().Add(45 * time.Second)
 	for time.Now().Before(deadline) {
 		select {
@@ -477,7 +480,7 @@ func relayAsk(t *testing.T, a *app, updates <-chan func(), phone *psync.RelayPho
 				a.Changed()
 			})
 			continue
-		case <-time.After(200 * time.Millisecond):
+		case <-tick.C:
 		}
 		reply, ok, err := phone.Reply(ctx, slot)
 		if err != nil {

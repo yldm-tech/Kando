@@ -130,6 +130,8 @@ type Config struct {
 	// RelayEvery is how often the relay polls the inboxes, 0 for sync.RelayPoll, as a hosted bucket whose every listing costs polls less often (relayhost.Poll). RelayLinksUntil, when set, is when the links the relay signs now must lapse by, as a bucket whose key is short-lived needs (psync.Relay.LinksUntil).
 	RelayEvery      time.Duration
 	RelayLinksUntil func(ctx context.Context) (time.Time, error)
+	// RelayMinWrite is the least time between two of the relay's turns, 0 for sync.RelayMinWrite. Tests shorten it, as a phone's call through the relay waits up to a turn for its answer.
+	RelayMinWrite time.Duration
 	// Films, with the relay on, shares the films with the phones through the bucket (films.go); nil shares none.
 	Films *FilmsConfig
 	// Addrs are the addresses to listen on, looked at again every rescanEvery as the computer joins other networks; nil is LANAddrs. Tests give loopback.
@@ -224,9 +226,6 @@ func Start(cfg Config) (*Server, error) {
 	}
 	if cfg.Relay != nil {
 		s.startRelay(cfg.Relay)
-		if cfg.Films != nil {
-			s.startFilms(cfg.Relay, *cfg.Films)
-		}
 	}
 	if err := s.rescan(); err != nil {
 		s.Close()

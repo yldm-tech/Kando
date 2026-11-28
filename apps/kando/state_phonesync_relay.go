@@ -62,6 +62,9 @@ func (a *app) phoneRelayBucket(gen int) (phonesync.Bucket, time.Duration, func(c
 // phoneRelayEvery is how often the relay polls the bucket of 账号与上传, 0 for the relay's own (sync.RelayPoll). Tests shorten it.
 var phoneRelayEvery time.Duration
 
+// phoneRelayMinWrite is the least time between two of the relay's turns, 0 for the relay's own (sync.RelayMinWrite). Tests shorten it.
+var phoneRelayMinWrite time.Duration
+
 // phoneRelayHealth is what the relay of the start numbered gen tells after each of its turns, on its own goroutine: posted to the app only when it says something else than the turn before, as most turns go as the last one did.
 func (a *app) phoneRelayHealth(gen int) func(err error) {
 	update := a.update

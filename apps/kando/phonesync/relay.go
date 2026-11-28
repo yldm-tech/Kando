@@ -16,11 +16,11 @@ import (
 // forgetTimeout is how long unpairing a phone waits for the store to delete its folders.
 const forgetTimeout = time.Minute
 
-// relayEvery and relayMinWrite are how often the relay polls the inboxes, unless Config.RelayEvery says otherwise, and the least time between two of its turns (psync.Relay's Every and MinWrite). Tests shorten them.
+// relayEvery and relayMinWrite are how often the relay polls the inboxes, unless Config.RelayEvery says otherwise, and the least time between two of its turns, unless Config.RelayMinWrite does (psync.Relay's Every and MinWrite). Tests shorten them.
 var relayEvery, relayMinWrite = psync.RelayPoll, psync.RelayMinWrite
 
-// startRelay starts the relay in bucket, under the folder named by the certificate's fingerprint, until Close. Start calls it before the server listens, as the handlers read s.relay and s.desk.Relay.
-func (s *Server) startRelay(bucket psync.RelayBucket) {
+// startRelay starts the relay in bucket, under the folder named by the certificate's fingerprint, until Close, and the films in it when Config.Films is set (startFilms). Start calls it before the server listens, as the handlers read s.relay and s.desk.Relay. The films are started before the relay runs, as they set its Films, which Run reads on its own goroutine.
+func (s *Server) startRelay(bucket Bucket) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.relay = &psync.Relay{
 		Bucket:     bucket,
@@ -30,11 +30,14 @@ func (s *Server) startRelay(bucket psync.RelayBucket) {
 		Now:        s.cfg.Now,
 		Logf:       s.cfg.Logf,
 		Every:      cmp.Or(s.cfg.RelayEvery, relayEvery),
-		MinWrite:   relayMinWrite,
+		MinWrite:   cmp.Or(s.cfg.RelayMinWrite, relayMinWrite),
 		Health:     s.cfg.RelayHealth,
 		LinksUntil: s.cfg.RelayLinksUntil,
 	}
 	s.desk.Relay = relayJoiner{s}
+	if s.cfg.Films != nil {
+		s.startFilms(bucket, *s.cfg.Films)
+	}
 	s.done.Add(1)
 	go func() {
 		defer s.done.Done()
