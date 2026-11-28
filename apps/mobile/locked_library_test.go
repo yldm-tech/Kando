@@ -124,7 +124,7 @@ func keepSecret(t *testing.T, dir, id string) store.Film {
 	st := store.Open(dir)
 	keepTalkFrom(t, dir, id)
 	f := store.Film{Desktop: id, Library: "Private", LibraryID: "priv", Video: "video.mp4", Poster: "poster.jpg", Added: now(),
-		PositionMS: 2000, PositionAt: now().Add(-time.Hour),
+		PositionMS: 20_000, PositionAt: now().Add(-time.Hour),
 		Film: sync.Film{ID: "secret-film", Title: "Secret Documentary", DurationMS: 60_000, Spoken: "ja", VideoSize: int64(len(talkVideo))}}
 	if err := st.SaveFilm(f); err != nil {
 		t.Fatal(err)
