@@ -93,7 +93,7 @@ func (c *Client) Job(ctx context.Context, id string) (Job, error) {
 	return out, err
 }
 
-// ActOnJob runs op, one of OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id, and answers the job as it is after.
+// ActOnJob runs op, one of OpJobCancel, OpJobRetry, OpJobPause, OpJobResume and OpJobRemove, on job id, and answers the job as it is after, or for OpJobRemove as it was when taken off.
 func (c *Client) ActOnJob(ctx context.Context, op, id string) (Job, error) {
 	var out Job
 	err := c.Call(ctx, op, JobRef{ID: id}, &out)

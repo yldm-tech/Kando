@@ -1178,6 +1178,7 @@ const (
 	textJobsOpen
 	textJobsPause
 	textJobsPaused
+	textJobsRemove
 	textJobsRemedyRetry
 	textJobsResume
 	textJobsRunning
@@ -1831,6 +1832,7 @@ var keyOfText = [numTexts]string{
 	"jobsOpen",
 	"jobsPause",
 	"jobsPaused",
+	"jobsRemove",
 	"jobsRemedyRetry",
 	"jobsResume",
 	"jobsRunning",
@@ -2482,6 +2484,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open"+
 	"Pause"+
 	"Paused"+
+	"Remove"+
 	"This may pass by itself. Try again in a moment."+
 	"Resume"+
 	"Processing"+
@@ -3129,6 +3132,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		4,
 		5,
+		6,
 		6,
 		47,
 		6,
@@ -3781,6 +3785,7 @@ var textsJa = i18n.NewTexts(""+
 	"開く"+
 	"一時停止"+
 	"一時停止中"+
+	"取り除く"+
 	"しばらくすると解消することがあります。少し待ってからもう一度お試しください。"+
 	"再開"+
 	"処理中"+
@@ -4429,6 +4434,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		12,
 		15,
+		12,
 		114,
 		6,
 		9,
@@ -5080,6 +5086,7 @@ var textsKo = i18n.NewTexts(""+
 	"열기"+
 	"일시정지"+
 	"일시정지됨"+
+	"제거"+
 	"잠시 후 해결될 수 있습니다. 조금 뒤에 다시 시도하세요."+
 	"재개"+
 	"처리 중"+
@@ -5728,6 +5735,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		12,
 		15,
+		6,
 		76,
 		6,
 		10,
@@ -6379,6 +6387,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开"+
 	"暂停"+
 	"已暂停"+
+	"移除"+
 	"可能过一会儿就好，稍后重试。"+
 	"继续"+
 	"处理中"+
@@ -7027,6 +7036,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
 		42,
 		6,
 		9,
@@ -7678,6 +7688,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開"+
 	"暫停"+
 	"已暫停"+
+	"移除"+
 	"可能過一會兒就好，稍後重試。"+
 	"繼續"+
 	"處理中"+
@@ -8326,6 +8337,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		6,
 		42,
 		6,
 		9,
@@ -15525,6 +15537,15 @@ func (msgs Messages) JobsPercent(percent int) string {
 		}
 	}
 }
+
+// JobsRemove says "Remove"
+// in the language the app shows under cx.
+//
+// Button of a job that failed or was canceled, which takes it off the computer's queue as the × of its card there does; the download stays on the computer.
+func JobsRemove(cx *core.Scope) string { return For(cx).JobsRemove() }
+
+// JobsRemove is the package's JobsRemove in the language of msgs.
+func (msgs Messages) JobsRemove() string { return msgs.text(textJobsRemove) }
 
 // JobsRefused says "{name} didn't take it: {message}"
 // in the language the app shows under cx.

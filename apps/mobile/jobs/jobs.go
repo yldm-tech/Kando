@@ -614,7 +614,7 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 	}}
 }
 
-// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, the way to fix it on the computer first, or another link.
+// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, the way to fix it on the computer first, or another link, and taking it off the computer's queue.
 func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Job, act Actions) core.Node {
 	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	id := j().ID
@@ -635,6 +635,8 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 		return !canceled() && act.Add != nil && hopeless(failure().Code) && q().Can(sync.OpJobCreate)
 	}
 	retry := func() bool { return q().Can(sync.OpJobRetry) && !another() }
+	// remove takes the job off the computer's queue, as the × of its card there does, so one that will not be tried again does not stay on the phone; a computer from before sync.OpJobRemove does not offer it.
+	remove := func() bool { return q().Can(sync.OpJobRemove) }
 	busy := func() bool { return s.Busy(desktop, id) || s.Updating(desktop) || q().Reach != session.Online }
 	body := func() string { return failureBody(cx, failure(), name(s, desktop), site()) }
 	return core.View{TestID: "jobs-remedy-" + id, Style: core.Style{Gap: 4, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
@@ -664,13 +666,8 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 			core.Show{When: func() bool { return !canceled() && body() != "" }, Then: func(cx *core.Scope) core.Node {
 				return core.Text{TestID: "jobs-failure-body-" + id, ContentFunc: body, Style: look.Caption.Merge(core.Style{Padding: core.Edges{Left: 24}}), StyleFunc: ui.Colored(own.WarnBody)}
 			}},
-			// The buttons line up with the text under the triangle, or with the title where there is none.
-			core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 8}, StyleFunc: func() core.Style {
-				if canceled() {
-					return core.Style{Padding: core.Edges{Top: 6}}
-				}
-				return core.Style{Padding: core.Edges{Top: 6, Left: 24}}
-			}, Children: []core.Node{
+			// The buttons take the box's whole width, under the triangle too, on one row: the main one gives way, its text on up to two lines, so Remove keeps its place beside it on a phone 320 points wide.
+			core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, Padding: core.Edges{Top: 6}}, Children: []core.Node{
 				core.Show{When: update, Then: func(cx *core.Scope) core.Node {
 					return warnPill(cx, "jobs-update-"+id, func() string { return locales.JobsUpdateRetry(cx) }, func() { s.UpdateYTDLP(desktop) }, busy)
 				}},
@@ -695,6 +692,9 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 						Else: func(cx *core.Scope) core.Node {
 							return warnPill(cx, "jobs-retry-"+id, text, func() { s.Act(desktop, sync.OpJobRetry, id) }, busy)
 						}}
+				}},
+				core.Show{When: remove, Then: func(cx *core.Scope) core.Node {
+					return plainPill(cx, "jobs-remove-"+id, func() string { return locales.JobsRemove(cx) }, func() { s.Act(desktop, sync.OpJobRemove, id) }, busy)
 				}},
 			}},
 		}}
@@ -839,6 +839,14 @@ func pillBusy(cx *core.Scope, testID string, main bool, text func() string, pres
 			return core.Style{Background: tints.Accent(), Color: colors.Accent()}
 		},
 		Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold}}}}
+}
+
+// plainPill is the failure box's quiet button beside its main one: the accent's text alone, ui's small ghost button in the pills' 13pt bold, 10 points either side of it, so the main button keeps the row's room.
+func plainPill(cx *core.Scope, testID string, text func() string, press func(), busy func() bool) core.Node {
+	accent := ui.ColorsOf(cx).Accent()
+	return ui.Button{TestID: testID, TextFunc: text, Variant: ui.ButtonGhost, Size: ui.SizeSmall, Tint: ui.Fixed(accent), Disabled: busy, OnPress: press,
+		TextStyle: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightBold, Color: accent},
+		Style:     core.Style{CornerRadius: 16, FlexShrink: 0}}
 }
 
 // warnPill is the failure box's main button: white on the warning's orange, 32 points tall, its text on up to two lines.

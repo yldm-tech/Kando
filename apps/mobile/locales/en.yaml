@@ -1214,6 +1214,9 @@ jobsPercent:
   description: "A step's progress."
   placeholders:
     percent: { type: "int", example: "42" }
+jobsRemove:
+  message: "Remove"
+  description: "Button of a job that failed or was canceled, which takes it off the computer's queue as the × of its card there does; the download stays on the computer."
 jobsRefused:
   message: "{name} didn't take it: {message}"
   description: "Why a link was refused, in the computer's own words."

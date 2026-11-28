@@ -28,7 +28,7 @@ type Service interface {
 	// Hello is what the desktop says of itself, without Versions and Epoch, which Desk fills in.
 	Hello(ctx context.Context, caller Caller) (Hello, error)
 	CreateJob(ctx context.Context, caller Caller, req JobCreate) (JobCreated, error)
-	// ActOnJob runs op, one of OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id.
+	// ActOnJob runs op, one of OpJobCancel, OpJobRetry, OpJobPause, OpJobResume and OpJobRemove, on job id.
 	ActOnJob(ctx context.Context, caller Caller, op, id string) (Job, error)
 	UpdateYTDLP(ctx context.Context, caller Caller) (ToolUpdate, error)
 }
@@ -154,7 +154,7 @@ func (d *Desk) Answer(ctx context.Context, caller Caller, call Call) Reply {
 // Mutates reports whether op changes something on the desktop: a read-only device's calls of it are refused (Caller.ReadOnly), and a call of it sent again answers the reply it got the first time.
 func Mutates(op string) bool {
 	switch op {
-	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe, OpFilmRetranslate, OpFilmDelete, OpFilmVideo, OpTermPut:
+	case OpJobCreate, OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpJobRemove, OpUpdateYTDLP, OpStatePut, OpStateResolve, OpSettingsPut, OpSubscribe, OpSubscriptionSet, OpSubscriptionTake, OpUnsubscribe, OpFilmRetranslate, OpFilmDelete, OpFilmVideo, OpTermPut:
 		return true
 	}
 	return false
@@ -258,7 +258,7 @@ func (d *Desk) answer(ctx context.Context, caller Caller, call Call) (any, error
 			return nil, Errorf(CodeNotFound, "no job %q", ref.ID)
 		}
 		return job, nil
-	case OpJobCancel, OpJobRetry, OpJobPause, OpJobResume:
+	case OpJobCancel, OpJobRetry, OpJobPause, OpJobResume, OpJobRemove:
 		var ref JobRef
 		if err := args(call, &ref); err != nil {
 			return nil, err

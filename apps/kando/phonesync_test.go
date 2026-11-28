@@ -662,3 +662,68 @@ func TestPhoneSyncNeverWritesALockedLibrary(t *testing.T) {
 		t.Fatalf("the locked library's job %+v", job)
 	}
 }
+
+// A phone takes a failed job off the queue as the × of its card does, and a canceled one once it has stopped; the phones hear it is gone. A job running, waiting or done stays where it is.
+func TestPhoneSyncRemovesAFailedJob(t *testing.T) {
+	a, tt, updates, dir, c := phonePaired(t)
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "broken", Source: "https://www.youtube.com/watch?v=brokenvid", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("connection reset by peer"), LibraryDir: dir})
+	refresh(tt, a)
+	if _, err := phoneSend(t, a, tt, updates, c, "https://www.youtube.com/watch?v=jNQXAC9IVRw"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.RunningJob() != "" })
+	running := a.RunningJob()
+	h, err := phoneCall(t, a, tt, updates, c.Hello)
+	if err != nil || !slices.Contains(h.Ops, psync.OpJobRemove) {
+		t.Fatalf("hello %+v, %v", h, err)
+	}
+	act := func(op, id string) (psync.Job, error) {
+		return phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Job, error) { return c.ActOnJob(ctx, op, id) })
+	}
+
+	// A job going on, or a done film, is not the phone's to remove.
+	for _, id := range []string{running, "clip", "yt"} {
+		_, err := act(psync.OpJobRemove, id)
+		phoneWantCode(t, err, http.StatusConflict, psync.CodeConflict)
+		if _, ok := a.library.Find(id); !ok {
+			t.Fatalf("removing %s took it off the shelf", id)
+		}
+	}
+	if a.RunningJob() != running {
+		t.Fatalf("removing the running job stopped it: %q runs", a.RunningJob())
+	}
+	_, err = act(psync.OpJobRemove, "nope")
+	phoneWantCode(t, err, http.StatusNotFound, psync.CodeNotFound)
+
+	list, err := phoneCall(t, a, tt, updates, c.Jobs)
+	if err != nil || !slices.ContainsFunc(list.Jobs, func(j psync.Job) bool { return j.ID == "broken" && j.State == psync.JobFailed }) {
+		t.Fatalf("jobs %+v, %v: the failed job is not listed", list.Jobs, err)
+	}
+	removed, err := act(psync.OpJobRemove, "broken")
+	if err != nil || removed.ID != "broken" || removed.State != psync.JobFailed {
+		t.Fatalf("removed %+v, %v", removed, err)
+	}
+	if _, ok := a.library.Find("broken"); ok {
+		t.Fatal("the failed job is still on the shelf")
+	}
+	ev, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (psync.Events, error) {
+		return c.Events(ctx, list.Epoch, list.Rev, 5*time.Second)
+	})
+	if err != nil || !slices.ContainsFunc(ev.Events, func(e psync.Event) bool { return e.ID == "broken" && e.Kind == psync.EventJobGone }) {
+		t.Fatalf("events %+v, %v: the phones are not told the job is gone", ev.Events, err)
+	}
+
+	// The running job, canceled from the phone, can be removed once it has stopped.
+	if job, err := act(psync.OpJobCancel, running); err != nil || job.State != psync.JobCanceled {
+		t.Fatalf("canceled %+v, %v", job, err)
+	}
+	if _, err := act(psync.OpJobRemove, running); err != nil {
+		t.Fatalf("removing the canceled job: %v", err)
+	}
+	if _, ok := a.library.Find(running); ok {
+		t.Fatal("the canceled job is still on the shelf")
+	}
+	if _, ok := a.library.Find("clip"); !ok {
+		t.Fatal("the waiting clip went with it")
+	}
+}
