@@ -124,6 +124,23 @@ func Due(items []Item, now time.Time) []Item {
 	return out
 }
 
+// NextIn is how many days after now's the first item not due at now comes due, 0 for later the same day, by the calendar of now's location; false while none is waiting.
+func NextIn(items []Item, now time.Time) (int, bool) {
+	var next time.Time
+	for _, it := range items {
+		if !it.IsDue(now) && (next.IsZero() || it.Due.Before(next)) {
+			next = it.Due
+		}
+	}
+	if next.IsZero() {
+		return 0, false
+	}
+	next = next.In(now.Location())
+	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	to := time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, time.UTC)
+	return int(to.Sub(from) / (24 * time.Hour)), true
+}
+
 // Grade is the change of it's schedule after a review at now on device, as the computer's own review makes it (study.Intervals): good, known, moves it up a box and makes it due the box's interval later; not known puts it back in box 0, due at once. The session makes it from the schedule the computer has (phonestudy.Based).
 func Grade(it Item, good bool, now time.Time, device string) sync.Record {
 	box, due := 0, now

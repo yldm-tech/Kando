@@ -1439,6 +1439,9 @@ learnReviewCards:
 learnReviewDictation:
   message: "Dictation"
   description: "Review mode: the line is played and the learner types what they hear."
+learnReviewDone:
+  message: "All caught up"
+  description: "Title of Learn's review card while words or lines are saved but none is due."
 learnReviewDue:
   message: "{count, plural, one {Review # item} other {Review # items}}"
   description: "Title of Learn's review card: how many words and lines are due."
@@ -1457,6 +1460,11 @@ learnReviewDueWords:
 learnReviewMode:
   message: "Review mode"
   description: "Label beside Learn's choice of how the review goes: cards or dictation."
+learnReviewNext:
+  message: "{days, plural, =0 {Next review later today} =1 {Next review tomorrow} one {Next review in # day} other {Next review in # days}}"
+  description: "Under the review card's title while words or lines are saved but none is due: when the first of them comes due, in calendar days from today."
+  placeholders:
+    days: { type: "int", example: 1 }
 learnReviewNone:
   message: "No words due today"
   description: "Title of Learn's review card while nothing is due."

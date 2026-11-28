@@ -282,3 +282,29 @@ func TestWatchedAddsTheOtherDevices(t *testing.T) {
 		t.Errorf("the change %+v reads %v, %v", change, ms, err)
 	}
 }
+
+// NextIn counts calendar days to the next item not yet due, in now's location: later the same day is 0, after midnight 1; none is waiting once everything is due.
+func TestNextIn(t *testing.T) {
+	tokyo := time.FixedZone("JST", 9*3600)
+	now := time.Date(2026, 11, 17, 22, 0, 0, 0, tokyo)
+	for _, c := range []struct {
+		dues []time.Time
+		want int
+		ok   bool
+	}{
+		{nil, 0, false},
+		{[]time.Time{now.Add(-time.Hour)}, 0, false},
+		{[]time.Time{now.Add(-time.Hour), now.Add(time.Hour)}, 0, true},
+		{[]time.Time{now.Add(3 * time.Hour), now.Add(80 * time.Hour)}, 1, true},
+		{[]time.Time{now.Add(3 * time.Hour).UTC()}, 1, true},
+		{[]time.Time{now.Add(7 * 24 * time.Hour)}, 7, true},
+	} {
+		var its []Item
+		for _, d := range c.dues {
+			its = append(its, Item{Due: d})
+		}
+		if got, ok := NextIn(its, now); got != c.want || ok != c.ok {
+			t.Errorf("NextIn(%v) = %d, %v; want %d, %v", c.dues, got, ok, c.want, c.ok)
+		}
+	}
+}

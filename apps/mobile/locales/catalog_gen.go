@@ -622,6 +622,7 @@ var Parameters = map[string][]string{
 	"LearnReviewDue":                 {"count"},
 	"LearnReviewDueDetail":           {"count"},
 	"LearnReviewDueWords":            {"count"},
+	"LearnReviewNext":                {"days"},
 	"LearnShowAll":                   {"count"},
 	"LearnWeekBars":                  {"count"},
 	"LearnWordsDue":                  {"total", "due"},
@@ -873,6 +874,7 @@ type Translation struct {
 	LearnReviewDue                 func(count int) string
 	LearnReviewDueDetail           func(count int) string
 	LearnReviewDueWords            func(count int) string
+	LearnReviewNext                func(days int) string
 	LearnShowAll                   func(count int) string
 	LearnWeekBars                  func(count int) string
 	LearnWordsDue                  func(total int, due int) string
@@ -1211,6 +1213,7 @@ const (
 	textLearnRemoveFromList
 	textLearnReviewCards
 	textLearnReviewDictation
+	textLearnReviewDone
 	textLearnReviewMode
 	textLearnReviewNone
 	textLearnReviewNoneDetail
@@ -1869,6 +1872,7 @@ var keyOfText = [numTexts]string{
 	"learnRemoveFromList",
 	"learnReviewCards",
 	"learnReviewDictation",
+	"learnReviewDone",
 	"learnReviewMode",
 	"learnReviewNone",
 	"learnReviewNoneDetail",
@@ -2525,6 +2529,7 @@ var textsEn = i18n.NewTexts(""+
 	"In word list · remove"+
 	"Cards"+
 	"Dictation"+
+	"All caught up"+
 	"Review mode"+
 	"No words due today"+
 	"Tap words in the subtitles while watching to add them to your word list"+
@@ -3178,6 +3183,7 @@ var textsEn = i18n.NewTexts(""+
 		22,
 		5,
 		9,
+		13,
 		11,
 		18,
 		71,
@@ -3834,6 +3840,7 @@ var textsJa = i18n.NewTexts(""+
 	"単語帳にあり · 削除"+
 	"カード"+
 	"ディクテーション"+
+	"復習はすべて完了"+
 	"復習の方法"+
 	"今日復習する単語はありません"+
 	"視聴中に字幕の単語をタップすると単語帳に追加されます"+
@@ -4486,6 +4493,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		28,
 		9,
+		24,
 		24,
 		15,
 		42,
@@ -5143,6 +5151,7 @@ var textsKo = i18n.NewTexts(""+
 	"단어장에 있음 · 삭제"+
 	"카드"+
 	"받아쓰기"+
+	"복습을 모두 마쳤어요"+
 	"복습 방식"+
 	"오늘은 복습할 단어가 없어요"+
 	"보는 중에 자막의 단어를 탭하면 단어장에 추가돼요"+
@@ -5796,6 +5805,7 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		6,
 		12,
+		29,
 		13,
 		39,
 		69,
@@ -6452,6 +6462,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已在生词本 · 移除"+
 	"卡片"+
 	"听写"+
+	"复习都完成了"+
 	"复习方式"+
 	"今天没有要复习的生词"+
 	"看片时点字幕里的词，就能加进生词本"+
@@ -7105,6 +7116,7 @@ var textsZhHans = i18n.NewTexts(""+
 		25,
 		6,
 		6,
+		18,
 		12,
 		30,
 		51,
@@ -7761,6 +7773,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已在生詞本 · 移除"+
 	"卡片"+
 	"聽寫"+
+	"複習都完成了"+
 	"複習方式"+
 	"今天沒有要複習的生詞"+
 	"看片時點字幕裡的詞，就能加進生詞本"+
@@ -8414,6 +8427,7 @@ var textsZhHant = i18n.NewTexts(""+
 		25,
 		6,
 		6,
+		18,
 		12,
 		30,
 		51,
@@ -9328,6 +9342,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LearnReviewDueWords != nil {
 		s.LearnReviewDueWords = t.LearnReviewDueWords
+	}
+	if t.LearnReviewNext != nil {
+		s.LearnReviewNext = t.LearnReviewNext
 	}
 	if t.LearnShowAll != nil {
 		s.LearnShowAll = t.LearnShowAll
@@ -16696,6 +16713,15 @@ func LearnReviewDictation(cx *core.Scope) string { return For(cx).LearnReviewDic
 // LearnReviewDictation is the package's LearnReviewDictation in the language of msgs.
 func (msgs Messages) LearnReviewDictation() string { return msgs.text(textLearnReviewDictation) }
 
+// LearnReviewDone says "All caught up"
+// in the language the app shows under cx.
+//
+// Title of Learn's review card while words or lines are saved but none is due.
+func LearnReviewDone(cx *core.Scope) string { return For(cx).LearnReviewDone() }
+
+// LearnReviewDone is the package's LearnReviewDone in the language of msgs.
+func (msgs Messages) LearnReviewDone() string { return msgs.text(textLearnReviewDone) }
+
 // LearnReviewDue says "{count, plural, one {Review # item} other {Review # items}}"
 // in the language the app shows under cx.
 //
@@ -16818,6 +16844,110 @@ func LearnReviewMode(cx *core.Scope) string { return For(cx).LearnReviewMode() }
 
 // LearnReviewMode is the package's LearnReviewMode in the language of msgs.
 func (msgs Messages) LearnReviewMode() string { return msgs.text(textLearnReviewMode) }
+
+// LearnReviewNext says "{days, plural, =0 {Next review later today} =1 {Next review tomorrow} one {Next review in # day} other {Next review in # days}}"
+// in the language the app shows under cx.
+//
+// Under the review card's title while words or lines are saved but none is due: when the first of them comes due, in calendar days from today.
+func LearnReviewNext(cx *core.Scope, days int) string { return For(cx).LearnReviewNext(days) }
+
+// LearnReviewNext is the package's LearnReviewNext in the language of msgs.
+func (msgs Messages) LearnReviewNext(days int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LearnReviewNext(days))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LearnReviewNext; f != nil {
+			return f(days)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("Next review later today")
+			case days == 1:
+				b.WriteString("Next review tomorrow")
+			default:
+				switch i18n.Cardinal("en", float64(days)) {
+				case i18n.One:
+					b.WriteString("Next review in ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+					b.WriteString(" day")
+				default:
+					b.WriteString("Next review in ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(days))))
+					b.WriteString(" days")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("次の復習：今日このあと")
+			case days == 1:
+				b.WriteString("次の復習：明日")
+			default:
+				switch i18n.Cardinal("ja", float64(days)) {
+				default:
+					b.WriteString("次の復習：")
+					b.WriteString(i18n.FormatNumber("ja", float64(days)))
+					b.WriteString(" 日後")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("다음 복습: 오늘 이따가")
+			case days == 1:
+				b.WriteString("다음 복습: 내일")
+			default:
+				switch i18n.Cardinal("ko", float64(days)) {
+				default:
+					b.WriteString("다음 복습: ")
+					b.WriteString(i18n.FormatNumber("ko", float64(days)))
+					b.WriteString("일 후")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("下一次复习：今天晚些时候")
+			case days == 1:
+				b.WriteString("下一次复习：明天")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(days)) {
+				default:
+					b.WriteString("下一次复习：")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(days)))
+					b.WriteString(" 天后")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case days == 0:
+				b.WriteString("下一次複習：今天稍晚")
+			case days == 1:
+				b.WriteString("下一次複習：明天")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(days)) {
+				default:
+					b.WriteString("下一次複習：")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(days)))
+					b.WriteString(" 天後")
+				}
+			}
+			return b.String()
+		}
+	}
+}
 
 // LearnReviewNone says "No words due today"
 // in the language the app shows under cx.

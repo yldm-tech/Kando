@@ -147,7 +147,7 @@ func TestLearnReviewsTheComputersWordsAndLines(t *testing.T) {
 	if got := reviewOf(t, d, sync.KindLine, "l-fine").Due; !got.Equal(now().Add(study.Intervals[0])) {
 		t.Errorf("the line is next due %v, want a day after the review", got)
 	}
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDone() })
 }
 
 // A review made away from the computer is kept on the phone, and the computer takes it once it can be reached again.
@@ -776,26 +776,39 @@ func TestLearnListsTheWordsAndLinesInline(t *testing.T) {
 	})
 }
 
-// With nothing due, the review card says so and OK puts it away.
-func TestOKPutsAwayTheReviewCardWithNothingDue(t *testing.T) {
+// With words saved and none due, the review card says the review is done and when the next one is, with nothing to press; the hint of how words get in is for a word list still empty.
+func TestTheReviewCardSaysWhenTheNextReviewIs(t *testing.T) {
 	d := newDesktop(t)
 	d.SetState("lib", now().Add(-time.Hour), studyRecords()[1])
 	dir := t.TempDir()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
 	p.openTab(learnTab, msgs.LearnTitle())
-	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
-	if p.app.Exists("id:learn-review-start") {
-		t.Fatal("the review can start with nothing due")
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDone() })
+	if got, want := p.texts("id:learn-review-detail"), msgs.LearnReviewNext(7); got != want {
+		t.Errorf("the review card says %q, want %q", got, want)
+	}
+	for _, id := range []string{"id:learn-review-start", "id:learn-review-ok", "id:learn-pair"} {
+		if p.app.Exists(id) {
+			t.Errorf("the review card with nothing due has %s", id)
+		}
 	}
 	// With no line saved, the saved lines' section says where they come from rather than showing its heading over nothing.
 	if got := p.texts("id:learn-lines-empty"); got != msgs.LinesEmpty() {
 		t.Errorf("the saved lines' section says %q with no line saved, want %q", got, msgs.LinesEmpty())
 	}
-	p.app.Press("id:learn-review-ok")
-	p.app.WaitForGone("id:learn-review", wait)
-	if !p.app.Exists("id:learn-word-w-later") {
-		t.Fatal("the word list went with the review card")
+
+	empty := newDesktop(t)
+	dir = t.TempDir()
+	p = startPhone(t, dir, pairedWith(t, empty, dir))
+	p.waitLearned(store.DesktopID(empty.Fingerprint))
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
+	if got, want := p.texts("id:learn-review-detail"), msgs.LearnReviewNoneDetail(); got != want {
+		t.Errorf("the review card of an empty word list says %q, want %q", got, want)
+	}
+	if p.app.Exists("id:learn-review-ok") {
+		t.Error("the review card of an empty word list has OK")
 	}
 }
 

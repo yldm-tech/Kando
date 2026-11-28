@@ -191,18 +191,13 @@ func pill(cx *core.Scope, testID string, text func() string, grey bool, press fu
 		Children: []core.Node{core.Text{ContentFunc: text, MaxLines: 1, Style: core.Style{FontSize: 14, LineHeight: 20, FontWeight: core.FontWeightBold}}}}
 }
 
-// review is the card that starts the review of the items due, or says none is: OK puts it away until something is, and while no computer is paired and nothing is saved it leads to pairing.
+// review is the card that starts the review of the items due, or says none is: once something is saved, when the next review is; before anything is saved, how words get in; and while no computer is paired and nothing is saved, it leads to pairing.
 func review(cx *core.Scope, s *session.Session, items, due func() []learning.Item, act Actions) core.Node {
 	colors := ui.ColorsOf(cx)
 	n := func() int { return len(due()) }
 	unpaired := func() bool { return len(s.Desktops()) == 0 && len(items()) == 0 }
-	// put is set once OK put the card away; it shows again as soon as something is due.
-	put := core.NewSignal(cx, false)
-	cx.Effect(func() {
-		if n() > 0 {
-			put.Set(false)
-		}
-	})
+	// done is a review with nothing left to go through though something is saved.
+	done := func() bool { return n() == 0 && len(items()) > 0 }
 	onlyWords := func() bool {
 		for _, it := range due() {
 			if it.Kind != learning.Word {
@@ -217,6 +212,8 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 	texts := core.View{Style: core.Style{Gap: 2, FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
 		core.Text{TestID: "learn-review-title", ContentFunc: func() string {
 			switch {
+			case done():
+				return locales.LearnReviewDone(cx)
 			case n() == 0:
 				return locales.LearnReviewNone(cx)
 			case onlyWords():
@@ -224,10 +221,13 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 			}
 			return locales.LearnReviewDue(cx, n())
 		}, Style: core.Style{FontSize: 16, LineHeight: 21, FontWeight: core.FontWeightBold}, StyleFunc: ui.Colored(colors.Text)},
-		core.Text{ContentFunc: func() string {
+		core.Text{TestID: "learn-review-detail", ContentFunc: func() string {
 			switch {
 			case unpaired():
 				return locales.LearnNoComputer(cx)
+			case done():
+				days, _ := learning.NextIn(items(), s.Now())
+				return locales.LearnReviewNext(cx, days)
 			case n() == 0:
 				return locales.LearnReviewNoneDetail(cx)
 			}
@@ -239,17 +239,11 @@ func review(cx *core.Scope, s *session.Session, items, due func() []learning.Ite
 			return pill(cx, "learn-review-start", func() string { return locales.LearnReviewStart(cx) }, false, act.Review)
 		},
 		Else: func(cx *core.Scope) core.Node {
-			return core.Show{When: unpaired,
-				Then: func(cx *core.Scope) core.Node {
-					return pill(cx, "learn-pair", func() string { return locales.LearnConnect(cx) }, false, act.Pair)
-				},
-				Else: func(cx *core.Scope) core.Node {
-					return pill(cx, "learn-review-ok", func() string { return locales.CommonOK(cx) }, true, func() { put.Set(true) })
-				}}
+			return core.Show{When: unpaired, Then: func(cx *core.Scope) core.Node {
+				return pill(cx, "learn-pair", func() string { return locales.LearnConnect(cx) }, false, act.Pair)
+			}}
 		}}
-	return core.Show{When: func() bool { return !put.Get() || n() > 0 }, Then: func(cx *core.Scope) core.Node {
-		return card(cx, "learn-review", core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(14, 16)}, tile, texts, action)
-	}}
+	return card(cx, "learn-review", core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(14, 16)}, tile, texts, action)
 }
 
 // mode is the way the review goes, cards or the lines dictated, and under it when the reminder comes, which leads to Settings, while it is on.

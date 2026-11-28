@@ -129,7 +129,7 @@ func TestScreenshotsLearnStudy(t *testing.T) {
 	shot(p, "learn-word")
 }
 
-// Paired with a computer whose library has nothing saved yet: the review card says so with OK, and the word list is its empty card.
+// Paired with a computer whose library has nothing saved yet: the review card says how words get in, and the word list is its empty card.
 func TestScreenshotsLearnEmpty(t *testing.T) {
 	shot := screenshots(t)
 	d := newDesktop(t)
@@ -137,7 +137,7 @@ func TestScreenshotsLearnEmpty(t *testing.T) {
 	p := startPhone(t, dir, pairedWith(t, d, dir))
 	p.waitLearned(store.DesktopID(d.Fingerprint))
 	p.openTab(learnTab, msgs.LearnTitle())
-	p.app.WaitFor("id:learn-review-ok", wait)
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewNone() })
 	p.app.WaitFor("id:learn-empty", wait)
 	shot(p, "learn-empty")
 }
@@ -256,4 +256,36 @@ func TestScreenshotsSyncConflicts(t *testing.T) {
 	p.app.Press("id:conflict-both-" + key)
 	p.app.WaitFor("id:conflicts-done", wait)
 	shot(p, "sync-conflicts-done")
+}
+
+// Words saved, none of them due today: the review card says when the next review is.
+func TestScreenshotsLearnReviewed(t *testing.T) {
+	shot := screenshots(t)
+	dir := t.TempDir()
+	learnSample(t, dir)
+	st := store.Open(dir)
+	l, err := st.Learning("gonedesk", "lib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, r := range l.Records {
+		var rv sync.Review
+		if f, ok := r.Fields[sync.FieldReview]; ok {
+			if err := json.Unmarshal(f.Value, &rv); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if !rv.Due.After(now()) {
+			rv.Due = now().Add(20 * time.Hour)
+			l.Records[i].Fields[sync.FieldReview] = field(rv)
+		}
+	}
+	if err := st.SaveLearning("gonedesk", "lib", l); err != nil {
+		t.Fatal(err)
+	}
+	watchedFor(t, dir, 12, 18, 0, 26, 9, 15, 12)
+	p := startPhone(t, dir)
+	p.openTab(learnTab, msgs.LearnTitle())
+	p.app.WaitUntil(wait, func() bool { return p.texts("id:learn-review-title") == msgs.LearnReviewDone() })
+	shot(p, "learn-reviewed")
 }
