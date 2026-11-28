@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"kando/apps/mobile/films"
+	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
@@ -251,6 +252,42 @@ func TestAStoppedJobIsRemovedFromThePhone(t *testing.T) {
 		t.Fatalf("the computer's jobs after removing the canceled one: %+v", d.Jobs())
 	}
 	p.app.WaitFor("id:jobs-job-job1", wait)
+}
+
+// Remove sits beside the failure box's main button on one row, inside the box, on the narrowest phone, 320 points wide, in the languages whose buttons run longest: the main button gives way, its text on up to two lines.
+func TestRemoveSitsBesideTheMainButtonOnANarrowPhone(t *testing.T) {
+	for _, l := range []string{"en", "ja", "ko"} {
+		t.Run(l, func(t *testing.T) {
+			d := newDesktop(t)
+			fail := func(id, link string, state string, f *sync.Failure) {
+				j := moved(d, id, link, state, 3, 0)
+				j.Failure = f
+				d.SetJob(j)
+			}
+			fail("job1", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, &sync.Failure{Step: sync.StepDownload, Code: sync.FailOutdated, Remedy: sync.RemedyUpdateYTDLP})
+			fail("job2", "https://www.bilibili.com/video/BV1GJ411x7h7", sync.JobFailed, &sync.Failure{Step: sync.StepDownload, Code: sync.FailLoginExpired, Remedy: sync.RemedyDesktop})
+			fail("job3", "https://youtu.be/dQw4w9WgXcQ", sync.JobFailed, &sync.Failure{Step: sync.StepDownload, Code: sync.FailRegion})
+			fail("job4", "https://youtu.be/M7lc1UVf-VE", sync.JobFailed, &sync.Failure{Step: sync.StepTranslate, Code: sync.FailTranslation, Remedy: sync.RemedyDesktop})
+			fail("job5", "https://youtu.be/jNQXAC9IVRw", sync.JobCanceled, nil)
+			dir := t.TempDir()
+			p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(320, 640), nsgotest.Environment(core.Environment{Locale: l}))
+			p.openTab(jobsTab, locales.In(l).JobsTitle())
+			for _, pair := range [][2]string{{"jobs-update-job1", "jobs-remove-job1"}, {"jobs-retry-job2", "jobs-remove-job2"}, {"jobs-another-job3", "jobs-remove-job3"}, {"jobs-retry-job4", "jobs-remove-job4"}, {"jobs-retry-job5", "jobs-remove-job5"}} {
+				p.app.WaitFor("id:"+pair[1], wait)
+				main, remove := p.app.Find("id:"+pair[0]), p.app.Find("id:"+pair[1])
+				if main.Parent != remove.Parent {
+					t.Fatalf("%s and %s are not in one row", pair[0], pair[1])
+				}
+				m, r, row := main.Frame, remove.Frame, remove.Parent.Frame
+				if r.Origin.X < m.Origin.X+m.Size.Width || r.Origin.Y >= m.Origin.Y+m.Size.Height || m.Origin.Y >= r.Origin.Y+r.Size.Height {
+					t.Fatalf("%s at %+v is not beside %s at %+v", pair[1], r, pair[0], m)
+				}
+				if r.Origin.X+r.Size.Width > row.Size.Width {
+					t.Fatalf("%s at %+v runs past its row, %v wide", pair[1], r, row.Size.Width)
+				}
+			}
+		})
+	}
 }
 
 // On a tablet Jobs is a section of the sidebar, as it is a tab of a phone's bar, with no button of its own on the Library.

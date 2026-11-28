@@ -54,6 +54,24 @@ func TestScreenshotsJobsFailed(t *testing.T) {
 	shot(p, "jobs-failed")
 }
 
+// TestScreenshotsJobsRemove renders the Jobs page with a job that failed and one that was canceled, each with Remove beside its main button on one row.
+func TestScreenshotsJobsRemove(t *testing.T) {
+	shot := screenshots(t)
+	d := newDesktop(t)
+	failed := moved(d, "job1", "https://www.bilibili.com/video/BV1GJ411x7h7", sync.JobFailed, 3, 0)
+	failed.Title, failed.Steps[0].State, failed.Failure = "How Rivers Shape Landscapes", sync.StepFailed, &sync.Failure{Step: sync.StepDownload, Code: sync.FailLoginExpired, Remedy: sync.RemedyDesktop}
+	d.SetJob(failed)
+	canceled := moved(d, "job2", "https://youtu.be/ScMzIvxBSi4", sync.JobCanceled, 1, 0)
+	canceled.Title = "Street Food in Osaka"
+	d.SetJob(canceled)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-remove-job1", wait)
+	p.app.WaitFor("id:jobs-remove-job2", wait)
+	shot(p, "jobs-remove")
+}
+
 // TestScreenshotsJobsAIUnavailable renders the Jobs page with a job whose translation the AI service on the computer could not do, as with its account out of credit: the phone's own neutral words, and the button to try again once it is fixed there.
 func TestScreenshotsJobsAIUnavailable(t *testing.T) {
 	shot := screenshots(t)
