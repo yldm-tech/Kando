@@ -50,6 +50,7 @@ func (s *Session) relayFollowStudy(desktop string, state sync.RelayState) {
 		s.remote.relayStudies[desktop] = rs
 	}
 	rs.hello, rs.changed = state.Hello, state.Learning
+	s.renameDesktop(desktop, cmp.Or(state.Hello.Desktop, state.Desktop))
 	s.learn.watchedKind[desktop] = slices.Contains(state.Hello.State, sync.KindWatched) && !state.Hello.ReadOnly
 }
 

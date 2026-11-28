@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	gosync "sync"
 	"sync/atomic"
 	"syscall"
@@ -417,6 +418,19 @@ func (s *Session) AddDesktop(d store.Desktop) {
 	}
 	s.RefreshDesktop(d.ID)
 	s.follow(d.ID)
+}
+
+// renameDesktop keeps name as desktop id's, as the computer names itself now (sync.Hello.Desktop): the phone keeps the name pairing gave it, which the computer's user may have changed since, or which was its host name before it named itself as its user does. An empty name, as from a computer that does not say, keeps the one kept. Engine goroutine only.
+func (s *Session) renameDesktop(id, name string) {
+	name = strings.TrimSpace(name)
+	list := s.desktops.Get()
+	i := slices.IndexFunc(list, func(d store.Desktop) bool { return d.ID == id })
+	if name == "" || i < 0 || list[i].Name == name {
+		return
+	}
+	list = slices.Clone(list)
+	list[i].Name = name
+	s.setDesktops(list)
 }
 
 // Unpair forgets desktop id and what the phone kept of its learning state, and stops its downloads; the films kept from it stay.
