@@ -67,7 +67,11 @@ func (t Tools) ListVideos(ctx context.Context, source string, limit int) (Listin
 			args = append(args, "--user-agent", userAgent)
 		}
 	}
-	out, err := runStage(timed, t.YTDLP, append(args, "--", listSource(source))...)
+	var out string
+	err := withoutUnreadLogin(timed, append(args, "--", listSource(source)), func(args []string) (err error) {
+		out, err = runStage(timed, t.YTDLP, args...)
+		return err
+	})
 	if err != nil {
 		if ctx.Err() == nil && errors.Is(err, context.DeadlineExceeded) {
 			return Listing{}, ErrListTimeout

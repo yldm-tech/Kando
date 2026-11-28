@@ -51,7 +51,11 @@ func (t Tools) Preview(ctx context.Context, source string) (Preview, error) {
 			args = append(args, "--user-agent", userAgent)
 		}
 	}
-	out, err := run(ctx, t.YTDLP, append(args, "--", source)...)
+	var out string
+	err := withoutUnreadLogin(ctx, append(args, "--", source), func(args []string) (err error) {
+		out, err = run(ctx, t.YTDLP, args...)
+		return err
+	})
 	if err != nil {
 		return Preview{}, err
 	}

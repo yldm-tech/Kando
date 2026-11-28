@@ -58,9 +58,13 @@ func (t Tools) StreamURL(ctx context.Context, source string) (string, error) {
 			args = append(args, "--user-agent", userAgent)
 		}
 	}
-	out, err := run(ctx, t.YTDLP, append(args, "--", source)...)
+	var out string
+	err := withoutUnreadLogin(ctx, append(args, "--", source), func(args []string) (err error) {
+		out, err = run(ctx, t.YTDLP, args...)
+		return withClosedBrowserData(err, t.Cookies)
+	})
 	if err != nil {
-		return "", withClosedBrowserData(err, t.Cookies)
+		return "", err
 	}
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)

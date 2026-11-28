@@ -58,6 +58,8 @@ type fakeTool struct {
 	// Wait keeps the fake running, for 30 seconds, until it is stopped; then, or straight away without Wait, it exits with Exit.
 	Wait bool
 	Exit int
+	// SignedOut, when set, is what the fake does in place of all the above when it is not given --cookies-from-browser, as yt-dlp that could not read a browser's sign-in fails and the same run without it does not.
+	SignedOut *fakeTool `json:",omitempty"`
 	// Standalone makes the fake a file of its own rather than a link to the test binary, for code that follows links to the program they name, as FindYTDLPInstall does.
 	Standalone bool `json:"-"`
 }
@@ -155,6 +157,9 @@ func readFakeTool() (fake fakeTool, ok bool) {
 }
 
 func (f fakeTool) run(args []string) int {
+	if f.SignedOut != nil && !slices.Contains(args, "--cookies-from-browser") {
+		return f.SignedOut.run(args)
+	}
 	if len(args) < len(f.Want) || strings.Join(args[:len(f.Want)], "\x00") != strings.Join(f.Want, "\x00") {
 		fmt.Fprintf(os.Stderr, "fake %s: only %s is supported\n", filepath.Base(fakeBase()), strings.Join(f.Want, " "))
 		return 1

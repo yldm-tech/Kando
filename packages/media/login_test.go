@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -228,5 +229,139 @@ func TestBrowserCookiesReadsOnlyTheCookiesKept(t *testing.T) {
 	}
 	if entries, err := os.ReadDir(cookieDir); err != nil || len(entries) != 0 {
 		t.Fatalf("the cookies folder holds %v (%v)", entries, err)
+	}
+}
+
+// signedOutYTDLP writes a yt-dlp that fails as yt-dlp does when it cannot read the browser's sign-in, with the testdata stderr cookies names, and does what signedOut says when it is run without --cookies-from-browser. Each run appends a line to the returned file.
+func signedOutYTDLP(t *testing.T, cookies string, signedOut fakeTool) (tool, runs string) {
+	t.Helper()
+	dir := t.TempDir()
+	runs = filepath.Join(dir, "runs")
+	signedOut.Runs = runs
+	fake := fakeTool{Runs: runs, Stderr: readTestdata(t, cookies), Exit: 1, SignedOut: &signedOut}
+	return writeFakeTool(t, dir, "yt-dlp", fake), runs
+}
+
+func countRuns(t *testing.T, runs string) int {
+	t.Helper()
+	data, err := os.ReadFile(runs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Count(string(data), "run\n")
+}
+
+// A download that needs no sign-in, as a public video's, is not failed by a browser whose sign-in yt-dlp cannot read, as Chrome's data folder macOS keeps from Kando: yt-dlp stops before it opens the link, and Download runs it once more without --cookies-from-browser.
+func TestDownloadGoesOnSignedOutWhenTheSignInCannotBeRead(t *testing.T) {
+	for _, cookies := range []string{"errors/cookies-chrome-missing.stderr", "errors/cookies-safari-denied.stderr", "errors/cookies-chrome-in-use.stderr", "errors/cookies-chrome-dpapi.stderr"} {
+		t.Run(cookies, func(t *testing.T) {
+			tool, runs := signedOutYTDLP(t, cookies, fakeTool{Act: "download"})
+			cache := t.TempDir()
+			tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), DownloadTemp: cache, Cookies: "chrome"}
+			path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data, _ := os.ReadFile(path); string(data) != "track 395track 251" {
+				t.Fatalf("%s = %q", path, data)
+			}
+			if n := countRuns(t, runs); n != 2 {
+				t.Fatalf("yt-dlp ran %d times", n)
+			}
+			if entries, _ := os.ReadDir(cache); len(entries) != 0 {
+				t.Fatalf("temp folders left: %v", entries)
+			}
+		})
+	}
+}
+
+// A video that needs the sign-in fails without it too; the error is then the sign-in's, which tells the user to let Kando read the browser, rather than the login the site asked for.
+func TestDownloadReportsTheSignInWhenTheVideoNeedsIt(t *testing.T) {
+	tool, runs := signedOutYTDLP(t, "errors/cookies-chrome-missing.stderr", fakeTool{Stderr: readTestdata(t, "errors/login-vimeo.stderr"), Exit: 1})
+	tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), DownloadTemp: t.TempDir(), Cookies: "chrome"}
+	_, err := tools.Download(context.Background(), "https://vimeo.com/76979871")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ReadLoginTrouble(err.Error()); got != LoginNotFound && got != LoginNoAccess {
+		t.Fatalf("trouble %q of %v", got, err)
+	}
+	if got := ClassifyDownload(err.Error()); got != core.FailCookies {
+		t.Fatalf("kind %q of %v", got, err)
+	}
+	if n := countRuns(t, runs); n != 2 {
+		t.Fatalf("yt-dlp ran %d times", n)
+	}
+}
+
+// A run without the sign-in that fails for what no sign-in changes, as the network, reports that.
+func TestDownloadReportsAFailureTheSignInDoesNotChange(t *testing.T) {
+	tool, _ := signedOutYTDLP(t, "errors/cookies-chrome-missing.stderr", fakeTool{Stderr: readTestdata(t, "errors/network-dns.stderr"), Exit: 1})
+	tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), DownloadTemp: t.TempDir(), Cookies: "chrome"}
+	_, err := tools.Download(context.Background(), "https://example.com/video")
+	if got := ClassifyDownload(fmt.Sprint(err)); got != core.FailHost {
+		t.Fatalf("kind %q of %v", got, err)
+	}
+}
+
+// Only a sign-in yt-dlp could not read is tried again without it: a failure of the video, or a Keychain that kept the key, which yt-dlp goes on without, runs yt-dlp once.
+func TestDownloadDoesNotRetryOtherFailures(t *testing.T) {
+	for _, stderr := range []string{"errors/private-youtube.stderr", "errors/network-dns.stderr", "login/chrome-keychain-denied.stderr"} {
+		t.Run(stderr, func(t *testing.T) {
+			dir := t.TempDir()
+			runs := filepath.Join(dir, "runs")
+			tool := writeFakeTool(t, dir, "yt-dlp", fakeTool{Runs: runs, Stderr: readTestdata(t, stderr) + "\nERROR: [youtube] jNQXAC9IVRw: Private video\n", Exit: 1, SignedOut: &fakeTool{Runs: runs, Act: "download"}})
+			tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), DownloadTemp: t.TempDir(), Cookies: "chrome"}
+			if _, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw"); err == nil {
+				t.Fatal("expected an error")
+			}
+			if n := countRuns(t, runs); n != 1 {
+				t.Fatalf("yt-dlp ran %d times", n)
+			}
+		})
+	}
+}
+
+// Listing, previewing, streaming and fetching a video's subtitles borrow the sign-in as Download does, and go on without it as it does.
+func TestOtherRunsGoOnSignedOutWhenTheSignInCannotBeRead(t *testing.T) {
+	ctx := context.Background()
+	cases := map[string]struct {
+		signedOut fakeTool
+		run       func(Tools) error
+	}{
+		"list": {fakeTool{StdoutFile: "testdata/ytdlp/list/playlist.json"}, func(tools Tools) error {
+			_, err := tools.ListVideos(ctx, "https://www.youtube.com/playlist?list=PLFs4vir_WsTwEd-nJgVJCZPNL3HALHHpF", 0)
+			return err
+		}},
+		"preview": {fakeTool{Stdout: `{"_type": "video", "title": "Me at the zoo"}`}, func(tools Tools) error {
+			_, err := tools.Preview(ctx, "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+			return err
+		}},
+		"stream": {fakeTool{Stdout: "https://example.com/stream.m3u8\n"}, func(tools Tools) error {
+			_, err := tools.StreamURL(ctx, "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+			return err
+		}},
+		"subtitles": {fakeTool{}, func(tools Tools) error {
+			_, err := tools.PlatformSubtitles(ctx, "https://www.youtube.com/watch?v=jNQXAC9IVRw", "en")
+			return err
+		}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			if c.signedOut.StdoutFile != "" {
+				abs, err := filepath.Abs(c.signedOut.StdoutFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				c.signedOut.StdoutFile = abs
+			}
+			tool, runs := signedOutYTDLP(t, "errors/cookies-chrome-missing.stderr", c.signedOut)
+			if err := c.run(Tools{YTDLP: tool, Cookies: "chrome"}); err != nil {
+				t.Fatal(err)
+			}
+			if n := countRuns(t, runs); n != 2 {
+				t.Fatalf("yt-dlp ran %d times", n)
+			}
+		})
 	}
 }
