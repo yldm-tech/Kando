@@ -271,7 +271,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 	d.SetJob(running)
 	moved(d, "job2", "https://youtu.be/ScMzIvxBSi4", sync.JobFailed, 0, 0)
 	d.SetState("lib", now().Add(time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
-		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(6000)}}})
 	dir := t.TempDir()
 	secrets := pairedWith(t, d, dir)
 	id := store.DesktopID(d.Fingerprint)

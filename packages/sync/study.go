@@ -156,6 +156,9 @@ const RecapItems = 3
 // RecapFrom is how far into a film it must have been left for opening it where it was left to recap the part watched, on the phone and on the desktop alike: left before it, too little was watched to sum up, and the film plays on from there without asking the AI service.
 const RecapFrom = time.Minute
 
+// ContinueFrom is how far into a film it must have been left to be one to go on with, on the phone (Continue Watching and its widget) and on the desktop (the hero's 继续观看) alike: left before it, as when a film was opened for a moment, it was not started, and it opens from the beginning.
+const ContinueFrom = 5 * time.Second
+
 // recapBudget is how many bytes of lines a FilmRecap carries at most, below MaxCall by room for the call around them.
 const recapBudget = MaxCall - 8<<10
 

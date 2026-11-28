@@ -16,7 +16,7 @@ type Progress interface {
 	Furthest(path string) time.Duration
 }
 
-// watchSlack is how near either end of a film a point counts as that end: a film stopped within it of its start was not started, one played to within it of its end was watched, as ResumeFrom counts both.
+// watchSlack is how near either end of a film a point counts as that end: a film stopped within it of its start was not started, one played to within it of its end was watched, as ResumeFrom counts the end.
 const watchSlack = 3 * time.Second
 
 // WatchState is how far a film has been watched, as the sidebar filters by it, one of the sidebar's Watch values other than WatchAll:

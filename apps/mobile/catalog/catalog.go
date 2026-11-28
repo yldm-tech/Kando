@@ -309,9 +309,9 @@ func Search(entries []Entry, lines map[string][]sync.Cue, query string) []Result
 // resumeMargin is how close to its end a film left there counts as watched: the player starts it from the beginning again (player.Page).
 const resumeMargin = 2 * time.Second
 
-// Resumable reports whether p is where to go on with a film that plays for length, 0 when it is not known: past the start and short of the end.
+// Resumable reports whether p is where to go on with a film that plays for length, 0 when it is not known: at least sync.ContinueFrom in, so a film opened for a moment is not one to go on with, and short of the end.
 func Resumable(p Position, length time.Duration) bool {
-	return p.At > 0 && (length <= 0 || p.At < length-resumeMargin)
+	return p.At >= sync.ContinueFrom && (length <= 0 || p.At < length-resumeMargin)
 }
 
 // Continue is at most n of the entries to go on with, the one left most recently first.

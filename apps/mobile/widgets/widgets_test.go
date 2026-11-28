@@ -140,14 +140,14 @@ func TestKeepWritesTheWidgetsAsTheyChange(t *testing.T) {
 	dir := t.TempDir()
 	st := store.Open(dir)
 	f := store.Film{Desktop: "desk", Library: "Japanese Class", Video: "video.mp4", Poster: "poster.jpg", Added: now(),
-		PositionMS: 3500, PositionAt: now().Add(-time.Hour),
+		PositionMS: 7500, PositionAt: now().Add(-time.Hour),
 		Film: sync.Film{ID: "f1", Title: "Morning Talk", DurationMS: 10_000, Spoken: "ja", Translation: "简体中文"}}
 	if err := st.SaveFilm(f); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.SaveCues(f.Desktop, f.Film.ID, []sync.Cue{
-		{StartMS: 1000, EndMS: 2000, Original: "Good morning.", Translation: "早上好。"},
-		{StartMS: 3000, EndMS: 4500, Original: "How are you?", Translation: "你好吗？"},
+		{StartMS: 5000, EndMS: 6000, Original: "Good morning.", Translation: "早上好。"},
+		{StartMS: 7000, EndMS: 8500, Original: "How are you?", Translation: "你好吗？"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestKeepWritesTheWidgetsAsTheyChange(t *testing.T) {
 	}
 
 	before := count(Continue)
-	app.Post(func() { s.SavePosition(f.Key(), 1500*time.Millisecond) })
+	app.Post(func() { s.SavePosition(f.Key(), 5500*time.Millisecond) })
 	app.WaitUntil(10*time.Second, func() bool {
 		c := last(Continue)
 		return count(Continue) > before && len(c) > 0 && slices.Contains(texts(c[0].View), "早上好。")

@@ -144,7 +144,7 @@ func storePhone(t *testing.T, at time.Duration, opts ...nsgotest.Option) (*phone
 
 func TestScreenshotsStoreLibrary(t *testing.T) {
 	shot := screenshots(t)
-	p, _, f := storePhone(t, 3500*time.Millisecond)
+	p, _, f := storePhone(t, 6*time.Second)
 	p.app.WaitFor("id:films-continue-"+f.Desktop+"-f1", wait)
 	p.app.WaitFor(filmRow(f.Desktop, "f6"), wait)
 	shot(p, "store-library")

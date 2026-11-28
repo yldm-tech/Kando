@@ -213,6 +213,23 @@ func TestContinueListsFilmsLeftPartway(t *testing.T) {
 	}
 }
 
+// A film left within its first 5 seconds (sync.ContinueFrom), as one opened for a moment, is not one to go on with; a short clip left at 0:05 is.
+func TestContinueLeavesOutAFilmOpenedForAMoment(t *testing.T) {
+	at := func(id string, pos, length time.Duration) Entry {
+		f := film(id, id, "", day)
+		f.DurationMS = length.Milliseconds()
+		return Entry{Desktop: "d", Film: f, Position: Position{At: pos, When: day}}
+	}
+	entries := []Entry{
+		at("moment", 300*time.Millisecond, 10*time.Minute),
+		at("almost", 5*time.Second-time.Millisecond, 10*time.Minute),
+		at("clip", 5*time.Second, 12*time.Second),
+	}
+	if got := keys(Continue(entries, 3)); !slices.Equal(got, []string{"d/clip"}) {
+		t.Fatalf("go on with %q", got)
+	}
+}
+
 // What a computer lists through the storage is its libraries in its order, each with its films there; a film of a library it does not name is left out.
 func TestFromRelayListsTheLibrariesFilms(t *testing.T) {
 	shelf := sync.RelayShelf{
@@ -235,7 +252,7 @@ func TestMergeListsAMatchedSourceFilmOnce(t *testing.T) {
 	lines := &store.Lines{Desktop: "d1", Library: "lib", LibraryName: "Japanese Class", Film: listed}
 	nasFilm := store.Film{Desktop: store.SourceOwner("src"), Library: "Home NAS", Source: "src", Path: "Holiday.mp4", Streamed: true, Added: day,
 		Film: sync.Film{ID: store.SourceFilmID("Holiday.mp4"), Title: "Holiday", Source: "local"}, Lines: lines,
-		PositionMS: 4_000, PositionAt: day.Add(2 * time.Hour)}
+		PositionMS: 7_000, PositionAt: day.Add(2 * time.Hour)}
 	computer := Computer{ID: "d1", Name: "Studio", Listing: Listing{Libraries: []Library{{Library: sync.Library{ID: "lib", Name: "Japanese Class"}, Films: []sync.Film{listed},
 		Positions: map[string]Position{"f2": {At: 9 * time.Second, When: day.Add(time.Hour), Device: "Studio"}}}}}}
 	downloaded := store.Film{Desktop: "d1", Library: "Japanese Class", Film: listed, Video: "video.mp4", Added: day, PositionMS: 2_000, PositionAt: day.Add(30 * time.Minute)}
@@ -244,15 +261,15 @@ func TestMergeListsAMatchedSourceFilmOnce(t *testing.T) {
 	if len(got) != 1 || got[0].Key() != "d1/f2" || got[0].Film.Title != "Holiday on the NAS" || got[0].Computer != "Studio" || got[0].Library.ID != "lib" {
 		t.Fatalf("merged %+v", got)
 	}
-	if p := got[0].Position; p.At != 4*time.Second || !p.Mine {
-		t.Errorf("the film was left at %+v, want 0:04 on the phone, the latest", p)
+	if p := got[0].Position; p.At != 7*time.Second || !p.Mine {
+		t.Errorf("the film was left at %+v, want 0:07 on the phone, the latest", p)
 	}
 	if c := Continue(got, 6); len(c) != 1 || c[0].Key() != "d1/f2" {
 		t.Errorf("Continue %v", keys(c))
 	}
 
 	got = Merge(nil, []store.Film{nasFilm})
-	if len(got) != 1 || got[0].Key() != "d1/f2" || got[0].Film.Title != "Holiday on the NAS" || got[0].Library.Name != "Japanese Class" || got[0].Position.At != 4*time.Second {
+	if len(got) != 1 || got[0].Key() != "d1/f2" || got[0].Film.Title != "Holiday on the NAS" || got[0].Library.Name != "Japanese Class" || got[0].Position.At != 7*time.Second {
 		t.Fatalf("merged with the computer out of reach %+v", got)
 	}
 
