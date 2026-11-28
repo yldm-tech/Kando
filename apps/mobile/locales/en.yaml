@@ -302,9 +302,6 @@ exportCount:
 exportFormat:
   message: "Format"
   description: "Export page: heading of the formats."
-exportShareNote:
-  message: "The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."
-  description: "Under the export's button."
 exportTSV:
   message: "Plain text (tab-separated)"
   description: "Export page: plain text with a tab between the fields."

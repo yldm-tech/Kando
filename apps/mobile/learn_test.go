@@ -227,6 +227,10 @@ func TestTheExportGoesThroughTheShareSheet(t *testing.T) {
 	if !p.app.Find("id:export-format-anki").Props.Checked {
 		t.Fatal("the export does not start with Anki's notes")
 	}
+	// The Share button and the formats say what comes of it, with no footnote saying it again.
+	if lines := strings.Split(p.texts("id:export-page"), "\n"); lines[len(lines)-1] != msgs.LearnExport() {
+		t.Errorf("the export sheet ends with %q, want its Share button", lines[len(lines)-1])
+	}
 	p.app.Press("id:export-share")
 	p.app.WaitUntil(wait, func() bool { return len(p.app.Shares) == 1 })
 	files := p.app.Shares[0].Files

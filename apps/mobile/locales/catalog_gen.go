@@ -1042,7 +1042,6 @@ const (
 	textExportCSV
 	textExportCSVDetail
 	textExportFormat
-	textExportShareNote
 	textExportTSV
 	textExportTSVDetail
 	textExportTitle
@@ -1698,7 +1697,6 @@ var keyOfText = [numTexts]string{
 	"exportCSV",
 	"exportCSVDetail",
 	"exportFormat",
-	"exportShareNote",
 	"exportTSV",
 	"exportTSVDetail",
 	"exportTitle",
@@ -2352,7 +2350,6 @@ var textsEn = i18n.NewTexts(""+
 	"CSV spreadsheet"+
 	"One word per row; opens in spreadsheet apps and Notion"+
 	"Format"+
-	"The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."+
 	"Plain text (tab-separated)"+
 	"Imports into Quizlet and most flashcard apps"+
 	"Export word list"+
@@ -3003,7 +3000,6 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		54,
 		6,
-		108,
 		26,
 		44,
 		16,
@@ -3657,7 +3653,6 @@ var textsJa = i18n.NewTexts(""+
 	"CSV"+
 	"1 行に 1 単語。表計算アプリや Notion で開けます"+
 	"形式"+
-	"ファイルができると共有シートが開きます。ファイルに保存するか、Anki などのアプリで開けます。"+
 	"テキスト（タブ区切り）"+
 	"Quizlet や多くの単語カードアプリに読み込めます"+
 	"単語帳を書き出す"+
@@ -4308,7 +4303,6 @@ var textsJa = i18n.NewTexts(""+
 		3,
 		64,
 		6,
-		134,
 		33,
 		65,
 		24,
@@ -4962,7 +4956,6 @@ var textsKo = i18n.NewTexts(""+
 	"CSV"+
 	"한 줄에 단어 하나. 스프레드시트 앱과 Notion에서 열 수 있습니다"+
 	"형식"+
-	"파일이 만들어지면 공유 시트가 열려요. 파일에 저장하거나 Anki 같은 앱에서 열 수 있어요."+
 	"텍스트(탭 구분)"+
 	"Quizlet과 대부분의 단어 카드 앱으로 가져올 수 있습니다"+
 	"단어장 내보내기"+
@@ -5613,7 +5606,6 @@ var textsKo = i18n.NewTexts(""+
 		3,
 		85,
 		6,
-		120,
 		21,
 		74,
 		22,
@@ -6267,7 +6259,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"CSV 表格"+
 	"每行一个生词，可用表格软件和 Notion 打开"+
 	"格式"+
-	"生成后会打开分享面板，可以存到文件里，或直接用 Anki 等应用打开。"+
 	"纯文本（Tab 分隔）"+
 	"可导入 Quizlet 和大多数单词卡应用"+
 	"导出生词本"+
@@ -6918,7 +6909,6 @@ var textsZhHans = i18n.NewTexts(""+
 		10,
 		56,
 		6,
-		93,
 		25,
 		45,
 		15,
@@ -7572,7 +7562,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"CSV 表格"+
 	"每列一個生詞，可用試算表軟體和 Notion 開啟"+
 	"格式"+
-	"產生後會打開分享面板，可以存到檔案裡，或直接用 Anki 等 App 開啟。"+
 	"純文字（Tab 分隔）"+
 	"可匯入 Quizlet 和大多數單字卡 App"+
 	"匯出生詞本"+
@@ -8223,7 +8212,6 @@ var textsZhHant = i18n.NewTexts(""+
 		10,
 		59,
 		6,
-		92,
 		25,
 		43,
 		15,
@@ -10996,15 +10984,6 @@ func ExportFormat(cx *core.Scope) string { return For(cx).ExportFormat() }
 
 // ExportFormat is the package's ExportFormat in the language of msgs.
 func (msgs Messages) ExportFormat() string { return msgs.text(textExportFormat) }
-
-// ExportShareNote says "The share sheet opens once the file is ready: save it to your files, or open it in another app such as Anki."
-// in the language the app shows under cx.
-//
-// Under the export's button.
-func ExportShareNote(cx *core.Scope) string { return For(cx).ExportShareNote() }
-
-// ExportShareNote is the package's ExportShareNote in the language of msgs.
-func (msgs Messages) ExportShareNote() string { return msgs.text(textExportShareNote) }
 
 // ExportTSV says "Plain text (tab-separated)"
 // in the language the app shows under cx.
