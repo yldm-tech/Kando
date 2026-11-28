@@ -3,6 +3,8 @@ package remotefs
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -48,13 +50,22 @@ func Handler(reader Reader, p string) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", psync.MediaType(p))
-		if info.ETag != "" {
-			w.Header().Set("ETag", info.ETag)
+		if etag := entityTag(info.ETag); etag != "" {
+			w.Header().Set("ETag", etag)
 		}
 		body := &rangeReader{ctx: ctx, reader: reader, path: p, size: info.Size, waiting: waiting}
 		defer body.Close()
 		http.ServeContent(w, r, path.Base(p), info.Modified, body)
 	})
+}
+
+// entityTag is tag, the store's tag of a file's content, as the ETag header carries it: as it is when it is a quoted entity tag already, as an object store's or a WebDAV server's; else, as a media source's version of a file (mediasource.Entry.Version: a plugin's, as Plex's part key and size, or a size and time), a quoted one made of it, the same for the same tag. A bare tag would never match the If-Range a client sends it back in, which http.ServeContent reads as a date, so each resumed download would get the whole file again.
+func entityTag(tag string) string {
+	if tag == "" || strings.HasPrefix(tag, `"`) || strings.HasPrefix(tag, `W/"`) {
+		return tag
+	}
+	sum := sha256.Sum256([]byte(tag))
+	return `"` + hex.EncodeToString(sum[:16]) + `"`
 }
 
 // rangeReader is the file at path of size bytes as the io.ReadSeeker http.ServeContent takes: a Seek only notes the offset, and the first Read after it opens the file there, to its end.

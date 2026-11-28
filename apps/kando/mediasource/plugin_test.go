@@ -18,6 +18,7 @@ import (
 
 	"kando/apps/kando/plugins"
 	"kando/packages/media"
+	psync "kando/packages/sync"
 
 	"golang.org/x/net/webdav"
 )
@@ -602,5 +603,42 @@ func TestPluginDriverCover(t *testing.T) {
 	}
 	if _, err := d.Cover(ctx, "huge.mkv"); !errors.Is(err, ErrFetchTooLarge) {
 		t.Fatalf("huge cover: %v", err)
+	}
+}
+
+// A video of a plugin's source served by the pool (Pool.Handler), which names it by the plugin's version of the file, a bare one as Plex's part key and size, is downloaded by ranges: a download paused partway asks for the rest against the validator the first answer named it by, as a phone does (psync.Validator), and gets 206 from where it stopped, not the whole file again.
+func TestAPluginVideoResumesFromWhereItStopped(t *testing.T) {
+	s := newDAV(t, false, "0123456789")
+	calls := &fakeCalls{reply: map[string]any{
+		plugins.MediaSourceStat: map[string]any{"name": "film.mp4", "size": float64(10), "modified": "2026-11-20T10:00:00Z", "version": "/library/parts/7/1700000000/file.mp4:10"},
+		plugins.MediaSourceOpen: map[string]any{"path": "films/talk.mp4"},
+	}}
+	d := &PluginDriver{Call: calls.call, Source: map[string]any{"id": "s_1"}, Fetcher: s.fetcher(t, "secret")}
+	k := testKind(nil)
+	src := Source{ID: "0123456789abcdef", Kind: "test", Name: "Plex"}
+	var p Pool
+	p.Set([]Source{src}, func(id string) (Kind, bool) { return k, id == "test" }, func(context.Context, Kind, Source) (Driver, error) { return d, nil })
+	srv := httptest.NewServer(p.Handler(src.ID, "film.mp4"))
+	t.Cleanup(srv.Close)
+	get := func(header http.Header) (*http.Response, string) {
+		req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
+		req.Header = header
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return resp, string(body)
+	}
+
+	first, _ := get(http.Header{"Range": {"bytes=0-"}})
+	validator := psync.Validator(first.Header)
+	if first.StatusCode != http.StatusPartialContent || !strings.HasPrefix(validator, `"`) {
+		t.Fatalf("the first answer: %d, validator %q", first.StatusCode, validator)
+	}
+	resumed, body := get(http.Header{"Range": {"bytes=4-"}, "If-Range": {validator}})
+	if resumed.StatusCode != http.StatusPartialContent || body != "456789" || resumed.Header.Get("Content-Range") != "bytes 4-9/10" || psync.Validator(resumed.Header) != validator {
+		t.Fatalf("resumed: %d %q %q, validator %q", resumed.StatusCode, body, resumed.Header.Get("Content-Range"), psync.Validator(resumed.Header))
 	}
 }
