@@ -394,3 +394,43 @@ func TestLaunchExeIsTheAppImage(t *testing.T) {
 		}
 	}
 }
+
+// Kando's own socket folder, made writable by the group under a umask such as 002, is made the user's alone, and the app listens there; a folder KANDO_SOCKET names is the user's choice and is refused as it is.
+func TestListenDefaultMakesKandosOwnFolderTheUsersAlone(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("folder modes are Unix's")
+	}
+	// A short config directory keeps the socket path under the platforms' limit.
+	home, err := os.MkdirTemp("/tmp", "kc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(home) })
+	t.Setenv("KANDO_SOCKET", "")
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	dir := filepath.Dir(SocketPath())
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(dir, 0o775); err != nil {
+		t.Fatal(err)
+	}
+	server, err := ListenDefault(nil)
+	if err != nil {
+		t.Fatalf("ListenDefault in Kando's own group-writable folder err = %v", err)
+	}
+	t.Cleanup(func() { server.Close() })
+	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0o755 {
+		t.Fatalf("the folder's mode is %v, %v; want 0755", info.Mode().Perm(), err)
+	}
+
+	other := shortSocket(t)
+	if err := os.Chmod(filepath.Dir(other), 0o775); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("KANDO_SOCKET", other)
+	if _, err := ListenDefault(nil); err == nil {
+		t.Fatal("ListenDefault took the group-writable folder KANDO_SOCKET names")
+	}
+}

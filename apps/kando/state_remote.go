@@ -42,9 +42,9 @@ func (a *app) remoteHooks() areaHooks {
 	}
 }
 
-// remoteListen opens the control socket at remote.SocketPath and answers its requests with remoteHandle (remote_api.go).
+// remoteListen opens the control socket at remote.SocketPath, its folder made the user's alone when it is Kando's own (remote.ListenDefault), and answers its requests with remoteHandle (remote_api.go).
 func (a *app) remoteListen() error {
-	server, err := remote.Listen(remote.SocketPath(), a.remoteHandle)
+	server, err := remote.ListenDefault(a.remoteHandle)
 	if err != nil {
 		return err
 	}

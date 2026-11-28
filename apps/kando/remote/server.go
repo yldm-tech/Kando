@@ -31,6 +31,30 @@ type Server struct {
 // ErrInUse is Listen's error when another app already listens at the path.
 var ErrInUse = errors.New("another Kando is listening on the socket")
 
+// ListenDefault is Listen at SocketPath. A folder of Kando's own that the socket goes in, the Kando folder of the user's config directory or of the temporary folder (kandoFolder), first loses the write access of the user's group and of others when it is the user's (keepToUser): made under a umask such as 002, or by an older version, it is writable by the group, and Listen would refuse it and leave the command line, MCP and the browser extension without the app. A folder KANDO_SOCKET or XDG_RUNTIME_DIR names is the user's choice and is left as it is.
+func ListenDefault(handle Handler) (*Server, error) {
+	if dir := kandoFolder(); dir != "" {
+		if err := keepToUser(dir); err != nil {
+			return nil, err
+		}
+	}
+	return Listen(SocketPath(), handle)
+}
+
+// kandoFolder is the folder of the socket at SocketPath when it is Kando's own, a Kando folder of the user's config directory or of the temporary folder, and "" when KANDO_SOCKET or XDG_RUNTIME_DIR names it.
+func kandoFolder() string {
+	if os.Getenv("KANDO_SOCKET") != "" {
+		return ""
+	}
+	if dir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(dir, "Kando")
+	}
+	if os.Getenv("XDG_RUNTIME_DIR") != "" {
+		return ""
+	}
+	return filepath.Join(os.TempDir(), "Kando")
+}
+
 // Listen starts answering requests at path with handle, each connection on a goroutine of its own. A socket left at path by an app that ended without closing it is replaced; one another app listens on is not (ErrInUse), and anything at path that is not a socket, as a file KANDO_SOCKET names by mistake, is left as it is and fails Listen. Only the user may connect: the socket's folder is made for the user alone when it does not exist, and on Unix one that exists must be the user's and writable by no one else (privateFolder), as in a folder others can write to, as a shared temporary folder, another user could put a socket of their own in its place; the socket itself is the user's alone.
 func Listen(path string, handle Handler) (*Server, error) {
 	dir := filepath.Dir(path)
