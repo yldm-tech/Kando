@@ -8,7 +8,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// Layer is the film the app plays: the player over the whole app, or, minimized, a bar over the tabs (MiniBar) while the film plays on, from which a tap opens the player again where it was. The player stays one and the same while it is minimized, so the film plays on without a break and keeps its loop, its sleep timer and the word looked up; it goes once another film plays, or once its film is no longer on the phone. Going on to the next film of a course or playlist (next.go) keeps the sleep timer running in the next film's player.
+// Layer is the film the app plays: the player over the whole app, or, minimized, a bar over the tabs (MiniBar) while the film plays on, from which a tap opens the player again where it was. The player stays one and the same while it is minimized, so the film plays on without a break and keeps its loop, its sleep timer and the word looked up; it goes once another film plays, once its film is no longer on the phone, or once its library is locked (session.Hidden). Going on to the next film of a course or playlist (next.go) keeps the sleep timer running in the next film's player.
 type Layer struct {
 	s *session.Session
 	// key is the film playing, "" for none; full is set while the player shows over the app, unset while it is minimized.
@@ -29,13 +29,13 @@ type Layer struct {
 // NewLayer is the app's player, with nothing playing yet.
 func NewLayer(cx *core.Scope, s *session.Session) *Layer {
 	l := &Layer{s: s, key: core.NewSignal(cx, ""), full: core.NewSignal(cx, false), cur: core.NewSignal[*play](cx, nil)}
-	// A film deleted from the phone stops playing.
+	// A film deleted from the phone stops playing, as does one whose library was locked, which the phone shows nothing of until it is unlocked.
 	cx.Effect(func() {
 		k := l.key.Get()
 		if k == "" || !s.Loaded() {
 			return
 		}
-		if _, ok := s.Film(k); !ok {
+		if _, ok := s.Film(k); !ok || s.Hidden(k) {
 			l.key.Set("")
 			l.full.Set(false)
 		}

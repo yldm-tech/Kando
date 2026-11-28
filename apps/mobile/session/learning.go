@@ -116,11 +116,14 @@ func splitStudyKey(k string) (desktop, lib string) {
 	return desktop, lib
 }
 
-// LearnItems are the words and saved lines of every library the phone keeps the learning state of, the phone's changes not yet sent among them, the latest saved first.
+// LearnItems are the words and saved lines of every library the phone keeps the learning state of, the phone's changes not yet sent among them, the latest saved first. A locked library's are left out until it is unlocked (locked.go), as are the review, the export and the widgets, which read them.
 func (s *Session) LearnItems() []learning.Item {
 	var out []learning.Item
 	for k, l := range s.studies.Get() {
 		desktop, lib := splitStudyKey(k)
+		if s.LibraryLocked(desktop, lib, "") {
+			continue
+		}
 		out = append(out, learning.Items(desktop, lib, l)...)
 	}
 	slices.SortStableFunc(out, func(a, b learning.Item) int {

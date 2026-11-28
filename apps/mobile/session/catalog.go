@@ -122,10 +122,14 @@ func (s *Session) forgetShelf(id string) {
 	s.shelves.Set(m)
 }
 
-// setShelf changes computer id's shelf, and gives the films of a source the lines of the films it lists of the same files (matchLines).
+// setShelf changes computer id's shelf, keeps the libraries a listing the computer answered itself names as locked (takeLocked), and gives the films of a source the lines of the films it lists of the same files (matchLines).
 func (s *Session) setShelf(id string, change func(Shelf) Shelf) {
 	m := maps.Clone(s.shelves.GetUntracked())
-	m[id] = change(m[id])
+	sh := change(m[id])
+	m[id] = sh
+	if sh.Listed && !sh.Relayed {
+		s.takeLocked(id, sh.Listing)
+	}
 	s.shelves.Set(m)
 	s.matchLines()
 }
@@ -140,8 +144,8 @@ func (s *Session) Computers() []catalog.Computer {
 	return out
 }
 
-// Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge).
-func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.films.Get()) }
+// Entries are the films of every paired computer and those on the phone, as one library (catalog.Merge), but those of a locked library (locked.go). The search, Continue Watching and the widgets read them too.
+func (s *Session) Entries() []catalog.Entry { return catalog.Merge(s.Computers(), s.shown()) }
 
 // Position is where the film kept under key was left last on any device, which the player opens it at: the place the Library shows for it (Entries, catalog.Merge: the computer's and the phone's, the newer of them), or, where the computer's learning state the phone last synced (study.go) holds a newer place than that, as for a film whose computer is out of reach and lists nothing now, that place. A film of a source matched to a computer's film is left where that film was (store.Film.LinesFilm). The zero Position for a film the phone does not keep.
 func (s *Session) Position(key string) catalog.Position {

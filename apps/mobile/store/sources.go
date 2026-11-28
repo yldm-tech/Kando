@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 )
 
 // Source is a NAS or a server the phone reaches itself, without the computer (docs/media-sources.md 10.2): its ID, random and kept for good, which the films downloaded from it are kept by (SourceOwner); its kind (SMB, SFTP or WebDAV, package nas); the name the user gave it; and the values of its fields that are not secret, by the same keys as the computer's media sources, so sources.json has the shape of the computer's. Its secrets are in the platform's secure store under SourceSecretAccount, never here.
@@ -42,6 +43,9 @@ const sourcePrefix = "source-"
 
 // SourceOwner is what the films downloaded from source id are kept under in place of a desktop's ID (Film.Desktop), and so the folder under films/ they are in, films/source-<id>/<film>: a desktop's films' layout, so the store, the player and the Library take such a film as one kept from a desktop no longer paired, which plays offline.
 func SourceOwner(id string) string { return sourcePrefix + id }
+
+// OwnerSource is the ID of the source owner names (SourceOwner), false for a desktop's ID.
+func OwnerSource(owner string) (string, bool) { return strings.CutPrefix(owner, sourcePrefix) }
 
 // SourceFilmID is the ID of the film of the file at path in a source: the first 16 hexadecimal digits of its path's SHA-256, so a file is downloaded once however often it is asked for.
 func SourceFilmID(path string) string {

@@ -276,7 +276,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 		facts = append(facts, look.Row{TestID: "film-info-" + id, Index: func() int { return i }, Title: text(label), TitleLines: 1, Value: value})
 	}
 	is := func(v string) func() string { return func() string { return v } }
-	fact("source", locales.FilmInfoSource, func() string { return sourceName(cx, catalog.SourceOf(f)) })
+	fact("source", locales.FilmInfoSource, func() string { return look.FilmSource(cx, s, desktop, sourceName(cx, catalog.SourceOf(f))) })
 	fact("languages", locales.FilmInfoLanguages, is(look.Languages(f)))
 	if f.DurationMS > 0 {
 		fact("length", locales.FilmInfoLength, is(look.Duration(time.Duration(f.DurationMS)*time.Millisecond)))

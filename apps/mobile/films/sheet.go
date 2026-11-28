@@ -140,7 +140,7 @@ func (v *view) optionsNode(cx *core.Scope) core.Node {
 	close := func() { v.sheet.Update(func(o optionsSheet) optionsSheet { o.open = false; return o }) }
 	meta := func() string {
 		e := entry()
-		parts := []string{sourceName(cx, catalog.SourceOf(e.Film))}
+		parts := []string{look.FilmSource(cx, v.s, e.Desktop, sourceName(cx, catalog.SourceOf(e.Film)))}
 		if e.Film.DurationMS > 0 {
 			parts = append(parts, look.Duration(time.Duration(e.Film.DurationMS)*time.Millisecond))
 		}
