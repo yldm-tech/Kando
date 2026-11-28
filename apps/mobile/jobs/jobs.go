@@ -614,7 +614,7 @@ func stepRow(cx *core.Scope, job string, st func() sync.Step, i func() int, movi
 	}}
 }
 
-// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, the way to fix it on the computer first, or another link.
+// remedy is what a job that failed or was canceled says of it, and what can be done: its computer updating its downloader, trying again, the way to fix it on the computer first, or another link, and taking it off the computer's queue.
 func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Job, act Actions) core.Node {
 	colors, own := ui.ColorsOf(cx), theme.Of(cx)
 	id := j().ID
@@ -635,6 +635,8 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 		return !canceled() && act.Add != nil && hopeless(failure().Code) && q().Can(sync.OpJobCreate)
 	}
 	retry := func() bool { return q().Can(sync.OpJobRetry) && !another() }
+	// remove takes the job off the computer's queue, as the × of its card there does, so one that will not be tried again does not stay on the phone; a computer from before sync.OpJobRemove does not offer it.
+	remove := func() bool { return q().Can(sync.OpJobRemove) }
 	busy := func() bool { return s.Busy(desktop, id) || s.Updating(desktop) || q().Reach != session.Online }
 	body := func() string { return failureBody(cx, failure(), name(s, desktop), site()) }
 	return core.View{TestID: "jobs-remedy-" + id, Style: core.Style{Gap: 4, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous},
@@ -695,6 +697,9 @@ func remedy(cx *core.Scope, s *session.Session, desktop string, j func() sync.Jo
 						Else: func(cx *core.Scope) core.Node {
 							return warnPill(cx, "jobs-retry-"+id, text, func() { s.Act(desktop, sync.OpJobRetry, id) }, busy)
 						}}
+				}},
+				core.Show{When: remove, Then: func(cx *core.Scope) core.Node {
+					return pillBusy(cx, "jobs-remove-"+id, false, func() string { return locales.JobsRemove(cx) }, func() { s.Act(desktop, sync.OpJobRemove, id) }, busy)
 				}},
 			}},
 		}}

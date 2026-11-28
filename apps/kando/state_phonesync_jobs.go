@@ -17,7 +17,7 @@ import (
 // Phone Sync's protocol v2 (packages/sync, v2.go): a paired phone sends links to the desktop and follows and controls its queue. phoneJobs answers the calls that act on the queue, on the engine's goroutine (remote.OnUI); the jobs a phone follows are published to the server after every change of the app's state (phoneSyncPublish), and the server answers the list and the events from them. What the desktop does with a link a phone sends is the page's 接收手机发来的链接 and 收到后 (phoneUI.receiveOff, receiveAsk): queued at once, with 来自 <phone> on its card (core.Job.Device), put in the link field for the user to start, or refused. A locked library is never written: a link is refused while the open library is locked, and the jobs of a locked library are neither listed nor acted on (remoteQueue, remoteFindJob).
 
 // phoneOps are the operations the desktop answers, the learning state's (state_phonesync_state.go), the lookups and explanations (state_phonesync_study.go), the settings' (state_phonesync_settings.go), the subscriptions' (state_phonesync_subscribe.go), the films' (state_phonesync_filmops.go), their word marks (state_phonesync_marks.go) and the glossary's (state_phonesync_glossary.go) among them.
-var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpJobPause, psync.OpJobResume, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve, psync.OpLookUp, psync.OpExplain, psync.OpExplainAsk, psync.OpRecap, psync.OpSettingsGet, psync.OpSettingsPut, psync.OpSubscriptions, psync.OpSubscribe, psync.OpSubscriptionSet, psync.OpSubscriptionTake, psync.OpUnsubscribe, psync.OpFilmRetranslate, psync.OpFilmExport, psync.OpFilmDelete, psync.OpFilmVideo, psync.OpFilmMarks, psync.OpFilmWatch, psync.OpTerms, psync.OpTermPut, psync.OpLibraryUnlock, psync.OpLibraryLock}
+var phoneOps = []string{psync.OpHello, psync.OpJobCreate, psync.OpJobs, psync.OpJob, psync.OpJobCancel, psync.OpJobRetry, psync.OpJobPause, psync.OpJobResume, psync.OpJobRemove, psync.OpUpdateYTDLP, psync.OpEvents, psync.OpStateGet, psync.OpStatePut, psync.OpStateResolve, psync.OpLookUp, psync.OpExplain, psync.OpExplainAsk, psync.OpRecap, psync.OpSettingsGet, psync.OpSettingsPut, psync.OpSubscriptions, psync.OpSubscribe, psync.OpSubscriptionSet, psync.OpSubscriptionTake, psync.OpUnsubscribe, psync.OpFilmRetranslate, psync.OpFilmExport, psync.OpFilmDelete, psync.OpFilmVideo, psync.OpFilmMarks, psync.OpFilmWatch, psync.OpTerms, psync.OpTermPut, psync.OpLibraryUnlock, psync.OpLibraryLock}
 
 // phoneOptions are the job options a phone may send with a link (psync.Hello.Options): the picture its download asks for and where its original lines come from, which the desktop's Settings › 通用 › 在线视频 names for every link otherwise.
 var phoneOptions = []string{psync.OptionQuality, psync.OptionSubtitles}
@@ -190,7 +190,7 @@ func (a *app) phoneSyncAsk(device, link string) {
 	a.windowUnhide()
 }
 
-// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window, and pauses one where it is in the phone's name or lets it go on (phoneHold). It answers the job as they leave it: a job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob, and one of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
+// ActOnJob cancels or retries a job as the control socket's jobs.cancel and jobs.retry do (remoteCancel, remoteRetry), which neither move the window, pauses one where it is in the phone's name or lets it go on (phoneHold), and takes a failed or canceled one off the queue as the × of its card does (phoneRemove). It answers the job as they leave it: a job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob, and one of a video found in the folder leaves the shelf once stopped, as it was (queueFolderEnded).
 func (j phoneJobs) ActOnJob(ctx context.Context, caller psync.Caller, op, id string) (psync.Job, error) {
 	a := j.a
 	var err error
@@ -201,6 +201,8 @@ func (j phoneJobs) ActOnJob(ctx context.Context, caller psync.Caller, op, id str
 		_, err = a.remoteRetry(ctx, id)
 	case psync.OpJobPause, psync.OpJobResume:
 		err = a.phoneHold(ctx, caller, op == psync.OpJobPause, id)
+	case psync.OpJobRemove:
+		return a.phoneRemove(ctx, id)
 	default:
 		return psync.Job{}, psync.Errorf(psync.CodeUnsupported, "%s is not answered by this desktop", op)
 	}
@@ -242,6 +244,22 @@ func (a *app) phoneHold(ctx context.Context, caller psync.Caller, pause bool, id
 		return struct{}{}, nil
 	})
 	return err
+}
+
+// phoneRemove takes job id, which failed or was canceled, off the shelf as the × of its card in 处理中 does (Remove), its download left where it is, and answers it as it was then; the phones hear it is gone (psync.EventJobGone). A job of a locked library, or one the phone does not follow, is not found (remoteFindJob); one running, still stopping, waiting, paused or done is a conflict, so a phone never removes a job that is going, nor a film, which psync.OpFilmDelete removes.
+func (a *app) phoneRemove(ctx context.Context, id string) (psync.Job, error) {
+	return remote.OnUI(ctx, a.update, func() (psync.Job, error) {
+		job, err := a.remoteFindJob(id)
+		if err != nil {
+			return psync.Job{}, phoneRemoteErr(err)
+		}
+		if job.Stage != core.StageFailed || id == a.queue.active {
+			return psync.Job{}, psync.Errorf(psync.CodeConflict, "job %s has not failed nor been canceled; cancel it first, or wait until it ends", id)
+		}
+		removed := a.phoneJobOf(job)
+		a.Remove(id)
+		return removed, nil
+	})
 }
 
 // UpdateYTDLP starts 更新并重试 as a card of a download yt-dlp was too old for does (queueUpdateYTDLP): the downloads that failed for it run again once it is updated, as their events tell.

@@ -362,6 +362,7 @@ func TestAReadOnlyDeviceChangesNothing(t *testing.T) {
 		OpJobRetry:     JobRef{ID: "j1"},
 		OpJobPause:     JobRef{ID: "j1"},
 		OpJobResume:    JobRef{ID: "j1"},
+		OpJobRemove:    JobRef{ID: "j1"},
 		OpUpdateYTDLP:  nil,
 		OpStatePut:     StatePut{Library: "l", Records: []Record{{Kind: KindPosition, ID: "f", Fields: map[string]Field{FieldPositionMS: {Value: Value(5000)}}}}},
 		OpStateResolve: ConflictResolve{Library: "l", ID: "c", Value: Value("x")},

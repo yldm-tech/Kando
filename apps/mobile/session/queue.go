@@ -219,7 +219,7 @@ func (s *Session) Forget(id string) {
 	s.setLinks(slices.DeleteFunc(slices.Clone(s.remote.links.Get()), func(o Outgoing) bool { return o.ID == id }))
 }
 
-// Act runs op, one of sync.OpJobCancel, OpJobRetry, OpJobPause and OpJobResume, on job id of desktop: away from its network, through its storage, where the action waits for the computer.
+// Act runs op, one of sync.OpJobCancel, OpJobRetry, OpJobPause, OpJobResume and OpJobRemove, on job id of desktop: away from its network, through its storage, where the action waits for the computer.
 func (s *Session) Act(desktop, op, id string) {
 	c := s.Client(desktop)
 	key := store.Key(desktop, id)
@@ -241,7 +241,7 @@ func (s *Session) Act(desktop, op, id string) {
 				s.queueFailed(desktop, err)
 				return
 			}
-			s.upsertJobs(desktop, []sync.Job{job})
+			s.actedOnJob(desktop, op, job)
 		})
 	})
 }
@@ -537,13 +537,28 @@ func (s *Session) applyEvents(id string, events []sync.Event) {
 	if films {
 		defer s.RefreshDesktop(id)
 	}
-	if len(gone) > 0 {
-		s.setQueue(id, func(q Queue) Queue {
-			q.Jobs = slices.DeleteFunc(slices.Clone(q.Jobs), func(j sync.Job) bool { return slices.Contains(gone, j.ID) })
-			return q
-		})
-	}
+	s.dropJobs(id, gone)
 	s.upsertJobs(id, changed)
+}
+
+// dropJobs takes the jobs with ids out of desktop's queue, as when the computer tells they are gone or the phone removed one (sync.OpJobRemove).
+func (s *Session) dropJobs(desktop string, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	s.setQueue(desktop, func(q Queue) Queue {
+		q.Jobs = slices.DeleteFunc(slices.Clone(q.Jobs), func(j sync.Job) bool { return slices.Contains(ids, j.ID) })
+		return q
+	})
+}
+
+// actedOnJob takes the job desktop answered op with into its queue: in place of the one with its ID, or out of it for sync.OpJobRemove, after which the job is gone.
+func (s *Session) actedOnJob(desktop, op string, job sync.Job) {
+	if op == sync.OpJobRemove {
+		s.dropJobs(desktop, []string{job.ID})
+		return
+	}
+	s.upsertJobs(desktop, []sync.Job{job})
 }
 
 // upsertJobs puts jobs in desktop's queue in place of those with their IDs, or where a list would show them, tells Done of each that finished, and then reads desktop's films again.

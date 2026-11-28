@@ -24,6 +24,8 @@ type queue struct {
 	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder).
 	drops int
 	older bool
+	// noRemove is a desktop from before sync.OpJobRemove (SetNoJobRemove).
+	noRemove bool
 	// options are the job options the desktop takes (SetOptions), and asked those each link it took or put before the user came with (Asked); readOnly makes every paired device read-only (SetReadOnly).
 	options  []string
 	asked    []sync.JobOptions
@@ -77,6 +79,13 @@ func (d *Desktop) SetOlder(older bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.queue.older = older
+}
+
+// SetNoJobRemove makes the desktop one from before sync.OpJobRemove while none is set: Hello does not list it, and it answers it unsupported.
+func (d *Desktop) SetNoJobRemove(none bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.queue.noRemove = none
 }
 
 // DropCreates has the desktop take the next n links phones send and hang up before it answers each, as a call that dropped or timed out after the desktop did its work; sent again under the same call ID, a link is answered as it was taken.
@@ -173,6 +182,9 @@ func (s jobService) Hello(context.Context, sync.Caller) (sync.Hello, error) {
 	s.d.mu.Lock()
 	defer s.d.mu.Unlock()
 	ops := []string{sync.OpHello, sync.OpJobCreate, sync.OpJobs, sync.OpJob, sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpUpdateYTDLP, sync.OpEvents, sync.OpStateGet, sync.OpStatePut, sync.OpStateResolve, sync.OpLookUp, sync.OpExplain, sync.OpExplainAsk, sync.OpRecap, sync.OpSettingsGet, sync.OpSettingsPut, sync.OpLibraryUnlock, sync.OpLibraryLock}
+	if !s.d.queue.noRemove {
+		ops = append(ops, sync.OpJobRemove)
+	}
 	if !s.d.subs.none {
 		ops = append(ops, sync.OpSubscriptions, sync.OpSubscribe, sync.OpSubscriptionSet, sync.OpSubscriptionTake, sync.OpUnsubscribe)
 	}
@@ -225,11 +237,14 @@ func (s jobService) CreateJob(_ context.Context, caller sync.Caller, req sync.Jo
 	return sync.JobCreated{Job: &job}, nil
 }
 
-// ActOnJob cancels a waiting, running or paused job, retries a failed or canceled one, pauses a waiting or running one and resumes a paused one; anything else is a conflict.
+// ActOnJob cancels a waiting, running or paused job, retries a failed or canceled one, pauses a waiting or running one, resumes a paused one and takes a failed or canceled one off the queue, answering it as it was; anything else is a conflict. A desktop from before sync.OpJobRemove (SetNoJobRemove) answers it unsupported.
 func (s jobService) ActOnJob(_ context.Context, _ sync.Caller, op, id string) (sync.Job, error) {
 	d := s.d
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if op == sync.OpJobRemove && d.queue.noRemove {
+		return sync.Job{}, sync.Errorf(sync.CodeUnsupported, "no operation %q", op)
+	}
 	i := slices.IndexFunc(d.queue.jobs, func(j sync.Job) bool { return j.ID == id })
 	if i < 0 {
 		return sync.Job{}, sync.Errorf(sync.CodeNotFound, "no job %q", id)
@@ -240,10 +255,17 @@ func (s jobService) ActOnJob(_ context.Context, _ sync.Caller, op, id string) (s
 		sync.OpJobRetry:  {sync.JobFailed, sync.JobCanceled},
 		sync.OpJobPause:  {sync.JobWaiting, sync.JobRunning},
 		sync.OpJobResume: {sync.JobPaused},
+		sync.OpJobRemove: {sync.JobFailed, sync.JobCanceled},
 	}
 	to := map[string]string{sync.OpJobCancel: sync.JobCanceled, sync.OpJobRetry: sync.JobWaiting, sync.OpJobPause: sync.JobPaused, sync.OpJobResume: sync.JobWaiting}
 	if !slices.Contains(from[op], job.State) {
 		return sync.Job{}, sync.Errorf(sync.CodeConflict, "job %s is %s", id, job.State)
+	}
+	if op == sync.OpJobRemove {
+		removed := *job
+		d.queue.jobs = slices.Delete(d.queue.jobs, i, i+1)
+		d.desk.Journal.PublishJobs(d.queue.jobs)
+		return removed, nil
 	}
 	job.State = to[op]
 	if op == sync.OpJobRetry {

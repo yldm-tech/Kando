@@ -470,7 +470,7 @@ func (s *Session) relayReplies(desktop string, replies []sync.Reply, waiting map
 				err = json.Unmarshal(r.Result, &created)
 			}
 			s.linkAnswered(s.remote.links.GetUntracked()[i].Link, created, err, true)
-		case sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume:
+		case sync.OpJobCancel, sync.OpJobRetry, sync.OpJobPause, sync.OpJobResume, sync.OpJobRemove:
 			var job sync.Job
 			err := r.Err()
 			if err == nil {
@@ -480,7 +480,7 @@ func (s *Session) relayReplies(desktop string, replies []sync.Reply, waiting map
 				s.queueFailed(desktop, err)
 				continue
 			}
-			s.upsertJobs(desktop, []sync.Job{job})
+			s.actedOnJob(desktop, r.Op, job)
 		case sync.OpUpdateYTDLP:
 			if err := r.Err(); err != nil {
 				s.queueFailed(desktop, err)

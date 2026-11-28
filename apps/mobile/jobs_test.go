@@ -201,6 +201,58 @@ func TestAJobIsCanceledAfterAskingAndStartedAgain(t *testing.T) {
 	p.app.WaitForGone("id:jobs-retry-job1", wait)
 }
 
+// A failed job offers Remove beside Try Again, which takes it off the computer's queue and off the phone, as a canceled one does; a job going on does not, nor does any on a computer from before the operation.
+func TestAStoppedJobIsRemovedFromThePhone(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	moved(d, "job1", "https://youtu.be/dQw4w9WgXcQ", sync.JobRunning, 1, 0.5)
+	failed := moved(d, "job2", "https://youtu.be/M7lc1UVf-VE", sync.JobFailed, 3, 0)
+	failed.Failure = &sync.Failure{Step: sync.StepDownload, Code: sync.FailNetwork, Remedy: sync.RemedyRetry}
+	d.SetJob(failed)
+	moved(d, "job3", "https://youtu.be/ScMzIvxBSi4", sync.JobCanceled, 1, 0)
+	secrets := pairedWith(t, d, dir)
+
+	t.Run("older computer", func(t *testing.T) {
+		d.SetNoJobRemove(true)
+		t.Cleanup(func() { d.SetNoJobRemove(false) })
+		p := startPhone(t, dir, secrets)
+		p.openTab(jobsTab, msgs.JobsTitle())
+		p.app.WaitFor("id:jobs-retry-job2", wait)
+		p.app.WaitFor("id:jobs-retry-job3", wait)
+		for _, button := range []string{"id:jobs-remove-job2", "id:jobs-remove-job3"} {
+			if p.app.Exists(button) {
+				t.Fatalf("a computer that does not remove jobs is offered %s", button)
+			}
+		}
+	})
+
+	p := startPhone(t, dir, secrets)
+	p.openTab(jobsTab, msgs.JobsTitle())
+	p.app.WaitFor("id:jobs-retry-job2", wait)
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-remove-job2") && p.app.Enabled("id:jobs-remove-job2") })
+	if got := p.texts("id:jobs-remove-job2"); got != msgs.JobsRemove() {
+		t.Fatalf("the failed job's button reads %q, want %q", got, msgs.JobsRemove())
+	}
+	if p.app.Exists("id:jobs-remove-job1") {
+		t.Fatal("a running job is offered Remove")
+	}
+	p.app.Press("id:jobs-remove-job2")
+	p.app.WaitForGone("id:jobs-job-job2", wait)
+	gone := func(id string) bool {
+		return !slices.ContainsFunc(d.Jobs(), func(j sync.Job) bool { return j.ID == id })
+	}
+	if !gone("job2") {
+		t.Fatalf("the computer still has the removed job: %+v", d.Jobs())
+	}
+	p.app.WaitUntil(wait, func() bool { return p.app.Exists("id:jobs-remove-job3") && p.app.Enabled("id:jobs-remove-job3") })
+	p.app.Press("id:jobs-remove-job3")
+	p.app.WaitForGone("id:jobs-job-job3", wait)
+	if !gone("job3") || gone("job1") {
+		t.Fatalf("the computer's jobs after removing the canceled one: %+v", d.Jobs())
+	}
+	p.app.WaitFor("id:jobs-job-job1", wait)
+}
+
 // On a tablet Jobs is a section of the sidebar, as it is a tab of a phone's bar, with no button of its own on the Library.
 func TestATabletShowsJobsInItsSidebar(t *testing.T) {
 	if nsgotest.Target() != "" {
@@ -511,7 +563,7 @@ func TestAReadOnlyPhoneFollowsJobsWithoutChangingThem(t *testing.T) {
 			t.Fatalf("the page says %q, want %q", got, msgs.JobsReadOnly("Studio"))
 		}
 		p.app.WaitFor("id:jobs-failure-job2", wait)
-		for _, button := range []string{"id:jobs-pause-job1", "id:jobs-cancel-job1", "id:jobs-retry-job2"} {
+		for _, button := range []string{"id:jobs-pause-job1", "id:jobs-cancel-job1", "id:jobs-retry-job2", "id:jobs-remove-job2"} {
 			if p.app.Exists(button) {
 				t.Fatalf("a read-only phone shows %s", button)
 			}
