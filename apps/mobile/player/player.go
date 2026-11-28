@@ -468,13 +468,16 @@ func view(cx *core.Scope, l *Layer, key string) core.Node {
 		}}
 }
 
-// fullScreen asks the system, while full screen is on (forced), to show the app sideways for a video wider than tall, wide, else upright for one taller than wide, whose full screen stays upright. Each request lives with its own scope, so leaving full screen, minimizing or closing the player gives the orientation back to the system, and turning the phone back upright keeps a wide video sideways until full screen ends. A video whose ratio changes as it loads moves from one request to the other.
+// sidewaysFrom is how much wider than tall a video must be for its full screen to turn the phone on its side: a video near square, as a dance filmed upright and cropped wider, fills an upright screen about as well and reads as upright, so it stays upright.
+const sidewaysFrom = float32(4.0 / 3)
+
+// fullScreen asks the system, while full screen is on (forced), to show the app sideways for a video at least sidewaysFrom wider than tall, wide, else upright, whose full screen stays upright. Each request lives with its own scope, so leaving full screen, minimizing or closing the player gives the orientation back to the system, and turning the phone back upright keeps a wide video sideways until full screen ends. A video whose ratio changes as it loads moves from one request to the other.
 func fullScreen(forced *core.Signal[bool], p *play, wide bool) core.Node {
 	mask := core.OrientationPortrait
 	if wide {
 		mask = core.OrientationLandscape
 	}
-	return core.Show{When: func() bool { return forced.Get() && (p.aspect.Get() >= 1) == wide }, Then: func(cx *core.Scope) core.Node {
+	return core.Show{When: func() bool { return forced.Get() && (p.aspect.Get() >= sidewaysFrom) == wide }, Then: func(cx *core.Scope) core.Node {
 		cx.RequestOrientation(mask)
 		return core.Group(nil)
 	}}

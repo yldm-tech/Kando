@@ -101,6 +101,25 @@ func TestOnASmallPhoneTheListOfLinesScrolls(t *testing.T) {
 	p.app.WaitUntil(wait, func() bool { return p.app.Find("id:player-lines").Offset.Y > 0 })
 }
 
+// A video near square, as a dance filmed upright and cropped to 828×720, keeps its full screen upright: on its side it would hardly grow, and it reads as upright. From 4:3 on, full screen turns the phone sideways.
+func TestFullScreenKeepsANearSquareVideoUpright(t *testing.T) {
+	p := openPlayerOf(t, 390, 844, core.Size{Width: 828, Height: 720})
+	p.app.Press("id:player-fullscreen")
+	if p.app.Orientation != core.OrientationPortrait {
+		t.Fatalf("full screen of a near-square video asks for %v, want upright", p.app.Orientation)
+	}
+	p.app.WaitFor("id:player-mode-pill", wait)
+	if b := p.app.Find("id:player-stage").Bounds(); !near(b.Size.Width, 390) {
+		t.Fatalf("the picture is %+v in an upright full screen", b.Size)
+	}
+
+	q := openPlayerOf(t, 390, 844, videoSizes["4:3"])
+	q.app.Press("id:player-fullscreen")
+	if q.app.Orientation != core.OrientationLandscape {
+		t.Fatalf("full screen of a 4:3 video asks for %v, want sideways", q.app.Orientation)
+	}
+}
+
 // Full screen from the picture's button turns a wide video's screen sideways and lays the player out as on its side, over the same video, which plays on where it was; its button in the row over the picture leaves it, and the screen is the system's to turn again.
 func TestFullScreenTurnsAWideVideoSideways(t *testing.T) {
 	p := openPlayerOf(t, 390, 844, videoSizes["16:9"])
